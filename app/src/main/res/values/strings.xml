@@ -639,6 +639,7 @@
     <string name="test_tts">Test TTS</string>
     <string name="theme_name_autumn">Autumn Yellow</string>
     <string name="theme_name_black">Neutral Black</string>
+    <string name="theme_name_nightsky_blue">Nightsky Blue</string>
     <string name="theme_name_ocean">Ocean Blue</string>
     <string name="theme_name_sakura">Sakura Pink</string>
     <string name="theme_name_spring">Meadow Green</string>

@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
-import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
+
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 
@@ -49,7 +49,7 @@ fun RikkahubTheme(
         ColorMode.LIGHT -> false
         ColorMode.DARK -> true
     }
-    val amoledDarkMode by rememberAmoledDarkMode()
+
 
     val colorScheme = when {
         settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -59,8 +59,8 @@ fun RikkahubTheme(
         darkTheme -> findPresetTheme(settings.themeId).getColorScheme(dark = true)
         else -> findPresetTheme(settings.themeId).getColorScheme(dark = false)
     }
-    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
-        if (darkTheme && amoledDarkMode) {
+    val colorSchemeConverted = remember(darkTheme, colorScheme) {
+        if (darkTheme) {
             colorScheme.copy(
                 background = AMOLED_DARK_BACKGROUND,
                 surface = AMOLED_DARK_BACKGROUND,

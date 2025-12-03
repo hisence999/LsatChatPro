@@ -222,6 +222,14 @@ fun AssistantMemorySettings(
             }
         }
 
+        AdvancedMemorySettings(
+            assistant = assistant,
+            memories = memories,
+            onUpdateAssistant = onUpdateAssistant,
+            onRegenerateEmbeddings = onRegenerateEmbeddings,
+            estimatedMemoryCapacity = estimatedMemoryCapacity
+        )
+
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -286,13 +294,7 @@ fun AssistantMemorySettings(
             }
         }
 
-        AdvancedMemorySettings(
-            assistant = assistant,
-            memories = memories,
-            onUpdateAssistant = onUpdateAssistant,
-            onRegenerateEmbeddings = onRegenerateEmbeddings,
-            estimatedMemoryCapacity = estimatedMemoryCapacity
-        )
+
     }
 }
 
@@ -606,20 +608,6 @@ private fun AdvancedMemorySettings(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             
-                            // RAG Memory Limit Slider
-                            Text(
-                                text = "Memory Limit: ${assistant.ragLimit}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Slider(
-                                value = assistant.ragLimit.toFloat(),
-                                onValueChange = {
-                                    onUpdateAssistant(assistant.copy(ragLimit = it.toInt()))
-                                },
-                                valueRange = 1f..estimatedMemoryCapacity.toFloat(),
-                                steps = 0,
-                                modifier = Modifier.fillMaxWidth()
-                            )
                             Text(
                                 text = "Max capacity based on your token limit and avg memory size: ~$estimatedMemoryCapacity",
                                 style = MaterialTheme.typography.labelSmall,
