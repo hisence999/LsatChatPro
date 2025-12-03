@@ -1,0 +1,36 @@
+# LICENSE
+
+This project adopts a **Segmented Dual Licensing** model:
+
+---
+
+## 1. Open Source License (GNU AGPL v3)
+
+You may use this project under the **GNU Affero General Public License v3.0 (AGPL v3)** if one of the following applies:
+- Your usage is strictly **non-commercial**;
+- Your usage is for **personal, educational, or research** purposes;
+- You are an individual or organization with **no more than 10 total users**.
+
+Full text of AGPL v3: https://www.gnu.org/licenses/agpl-3.0.html
+
+> Note: Even under AGPL v3, you must comply with its obligations, such as making your source code available.
+
+---
+
+## 2. Commercial License
+
+If your use does not meet the above criteria, for example:
+- **Commercial purposes** (services or products that directly or indirectly generate revenue);
+- Organizations with **more than 10 users**;
+- Or if you wish to avoid the obligations of AGPL v3;
+
+Then you must obtain a **Commercial License** from the project maintainer.
+
+For commercial licensing, please contact:
+- Email: re_dev@qq.com
+
+---
+
+## 3. License Policy Updates
+
+The project maintainer reserves the right to update this licensing policy. Updates will be announced through official project channels (such as the code repository or official website).
