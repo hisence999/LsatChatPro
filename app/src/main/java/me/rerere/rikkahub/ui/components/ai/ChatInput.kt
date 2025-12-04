@@ -267,13 +267,15 @@ fun ChatInput(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp) // Tighter spacing
                 ) {
-                    IconButton(
-                        onClick = {
-                            expandToggle(ExpandState.Files)
-                        },
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
+                            .padding(start = 10.dp)
                             .size(36.dp)
-                            .padding(start = 10.dp) // Move button more inside
+                            .clip(CircleShape)
+                            .clickable {
+                                expandToggle(ExpandState.Files)
+                            }
                     ) {
                         val rotation by animateFloatAsState(
                             targetValue = if (expand == ExpandState.Files) 45f else 0f,
@@ -369,7 +371,7 @@ fun ChatInput(
                                         trailingIcon = {
                                             // Crossfade between Model Picker and Send Button
                                             androidx.compose.animation.AnimatedContent(
-                                                targetState = isExpanded || state.loading,
+                                                targetState = !state.isEmpty() || state.loading,
                                                 transitionSpec = {
                                                     androidx.compose.animation.fadeIn(
                                                         animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)

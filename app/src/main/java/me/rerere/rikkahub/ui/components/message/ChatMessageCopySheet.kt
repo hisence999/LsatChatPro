@@ -27,9 +27,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
-import com.composables.icons.lucide.Copy
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
@@ -64,7 +64,7 @@ fun ChatMessageCopySheet(
                         onDismissRequest()
                     }
                 ) {
-                    Icon(Lucide.X, null)
+                    Icon(Icons.Rounded.Close, null)
                 }
 
                 Text(
@@ -79,7 +79,7 @@ fun ChatMessageCopySheet(
                     }
                 ) {
                     Icon(
-                        imageVector = Lucide.Copy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

@@ -55,13 +55,13 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
-import com.composables.icons.lucide.BookDashed
-import com.composables.icons.lucide.BookHeart
-import com.composables.icons.lucide.Earth
-import com.composables.icons.lucide.FileText
-import com.composables.icons.lucide.Image
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Wrench
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Public
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -149,7 +149,7 @@ fun ChatExportSheet(
                             Text(stringResource(id = R.string.chat_page_export_markdown_desc))
                         },
                         leadingContent = {
-                            Icon(Lucide.FileText, contentDescription = null)
+                            Icon(Icons.Rounded.Description, contentDescription = null)
                         }
                     )
                 }
@@ -168,7 +168,7 @@ fun ChatExportSheet(
                                 Text(stringResource(id = R.string.chat_page_export_image_desc))
                             },
                             leadingContent = {
-                                Icon(Lucide.Image, contentDescription = null)
+                                Icon(Icons.Rounded.Image, contentDescription = null)
                             }
                         )
 
@@ -619,11 +619,11 @@ private fun ExportedToolCall(
         ) {
             Icon(
                 imageVector = when (toolCall.toolName) {
-                    "create_memory", "edit_memory" -> Lucide.BookHeart
-                    "delete_memory" -> Lucide.BookDashed
-                    "search_web" -> Lucide.Earth
-                    "scrape_web" -> Lucide.Earth
-                    else -> Lucide.Wrench
+                    "create_memory", "edit_memory" -> Icons.Rounded.Favorite
+                    "delete_memory" -> Icons.Rounded.Delete
+                    "search_web" -> Icons.Rounded.Public
+                    "scrape_web" -> Icons.Rounded.Public
+                    else -> Icons.Rounded.Build
                 },
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
@@ -667,11 +667,11 @@ private fun ExportedToolResult(toolResult: UIMessagePart.ToolResult) {
         ) {
             Icon(
                 imageVector = when (toolResult.toolName) {
-                    "create_memory", "edit_memory" -> Lucide.BookHeart
-                    "delete_memory" -> Lucide.BookDashed
-                    "search_web" -> Lucide.Earth
-                    "scrape_web" -> Lucide.Earth
-                    else -> Lucide.Wrench
+                    "create_memory", "edit_memory" -> Icons.Rounded.Favorite
+                    "delete_memory" -> Icons.Rounded.Delete
+                    "search_web" -> Icons.Rounded.Public
+                    "scrape_web" -> Icons.Rounded.Public
+                    else -> Icons.Rounded.Build
                 },
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),

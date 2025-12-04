@@ -66,8 +66,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
-import com.composables.icons.lucide.Check
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -356,7 +356,7 @@ private fun MarkdownNode(
                 ) {
                     if (isChecked) {
                         Icon(
-                            imageVector = Lucide.Check,
+                            imageVector = Icons.Rounded.Check,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )

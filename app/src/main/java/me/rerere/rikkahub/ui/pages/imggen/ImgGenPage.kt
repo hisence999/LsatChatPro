@@ -72,14 +72,14 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
-import com.composables.icons.lucide.Copy
-import com.composables.icons.lucide.Images
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Palette
-import com.composables.icons.lucide.Save
-import com.composables.icons.lucide.Send
-import com.composables.icons.lucide.Settings2
-import com.composables.icons.lucide.Trash2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Collections
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Settings
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -183,7 +183,7 @@ private fun BottomBar(
                 Text(stringResource(R.string.imggen_page_title))
             },
             icon = {
-                Icon(Lucide.Palette, null)
+                Icon(Icons.Rounded.Palette, null)
             },
             onClick = {
                 scope.launch {
@@ -198,7 +198,7 @@ private fun BottomBar(
                 Text(stringResource(R.string.imggen_page_gallery))
             },
             icon = {
-                Icon(Lucide.Images, null)
+                Icon(Icons.Rounded.Collections, null)
             },
             onClick = {
                 scope.launch {
@@ -306,7 +306,7 @@ private fun InputBar(
         IconButton(
             onClick = onShowSettings
         ) {
-            Icon(Lucide.Settings2, null)
+            Icon(Icons.Rounded.Settings, null)
         }
 
         OutlinedTextField(
@@ -336,7 +336,7 @@ private fun InputBar(
                 )
             } else {
                 Icon(
-                    imageVector = Lucide.Send,
+                    imageVector = Icons.Rounded.Send,
                     contentDescription = stringResource(R.string.imggen_page_generate_image)
                 )
             }
@@ -369,7 +369,7 @@ private fun ImageGalleryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Lucide.Images,
+                        imageVector = Icons.Rounded.Collections,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -446,7 +446,7 @@ private fun ImageGalleryScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Lucide.Copy,
+                                                imageVector = Icons.Rounded.ContentCopy,
                                                 contentDescription = "Copy prompt",
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -475,7 +475,7 @@ private fun ImageGalleryScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Lucide.Save,
+                                                imageVector = Icons.Rounded.Save,
                                                 contentDescription = stringResource(R.string.imggen_page_save),
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -486,7 +486,7 @@ private fun ImageGalleryScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Lucide.Trash2,
+                                                imageVector = Icons.Rounded.Delete,
                                                 contentDescription = stringResource(R.string.imggen_page_delete),
                                                 modifier = Modifier.size(16.dp),
                                                 tint = MaterialTheme.colorScheme.error

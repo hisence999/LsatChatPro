@@ -54,14 +54,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Camera
-import com.composables.icons.lucide.GripHorizontal
-import com.composables.icons.lucide.Image
-import com.composables.icons.lucide.Import
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Search
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Input
 import com.dokar.sonner.ToastType
 import io.github.g00fy2.quickie.QRResult
 import io.github.g00fy2.quickie.ScanQRCode
@@ -173,7 +171,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                         )
                                 ) {
                                     Icon(
-                                        imageVector = Lucide.GripHorizontal,
+                                        imageVector = Icons.Rounded.DragHandle,
                                         contentDescription = null
                                     )
                                 }
@@ -214,7 +212,7 @@ private fun ImportProviderButton(
             showImportDialog = true
         }
     ) {
-        Icon(Lucide.Import, null)
+        Icon(Icons.Rounded.Input, null)
     }
 
     if (showImportDialog) {
@@ -257,7 +255,7 @@ private fun ImportProviderButton(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(
-                                    imageVector = Lucide.Camera,
+                                    imageVector = Icons.Rounded.CameraAlt,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -290,7 +288,7 @@ private fun ImportProviderButton(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(
-                                    imageVector = Lucide.Image,
+                                    imageVector = Icons.Rounded.Image,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -407,7 +405,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             dialogState.open(ProviderSetting.OpenAI())
         }
     ) {
-        Icon(Lucide.Plus, "Add")
+        Icon(Icons.Rounded.Add, "Add")
     }
 
     if (dialogState.isEditing) {

@@ -26,13 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.ChevronLeft
-import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.FastForward
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pause
-import com.composables.icons.lucide.Play
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.hooks.CustomTtsState
 import me.rerere.tts.model.PlaybackState
@@ -80,7 +80,7 @@ fun TTSController() {
                     }
                 ) {
                     Icon(
-                        imageVector = Lucide.X,
+                        imageVector = Icons.Rounded.Close,
                         contentDescription = null,
                     )
                 }
@@ -102,7 +102,7 @@ fun TTSController() {
                     }
                 ) {
                     Icon(
-                        imageVector = if (expand) Lucide.ChevronLeft else Lucide.ChevronRight,
+                        imageVector = if (expand) Icons.Rounded.ChevronLeft else Icons.Rounded.ChevronRight,
                         contentDescription = null,
                     )
                 }
@@ -119,7 +119,7 @@ private fun FastForwardButton(ttsState: CustomTtsState) {
         }
     ) {
         Icon(
-            imageVector = Lucide.FastForward,
+            imageVector = Icons.Rounded.FastForward,
             contentDescription = null,
         )
     }
@@ -148,7 +148,7 @@ private fun PlayPauseButton(
         )
     ) {
         Icon(
-            imageVector = if (playbackState.status == PlaybackStatus.Playing) Lucide.Pause else Lucide.Play,
+            imageVector = if (playbackState.status == PlaybackStatus.Playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
             contentDescription = null,
         )
         if (playbackState.status == PlaybackStatus.Playing || playbackState.status == PlaybackStatus.Buffering || playbackState.status == PlaybackStatus.Paused) {

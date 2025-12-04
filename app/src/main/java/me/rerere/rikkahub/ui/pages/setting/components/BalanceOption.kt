@@ -23,10 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.RotateCw
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Refresh
 import me.rerere.ai.provider.BalanceOption
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.common.http.isJsonExprValid
@@ -64,12 +64,12 @@ fun SettingProviderBalanceOption(
             ) {
                 if (expand) {
                     Icon(
-                        imageVector = Lucide.ChevronUp,
+                        imageVector = Icons.Rounded.KeyboardArrowUp,
                         contentDescription = null,
                     )
                 } else {
                     Icon(
-                        imageVector = Lucide.ChevronDown,
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
                         contentDescription = null,
                     )
                 }
@@ -108,7 +108,7 @@ fun SettingProviderBalanceOption(
                         }
                     }
                 ) {
-                    Icon(Lucide.RotateCw, null)
+                    Icon(Icons.Rounded.Refresh, null)
                 }
             }
         }

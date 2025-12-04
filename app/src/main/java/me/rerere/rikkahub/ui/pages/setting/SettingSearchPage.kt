@@ -44,13 +44,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.GripHorizontal
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Settings2
-import com.composables.icons.lucide.SquarePen
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -90,7 +90,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                         }
                     ) {
                         Icon(
-                            Lucide.Settings2,
+                            Icons.Rounded.Settings,
                             contentDescription = stringResource(R.string.setting_page_search_common_options)
                         )
                     }
@@ -105,7 +105,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                         }
                     ) {
                         Icon(
-                            Lucide.Plus,
+                            Icons.Rounded.Add,
                             contentDescription = stringResource(R.string.setting_page_search_add_provider)
                         )
                     }
@@ -193,7 +193,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                             .animateItem(),
                         dragHandle = {
                             Icon(
-                                imageVector = Lucide.GripHorizontal,
+                                imageVector = Icons.Rounded.DragHandle,
                                 contentDescription = null,
                                 modifier = Modifier.longPressDraggableHandle(
                                     onDragStarted = {
@@ -275,7 +275,7 @@ private fun SearchProviderCard(
                     }
                 ) {
                     Icon(
-                        imageVector = if (expand) Lucide.X else Lucide.SquarePen,
+                        imageVector = if (expand) Icons.Rounded.Close else Icons.Rounded.Edit,
                         contentDescription = if (expand) "Hide details" else "Show details"
                     )
                 }
@@ -391,7 +391,7 @@ private fun SearchProviderCard(
                         onClick = onDeleteService
                     ) {
                         Icon(
-                            Lucide.Trash2,
+                            Icons.Rounded.Delete,
                             contentDescription = stringResource(R.string.setting_page_search_delete_provider)
                         )
                     }

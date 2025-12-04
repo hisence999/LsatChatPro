@@ -137,6 +137,15 @@ fun UIAvatar(
                     )
                 }
 
+                is Avatar.Resource -> {
+                    AsyncImage(
+                        model = value.id,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+
                 is Avatar.Dummy -> {
                     Text(
                         text = name
@@ -194,7 +203,11 @@ fun UIAvatar(
                     Button(
                         onClick = {
                             showPickOption = false
-                            onUpdate?.invoke(Avatar.Dummy)
+                            if (name == "Generical") {
+                                onUpdate?.invoke(Avatar.Resource(me.rerere.rikkahub.R.drawable.default_generical_pfp))
+                            } else {
+                                onUpdate?.invoke(Avatar.Dummy)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

@@ -25,9 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Trash
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -96,7 +96,7 @@ fun CustomHeaders(headers: List<CustomHeader>, onUpdate: (List<CustomHeader>) ->
                         onUpdate(updatedHeaders)
                     }) {
                         Icon(
-                            Lucide.Trash,
+                            Icons.Rounded.Delete,
                             contentDescription = stringResource(R.string.assistant_page_delete_header)
                         )
                     }
@@ -112,7 +112,7 @@ fun CustomHeaders(headers: List<CustomHeader>, onUpdate: (List<CustomHeader>) ->
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Lucide.Plus, contentDescription = stringResource(R.string.assistant_page_add_header))
+            Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.assistant_page_add_header))
             Spacer(Modifier.width(4.dp))
             Text(stringResource(R.string.assistant_page_add_header))
         }
@@ -197,7 +197,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                         onUpdate(updatedBodies)
                     }) {
                         Icon(
-                            Lucide.Trash,
+                            Icons.Rounded.Delete,
                             contentDescription = stringResource(R.string.assistant_page_delete_body)
                         )
                     }
@@ -213,7 +213,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Lucide.Plus, contentDescription = stringResource(R.string.assistant_page_add_body))
+            Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.assistant_page_add_body))
             Spacer(Modifier.width(4.dp))
             Text(stringResource(R.string.assistant_page_add_body))
         }

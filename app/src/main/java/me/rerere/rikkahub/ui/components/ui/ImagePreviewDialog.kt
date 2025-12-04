@@ -18,8 +18,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
-import com.composables.icons.lucide.Download
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Download
 import com.dokar.sonner.ToastType
 import com.jvziyaoyao.scale.image.pager.ImagePager
 import com.jvziyaoyao.scale.zoomable.pager.rememberZoomablePagerState
@@ -79,7 +79,7 @@ fun ImagePreviewDialog(
                         }
                     }
                 ) {
-                    Icon(Lucide.Download, null, tint = Color.White)
+                    Icon(Icons.Rounded.Download, null, tint = Color.White)
                 }
             }
         }

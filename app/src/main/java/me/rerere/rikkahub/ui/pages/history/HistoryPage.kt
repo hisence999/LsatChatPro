@@ -49,12 +49,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pin
-import com.composables.icons.lucide.PinOff
-import com.composables.icons.lucide.Search
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Search
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Conversation
@@ -108,14 +108,14 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                             }
                         }
                     ) {
-                        Icon(Lucide.Search, contentDescription = stringResource(R.string.history_page_search))
+                        Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.history_page_search))
                     }
                     IconButton(
                         onClick = {
                             showDeleteAllDialog = true
                         }
                     ) {
-                        Icon(Lucide.Trash2, contentDescription = stringResource(R.string.history_page_delete_all))
+                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.history_page_delete_all))
                     }
                 }
             )
@@ -225,7 +225,7 @@ private fun SearchInput(
                         onClick = { onValueChange("") },
                         modifier = Modifier
                     ) {
-                        Icon(Lucide.X, stringResource(R.string.history_page_clear))
+                        Icon(Icons.Rounded.Close, stringResource(R.string.history_page_clear))
                     }
                 }
             )
@@ -273,7 +273,7 @@ private fun SwipeableConversationItem(
                 contentAlignment = Alignment.CenterEnd
             ) {
                 Icon(
-                    imageVector = Lucide.Trash2,
+                    imageVector = Icons.Rounded.Delete,
                     contentDescription = stringResource(R.string.history_page_delete),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -311,7 +311,7 @@ private fun ConversationItem(
                 ) {
                     if (conversation.isPinned) {
                         Icon(
-                            imageVector = Lucide.Pin,
+                            imageVector = Icons.Rounded.PushPin,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp),
@@ -334,7 +334,7 @@ private fun ConversationItem(
                     onClick = onTogglePin
                 ) {
                     Icon(
-                        if (conversation.isPinned) Lucide.PinOff else Lucide.Pin,
+                        if (conversation.isPinned) Icons.Outlined.PushPin else Icons.Rounded.PushPin,
                         contentDescription = if (conversation.isPinned) stringResource(R.string.history_page_unpin) else stringResource(
                             R.string.history_page_pin
                         )

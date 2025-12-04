@@ -21,8 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Logs
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Description
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.AILogging
 import org.koin.androidx.compose.koinViewModel
@@ -51,7 +51,7 @@ fun DeveloperPage(vm: DeveloperVM = koinViewModel()) {
                         Text(text = "Developer")
                     },
                     icon = {
-                        Icon(Lucide.Logs, null)
+                        Icon(Icons.Rounded.Description, null)
                     }
                 )
             }

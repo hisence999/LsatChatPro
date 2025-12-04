@@ -46,15 +46,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Check
-import com.composables.icons.lucide.CircleStop
-import com.composables.icons.lucide.GripHorizontal
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pencil
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Settings2
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.Volume2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.StopCircle
+import androidx.compose.material.icons.rounded.VolumeUp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -138,7 +137,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                                     )
                             ) {
                                 Icon(
-                                    imageVector = Lucide.GripHorizontal,
+                                    imageVector = Icons.Rounded.DragHandle,
                                     contentDescription = null
                                 )
                             }
@@ -243,7 +242,7 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
             showBottomSheet = true
         }
     ) {
-        Icon(Lucide.Plus, stringResource(R.string.setting_tts_page_add_provider_content_description))
+        Icon(Icons.Rounded.Add, stringResource(R.string.setting_tts_page_add_provider_content_description))
     }
 
     if (showBottomSheet) {
@@ -403,7 +402,7 @@ private fun TTSProviderItem(
                         }
                     ) {
                         Icon(
-                            imageVector = if (isSpeaking) Lucide.CircleStop else Lucide.Volume2,
+                            imageVector = if (isSpeaking) Icons.Rounded.StopCircle else Icons.Rounded.VolumeUp,
                             contentDescription = if (isSpeaking) stringResource(R.string.stop) else stringResource(R.string.test_tts),
                             tint = if (isSpeaking) MaterialTheme.colorScheme.error else LocalContentColor.current
                         )
@@ -414,7 +413,7 @@ private fun TTSProviderItem(
                     onClick = { showDropdownMenu = true }
                 ) {
                     Icon(
-                        imageVector = Lucide.Settings2,
+                        imageVector = Icons.Rounded.Settings,
                         contentDescription = stringResource(R.string.setting_tts_page_more_options_content_description)
                     )
                     DropdownMenu(
@@ -428,7 +427,7 @@ private fun TTSProviderItem(
                                 onEdit()
                             },
                             leadingIcon = {
-                                Icon(Lucide.Pencil, contentDescription = null)
+                                Icon(Icons.Rounded.Edit, contentDescription = null)
                             }
                         )
                         DropdownMenuItem(
@@ -438,7 +437,7 @@ private fun TTSProviderItem(
                                 onDelete()
                             },
                             leadingIcon = {
-                                Icon(Lucide.Trash2, contentDescription = null)
+                                Icon(Icons.Rounded.Delete, contentDescription = null)
                             },
                             enabled = provider.id != DEFAULT_SYSTEM_TTS_ID
                         )

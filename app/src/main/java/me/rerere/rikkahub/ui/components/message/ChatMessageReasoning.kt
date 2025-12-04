@@ -54,10 +54,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Lightbulb
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.Expand
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.OpenInFull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import me.rerere.ai.provider.Model
@@ -193,9 +192,9 @@ fun ChatMessageReasoning(
                 )
                 Icon(
                     imageVector = when (expandState) {
-                        ReasoningCardState.Collapsed -> Lucide.ChevronDown
-                        ReasoningCardState.Expanded -> Lucide.ChevronUp
-                        ReasoningCardState.Preview -> Lucide.Expand
+                        ReasoningCardState.Collapsed -> Icons.Rounded.KeyboardArrowDown
+                        ReasoningCardState.Expanded -> Icons.Rounded.KeyboardArrowUp
+                        ReasoningCardState.Preview -> Icons.Rounded.OpenInFull
                     },
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),

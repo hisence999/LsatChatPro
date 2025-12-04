@@ -50,9 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.composables.icons.lucide.ChevronsDown
-import com.composables.icons.lucide.ChevronsUp
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.UnfoldLess
+import androidx.compose.material.icons.rounded.UnfoldMore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -187,7 +187,7 @@ fun HighlightCodeBlock(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = if (isExpanded) Lucide.ChevronsUp else Lucide.ChevronsDown,
+                        imageVector = if (isExpanded) Icons.Rounded.UnfoldLess else Icons.Rounded.UnfoldMore,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.size(textStyle.fontSize.toDp())

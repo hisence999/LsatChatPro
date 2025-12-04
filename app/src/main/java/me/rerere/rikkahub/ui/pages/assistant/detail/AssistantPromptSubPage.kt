@@ -63,13 +63,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.DialogProperties
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.Fullscreen
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -166,7 +166,7 @@ fun AssistantPromptSubPage(
                                     isFullScreen = !isFullScreen
                                 }
                             ) {
-                                Icon(Lucide.Fullscreen, null)
+                                Icon(Icons.Rounded.Fullscreen, null)
                             }
                         }
                     },
@@ -418,7 +418,7 @@ fun AssistantPromptSubPage(
                                     )
                                 }
                             ) {
-                                Icon(Lucide.X, null)
+                                Icon(Icons.Rounded.Close, null)
                             }
                         }
                         OutlinedTextField(
@@ -460,7 +460,7 @@ fun AssistantPromptSubPage(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Lucide.Plus, null)
+                    Icon(Icons.Rounded.Add, null)
                 }
             }
         }
@@ -522,7 +522,7 @@ fun AssistantPromptSubPage(
                                     )
                                 }
                             ) {
-                                Icon(Lucide.X, null)
+                                Icon(Icons.Rounded.Close, null)
                             }
                         }
                         OutlinedTextField(
@@ -556,7 +556,7 @@ fun AssistantPromptSubPage(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Lucide.Plus, null)
+                    Icon(Icons.Rounded.Add, null)
                 }
             }
         }
@@ -600,7 +600,7 @@ fun AssistantPromptSubPage(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Lucide.Plus, null)
+                    Icon(Icons.Rounded.Add, null)
                 }
             }
         }
@@ -666,7 +666,7 @@ private fun AssistantRegexCard(
                     }
                 ) {
                     Icon(
-                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
+                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                         contentDescription = null
                     )
                 }
@@ -817,7 +817,7 @@ private fun AssistantRegexCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Icon(Lucide.Trash2, null)
+                        Icon(Icons.Rounded.Delete, null)
                         Text(stringResource(R.string.delete))
                     }
                 }

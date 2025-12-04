@@ -43,15 +43,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pencil
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.RefreshCw
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.Settings
-import com.composables.icons.lucide.Search
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.collectAsState
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
@@ -250,7 +250,7 @@ fun AssistantMemorySettings(
                         onClick = onRegenerateEmbeddings
                     ) {
                         Icon(
-                            imageVector = Lucide.RefreshCw,
+                            imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Regenerate Embeddings"
                         )
                     }
@@ -261,7 +261,7 @@ fun AssistantMemorySettings(
                     }
                 ) {
                     Icon(
-                        imageVector = Lucide.Plus,
+                        imageVector = Icons.Rounded.Add,
                         contentDescription = null
                     )
                 }
@@ -273,7 +273,7 @@ fun AssistantMemorySettings(
             onValueChange = { assistantDetailVM.updateMemorySearchQuery(it) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search memories...") },
-            leadingIcon = { Icon(Lucide.Search, null) },
+            leadingIcon = { Icon(Icons.Rounded.Search, null) },
             singleLine = true,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
             colors = androidx.compose.material3.TextFieldDefaults.colors(
@@ -352,14 +352,14 @@ private fun MemoryItem(
             IconButton(
                 onClick = { onEditMemory(memory) }
             ) {
-                Icon(Lucide.Pencil, null)
+                Icon(Icons.Rounded.Edit, null)
             }
             if (memory.type == 0) { // Only show delete for CORE memories
                 IconButton(
                     onClick = { onDeleteMemory(memory) }
                 ) {
                     Icon(
-                        Lucide.Trash2,
+                        Icons.Rounded.Delete,
                         stringResource(R.string.assistant_page_delete)
                     )
                 }
@@ -514,7 +514,7 @@ private fun AdvancedMemorySettings(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Lucide.Settings,
+                        imageVector = Icons.Rounded.Settings,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -525,7 +525,7 @@ private fun AdvancedMemorySettings(
                     )
                 }
                 Icon(
-                    imageVector = if (isExpanded) Lucide.ChevronUp else Lucide.ChevronDown,
+                    imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant

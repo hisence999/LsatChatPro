@@ -39,12 +39,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.composables.icons.lucide.BookDashed
-import com.composables.icons.lucide.BookHeart
-import com.composables.icons.lucide.Earth
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.Wrench
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkRemove
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Public
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -100,11 +100,11 @@ fun ToolCallItem(
             } else {
                 Icon(
                     imageVector = when (toolName) {
-                        "create_memory", "edit_memory" -> Lucide.BookHeart
-                        "delete_memory" -> Lucide.BookDashed
-                        "search_web" -> Lucide.Earth
-                        "scrape_web" -> Lucide.Earth
-                        else -> Lucide.Wrench
+                        "create_memory", "edit_memory" -> Icons.Rounded.Bookmark
+                        "delete_memory" -> Icons.Rounded.BookmarkRemove
+                        "search_web" -> Icons.Rounded.Public
+                        "scrape_web" -> Icons.Rounded.Public
+                        else -> Icons.Rounded.Build
                     },
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
@@ -393,7 +393,7 @@ private fun ToolCallPreviewSheet(
                                     }
                                 ) {
                                     Icon(
-                                        Lucide.Trash2,
+                                        Icons.Rounded.Delete,
                                         contentDescription = "Delete memory"
                                     )
                                 }

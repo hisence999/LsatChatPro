@@ -36,10 +36,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.CircleAlert
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.MessageSquareOff
-import com.composables.icons.lucide.Terminal
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.SpeakerNotesOff
+import androidx.compose.material.icons.rounded.Terminal
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
@@ -98,7 +98,7 @@ fun McpPickerButton(
                         }
                     ) {
                         Icon(
-                            imageVector = Lucide.Terminal,
+                            imageVector = Icons.Rounded.Terminal,
                             contentDescription = stringResource(R.string.mcp_picker_title),
                         )
                     }
@@ -177,15 +177,15 @@ fun McpPicker(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     when (status) {
-                        McpStatus.Idle -> Icon(Lucide.MessageSquareOff, null)
+                        McpStatus.Idle -> Icon(Icons.Rounded.SpeakerNotesOff, null)
                         McpStatus.Connecting -> CircularProgressIndicator(
                             modifier = Modifier.size(
                                 24.dp
                             )
                         )
 
-                        McpStatus.Connected -> Icon(Lucide.Terminal, null)
-                        is McpStatus.Error -> Icon(Lucide.CircleAlert, null)
+                        McpStatus.Connected -> Icon(Icons.Rounded.Terminal, null)
+                        is McpStatus.Error -> Icon(Icons.Rounded.Error, null)
                     }
                     Column(
                         modifier = Modifier.weight(1f),

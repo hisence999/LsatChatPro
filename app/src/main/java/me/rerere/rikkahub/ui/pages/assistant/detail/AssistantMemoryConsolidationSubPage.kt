@@ -24,10 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Brain
-import com.composables.icons.lucide.BrainCircuit
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Sparkles
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Psychology
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.model.Assistant
@@ -71,7 +70,7 @@ fun AssistantMemoryConsolidationSubPage(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Lucide.BrainCircuit, null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Rounded.Psychology, null, tint = MaterialTheme.colorScheme.primary)
                         Text(
                             text = "Memory Consolidation Settings",
                             style = MaterialTheme.typography.titleMedium,
@@ -227,7 +226,7 @@ fun AssistantMemoryConsolidationSubPage(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Lucide.Sparkles, null, tint = MaterialTheme.colorScheme.tertiary)
+                            Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.tertiary)
                             Text(
                                 text = "Memory Statistics",
                                 style = MaterialTheme.typography.titleMedium,
@@ -322,7 +321,7 @@ fun AssistantMemoryConsolidationSubPage(
                             onClick = { onConsolidate(true) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Lucide.Brain, null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.Psychology, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Consolidate All Memories Now")
                         }

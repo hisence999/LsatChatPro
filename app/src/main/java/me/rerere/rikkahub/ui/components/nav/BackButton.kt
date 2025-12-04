@@ -5,8 +5,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalNavController
 
@@ -20,7 +20,7 @@ fun BackButton(modifier: Modifier = Modifier) {
         modifier = modifier
     ) {
         Icon(
-            Lucide.ArrowLeft,
+            Icons.AutoMirrored.Rounded.ArrowBack,
             contentDescription = stringResource(R.string.back)
         )
     }

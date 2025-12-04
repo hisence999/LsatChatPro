@@ -41,9 +41,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.Drama
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pen
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Edit
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -247,7 +246,7 @@ private fun AssistantItem(
                 }
             ) {
                 Icon(
-                    imageVector = Lucide.Pen,
+                    imageVector = Icons.Rounded.Edit,
                     contentDescription = null
                 )
             }

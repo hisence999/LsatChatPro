@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
-import com.composables.icons.lucide.Earth
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Public
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Composable
@@ -41,8 +41,8 @@ fun Favicon(
             .background(MaterialTheme.colorScheme.surfaceContainer),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        placeholder = rememberVectorPainter(Lucide.Earth),
-        fallback = rememberVectorPainter(Lucide.Earth),
+        placeholder = rememberVectorPainter(Icons.Rounded.Public),
+        fallback = rememberVectorPainter(Icons.Rounded.Public),
     )
 }
 

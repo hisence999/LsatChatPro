@@ -39,10 +39,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.composables.icons.lucide.Earth
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Search
-import com.composables.icons.lucide.Settings2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import com.dokar.sonner.ToastType
 import me.rerere.rikkahub.ui.context.LocalToaster
 import kotlinx.coroutines.launch
@@ -114,7 +114,7 @@ fun SearchPickerButton(
                     )
                 } else {
                     Icon(
-                        imageVector = Lucide.Earth,
+                        imageVector = Icons.Rounded.Public,
                         contentDescription = stringResource(R.string.use_web_search),
                     )
                 }
@@ -229,7 +229,7 @@ private fun AppSearchSettings(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Lucide.Earth, null)
+                Icon(Icons.Rounded.Public, null)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -254,7 +254,7 @@ private fun AppSearchSettings(
                         navBackStack.navigate(Screen.SettingSearch)
                     }
                 ) {
-                    Icon(Lucide.Settings2, null)
+                    Icon(Icons.Rounded.Settings, null)
                 }
                 Switch(
                     checked = enableSearch,
@@ -369,7 +369,7 @@ private fun BuiltInSearchSetting(model: Model) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Lucide.Search, null)
+                Icon(Icons.Rounded.Search, null)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)

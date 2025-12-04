@@ -78,16 +78,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Boxes
-import com.composables.icons.lucide.Cable
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Network
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Settings2
-import com.composables.icons.lucide.Share
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ViewModule
+import androidx.compose.material.icons.rounded.Widgets
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -184,7 +186,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                             shareSheetState.show(provider)
                         }
                     ) {
-                        Icon(Lucide.Share, null)
+                        Icon(Icons.Rounded.Share, null)
                     }
                 }
             )
@@ -194,7 +196,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                 NavigationBarItem(
                     selected = pager.currentPage == 0,
                     label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
-                    icon = { Icon(Lucide.Settings2, null) },
+                    icon = { Icon(Icons.Rounded.Settings, null) },
                     onClick = {
                         scope.launch {
                             pager.animateScrollToPage(0)
@@ -204,7 +206,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                 NavigationBarItem(
                     selected = pager.currentPage == 1,
                     label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
-                    icon = { Icon(Lucide.Boxes, null) },
+                    icon = { Icon(Icons.Rounded.ViewModule, null) },
                     onClick = {
                         scope.launch {
                             pager.animateScrollToPage(1)
@@ -214,7 +216,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                 NavigationBarItem(
                     selected = pager.currentPage == 2,
                     label = { Text(stringResource(id = R.string.setting_provider_page_network_proxy)) },
-                    icon = { Icon(Lucide.Network, null) },
+                    icon = { Icon(Icons.Rounded.Public, null) },
                     onClick = {
                         scope.launch {
                             pager.animateScrollToPage(2)
@@ -316,7 +318,7 @@ private fun SettingProviderConfigPage(
                     showDeleteDialog = true
                 },
             ) {
-                Icon(Lucide.Trash2, "Delete")
+                Icon(Icons.Rounded.Delete, "Delete")
             }
 
             Button(
@@ -497,7 +499,7 @@ private fun ConnectionTester(
             showTestDialog = true
         }
     ) {
-        Icon(Lucide.Cable, null)
+        Icon(Icons.Rounded.NetworkCheck, null)
     }
     if (showTestDialog) {
         var model by remember(internalProvider) {
@@ -924,7 +926,7 @@ private fun AddModelButton(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Lucide.Plus,
+                    Icons.Rounded.Add,
                     contentDescription = stringResource(R.string.setting_provider_page_add_model)
                 )
                 AnimatedVisibility(expanded) {
@@ -956,7 +958,7 @@ private fun AddModelButton(
                             }
                         }
                     ) {
-                        Icon(Lucide.ChevronDown, null)
+                        Icon(Icons.Rounded.KeyboardArrowDown, null)
                     }
                 }
             ) {
@@ -1117,9 +1119,9 @@ private fun ModelPicker(
                                     }
                                 ) {
                                     if (selectedModels.any { model -> model.modelId == it.modelId }) {
-                                        Icon(Lucide.X, null)
+                                        Icon(Icons.Rounded.Close, null)
                                     } else {
-                                        Icon(Lucide.Plus, null)
+                                        Icon(Icons.Rounded.Add, null)
                                     }
                                 }
                             }
@@ -1154,7 +1156,7 @@ private fun ModelPicker(
                 showModal = true
             }
         ) {
-            Icon(Lucide.Boxes, null)
+            Icon(Icons.Rounded.Widgets, null)
         }
     }
 }
@@ -1349,7 +1351,7 @@ private fun ModelCard(
                             },
                             modifier = Modifier.align(Alignment.CenterStart)
                         ) {
-                            Icon(Lucide.X, null)
+                            Icon(Icons.Rounded.Close, null)
                         }
                         Text(
                             text = stringResource(R.string.setting_provider_page_edit_model),
@@ -1414,7 +1416,7 @@ private fun ModelCard(
                         }
                     }
                 ) {
-                    Icon(Lucide.X, null)
+                    Icon(Icons.Rounded.Close, null)
                 }
                 FilledIconButton(
                     onClick = {
@@ -1425,7 +1427,7 @@ private fun ModelCard(
                     }
                 ) {
                     Icon(
-                        Lucide.Trash2,
+                        Icons.Rounded.Delete,
                         contentDescription = stringResource(R.string.chat_page_delete)
                     )
                 }
@@ -1488,7 +1490,7 @@ private fun ModelCard(
                         dialogState.open(model.copy())
                     }
                 ) {
-                    Icon(Lucide.Settings2, "Edit")
+                    Icon(Icons.Rounded.Edit, "Edit")
                 }
             }
         }
@@ -1628,14 +1630,14 @@ private fun ProviderOverrideSettings(
                                 showProviderConfig = true
                             }
                         ) {
-                            Icon(Lucide.Settings2, contentDescription = "Edit override")
+                            Icon(Icons.Rounded.Edit, contentDescription = "Edit override")
                         }
                         IconButton(
                             onClick = {
                                 onUpdateProviderOverride(null)
                             }
                         ) {
-                            Icon(Lucide.X, contentDescription = "Remove override")
+                            Icon(Icons.Rounded.Close, contentDescription = "Remove override")
                         }
                     }
                 }
@@ -1653,7 +1655,7 @@ private fun ProviderOverrideSettings(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Lucide.Plus, contentDescription = null)
+                Icon(Icons.Rounded.Add, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(stringResource(R.string.setting_provider_page_add_provider_override))
             }

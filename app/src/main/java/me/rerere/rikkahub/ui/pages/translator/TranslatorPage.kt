@@ -48,10 +48,10 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.ClipboardCopy
-import com.composables.icons.lucide.ClipboardPaste
-import com.composables.icons.lucide.Languages
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.Translate
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ModelType
@@ -152,7 +152,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                         }
                     }
                 ) {
-                    Icon(Lucide.ClipboardPaste, null)
+                    Icon(Icons.Rounded.ContentPaste, null)
                     Text("Paste Text", modifier = Modifier.padding(start = 4.dp))
                 }
             }
@@ -197,7 +197,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                         }
                     }
                 ) {
-                    Icon(Lucide.ClipboardCopy, null)
+                    Icon(Icons.Rounded.ContentCopy, null)
                     Text("复制翻译结果", modifier = Modifier.padding(start = 4.dp))
                 }
             }
@@ -317,7 +317,7 @@ private fun BottomBar(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         Icon(
-                            Lucide.Languages,
+                            Icons.Rounded.Translate,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )

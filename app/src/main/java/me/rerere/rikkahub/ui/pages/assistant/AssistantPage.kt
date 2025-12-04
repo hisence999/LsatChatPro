@@ -48,11 +48,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Copy
-import com.composables.icons.lucide.GripHorizontal
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Trash2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.PowerOff
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANTS_IDS
@@ -81,9 +84,7 @@ import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.mutableFloatStateOf
-import com.composables.icons.lucide.Clock
-import com.composables.icons.lucide.Settings
-import com.composables.icons.lucide.ZapOff
+
 
 @Composable
 fun AssistantPage(vm: AssistantVM = koinViewModel()) {
@@ -120,13 +121,13 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                         showGlobalSettingsDialog = true
                     }
                 ) {
-                    Icon(Lucide.Settings, "Global Settings")
+                    Icon(Icons.Rounded.Settings, "Global Settings")
                 }
                 IconButton(
                     onClick = {
                         createState.open(Assistant())
                     }) {
-                    Icon(Lucide.Plus, stringResource(R.string.assistant_page_add))
+                    Icon(Icons.Rounded.Add, stringResource(R.string.assistant_page_add))
                 }
             })
         }) {
@@ -196,158 +197,26 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                             dragHandle = {
                                 // 只有在没有过滤时才显示拖拽手柄
                                 if (!isFiltering) {
-                                    Icon(
-                                        imageVector = Lucide.GripHorizontal,
-                                        contentDescription = null,
-                                        modifier = Modifier.longPressDraggableHandle(onDragStarted = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                        }, onDragStopped = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                        })
-                                    )
-                                }
-                            })
-                    }
-                }
-            }
-        }
-    }
-
-    AssistantCreationSheet(createState)
-
-    if (showGlobalSettingsDialog) {
-        GlobalSettingsDialog(
-            settings = settings,
-            onUpdate = { vm.updateSettings(it) },
-            onDismiss = { showGlobalSettingsDialog = false }
-        )
-    }
-}
-
-@Composable
-private fun GlobalSettingsDialog(
-    settings: Settings,
-    onUpdate: (Settings) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Global Assistant Settings") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                var interval by remember { mutableFloatStateOf(settings.consolidationWorkerIntervalMinutes.toFloat()) }
-                
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Lucide.Clock, null, modifier = Modifier.size(20.dp))
-                        Text("Consolidation Interval", style = MaterialTheme.typography.labelLarge)
-                    }
-                    Text("${interval.toInt()} minutes", style = MaterialTheme.typography.bodySmall)
-                    Slider(
-                        value = interval,
-                        onValueChange = { interval = it },
-                        onValueChangeFinished = {
-                            onUpdate(settings.copy(consolidationWorkerIntervalMinutes = interval.toInt()))
-                        },
-                        valueRange = 15f..240f,
-                        steps = 14
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Lucide.ZapOff, null, modifier = Modifier.size(20.dp))
-                            Text("Require Device Idle", style = MaterialTheme.typography.labelLarge)
+                            Icon(
+                                imageVector = Icons.Rounded.DragHandle,
+                                contentDescription = null,
+                                modifier = Modifier.longPressDraggableHandle(onDragStarted = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                }, onDragStopped = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                })
+                            )
                         }
-                        Text("Only run consolidation when device is not in use", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Switch(
-                        checked = settings.consolidationRequiresDeviceIdle,
-                        onCheckedChange = {
-                            onUpdate(settings.copy(consolidationRequiresDeviceIdle = it))
-                        }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
-}
-
-@Composable
-private fun AssistantTagsFilterRow(
-    settings: Settings,
-    vm: AssistantVM,
-    selectedTagIds: Set<Uuid>,
-    onUpdateSelectedTagIds: (Set<Uuid>) -> Unit
-) {
-    val haptic = LocalHapticFeedback.current
-    if (settings.assistantTags.isNotEmpty()) {
-        val tagsListState = rememberLazyListState()
-        val tagsReorderableState = rememberReorderableLazyListState(tagsListState) { from, to ->
-            val newTags = settings.assistantTags.toMutableList().apply {
-                add(to.index, removeAt(from.index))
-            }
-            vm.updateSettings(settings.copy(assistantTags = newTags))
-        }
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(horizontal = 16.dp),
-            state = tagsListState
-        ) {
-            lazyItems(items = settings.assistantTags, key = { tag -> tag.id }) { tag ->
-                ReorderableItem(
-                    state = tagsReorderableState, key = tag.id
-                ) { isDragging ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        FilterChip(
-                            onClick = {
-                                onUpdateSelectedTagIds(
-                                    if (tag.id in selectedTagIds) {
-                                        selectedTagIds - tag.id
-                                    } else {
-                                        selectedTagIds + tag.id
-                                    }
-                                )
-                            },
-                            label = {
-                                Text(tag.name)
-                            },
-                            selected = tag.id in selectedTagIds,
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .longPressDraggableHandle(
-                                    onDragStarted = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                    },
-                                    onDragStopped = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                    },
-                                )
-                        )
-                    }
-                }
+                    })
             }
         }
     }
 }
+}
+}
 
 @Composable
-private fun AssistantCreationSheet(
+fun AssistantCreationSheet(
     state: EditState<Assistant>,
 ) {
     state.EditStateContent { assistant, update ->
@@ -417,7 +286,7 @@ private fun AssistantCreationSheet(
 }
 
 @Composable
-private fun AssistantItem(
+fun AssistantItem(
     assistant: Assistant,
     settings: Settings,
     modifier: Modifier = Modifier,
@@ -500,7 +369,7 @@ private fun AssistantItem(
                 if (settings.assistants.size > 1) {
                     Tooltip(tooltip = { Text(stringResource(R.string.assistant_page_delete)) }) {
                         Icon(
-                            imageVector = Lucide.Trash2,
+                            imageVector = Icons.Rounded.Delete,
                             contentDescription = stringResource(R.string.assistant_page_delete),
                             modifier = Modifier
                                 .onClick {
@@ -513,7 +382,7 @@ private fun AssistantItem(
                 }
                 Tooltip(tooltip = { Text(stringResource(R.string.assistant_page_clone)) }) {
                     Icon(
-                        imageVector = Lucide.Copy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = stringResource(R.string.assistant_page_clone),
                         modifier = Modifier
                             .onClick {
@@ -554,5 +423,35 @@ private fun AssistantItem(
                 }
             },
         )
+    }
+}
+
+@Composable
+fun AssistantTagsFilterRow(
+    settings: Settings,
+    vm: AssistantVM,
+    selectedTagIds: Set<Uuid>,
+    onUpdateSelectedTagIds: (Set<Uuid>) -> Unit
+) {
+    val tags = settings.assistantTags
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        lazyItems(tags) { tag ->
+            FilterChip(
+                selected = tag.id in selectedTagIds,
+                onClick = {
+                    val newSelection = if (tag.id in selectedTagIds) {
+                        selectedTagIds - tag.id
+                    } else {
+                        selectedTagIds + tag.id
+                    }
+                    onUpdateSelectedTagIds(newSelection)
+                },
+                label = { Text(tag.name) }
+            )
+        }
     }
 }

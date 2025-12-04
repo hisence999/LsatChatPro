@@ -12,4 +12,7 @@ sealed class Avatar {
 
     @Serializable
     data class Image(val url: String) : Avatar()
+
+    @Serializable
+    data class Resource(val id: Int) : Avatar()
 }

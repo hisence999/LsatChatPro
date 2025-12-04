@@ -59,14 +59,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.CircleAlert
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.MessageSquareOff
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Settings
-import com.composables.icons.lucide.Terminal
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CommentsDisabled
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Terminal
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.InputSchema
 import me.rerere.rikkahub.R
@@ -122,7 +122,7 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                             creationState.open(McpServerConfig.SseTransportServer())
                         }
                     ) {
-                        Icon(Lucide.Plus, null)
+                        Icon(Icons.Rounded.Add, null)
                     }
                 }
             )
@@ -210,14 +210,14 @@ private fun McpServerItem(
                         scope.launch { dismissBoxState.reset() }
                     }
                 ) {
-                    Icon(Lucide.X, null)
+                    Icon(Icons.Rounded.Close, null)
                 }
                 FilledTonalIconButton(
                     onClick = {
                         onDelete()
                     }
                 ) {
-                    Icon(Lucide.Trash2, null)
+                    Icon(Icons.Rounded.Delete, null)
                 }
             }
         },
@@ -239,15 +239,15 @@ private fun McpServerItem(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (status) {
-                    McpStatus.Idle -> Icon(Lucide.MessageSquareOff, null)
+                    McpStatus.Idle -> Icon(Icons.Rounded.CommentsDisabled, null)
                     McpStatus.Connecting -> CircularProgressIndicator(
                         modifier = Modifier.size(
                             24.dp
                         )
                     )
 
-                    McpStatus.Connected -> Icon(Lucide.Terminal, null)
-                    is McpStatus.Error -> Icon(Lucide.CircleAlert, null)
+                    McpStatus.Connected -> Icon(Icons.Rounded.Terminal, null)
+                    is McpStatus.Error -> Icon(Icons.Rounded.ErrorOutline, null)
                 }
 
                 Column(
@@ -292,7 +292,7 @@ private fun McpServerItem(
                         onEdit(item)
                     }
                 ) {
-                    Icon(Lucide.Settings, null)
+                    Icon(Icons.Rounded.Settings, null)
                 }
             }
         }
@@ -655,7 +655,7 @@ private fun McpCommonOptionsConfigure(
                             )
                         }) {
                             Icon(
-                                Lucide.Trash2,
+                                Icons.Rounded.Delete,
                                 contentDescription = stringResource(R.string.setting_mcp_page_delete_header)
                             )
                         }
@@ -681,7 +681,7 @@ private fun McpCommonOptionsConfigure(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        Lucide.Plus,
+                        Icons.Rounded.Add,
                         contentDescription = stringResource(R.string.setting_mcp_page_add_header)
                     )
                     Spacer(Modifier.width(4.dp))

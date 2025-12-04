@@ -27,8 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Download
-import com.composables.icons.lucide.Lucide
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Download
 import com.dokar.sonner.ToastType
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -154,7 +154,7 @@ fun UpdateCard(vm: ChatVM) {
                                 },
                                 leadingContent = {
                                     Icon(
-                                        Lucide.Download,
+                                        Icons.Rounded.Download,
                                         contentDescription = null
                                     )
                                 }

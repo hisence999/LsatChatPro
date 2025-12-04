@@ -65,16 +65,14 @@ import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Boxes
-import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.GripHorizontal
-import com.composables.icons.lucide.Hammer
-import com.composables.icons.lucide.Heart
-import com.composables.icons.lucide.Image
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Search
-import com.composables.icons.lucide.Type
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Title
+import androidx.compose.material.icons.rounded.ViewModule
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -146,7 +144,7 @@ fun ModelSelector(
                     }
                 ) {
                     Icon(
-                        Lucide.X,
+                        Icons.Rounded.Close,
                         contentDescription = "Clear"
                     )
                 }
@@ -166,7 +164,7 @@ fun ModelSelector(
                 )
             } else {
                 Icon(
-                    Lucide.Boxes,
+                    Icons.Rounded.ViewModule,
                     contentDescription = stringResource(R.string.setting_model_page_chat_model),
                     modifier = Modifier.size(20.dp)
                 )
@@ -337,7 +335,7 @@ private fun ColumnScope.ModelList(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 16.dp),
         leadingIcon = {
-            Icon(Lucide.Search, null)
+            Icon(Icons.Rounded.Search, null)
         },
         maxLines = 1,
         shape = RoundedCornerShape(50)
@@ -778,8 +776,8 @@ fun ModelModalityTag(model: Model) {
         model.inputModalities.fastForEach { modality ->
             Icon(
                 imageVector = when (modality) {
-                    Modality.TEXT -> Lucide.Type
-                    Modality.IMAGE -> Lucide.Image
+                    Modality.TEXT -> Icons.Rounded.Title
+                    Modality.IMAGE -> Icons.Rounded.Image
                 },
                 contentDescription = null,
                 modifier = Modifier
@@ -788,15 +786,15 @@ fun ModelModalityTag(model: Model) {
             )
         }
         Icon(
-            imageVector = Lucide.ChevronRight,
+            imageVector = Icons.Rounded.ChevronRight,
             contentDescription = null,
             modifier = Modifier.size(LocalTextStyle.current.lineHeight.toDp())
         )
         model.outputModalities.fastForEach { modality ->
             Icon(
                 imageVector = when (modality) {
-                    Modality.TEXT -> Lucide.Type
-                    Modality.IMAGE -> Lucide.Image
+                    Modality.TEXT -> Icons.Rounded.Title
+                    Modality.IMAGE -> Icons.Rounded.Image
                 },
                 contentDescription = null,
                 modifier = Modifier
@@ -816,7 +814,7 @@ fun ModelAbilityTag(model: Model) {
                     type = TagType.WARNING
                 ) {
                     Icon(
-                        imageVector = Lucide.Hammer,
+                        imageVector = Icons.Rounded.Build,
                         contentDescription = null,
                         modifier = Modifier.size(LocalTextStyle.current.lineHeight.toDp())
                     )

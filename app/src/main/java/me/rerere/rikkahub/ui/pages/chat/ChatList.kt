@@ -74,15 +74,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
-import com.composables.icons.lucide.Check
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.ChevronsDown
-import com.composables.icons.lucide.ChevronsUp
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.MousePointer2
-import com.composables.icons.lucide.Search
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.KeyboardDoubleArrowDown
+import androidx.compose.material.icons.rounded.KeyboardDoubleArrowUp
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.TouchApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -354,7 +354,7 @@ private fun SharedTransitionScope.ChatListNormal(
                                 selectedItems.clear()
                             }
                         ) {
-                            Icon(Lucide.X, null)
+                            Icon(Icons.Rounded.Close, null)
                         }
                     }
                     Tooltip(
@@ -371,7 +371,7 @@ private fun SharedTransitionScope.ChatListNormal(
                                 }
                             }
                         ) {
-                            Icon(Lucide.MousePointer2, null)
+                            Icon(Icons.Rounded.TouchApp, null)
                         }
                     }
                     Tooltip(
@@ -388,7 +388,7 @@ private fun SharedTransitionScope.ChatListNormal(
                                 }
                             }
                         ) {
-                            Icon(Lucide.Check, null)
+                            Icon(Icons.Rounded.Check, null)
                         }
                     }
                 }
@@ -529,7 +529,7 @@ private fun SharedTransitionScope.ChatListPreview(
             placeholder = { Text(stringResource(R.string.history_page_search)) },
             leadingIcon = {
                 Icon(
-                    imageVector = Lucide.Search,
+                    imageVector = Icons.Rounded.Search,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -538,7 +538,7 @@ private fun SharedTransitionScope.ChatListPreview(
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
                         Icon(
-                            imageVector = Lucide.X,
+                            imageVector = Icons.Rounded.Close,
                             contentDescription = "Clear",
                             modifier = Modifier.size(20.dp)
                         )
@@ -682,7 +682,7 @@ private fun BoxScope.MessageJumper(
                 ).copy(alpha = 0.65f)
             ) {
                 Icon(
-                    imageVector = Lucide.ChevronsUp,
+                    imageVector = Icons.Rounded.KeyboardDoubleArrowUp,
                     contentDescription = null,
                     modifier = Modifier
                         .padding(4.dp)
@@ -705,7 +705,7 @@ private fun BoxScope.MessageJumper(
                 ).copy(alpha = 0.65f)
             ) {
                 Icon(
-                    imageVector = Lucide.ChevronUp,
+                    imageVector = Icons.Rounded.KeyboardArrowUp,
                     contentDescription = null,
                     modifier = Modifier
                         .padding(4.dp)
@@ -723,7 +723,7 @@ private fun BoxScope.MessageJumper(
                 ).copy(alpha = 0.65f)
             ) {
                 Icon(
-                    imageVector = Lucide.ChevronDown,
+                    imageVector = Icons.Rounded.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier
                         .padding(4.dp)
@@ -741,7 +741,7 @@ private fun BoxScope.MessageJumper(
                 ).copy(alpha = 0.65f),
             ) {
                 Icon(
-                    imageVector = Lucide.ChevronsDown,
+                    imageVector = Icons.Rounded.KeyboardDoubleArrowDown,
                     contentDescription = stringResource(R.string.chat_page_scroll_to_bottom),
                     modifier = Modifier
                         .padding(4.dp)
