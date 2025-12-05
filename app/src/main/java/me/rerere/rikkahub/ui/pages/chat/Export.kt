@@ -58,6 +58,7 @@ import coil3.request.crossfade
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Image
@@ -572,7 +573,7 @@ private fun ExportedReasoningCard(reasoning: UIMessagePart.Reasoning, expanded: 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.deepthink),
+                    imageVector = Icons.Rounded.Lightbulb,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.secondary

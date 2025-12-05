@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -826,7 +827,7 @@ fun ModelAbilityTag(model: Model) {
                     type = TagType.INFO
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.deepthink),
+                        imageVector = Icons.Rounded.Lightbulb,
                         contentDescription = null,
                         modifier = Modifier.size(LocalTextStyle.current.lineHeight.toDp()),
                     )
