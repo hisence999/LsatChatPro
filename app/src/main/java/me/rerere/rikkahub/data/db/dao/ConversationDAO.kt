@@ -10,6 +10,11 @@ import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.repository.LightConversationEntity
 
+data class AssistantCountResult(
+    val assistantId: String,
+    val count: Int
+)
+
 @Dao
 interface ConversationDAO {
     @Query("SELECT * FROM conversationentity ORDER BY is_pinned DESC, update_at DESC")
@@ -68,4 +73,14 @@ interface ConversationDAO {
 
     @Query("UPDATE conversationentity SET is_consolidated = :isConsolidated WHERE id = :id")
     suspend fun updateConsolidatedStatus(id: String, isConsolidated: Boolean)
+
+    // Stats queries for MenuVM optimization
+    @Query("SELECT COUNT(*) FROM conversationentity")
+    fun getConversationCountFlow(): Flow<Int>
+
+    @Query("SELECT DISTINCT date(update_at / 1000, 'unixepoch', 'localtime') as updateDate FROM conversationentity ORDER BY updateDate DESC")
+    fun getDistinctUpdateDatesFlow(): Flow<List<String>>
+
+    @Query("SELECT assistant_id as assistantId, COUNT(*) as count FROM conversationentity GROUP BY assistant_id ORDER BY count DESC LIMIT 1")
+    fun getMostActiveAssistantFlow(): Flow<AssistantCountResult?>
 }

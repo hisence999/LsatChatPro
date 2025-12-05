@@ -52,7 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.PowerOff
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
@@ -198,7 +198,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                 // 只有在没有过滤时才显示拖拽手柄
                                 if (!isFiltering) {
                             Icon(
-                                imageVector = Icons.Rounded.DragHandle,
+                                imageVector = Icons.Rounded.DragIndicator,
                                 contentDescription = null,
                                 modifier = Modifier.longPressDraggableHandle(onDragStarted = {
                                     haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)

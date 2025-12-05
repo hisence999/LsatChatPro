@@ -25,7 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.AssistChip
@@ -417,7 +417,7 @@ private fun ColumnScope.ModelList(
                             },
                             dragHandle = {
                                 Icon(
-                                    imageVector = Icons.Rounded.DragHandle,
+                                    imageVector = Icons.Rounded.DragIndicator,
                                     contentDescription = null,
                                     modifier = Modifier.longPressDraggableHandle(
                                         onDragStarted = {

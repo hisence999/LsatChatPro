@@ -304,39 +304,37 @@ private fun MessagePartsBlock(
 
     // Text
     parts.filterIsInstance<UIMessagePart.Text>().fastForEach { part ->
-        SelectionContainer {
-            if (role == MessageRole.USER) {
-                Card(
-                    modifier = Modifier
-                        .animateContentSize(),
-                    shape = RoundedCornerShape(24.dp),
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        MarkdownBlock(
-                            content = part.text.replaceRegexes(
-                                assistant = assistant,
-                                scope = AssistantAffectScope.USER,
-                                visual = true,
-                            ),
-                            onClickCitation = { id ->
-                                handleClickCitation(id)
-                            }
-                        )
-                    }
+        if (role == MessageRole.USER) {
+            Card(
+                modifier = Modifier
+                    .animateContentSize(),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    MarkdownBlock(
+                        content = part.text.replaceRegexes(
+                            assistant = assistant,
+                            scope = AssistantAffectScope.USER,
+                            visual = true,
+                        ),
+                        onClickCitation = { id ->
+                            handleClickCitation(id)
+                        }
+                    )
                 }
-            } else {
-                MarkdownBlock(
-                    content = part.text.replaceRegexes(
-                        assistant = assistant,
-                        scope = AssistantAffectScope.ASSISTANT,
-                        visual = true,
-                    ),
-                    onClickCitation = { id ->
-                        handleClickCitation(id)
-                    },
-                    modifier = Modifier.animateContentSize()
-                )
             }
+        } else {
+            MarkdownBlock(
+                content = part.text.replaceRegexes(
+                    assistant = assistant,
+                    scope = AssistantAffectScope.ASSISTANT,
+                    visual = true,
+                ),
+                onClickCitation = { id ->
+                    handleClickCitation(id)
+                },
+                modifier = Modifier.animateContentSize()
+            )
         }
     }
 

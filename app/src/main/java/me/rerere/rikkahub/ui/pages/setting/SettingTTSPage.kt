@@ -49,7 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.StopCircle
@@ -137,7 +137,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                                     )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.DragHandle,
+                                    imageVector = Icons.Rounded.DragIndicator,
                                     contentDescription = null
                                 )
                             }

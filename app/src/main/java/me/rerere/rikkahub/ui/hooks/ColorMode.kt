@@ -33,5 +33,14 @@ fun rememberColorMode(): MutableState<ColorMode> {
 
 @Composable
 fun rememberAmoledDarkMode(): MutableState<Boolean> {
-    return rememberSharedPreferenceBoolean("amoledDark", true)
+    // Always return true to force OLED dark mode for all users
+    return remember {
+        object : MutableState<Boolean> {
+            override var value: Boolean
+                get() = true // Always OLED
+                set(_) { /* No-op, OLED is always on */ }
+            override fun component1(): Boolean = true
+            override fun component2(): (Boolean) -> Unit = { /* No-op */ }
+        }
+    }
 }

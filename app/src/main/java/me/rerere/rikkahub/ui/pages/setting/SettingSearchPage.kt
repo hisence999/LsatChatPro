@@ -48,7 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.R
@@ -193,7 +193,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                             .animateItem(),
                         dragHandle = {
                             Icon(
-                                imageVector = Icons.Rounded.DragHandle,
+                                imageVector = Icons.Rounded.DragIndicator,
                                 contentDescription = null,
                                 modifier = Modifier.longPressDraggableHandle(
                                     onDragStarted = {

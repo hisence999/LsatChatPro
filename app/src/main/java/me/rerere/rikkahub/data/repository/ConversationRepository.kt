@@ -267,6 +267,14 @@ class ConversationRepository(
             }
     }
 
+    // Optimized stats queries - delegate to SQL for performance
+    fun getConversationCountFlow(): Flow<Int> = conversationDAO.getConversationCountFlow()
+
+    fun getDistinctUpdateDatesFlow(): Flow<List<String>> = conversationDAO.getDistinctUpdateDatesFlow()
+
+    fun getMostActiveAssistantIdFlow(): Flow<String?> = conversationDAO.getMostActiveAssistantFlow()
+        .map { it?.assistantId }
+
     private fun conversationSummaryToConversation(entity: LightConversationEntity): Conversation {
         return Conversation(
             id = Uuid.parse(entity.id),

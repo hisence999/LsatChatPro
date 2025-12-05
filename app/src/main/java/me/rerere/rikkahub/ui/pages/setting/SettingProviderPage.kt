@@ -57,7 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Input
 import com.dokar.sonner.ToastType
@@ -171,7 +171,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                         )
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.DragHandle,
+                                        imageVector = Icons.Rounded.DragIndicator,
                                         contentDescription = null
                                     )
                                 }
