@@ -96,7 +96,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
 
     // 标签过滤状态
     var selectedTagIds by remember { mutableStateOf(emptySet<Uuid>()) }
-    var showGlobalSettingsDialog by remember { mutableStateOf(false) }
 
     // 根据选中的标签过滤助手
     val filteredAssistants = remember(settings.assistants, selectedTagIds) {
@@ -116,13 +115,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             }, navigationIcon = {
                 BackButton()
             }, actions = {
-                IconButton(
-                    onClick = {
-                        showGlobalSettingsDialog = true
-                    }
-                ) {
-                    Icon(Icons.Rounded.Settings, "Global Settings")
-                }
                 IconButton(
                     onClick = {
                         createState.open(Assistant())
