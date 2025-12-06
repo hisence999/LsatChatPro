@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.pages.menu
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,9 +42,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +57,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
@@ -275,11 +283,30 @@ private fun ToolButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberPremiumHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        label = "tool_scale"
+    )
+    
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptics.perform(HapticPattern.Pop)
+            onClick()
+        },
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.height(100.dp)
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(100.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

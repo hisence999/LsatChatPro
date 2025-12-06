@@ -2,6 +2,9 @@ package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -10,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -141,11 +146,41 @@ fun ChatMessageReasoning(
         Column(
             modifier = Modifier
                 .padding(8.dp)
-                .animateContentSize(),
+                .clipToBounds()
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = 0.7f,
+                        stiffness = 300f
+                    )
+                ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Press feedback for reasoning header
+            val headerInteractionSource = remember { MutableInteractionSource() }
+            val isHeaderPressed by headerInteractionSource.collectIsPressedAsState()
+            val headerScale by animateFloatAsState(
+                targetValue = if (isHeaderPressed) 0.95f else 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.4f,
+                    stiffness = 400f
+                ),
+                label = "header_scale"
+            )
+            val headerAlpha by animateFloatAsState(
+                targetValue = if (isHeaderPressed) 0.7f else 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.6f,
+                    stiffness = 300f
+                ),
+                label = "header_alpha"
+            )
             Row(
                 modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = headerScale
+                        scaleY = headerScale
+                        alpha = headerAlpha
+                    }
                     .clip(MaterialTheme.shapes.small)
                     .let { if (expandState.expanded) it.fillMaxWidth() else it.wrapContentWidth() }
                     .clickable(
@@ -153,7 +188,7 @@ fun ChatMessageReasoning(
                             toggle()
                         },
                         indication = LocalIndication.current,
-                        interactionSource = remember { MutableInteractionSource() }
+                        interactionSource = headerInteractionSource
                     )
                     .padding(horizontal = 8.dp)
                     .semantics {

@@ -74,11 +74,11 @@ class ChatVM(
     val conversationJob: StateFlow<Job?> =
         chatService
             .getGenerationJobStateFlow(_conversationId)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+            .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     val conversationJobs = chatService
         .getConversationJobs()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     init {
         // 添加对话引用
@@ -101,12 +101,12 @@ class ChatVM(
 
     // 用户设置
     val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
+        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
 
     // 网络搜索
     val enableWebSearch = settings.map {
         it.enableWebSearch
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     // 搜索关键词
     private val _searchQuery = MutableStateFlow("")
@@ -250,7 +250,7 @@ class ChatVM(
 
     // Update checker
     val updateState =
-        updateChecker.checkUpdate().stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Loading)
+        updateChecker.checkUpdate().stateIn(viewModelScope, SharingStarted.Lazily, UiState.Loading)
 
     /**
      * 处理消息发送

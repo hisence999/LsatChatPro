@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +26,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,8 +57,10 @@ import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.hooks.EditStateContent
+import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.rememberIsPlayStoreVersion
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -295,9 +303,36 @@ private fun DrawerAction(
     label: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.88f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.4f,
+            stiffness = 400f
+        ),
+        label = "drawer_scale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.7f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = 300f
+        ),
+        label = "drawer_alpha"
+    )
+    val haptics = rememberPremiumHaptics()
     Surface(
-        onClick = onClick,
-        modifier = modifier,
+        onClick = {
+            haptics.perform(HapticPattern.Tick)
+            onClick()
+        },
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            this.alpha = alpha
+        },
+        interactionSource = interactionSource,
         color = MaterialTheme.colorScheme.primaryContainer,
         shape = CircleShape,
         contentColor = MaterialTheme.colorScheme.onSurface,

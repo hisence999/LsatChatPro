@@ -368,6 +368,26 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = {
+                        Text("UI Haptic Feedback")
+                    },
+                    supportingContent = {
+                        Text("Enable tactile feedback when tapping buttons and controls")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = displaySetting.enableUIHaptics,
+                            onCheckedChange = {
+                                updateDisplaySetting(displaySetting.copy(enableUIHaptics = it))
+                            }
+                        )
+                    },
+                )
+            }
+
+            item {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = {
                         Text(stringResource(R.string.setting_display_page_skip_crop_image_title))
                     },
                     supportingContent = {

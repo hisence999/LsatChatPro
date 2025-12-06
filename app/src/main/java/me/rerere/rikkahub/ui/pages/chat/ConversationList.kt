@@ -1,11 +1,14 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -44,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,6 +66,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
@@ -314,6 +320,21 @@ private fun ConversationItem(
     onClick: (Conversation) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val haptics = rememberPremiumHaptics()
+    
+    // Physics-based press feedback
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
+        label = "conversation_scale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.7f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "conversation_alpha"
+    )
+    
     val backgroundColor = if (selected) {
         MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
     } else {
@@ -324,12 +345,21 @@ private fun ConversationItem(
     }
     Box(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
             .clip(RoundedCornerShape(50f))
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
-                onClick = { onClick(conversation) },
+                onClick = {
+                    haptics.perform(HapticPattern.Tick)
+                    onClick(conversation)
+                },
                 onLongClick = {
+                    haptics.perform(HapticPattern.Buildup)
                     showDropdownMenu = true
                 }
             )
@@ -382,6 +412,8 @@ private fun ConversationItem(
             DropdownMenu(
                 expanded = showDropdownMenu,
                 onDismissRequest = { showDropdownMenu = false },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = Color(0xFF1A1A1C),
             ) {
                 DropdownMenuItem(
                     text = {
@@ -390,6 +422,7 @@ private fun ConversationItem(
                         )
                     },
                     onClick = {
+                        haptics.perform(HapticPattern.Pop)
                         onPin(conversation)
                         showDropdownMenu = false
                     },
@@ -406,6 +439,7 @@ private fun ConversationItem(
                         Text(stringResource(id = R.string.chat_page_regenerate_title))
                     },
                     onClick = {
+                        haptics.perform(HapticPattern.Tick)
                         onRegenerateTitle(conversation)
                         showDropdownMenu = false
                     },
@@ -419,6 +453,7 @@ private fun ConversationItem(
                         Text(stringResource(id = R.string.chat_page_delete))
                     },
                     onClick = {
+                        haptics.perform(HapticPattern.Error)
                         onDelete(conversation)
                         showDropdownMenu = false
                     },

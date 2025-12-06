@@ -24,13 +24,13 @@ class HistoryVM(
 ) : ViewModel() {
     val assistant = settingsStore.settingsFlow
         .map { it.getCurrentAssistant() }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     val conversations = assistant.flatMapLatest { assistant ->
         conversationRepo.getConversationsOfAssistant(assistant?.id ?: Uuid.random())
     }.catch {
         Log.e(TAG, "Error: ${it.message}")
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun searchConversations(query: String): Flow<List<Conversation>> {
         val currentAssistant = assistant.value

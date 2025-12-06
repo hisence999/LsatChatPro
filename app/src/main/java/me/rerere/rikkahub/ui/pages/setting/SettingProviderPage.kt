@@ -47,9 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -156,18 +156,14 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                 .scale(if (isDragging) 0.95f else 1f)
                                 .fillMaxWidth(),
                             provider = provider,
+                            haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics),
                             dragHandle = {
-                                val haptic = LocalHapticFeedback.current
                                 IconButton(
                                     onClick = {},
                                     modifier = Modifier
                                         .longPressDraggableHandle(
-                                            onDragStarted = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                            },
-                                            onDragStopped = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                            }
+                                            onDragStarted = {},
+                                            onDragStopped = {}
                                         )
                                 ) {
                                     Icon(
@@ -449,6 +445,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
 private fun ProviderItem(
     provider: ProviderSetting,
     modifier: Modifier = Modifier,
+    haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
     dragHandle: @Composable () -> Unit,
     onClick: () -> Unit
 ) {
@@ -461,6 +458,7 @@ private fun ProviderItem(
             } else MaterialTheme.colorScheme.errorContainer,
         ),
         onClick = {
+            haptics.perform(HapticPattern.Pop)
             onClick()
         }
     ) {

@@ -56,9 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -307,7 +307,7 @@ private fun ColumnScope.ModelList(
             }
         }
     }
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberPremiumHaptics(enabled = settings.value.displaySetting.enableUIHaptics)
 
     val providerPositions = remember(providers, favoriteModels) {
         var currentIndex = 0
@@ -421,10 +421,10 @@ private fun ColumnScope.ModelList(
                                     contentDescription = null,
                                     modifier = Modifier.longPressDraggableHandle(
                                         onDragStarted = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            haptics.perform(HapticPattern.DragStart)
                                         },
                                         onDragStopped = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                            haptics.perform(HapticPattern.DragEnd)
                                         }
                                     )
                                 )

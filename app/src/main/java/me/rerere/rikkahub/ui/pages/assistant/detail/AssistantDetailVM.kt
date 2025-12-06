@@ -39,13 +39,13 @@ class AssistantDetailVM(
     private val assistantId = Uuid.parse(id)
 
     val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
+        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
 
     val mcpServerConfigs = settingsStore
         .settingsFlow.map { settings ->
             settings.mcpServers
         }.stateIn(
-            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+            scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
         )
 
     val assistant: StateFlow<Assistant> = settingsStore
@@ -53,7 +53,7 @@ class AssistantDetailVM(
         .map { settings ->
             settings.assistants.find { it.id == assistantId } ?: Assistant()
         }.stateIn(
-            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = Assistant()
+            scope = viewModelScope, started = SharingStarted.Lazily, initialValue = Assistant()
         )
 
     private val _memorySearchQuery = MutableStateFlow("")
@@ -85,12 +85,12 @@ class AssistantDetailVM(
             allMemories.filter { it.content.contains(query, ignoreCase = true) }
         }
     }.stateIn(
-        scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+        scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
     )
 
     val episodes = chatEpisodeDAO.getEpisodesOfAssistantFlow(assistantId.toString())
         .stateIn(
-            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+            scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
         )
 
     val episodeStats = combine(episodes, memories) { episodeList, memoryList ->
@@ -102,14 +102,14 @@ class AssistantDetailVM(
         }
         val coreCount = memoryList.count { it.type == 0 } // 0 is CORE
         EpisodeStats(totalEpisodes, avgSig, coreCount)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, EpisodeStats(0, 0.0, 0))
+    }.stateIn(viewModelScope, SharingStarted.Lazily, EpisodeStats(0, 0.0, 0))
 
     val providers = settingsStore
         .settingsFlow
         .map { settings ->
             settings.providers
         }.stateIn(
-            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+            scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
         )
 
     val tags = settingsStore
@@ -117,7 +117,7 @@ class AssistantDetailVM(
         .map { settings ->
             settings.assistantTags
         }.stateIn(
-            scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList()
+            scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
         )
 
     private val _isGeneratingGreetings = MutableStateFlow(false)
@@ -394,14 +394,14 @@ class AssistantDetailVM(
     fun estimateTokens(text: String): Int = text.length / 4
 
     val averageMessageLength = conversationRepository.getAverageMessageLength(assistantId)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 100)
+        .stateIn(viewModelScope, SharingStarted.Lazily, 100)
 
     val averageMemoryLength = memoryRepository.getAverageMemoryLength(assistantId.toString())
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 150)
+        .stateIn(viewModelScope, SharingStarted.Lazily, 150)
 
     val systemPromptTokenCount = assistant.map {
         estimateTokens(it.systemPrompt)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, 0)
 
     val smartMinTokenUsage = combine(
         assistant,
@@ -418,7 +418,7 @@ class AssistantDetailVM(
         val minMemory = if (assistant.enableMemory) avgMemTokens * 2 else 0 // At least 2 memories
         val buffer = 200
         sysPrompt + minHistory + minMemory + buffer
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, 1000)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, 1000)
 
     val estimatedMemoryCapacity = combine(
         assistant,
@@ -432,7 +432,7 @@ class AssistantDetailVM(
         // If RAG is enabled, how many memories can we fit in the remaining space?
         // This is a rough upper bound for the slider
         (available / avgMemTokens).coerceAtLeast(5) // Minimum 5
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, 10)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, 10)
 
     val estimatedAllocation = combine(
         assistant,
@@ -479,7 +479,7 @@ class AssistantDetailVM(
 
             "Est. History: ~$estHistoryMsgs msgs, Memories: ~$estMemories (based on your avg usage)"
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, "Calculating...")
+    }.stateIn(viewModelScope, SharingStarted.Lazily, "Calculating...")
 }
 
 data class EmbeddingProgress(

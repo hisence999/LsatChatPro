@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -142,6 +144,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.utils.createChatFilesByContents
 import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.rikkahub.utils.getFileMimeType
@@ -154,8 +158,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.ui.graphics.TileMode
@@ -186,16 +188,19 @@ fun ChatInput(
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
     fun sendMessage() {
         keyboardController?.hide()
+        haptics.perform(HapticPattern.Send)
         if (state.loading) onCancelClick() else onSendClick()
     }
 
     fun sendMessageWithoutAnswer() {
         keyboardController?.hide()
+        haptics.perform(HapticPattern.Thud)
         if (state.loading) onCancelClick() else onLongSendClick()
     }
 
@@ -205,6 +210,7 @@ fun ChatInput(
     }
 
     fun expandToggle(type: ExpandState) {
+        haptics.perform(HapticPattern.Pop)
         if (expand == type) {
             dismissExpand()
         } else {
@@ -267,25 +273,56 @@ fun ChatInput(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp) // Tighter spacing
                 ) {
+                    // Plus button with physics-based animations
+                    val plusInteractionSource = remember { MutableInteractionSource() }
+                    val isPlusPressed by plusInteractionSource.collectIsPressedAsState()
+                    val plusScale by animateFloatAsState(
+                        targetValue = if (isPlusPressed) 0.85f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = 0.4f,
+                            stiffness = 400f
+                        ),
+                        label = "plus_scale"
+                    )
+                    val plusAlpha by animateFloatAsState(
+                        targetValue = if (isPlusPressed) 0.7f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = 0.6f,
+                            stiffness = 300f
+                        ),
+                        label = "plus_alpha"
+                    )
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .padding(start = 10.dp)
                             .size(36.dp)
+                            .graphicsLayer {
+                                scaleX = plusScale
+                                scaleY = plusScale
+                                alpha = plusAlpha
+                            }
                             .clip(CircleShape)
-                            .clickable {
+                            .clickable(
+                                interactionSource = plusInteractionSource,
+                                indication = LocalIndication.current
+                            ) {
                                 expandToggle(ExpandState.Files)
                             }
                     ) {
                         val rotation by animateFloatAsState(
                             targetValue = if (expand == ExpandState.Files) 45f else 0f,
+                            animationSpec = spring(
+                                dampingRatio = 0.5f,
+                                stiffness = 300f
+                            ),
                             label = "rotation"
                         )
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = stringResource(R.string.more_options),
                             modifier = Modifier.rotate(rotation),
-                            tint = MaterialTheme.colorScheme.onSurface // Icon on Surface
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -382,13 +419,38 @@ fun ChatInput(
                                                 label = "button_crossfade"
                                             ) { expanded ->
                                                 if (expanded) {
-                                                    // Send Button
+                                                    // Send Button with physics-based press feedback
+                                                    val sendInteractionSource = remember { MutableInteractionSource() }
+                                                    val isSendPressed by sendInteractionSource.collectIsPressedAsState()
+                                                    val sendScale by animateFloatAsState(
+                                                        targetValue = if (isSendPressed) 0.85f else 1f,
+                                                        animationSpec = spring(
+                                                            dampingRatio = 0.4f,
+                                                            stiffness = 400f
+                                                        ),
+                                                        label = "send_scale"
+                                                    )
+                                                    val sendAlpha by animateFloatAsState(
+                                                        targetValue = if (isSendPressed) 0.8f else 1f,
+                                                        animationSpec = spring(
+                                                            dampingRatio = 0.6f,
+                                                            stiffness = 300f
+                                                        ),
+                                                        label = "send_alpha"
+                                                    )
                                                     Box(
                                                         contentAlignment = Alignment.Center,
                                                         modifier = Modifier
                                                             .size(36.dp)
+                                                            .graphicsLayer {
+                                                                scaleX = sendScale
+                                                                scaleY = sendScale
+                                                                alpha = sendAlpha
+                                                            }
                                                             .clip(CircleShape)
                                                             .combinedClickable(
+                                                                interactionSource = sendInteractionSource,
+                                                                indication = null,
                                                                 enabled = state.loading || !state.isEmpty(),
                                                                 onClick = {
                                                                     expand = ExpandState.Collapsed
@@ -1244,9 +1306,34 @@ private fun BigIconTextButton(
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val amoledMode by rememberAmoledDarkMode()
+    
+    // Physics-based press feedback
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.4f,
+            stiffness = 400f
+        ),
+        label = "button_scale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.8f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = 300f
+        ),
+        label = "button_alpha"
+    )
+    
     Column(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
             .clip(RoundedCornerShape(24.dp))
             .clickable(
                 interactionSource = interactionSource,

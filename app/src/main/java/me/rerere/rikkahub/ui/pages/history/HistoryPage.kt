@@ -1,11 +1,16 @@
 package me.rerere.rikkahub.ui.pages.history;
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +66,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
@@ -138,34 +146,65 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
     ) { contentPadding ->
         val snackMessageDeleted = stringResource(R.string.history_page_conversation_deleted)
         val snackMessageUndo = stringResource(R.string.history_page_undo)
-        LazyColumn(
-            contentPadding = contentPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(showConversations, key = { it.id }) { conversation ->
-                SwipeableConversationItem(
-                    conversation = conversation,
-                    onClick = {
-                        navigateToChatPage(navController, conversation.id)
-                    },
-                    onDelete = {
-                        vm.deleteConversation(conversation)
-                        scope.launch {
-                            val result = snackbarHostState.showSnackbar(
-                                message = snackMessageDeleted,
-                                actionLabel = snackMessageUndo,
-                                withDismissAction = true,
-                            )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                vm.restoreConversation(conversation)
+        
+        if (showConversations.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = if (searchText.isEmpty()) 
+                            stringResource(R.string.history_page_no_conversations)
+                        else 
+                            stringResource(R.string.history_page_no_results),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                contentPadding = contentPadding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(showConversations, key = { it.id }) { conversation ->
+                    SwipeableConversationItem(
+                        conversation = conversation,
+                        onClick = {
+                            navigateToChatPage(navController, conversation.id)
+                        },
+                        onDelete = {
+                            vm.deleteConversation(conversation)
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = snackMessageDeleted,
+                                    actionLabel = snackMessageUndo,
+                                    withDismissAction = true,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    vm.restoreConversation(conversation)
+                                }
                             }
-                        }
-                    },
-                    onTogglePin = { vm.togglePinStatus(conversation.id) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateItem()
-                )
+                        },
+                        onTogglePin = { vm.togglePinStatus(conversation.id) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem()
+                    )
+                }
             }
         }
     }
@@ -241,6 +280,7 @@ private fun SwipeableConversationItem(
     onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
+    val haptics = rememberPremiumHaptics()
     val positionThreshold = SwipeToDismissBoxDefaults.positionalThreshold
     val dismissState = remember {
         SwipeToDismissBoxState(
@@ -252,6 +292,7 @@ private fun SwipeableConversationItem(
     LaunchedEffect(dismissState.currentValue) {
         when (dismissState.currentValue) {
             SwipeToDismissBoxValue.EndToStart -> {
+                haptics.perform(HapticPattern.Thud)
                 onDelete()
             }
 
@@ -297,11 +338,28 @@ private fun ConversationItem(
     onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
+    val haptics = rememberPremiumHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        label = "conversation_scale"
+    )
+    
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptics.perform(HapticPattern.Pop)
+            onClick()
+        },
         tonalElevation = 2.dp,
         shape = RoundedCornerShape(25),
-        modifier = modifier
+        interactionSource = interactionSource,
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
     ) {
         ListItem(
             headlineContent = {
@@ -331,7 +389,10 @@ private fun ConversationItem(
             },
             trailingContent = {
                 IconButton(
-                    onClick = onTogglePin
+                    onClick = {
+                        haptics.perform(HapticPattern.Selection)
+                        onTogglePin()
+                    }
                 ) {
                     Icon(
                         if (conversation.isPinned) Icons.Outlined.PushPin else Icons.Rounded.PushPin,

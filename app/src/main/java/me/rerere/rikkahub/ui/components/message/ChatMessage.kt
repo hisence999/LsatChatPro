@@ -3,6 +3,8 @@ package me.rerere.rikkahub.ui.components.message
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -39,6 +41,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -185,11 +188,33 @@ fun ChatMessage(
 
         AnimatedVisibility(
             visible = showActions,
-            enter = slideInVertically { it / 2 } + fadeIn(),
-            exit = slideOutVertically { it / 2 } + fadeOut()
+            enter = slideInVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.6f,
+                    stiffness = 300f
+                )
+            ) { it / 2 } + fadeIn(
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = 400f
+                )
+            ),
+            exit = slideOutVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = 500f
+                )
+            ) { it / 2 } + fadeOut()
         ) {
             Column(
-                modifier = Modifier.animateContentSize()
+                modifier = Modifier
+                    .clipToBounds()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.7f,
+                            stiffness = 300f
+                        )
+                    )
             ) {
                 ChatMessageActionButtons(
                     message = message,
@@ -307,7 +332,12 @@ private fun MessagePartsBlock(
         if (role == MessageRole.USER) {
             Card(
                 modifier = Modifier
-                    .animateContentSize(),
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.7f,
+                            stiffness = 300f
+                        )
+                    ),
                 shape = RoundedCornerShape(24.dp),
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -333,7 +363,12 @@ private fun MessagePartsBlock(
                 onClickCitation = { id ->
                     handleClickCitation(id)
                 },
-                modifier = Modifier.animateContentSize()
+                modifier = Modifier.animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = 0.7f,
+                        stiffness = 300f
+                    )
+                )
             )
         }
     }
