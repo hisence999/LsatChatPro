@@ -118,8 +118,6 @@ fun ChatList(
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
     onClickSuggestion: (String) -> Unit = {},
-    onTranslate: ((UIMessage, java.util.Locale) -> Unit)? = null,
-    onClearTranslation: (UIMessage) -> Unit = {},
     onJumpToMessage: (Int) -> Unit = {},
 ) {
     SharedTransitionLayout {
@@ -151,8 +149,6 @@ fun ChatList(
                     onDelete = onDelete,
                     onUpdateMessage = onUpdateMessage,
                     onClickSuggestion = onClickSuggestion,
-                    onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
             }
@@ -173,8 +169,6 @@ private fun SharedTransitionScope.ChatListNormal(
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
     onClickSuggestion: (String) -> Unit,
-    onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
-    onClearTranslation: (UIMessage) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
@@ -285,8 +279,6 @@ private fun SharedTransitionScope.ChatListNormal(
                             onUpdate = {
                                 onUpdateMessage(it)
                             },
-                            onTranslate = onTranslate,
-                            onClearTranslation = onClearTranslation
                         )
                     }
                     if (index == conversation.truncateIndex - 1) {

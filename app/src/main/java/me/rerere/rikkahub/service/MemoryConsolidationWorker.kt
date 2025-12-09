@@ -128,7 +128,7 @@ class MemoryConsolidationWorker(
                     messages = listOf(UIMessage.user(prompt)),
                     params = TextGenerationParams(model = model, temperature = 0.5f)
                 )
-                val responseText = response.choices.firstOrNull()?.message?.toText() ?: continue
+                val responseText = response.choices.firstOrNull()?.message?.toContentText() ?: continue
                 
                 var summary = responseText
                 var significance = 5
@@ -148,7 +148,9 @@ class MemoryConsolidationWorker(
                 }
                 
                 // Generate embedding for the episode
-                val summaryEmbedding = embeddingService.embed(summary, assistantId)
+                val summaryEmbeddingResult = embeddingService.embedWithModelId(summary, assistantId)
+                val summaryEmbedding = summaryEmbeddingResult.embeddings.firstOrNull()
+                val embeddingModelId = summaryEmbeddingResult.modelId
                 
                 if (summaryEmbedding != null) {
                     // Check if an episode already exists for this conversation
@@ -160,6 +162,7 @@ class MemoryConsolidationWorker(
                             existingEpisode.copy(
                                 content = summary,
                                 embedding = JsonInstant.encodeToString(summaryEmbedding),
+                                embeddingModelId = embeddingModelId,
                                 endTime = conversation.updateAt.toEpochMilli(),
                                 lastAccessedAt = System.currentTimeMillis(),
                                 significance = significance
@@ -173,6 +176,7 @@ class MemoryConsolidationWorker(
                                 assistantId = assistantId,
                                 content = summary,
                                 embedding = JsonInstant.encodeToString(summaryEmbedding),
+                                embeddingModelId = embeddingModelId,
                                 startTime = conversation.createAt.toEpochMilli(),
                                 endTime = conversation.updateAt.toEpochMilli(),
                                 lastAccessedAt = System.currentTimeMillis(),
@@ -239,7 +243,7 @@ class MemoryConsolidationWorker(
                         messages = listOf(UIMessage.user(prompt)),
                         params = TextGenerationParams(model = model, temperature = 0.3f)
                     )
-                    val factsText = response.choices.firstOrNull()?.message?.toText() ?: return
+                    val factsText = response.choices.firstOrNull()?.message?.toContentText() ?: return
                     
                     if (factsText != "NONE" && factsText.isNotBlank()) {
                         val facts = factsText.split("\n").map { it.trim().removePrefix("- ").trim() }.filter { it.isNotBlank() }
@@ -348,6 +352,18 @@ class MemoryConsolidationWorker(
         if (prunedCount > 0) {
             Log.i("MemoryConsolidation", "Pruned $prunedCount fading episodic memories")
         }
+
+        // =========================================================================================
+        // AUTO-FIX: Embed any memories that are missing embeddings or have wrong model
+        // =========================================================================================
+        try {
+            val (fixed, failed) = memoryRepository.embedMissingMemories(assistantId)
+            if (fixed > 0 || failed > 0) {
+                Log.i("MemoryConsolidation", "Auto-embedded $fixed memories ($failed failed)")
+            }
+        } catch (e: Exception) {
+            Log.e("MemoryConsolidation", "Error auto-embedding memories", e)
+        }
     }
 
     private suspend fun deduplicateMemories(assistantId: String, model: Model, provider: ProviderSetting) {
@@ -426,7 +442,7 @@ class MemoryConsolidationWorker(
                         messages = listOf(UIMessage.user(prompt)),
                         params = TextGenerationParams(model = model, temperature = 0.1f)
                     )
-                    val mergedText = response.choices.firstOrNull()?.message?.toText()?.trim() ?: continue
+                    val mergedText = response.choices.firstOrNull()?.message?.toContentText()?.trim() ?: continue
 
                     if (mergedText != "NO_MERGE" && mergedText.isNotBlank() && mergedText.length > 5) {
                         Log.i("MemoryConsolidation", "Merging ${cluster.size} memories: ${memoriesToMerge.map { it.id }}")

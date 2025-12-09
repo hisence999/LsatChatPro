@@ -356,12 +356,6 @@ private fun ChatPageContent(
                             vm.forkMessage(it)
                         }
                     },
-                    onTranslate = { message, locale ->
-                        vm.translateMessage(message, locale)
-                    },
-                    onClearTranslation = { message ->
-                        vm.clearTranslationField(message.id)
-                    }
                 )
 
                 // Gradient behind floating toolbar

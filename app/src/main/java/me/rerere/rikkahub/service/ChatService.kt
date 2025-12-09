@@ -692,7 +692,7 @@ class ChatService(
             conversationRepo.getConversationById(conversation.id)?.let {
                 saveConversation(
                     conversationId,
-                    it.copy(title = result.choices[0].message?.toText()?.trim() ?: "")
+                    it.copy(title = result.choices[0].message?.toContentText()?.trim() ?: "")
                 )
             }
         }.onFailure {
@@ -730,7 +730,7 @@ class ChatService(
                 ),
             )
             val suggestions =
-                result.choices[0].message?.toText()?.split("\n")?.map { it.trim() }
+                result.choices[0].message?.toContentText()?.split("\n")?.map { it.trim() }
                     ?.filter { it.isNotBlank() } ?: emptyList()
 
             saveConversation(

@@ -674,7 +674,7 @@ class GenerationHandler(
                 ),
             ).collect { chunk ->
                 messages = messages.handleMessageChunk(chunk)
-                translatedText = messages.lastOrNull()?.toText() ?: ""
+                translatedText = messages.lastOrNull()?.toContentText() ?: ""
 
                 if (translatedText.isNotBlank()) {
                     onStreamUpdate?.invoke(translatedText)
@@ -705,7 +705,7 @@ class GenerationHandler(
                     )
                 ),
             )
-            val translatedText = chunk.choices.firstOrNull()?.message?.toText() ?: ""
+            val translatedText = chunk.choices.firstOrNull()?.message?.toContentText() ?: ""
 
             if (translatedText.isNotBlank()) {
                 onStreamUpdate?.invoke(translatedText)

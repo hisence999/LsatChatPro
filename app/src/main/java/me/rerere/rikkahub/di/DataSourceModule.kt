@@ -68,6 +68,10 @@ val dataSourceModule = module {
         get<AppDatabase>().chatEpisodeDao()
     }
 
+    single {
+        get<AppDatabase>().embeddingCacheDao()
+    }
+
     single { McpManager(settingsStore = get(), appScope = get()) }
 
     single {

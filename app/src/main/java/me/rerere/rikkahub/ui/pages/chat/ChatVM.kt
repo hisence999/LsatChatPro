@@ -52,7 +52,6 @@ import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatVM"
@@ -504,10 +503,6 @@ class ChatVM(
         }
     }
 
-    fun translateMessage(message: UIMessage, targetLanguage: Locale) {
-        chatService.translateMessage(_conversationId, message, targetLanguage)
-    }
-
     fun generateTitle(conversation: Conversation, force: Boolean = false) {
         viewModelScope.launch {
             val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
@@ -519,10 +514,6 @@ class ChatVM(
         viewModelScope.launch {
             chatService.generateSuggestion(_conversationId, conversation)
         }
-    }
-
-    fun clearTranslationField(messageId: Uuid) {
-        chatService.clearTranslationField(_conversationId, messageId)
     }
 
     fun updateConversation(newConversation: Conversation) {

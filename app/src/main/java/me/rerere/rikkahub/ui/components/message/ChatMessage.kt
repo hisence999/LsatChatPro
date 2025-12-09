@@ -93,7 +93,6 @@ import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
-import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val EmptyJson = JsonObject(emptyMap())
@@ -112,8 +111,6 @@ fun ChatMessage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (MessageNode) -> Unit,
-    onTranslate: ((UIMessage, Locale) -> Unit)? = null,
-    onClearTranslation: (UIMessage) -> Unit = {},
 ) {
     val message = node.messages[node.selectIndex]
     val chatMessages = conversation.currentMessages
@@ -171,13 +168,6 @@ fun ChatMessage(
                 loading = loading,
                 model = model,
             )
-
-            message.translation?.let { translation ->
-                CollapsibleTranslationText(
-                    content = translation,
-                    onClickCitation = {}
-                )
-            }
         }
 
         val showActions = if (lastMessage) {
@@ -224,8 +214,6 @@ fun ChatMessage(
                     onOpenActionSheet = {
                         showActionsSheet = true
                     },
-                    onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation
                 )
             }
         }

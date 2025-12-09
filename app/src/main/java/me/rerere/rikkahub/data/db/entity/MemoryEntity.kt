@@ -14,6 +14,8 @@ data class MemoryEntity(
     val content: String = "",
     @ColumnInfo("embedding")
     val embedding: String? = null, // JSON string of float array
+    @ColumnInfo(name = "embedding_model_id", defaultValue = "")
+    val embeddingModelId: String? = null, // UUID of the embedding model used
     @ColumnInfo(name = "type", defaultValue = "0")
     val type: Int = 0, // 0: CORE, 1: EPISODIC
     @ColumnInfo(name = "last_accessed_at", defaultValue = "0")

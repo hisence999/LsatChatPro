@@ -86,6 +86,7 @@ data class AssistantMemory(
     val content: String = "",
     val type: Int = 0, // 0: CORE, 1: EPISODIC
     val hasEmbedding: Boolean = false,
+    val embeddingModelId: String? = null, // UUID of the embedding model used (for model mismatch detection)
     val timestamp: Long = 0L // Timestamp of the memory (e.g. creation time or episode start time)
 )
 

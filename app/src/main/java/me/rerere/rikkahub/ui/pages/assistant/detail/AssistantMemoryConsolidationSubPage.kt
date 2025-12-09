@@ -247,10 +247,6 @@ fun AssistantMemoryConsolidationSubPage(
                                 label = "Episodic Memories",
                                 value = stats.totalEpisodes.toString()
                             )
-                            StatItem(
-                                label = "Avg Significance",
-                                value = String.format("%.1f", stats.averageSignificance)
-                            )
                         }
                         
                         // Detailed Run Stats

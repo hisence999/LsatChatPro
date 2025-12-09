@@ -14,6 +14,8 @@ data class ChatEpisodeEntity(
     val content: String, // Summary of the episode
     @ColumnInfo("embedding")
     val embedding: String? = null,
+    @ColumnInfo(name = "embedding_model_id", defaultValue = "")
+    val embeddingModelId: String? = null, // UUID of the embedding model used
     @ColumnInfo("start_time")
     val startTime: Long,
     @ColumnInfo("end_time")

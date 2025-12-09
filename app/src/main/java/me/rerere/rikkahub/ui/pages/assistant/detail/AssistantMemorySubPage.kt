@@ -74,7 +74,8 @@ fun AssistantMemorySettings(
     onTestRetrieval: ((String) -> Unit)? = null,
     retrievalResults: List<Pair<AssistantMemory, Float>> = emptyList(),
     assistantDetailVM: AssistantDetailVM,
-    estimatedMemoryCapacity: Int
+    estimatedMemoryCapacity: Int,
+    needsEmbeddingRegeneration: Boolean = false
 ) {
     val memoryDialogState = useEditState<AssistantMemory> {
         if (it.id == 0) {
@@ -148,6 +149,7 @@ fun AssistantMemorySettings(
     }
 
     val memorySearchQuery by assistantDetailVM.memorySearchQuery.collectAsState()
+    val currentEmbeddingModelId by assistantDetailVM.currentEmbeddingModelId.collectAsState()
 
     Column(
         modifier = Modifier
@@ -245,7 +247,8 @@ fun AssistantMemorySettings(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (onRegenerateEmbeddings != null) {
+                // Only show regenerate button when RAG is enabled AND there are memories needing embedding
+                if (onRegenerateEmbeddings != null && assistant.useRagMemoryRetrieval && needsEmbeddingRegeneration) {
                     IconButton(
                         onClick = onRegenerateEmbeddings
                     ) {
@@ -289,7 +292,9 @@ fun AssistantMemorySettings(
                     onEditMemory = {
                         memoryDialogState.open(it)
                     },
-                    onDeleteMemory = onDeleteMemory
+                    onDeleteMemory = onDeleteMemory,
+                    useRagMemoryRetrieval = assistant.useRagMemoryRetrieval,
+                    currentEmbeddingModelId = currentEmbeddingModelId
                 )
             }
         }
@@ -302,8 +307,17 @@ fun AssistantMemorySettings(
 private fun MemoryItem(
     memory: AssistantMemory,
     onEditMemory: (AssistantMemory) -> Unit,
-    onDeleteMemory: (AssistantMemory) -> Unit
+    onDeleteMemory: (AssistantMemory) -> Unit,
+    useRagMemoryRetrieval: Boolean = false,
+    currentEmbeddingModelId: String = ""
 ) {
+    // Determine embedding status - simplified since cache handles model switching
+    val embeddingStatus = if (memory.hasEmbedding) {
+        EmbeddingStatus.EMBEDDED
+    } else {
+        EmbeddingStatus.NO_EMBEDDING
+    }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
@@ -318,29 +332,48 @@ private fun MemoryItem(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (memory.hasEmbedding) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant
-                    )
-            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Surface(
-                    color = if (memory.type == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.extraSmall
+                // Pills row - CORE/EPISODIC + embedding status
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (memory.type == 0) "CORE" else "EPISODIC",
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        color = if (memory.type == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    // Type pill (CORE/EPISODIC)
+                    Surface(
+                        color = if (memory.type == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = if (memory.type == 0) "CORE" else "EPISODIC",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            color = if (memory.type == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                    
+                    // Embedding status pill (only shown when RAG is enabled)
+                    if (useRagMemoryRetrieval) {
+                        Surface(
+                            color = when (embeddingStatus) {
+                                EmbeddingStatus.EMBEDDED -> androidx.compose.ui.graphics.Color(0xFF388E3C) // Darker green
+                                EmbeddingStatus.NO_EMBEDDING -> androidx.compose.ui.graphics.Color(0xFFC62828) // Darker red
+                            },
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(
+                                text = when (embeddingStatus) {
+                                    EmbeddingStatus.EMBEDDED -> "EMBEDDED"
+                                    EmbeddingStatus.NO_EMBEDDING -> "NO EMBEDDING"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                color = androidx.compose.ui.graphics.Color.White
+                            )
+                        }
+                    }
                 }
                 Text(
                     text = memory.content,
@@ -366,6 +399,11 @@ private fun MemoryItem(
             }
         }
     }
+}
+
+private enum class EmbeddingStatus {
+    NO_EMBEDDING,
+    EMBEDDED
 }
 
 @Composable

@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.map
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.ai.rag.VectorEngine
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
+import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
+import me.rerere.rikkahub.data.db.entity.EmbeddingCacheEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.AssistantMemory
@@ -15,12 +17,13 @@ import me.rerere.rikkahub.utils.JsonInstant
 class MemoryRepository(
     private val memoryDAO: MemoryDAO,
     private val chatEpisodeDAO: ChatEpisodeDAO,
-    private val embeddingService: EmbeddingService
+    private val embeddingService: EmbeddingService,
+    private val embeddingCacheDAO: EmbeddingCacheDAO
 ) {
     fun getMemoriesOfAssistantFlow(assistantId: String): Flow<List<AssistantMemory>> =
         memoryDAO.getMemoriesOfAssistantFlow(assistantId)
             .map { entities ->
-                entities.map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.createdAt) }
+                entities.map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.embeddingModelId, it.createdAt) }
             }
 
     fun getAverageMemoryLength(assistantId: String): Flow<Int> =
@@ -33,7 +36,7 @@ class MemoryRepository(
 
     suspend fun getMemoriesOfAssistant(assistantId: String): List<AssistantMemory> {
         return memoryDAO.getMemoriesOfAssistant(assistantId)
-            .map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.createdAt) }
+            .map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.embeddingModelId, it.createdAt) }
     }
 
     // ... (omitted methods) ...
@@ -48,6 +51,57 @@ class MemoryRepository(
         return chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
     }
 
+    /**
+     * Get or create an embedding for a memory/episode content.
+     * First checks the cache, then generates if not found.
+     * @return The embedding if successful, null otherwise
+     */
+    private suspend fun getOrCreateEmbedding(
+        memoryId: Int,
+        memoryType: Int,
+        content: String,
+        assistantId: String
+    ): List<Float>? {
+        val modelId = embeddingService.getEmbeddingModelId(assistantId)
+        
+        // Check cache first
+        val cached = embeddingCacheDAO.getEmbedding(memoryId, memoryType, modelId)
+        if (cached != null) {
+            return try {
+                JsonInstant.decodeFromString<List<Float>>(cached.embedding)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        
+        // Generate new embedding
+        return try {
+            val embedding = embeddingService.embed(content, assistantId)
+            if (embedding != null) {
+                // Cache it
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = memoryId,
+                        memoryType = memoryType,
+                        modelId = modelId,
+                        embedding = JsonInstant.encodeToString(embedding)
+                    )
+                )
+            }
+            embedding
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Check if an embedding exists in cache for the current model.
+     */
+    suspend fun hasEmbeddingForCurrentModel(memoryId: Int, memoryType: Int, assistantId: String): Boolean {
+        val modelId = embeddingService.getEmbeddingModelId(assistantId)
+        return embeddingCacheDAO.hasEmbedding(memoryId, memoryType, modelId)
+    }
 
     suspend fun deleteMemoriesOfAssistant(assistantId: String) {
         memoryDAO.deleteMemoriesOfAssistant(assistantId)
@@ -81,8 +135,8 @@ class MemoryRepository(
     }
 
     suspend fun addMemory(assistantId: String, content: String): AssistantMemory {
-        val embedding = try {
-            embeddingService.embed(content, assistantId)
+        val embeddingResult = try {
+            embeddingService.embedWithModelId(content, assistantId)
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -91,7 +145,8 @@ class MemoryRepository(
         val entity = MemoryEntity(
             assistantId = assistantId,
             content = content,
-            embedding = embedding?.let { JsonInstant.encodeToString(it) },
+            embedding = embeddingResult?.embeddings?.firstOrNull()?.let { JsonInstant.encodeToString(it) },
+            embeddingModelId = embeddingResult?.modelId,
             type = MemoryType.CORE,
             createdAt = System.currentTimeMillis(),
             lastAccessedAt = System.currentTimeMillis()
@@ -102,7 +157,9 @@ class MemoryRepository(
         return AssistantMemory(
             id = id.toInt(),
             content = content,
-            type = MemoryType.CORE
+            type = MemoryType.CORE,
+            hasEmbedding = embeddingResult != null,
+            embeddingModelId = embeddingResult?.modelId
         )
     }
 
@@ -125,31 +182,14 @@ class MemoryRepository(
         val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
         val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
         
-        // Score core memories - generate embeddings on-the-fly for memories without them
+        // Score core memories - use cache for embeddings
         val memoryScores = memories.mapNotNull { memory ->
-            var embedding: List<Float>? = null
-            
-            // Try to get existing embedding
-            val embeddingStr = memory.embedding
-            if (embeddingStr != null) {
-                embedding = try {
-                    JsonInstant.decodeFromString<List<Float>>(embeddingStr)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            
-            // If no embedding exists, generate it lazily
-            if (embedding == null) {
-                try {
-                    embedding = embeddingService.embed(memory.content, assistantId)
-                    // Save the generated embedding back to the database
-                    memoryDAO.updateMemory(memory.copy(embedding = JsonInstant.encodeToString(embedding)))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    return@mapNotNull null
-                }
-            }
+            val embedding = getOrCreateEmbedding(
+                memoryId = memory.id,
+                memoryType = MemoryType.CORE,
+                content = memory.content,
+                assistantId = assistantId
+            ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
@@ -162,31 +202,14 @@ class MemoryRepository(
             } else null
         }
         
-        // Score episodes - generate embeddings on-the-fly for episodes without them
+        // Score episodes - use cache for embeddings
         val episodeScores = episodes.mapNotNull { episode ->
-            var embedding: List<Float>? = null
-            
-            // Try to get existing embedding
-            val embeddingStr = episode.embedding
-            if (embeddingStr != null) {
-                embedding = try {
-                    JsonInstant.decodeFromString<List<Float>>(embeddingStr)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            
-            // If no embedding exists, generate it lazily
-            if (embedding == null) {
-                try {
-                    embedding = embeddingService.embed(episode.content, assistantId)
-                    // Save the generated embedding back to the database
-                    chatEpisodeDAO.insertEpisode(episode.copy(embedding = JsonInstant.encodeToString(embedding)))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    return@mapNotNull null
-                }
-            }
+            val embedding = getOrCreateEmbedding(
+                memoryId = episode.id,
+                memoryType = MemoryType.EPISODIC,
+                content = episode.content,
+                assistantId = assistantId
+            ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
@@ -225,11 +248,11 @@ class MemoryRepository(
 
             if (isMemory) {
                 val memory = item as MemoryEntity
-                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.createdAt), score)
+                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.embeddingModelId, memory.createdAt), score)
             } else {
                 val episode = item as ChatEpisodeEntity
                 // Convert episode to AssistantMemory with a negative ID to distinguish
-                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.startTime), score)
+                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
             }
         }
     }
@@ -266,31 +289,14 @@ class MemoryRepository(
         val memories = if (includeCore) memoryDAO.getMemoriesOfAssistant(assistantId) else emptyList()
         val episodes = if (includeEpisodes) chatEpisodeDAO.getEpisodesOfAssistant(assistantId) else emptyList()
         
-        // Score core memories - generate embeddings on-the-fly for memories without them
+        // Score core memories - use cache for embeddings
         val memoryScores = memories.mapNotNull { memory ->
-            var embedding: List<Float>? = null
-            
-            // Try to get existing embedding
-            val embeddingStr = memory.embedding
-            if (embeddingStr != null) {
-                embedding = try {
-                    JsonInstant.decodeFromString<List<Float>>(embeddingStr)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            
-            // If no embedding exists, generate it lazily
-            if (embedding == null) {
-                try {
-                    embedding = embeddingService.embed(memory.content, assistantId)
-                    // Save the generated embedding back to the database
-                    memoryDAO.updateMemory(memory.copy(embedding = JsonInstant.encodeToString(embedding)))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    return@mapNotNull null
-                }
-            }
+            val embedding = getOrCreateEmbedding(
+                memoryId = memory.id,
+                memoryType = MemoryType.CORE,
+                content = memory.content,
+                assistantId = assistantId
+            ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
@@ -303,31 +309,14 @@ class MemoryRepository(
             } else null
         }
         
-        // Score episodes - generate embeddings on-the-fly for episodes without them
+        // Score episodes - use cache for embeddings
         val episodeScores = episodes.mapNotNull { episode ->
-            var embedding: List<Float>? = null
-            
-            // Try to get existing embedding
-            val embeddingStr = episode.embedding
-            if (embeddingStr != null) {
-                embedding = try {
-                    JsonInstant.decodeFromString<List<Float>>(embeddingStr)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            
-            // If no embedding exists, generate it lazily
-            if (embedding == null) {
-                try {
-                    embedding = embeddingService.embed(episode.content, assistantId) // Use content (summary)
-                    // Save the generated embedding back to the database
-                    chatEpisodeDAO.insertEpisode(episode.copy(embedding = JsonInstant.encodeToString(embedding)))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    return@mapNotNull null
-                }
-            }
+            val embedding = getOrCreateEmbedding(
+                memoryId = episode.id,
+                memoryType = MemoryType.EPISODIC,
+                content = episode.content,
+                assistantId = assistantId
+            ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
@@ -366,25 +355,24 @@ class MemoryRepository(
 
             if (isMemory) {
                 val memory = item as MemoryEntity
-                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.createdAt), score)
+                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.embeddingModelId, memory.createdAt), score)
             } else {
                 val episode = item as ChatEpisodeEntity
                 // Convert episode to AssistantMemory with a negative ID to distinguish
-                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.startTime), score)
+                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
             }
         }
     }
 
     /**
-     * Regenerate embeddings for all memories and episodes that are missing embeddings.
+     * Regenerate embeddings for ALL memories and episodes.
      * This is useful when:
      * - Embedding model has changed
      * - Old memories were created before embeddings were implemented
      * - Embeddings failed to generate initially
      * 
      * @param assistantId The assistant ID to regenerate embeddings for
-     * @param forceRegenerate If true, regenerate all embeddings even if they exist
-     * @return Number of items updated
+     * @return Pair of (successCount, failureCount)
      */
     suspend fun regenerateEmbeddings(
         assistantId: String,
@@ -400,46 +388,142 @@ class MemoryRepository(
         onProgress(0, total)
         if (total == 0) return 0 to 0
 
-        // Helper to process items
-        suspend fun processItem(content: String, update: suspend (String) -> Unit) {
+        // Get current embedding model ID
+        val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
+
+        // Process ALL Core Memories (force regeneration)
+        memories.forEach { memory ->
+            current++
             try {
-                val embedding = embeddingService.embed(content, assistantId)
-                // embeddingService.embed throws if it fails, so if we get here, it's not null
-                update(JsonInstant.encodeToString(embedding))
+                val embedding = embeddingService.embed(memory.content, assistantId)
+                if (embedding != null) {
+                    val embeddingJson = JsonInstant.encodeToString(embedding)
+                    // Store in entity for backward compatibility
+                    memoryDAO.updateMemory(memory.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
+                    // Store in cache for model-based persistence
+                    embeddingCacheDAO.insertEmbedding(
+                        EmbeddingCacheEntity(
+                            memoryId = memory.id,
+                            memoryType = MemoryType.CORE,
+                            modelId = currentModelId,
+                            embedding = embeddingJson
+                        )
+                    )
+                    successCount++
+                } else {
+                    failureCount++
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                failureCount++
+            }
+            onProgress(current, total)
+        }
+
+        // Process ALL Episodes (force regeneration)
+        episodes.forEach { episode ->
+            current++
+            try {
+                val embedding = embeddingService.embed(episode.content, assistantId)
+                if (embedding != null) {
+                    val embeddingJson = JsonInstant.encodeToString(embedding)
+                    // Store in entity for backward compatibility
+                    chatEpisodeDAO.insertEpisode(episode.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
+                    // Store in cache for model-based persistence
+                    embeddingCacheDAO.insertEmbedding(
+                        EmbeddingCacheEntity(
+                            memoryId = episode.id,
+                            memoryType = MemoryType.EPISODIC,
+                            modelId = currentModelId,
+                            embedding = embeddingJson
+                        )
+                    )
+                    successCount++
+                } else {
+                    failureCount++
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                failureCount++
+            }
+            onProgress(current, total)
+        }
+        
+        return successCount to failureCount
+    }
+
+    /**
+     * Embed only memories that are missing embeddings or have wrong model.
+     * Called during consolidation to fix any gaps without regenerating everything.
+     * 
+     * @param assistantId The assistant ID to fix embeddings for
+     * @return Pair of (successCount, failureCount)
+     */
+    suspend fun embedMissingMemories(assistantId: String): Pair<Int, Int> {
+        val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
+        val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
+        val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
+        
+        var successCount = 0
+        var failureCount = 0
+
+        // Filter to only memories that need embedding
+        val memoriesNeedingEmbedding = memories.filter { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+        val episodesNeedingEmbedding = episodes.filter { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+
+        // Process Core Memories that need embedding
+        memoriesNeedingEmbedding.forEach { memory ->
+            try {
+                val embedding = embeddingService.embed(memory.content, assistantId)
+                memoryDAO.updateMemory(memory.copy(
+                    embedding = JsonInstant.encodeToString(embedding),
+                    embeddingModelId = currentModelId
+                ))
                 successCount++
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
-            } finally {
-                current++
-                onProgress(current, total)
             }
         }
 
-        // Process Core Memories
-        memories.forEach { memory ->
-            if (memory.embedding == null) {
-                processItem(memory.content) { embeddingJson ->
-                    memoryDAO.updateMemory(memory.copy(embedding = embeddingJson))
-                }
-            } else {
-                current++
-                onProgress(current, total)
-            }
-        }
-
-        // Process Episodes
-        episodes.forEach { episode ->
-            if (episode.embedding == null) {
-                processItem(episode.content) { embeddingJson ->
-                    chatEpisodeDAO.insertEpisode(episode.copy(embedding = embeddingJson))
-                }
-            } else {
-                current++
-                onProgress(current, total)
+        // Process Episodes that need embedding
+        episodesNeedingEmbedding.forEach { episode ->
+            try {
+                val embedding = embeddingService.embed(episode.content, assistantId)
+                chatEpisodeDAO.insertEpisode(episode.copy(
+                    embedding = JsonInstant.encodeToString(embedding),
+                    embeddingModelId = currentModelId
+                ))
+                successCount++
+            } catch (e: Exception) {
+                e.printStackTrace()
+                failureCount++
             }
         }
         
         return successCount to failureCount
+    }
+
+    /**
+     * Count how many memories need embedding (no embedding or wrong model).
+     * Used to determine if the regenerate button should be shown.
+     */
+    suspend fun countMemoriesNeedingEmbedding(assistantId: String): Int {
+        val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
+        val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
+        val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
+        
+        val memoriesNeedingEmbedding = memories.count { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+        val episodesNeedingEmbedding = episodes.count { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+        
+        return memoriesNeedingEmbedding + episodesNeedingEmbedding
     }
 }

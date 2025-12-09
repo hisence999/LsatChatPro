@@ -14,18 +14,20 @@ import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.EmbeddingCacheEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
-    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class],
-    version = 16,
+    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class],
+    version = 18,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -39,6 +41,8 @@ import me.rerere.rikkahub.utils.JsonInstant
         // 11->12 was manual migration in companion object
         AutoMigration(from = 13, to = 14),
         // 14->16 is manual migration
+        AutoMigration(from = 16, to = 17),
+        AutoMigration(from = 17, to = 18),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -50,6 +54,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun genMediaDao(): GenMediaDAO
 
     abstract fun chatEpisodeDao(): ChatEpisodeDAO
+
+    abstract fun embeddingCacheDao(): EmbeddingCacheDAO
 
     companion object {
         const val TAG = "AppDatabase"

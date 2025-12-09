@@ -127,7 +127,7 @@ class SpontaneousWorker(
                 )
             )
 
-            val responseText = result.choices.firstOrNull()?.message?.toText() ?: return Result.failure()
+            val responseText = result.choices.firstOrNull()?.message?.toContentText() ?: return Result.failure()
             
             // Parse JSON (simple parsing, assuming model follows instruction)
             try {

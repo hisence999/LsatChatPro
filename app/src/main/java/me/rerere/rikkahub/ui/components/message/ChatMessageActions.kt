@@ -47,7 +47,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.StopCircle
-import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.VolumeUp
 import kotlinx.coroutines.delay
 import kotlinx.datetime.toJavaLocalDateTime
@@ -60,7 +59,6 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toLocalString
-import java.util.Locale
 
 @Composable
 fun ColumnScope.ChatMessageActionButtons(
@@ -69,12 +67,9 @@ fun ColumnScope.ChatMessageActionButtons(
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
     onOpenActionSheet: () -> Unit,
-    onTranslate: ((UIMessage, Locale) -> Unit)? = null,
-    onClearTranslation: (UIMessage) -> Unit = {},
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
-    var showTranslateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -128,25 +123,6 @@ fun ColumnScope.ChatMessageActionButtons(
                     .size(16.dp),
                 tint = if (isAvailable) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
             )
-
-            // Translation button
-            if (onTranslate != null) {
-                Icon(
-                    imageVector = Icons.Rounded.Translate,
-                    contentDescription = stringResource(R.string.translate),
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = LocalIndication.current,
-                            onClick = {
-                                showTranslateDialog = true
-                            }
-                        )
-                        .padding(8.dp)
-                        .size(16.dp)
-                )
-            }
         }
 
         Icon(
@@ -168,23 +144,6 @@ fun ColumnScope.ChatMessageActionButtons(
         ChatMessageBranchSelector(
             node = node,
             onUpdate = onUpdate,
-        )
-    }
-
-    // Translation dialog
-    if (showTranslateDialog && onTranslate != null) {
-        LanguageSelectionDialog(
-            onLanguageSelected = { language ->
-                showTranslateDialog = false
-                onTranslate(message, language)
-            },
-            onClearTranslation = {
-                showTranslateDialog = false
-                onClearTranslation(message)
-            },
-            onDismissRequest = {
-                showTranslateDialog = false
-            },
         )
     }
 }

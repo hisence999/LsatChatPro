@@ -75,6 +75,7 @@ class AssistantDetailVM(
                 content = it.content, 
                 type = 1, // EPISODIC
                 hasEmbedding = it.embedding != null,
+                embeddingModelId = it.embeddingModelId,
                 timestamp = it.startTime
             ) 
         }
@@ -86,6 +87,16 @@ class AssistantDetailVM(
         }
     }.stateIn(
         scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
+    )
+
+    // Current embedding model ID for this assistant (for detecting model mismatch)
+    val currentEmbeddingModelId: StateFlow<String> = combine(
+        assistant,
+        settings
+    ) { assistant, settings ->
+        (assistant.embeddingModelId ?: settings.embeddingModelId).toString()
+    }.stateIn(
+        scope = viewModelScope, started = SharingStarted.Lazily, initialValue = ""
     )
 
     val episodes = chatEpisodeDAO.getEpisodesOfAssistantFlow(assistantId.toString())
@@ -290,6 +301,15 @@ class AssistantDetailVM(
 
     private val _embeddingProgress = MutableStateFlow<EmbeddingProgress?>(null)
     val embeddingProgress = _embeddingProgress.asStateFlow()
+
+    // Check if any memories need embedding (just checks if embedding exists, cache handles model switching)
+    val needsEmbeddingRegeneration: StateFlow<Boolean> = memories.map { memories ->
+        memories.any { memory -> !memory.hasEmbedding }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = false
+    )
 
     private val _retrievalResults = MutableStateFlow<List<Pair<AssistantMemory, Float>>>(emptyList())
     val retrievalResults = _retrievalResults.asStateFlow()

@@ -123,6 +123,7 @@ fun AssistantDetailPage(id: String) {
         add(TabItem(stringResource(R.string.assistant_page_tab_memory)) {
             val embeddingProgress by vm.embeddingProgress.collectAsStateWithLifecycle()
             val estimatedMemoryCapacity by vm.estimatedMemoryCapacity.collectAsStateWithLifecycle()
+            val needsEmbeddingRegeneration by vm.needsEmbeddingRegeneration.collectAsStateWithLifecycle()
             AssistantMemorySettings(
                 assistant = assistant,
                 memories = memories,
@@ -133,7 +134,8 @@ fun AssistantDetailPage(id: String) {
                 onRegenerateEmbeddings = { vm.regenerateEmbeddings() },
                 embeddingProgress = embeddingProgress,
                 assistantDetailVM = vm,
-                estimatedMemoryCapacity = estimatedMemoryCapacity
+                estimatedMemoryCapacity = estimatedMemoryCapacity,
+                needsEmbeddingRegeneration = needsEmbeddingRegeneration
             )
         })
 

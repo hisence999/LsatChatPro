@@ -96,7 +96,7 @@ class ScheduledMessageWorker(
                 )
             )
 
-            val content = result.choices.firstOrNull()?.message?.toText()?.trim() ?: return Result.failure()
+            val content = result.choices.firstOrNull()?.message?.toContentText()?.trim() ?: return Result.failure()
 
             sendNotification(assistant.name, content, conversationId)
             Result.success()
