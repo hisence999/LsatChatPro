@@ -257,7 +257,7 @@ private fun SearchInput(
                 placeholder = {
                     Text(stringResource(R.string.history_page_search_placeholder))
                 },
-                shape = RoundedCornerShape(50),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.SearchField,
                 singleLine = true,
                 trailingIcon = {
                     IconButton(
@@ -308,7 +308,7 @@ private fun SwipeableConversationItem(
                     .fillMaxSize()
                     .background(
                         MaterialTheme.colorScheme.errorContainer,
-                        RoundedCornerShape(25)
+                        me.rerere.rikkahub.ui.theme.AppShapes.ListItem
                     )
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd
@@ -354,7 +354,7 @@ private fun ConversationItem(
             onClick()
         },
         tonalElevation = 2.dp,
-        shape = RoundedCornerShape(25),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.ListItem,
         interactionSource = interactionSource,
         modifier = modifier.graphicsLayer {
             scaleX = scale

@@ -16,8 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -35,12 +39,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -114,13 +120,21 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(16.dp),
+            contentPadding = innerPadding + PaddingValues(horizontal = 0.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (settings.isNotConfigured()) {
                 item {
                     ProviderConfigWarningCard(navController)
                 }
+            }
+
+            // Update Available Banner
+            item {
+                UpdateAvailableBanner(
+                    checkForUpdates = settings.displaySetting.checkForUpdates,
+                    navController = navController
+                )
             }
 
             // General Settings Section
@@ -154,14 +168,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_display_setting),
                         subtitle = stringResource(R.string.setting_page_display_setting_desc),
                         icon = { Icon(Icons.Rounded.DesktopWindows, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingDisplay) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_assistant),
                         subtitle = stringResource(R.string.setting_page_assistant_desc),
@@ -182,28 +195,27 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         icon = { Icon(Icons.Rounded.AccountTree, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingModels) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_providers),
                         subtitle = stringResource(R.string.setting_page_providers_desc),
                         icon = { Icon(Icons.Rounded.Cloud, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingProvider) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_search_service),
                         subtitle = stringResource(R.string.setting_page_search_service_desc),
                         icon = { Icon(Icons.Rounded.Public, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingSearch) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_tts_service),
                         subtitle = stringResource(R.string.setting_page_tts_service_desc),
                         icon = { Icon(Icons.Rounded.RecordVoiceOver, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingTTS) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_mcp),
                         subtitle = stringResource(R.string.setting_page_mcp_desc),
@@ -224,7 +236,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         icon = { Icon(Icons.Rounded.CloudUpload, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.Backup) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     val context = LocalContext.current
                     val storageState by produceState(-1 to 0L) {
                         value = context.countChatFiles()
@@ -268,22 +279,22 @@ private fun SettingsGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 8.dp)
         )
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            )
-        ) {
-            Column(content = content)
-        }
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(24.dp)),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            content = content
+        )
     }
 }
 
@@ -313,40 +324,42 @@ private fun SettingGroupItem(
             }
         },
         enabled = onClick != null,
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
-        modifier = Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
+                modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 icon()
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -357,7 +370,8 @@ private fun SettingGroupItem(
                 Icon(
                     Icons.Rounded.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -368,7 +382,7 @@ private fun SettingGroupItem(
 private fun ProviderConfigWarningCard(navController: NavHostController) {
     Card(
         modifier = Modifier.padding(8.dp),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
@@ -453,5 +467,107 @@ fun SettingItem(
                 icon()
             }
         )
+    }
+}
+
+@Composable
+private fun UpdateAvailableBanner(
+    checkForUpdates: Boolean,
+    navController: NavHostController
+) {
+    if (!checkForUpdates) return
+    
+    val updateChecker = org.koin.compose.koinInject<me.rerere.rikkahub.utils.UpdateChecker>()
+    val updateState by updateChecker.checkUpdate().collectAsStateWithLifecycle(initialValue = me.rerere.rikkahub.utils.UiState.Loading)
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    
+    when (val state = updateState) {
+        is me.rerere.rikkahub.utils.UiState.Success -> {
+            val updateInfo = state.data
+            val currentVersion = me.rerere.rikkahub.BuildConfig.VERSION_NAME
+            val isNewer = me.rerere.rikkahub.utils.Version(updateInfo.version) > me.rerere.rikkahub.utils.Version(currentVersion)
+            
+            if (isNewer && updateInfo.downloads.isNotEmpty()) {
+                Card(
+                    onClick = { showUpdateDialog = true },
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Update Available",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Version ${updateInfo.version} is available",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                
+                if (showUpdateDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showUpdateDialog = false },
+                        title = { Text("Update to ${updateInfo.version}") },
+                        text = {
+                            Column(
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Changelog:",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = updateInfo.changelog.ifEmpty { "No changelog available" },
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    updateInfo.downloads.firstOrNull()?.let { download ->
+                                        updateChecker.downloadUpdate(context, download)
+                                    }
+                                    showUpdateDialog = false
+                                }
+                            ) {
+                                Text("Download")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showUpdateDialog = false }) {
+                                Text("Later")
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        else -> { /* Loading or Error - don't show anything */ }
     }
 }

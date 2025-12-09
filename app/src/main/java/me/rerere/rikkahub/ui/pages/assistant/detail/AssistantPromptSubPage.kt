@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,7 +89,7 @@ import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.text.font.FontFamily
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.insertAtCursor
 import me.rerere.rikkahub.utils.onError
@@ -119,9 +120,9 @@ fun AssistantPromptSubPage(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -140,17 +141,24 @@ fun AssistantPromptSubPage(
                     }
                 },
             ) {
-                val systemPromptValue = rememberTextFieldState(
-                    initialText = assistant.systemPrompt,
-                )
-                LaunchedEffect(Unit) {
-                    snapshotFlow { systemPromptValue.text }.collect {
-                        onUpdate(
-                            assistant.copy(
-                                systemPrompt = it.toString()
+                // Key on assistant.id + systemPrompt hash to recreate state when assistant or content changes
+                val systemPromptValue = androidx.compose.runtime.key(assistant.id, assistant.systemPrompt.hashCode()) {
+                    rememberTextFieldState(
+                        initialText = assistant.systemPrompt,
+                    )
+                }
+                // Use drop(1) to skip the initial emission that happens before
+                // the assistant is properly loaded, preventing empty overwrites
+                LaunchedEffect(assistant.id) {
+                    snapshotFlow { systemPromptValue.text }
+                        .drop(1) // Skip initial emission
+                        .collect {
+                            onUpdate(
+                                assistant.copy(
+                                    systemPrompt = it.toString()
+                                )
                             )
-                        )
-                    }
+                        }
                 }
                 OutlinedTextField(
                     state = systemPromptValue,
@@ -241,9 +249,9 @@ fun AssistantPromptSubPage(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -266,7 +274,7 @@ fun AssistantPromptSubPage(
                         maxLines = 15,
                         textStyle = LocalTextStyle.current.copy(
                             fontSize = 12.sp,
-                            fontFamily = JetbrainsMono,
+                            fontFamily = FontFamily.Monospace,
                             lineHeight = 16.sp
                         )
                     )
@@ -361,9 +369,9 @@ fun AssistantPromptSubPage(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -466,9 +474,9 @@ fun AssistantPromptSubPage(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -562,9 +570,9 @@ fun AssistantPromptSubPage(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -621,9 +629,9 @@ private fun AssistantRegexCard(
     }
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(

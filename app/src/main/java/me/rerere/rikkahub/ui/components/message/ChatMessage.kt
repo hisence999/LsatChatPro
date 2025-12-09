@@ -338,7 +338,7 @@ private fun MessagePartsBlock(
                             stiffness = 300f
                         )
                     ),
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     MarkdownBlock(

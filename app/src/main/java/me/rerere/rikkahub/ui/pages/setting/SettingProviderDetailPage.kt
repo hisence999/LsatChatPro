@@ -1059,9 +1059,9 @@ private fun ModelPicker(
                 ) {
                     items(filteredModels) {
                         Card(
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                             colors = androidx.compose.material3.CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             )
                         ) {
                             Row(
@@ -1438,7 +1438,7 @@ private fun ModelCard(
         modifier = modifier
     ) {
         OutlinedCard(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
         ) {
             Row(
                 modifier = Modifier
@@ -1535,9 +1535,9 @@ private fun BuiltInToolsSettings(
             val (title, description) = info
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Row(
@@ -1603,7 +1603,7 @@ private fun ProviderOverrideSettings(
         if (providerOverride != null) {
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             ) {
                 Column(
                     modifier = Modifier

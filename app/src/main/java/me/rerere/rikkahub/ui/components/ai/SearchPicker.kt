@@ -72,7 +72,7 @@ fun SearchPickerButton(
     enableSearch: Boolean,
     settings: Settings,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(24.dp),
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
     onToggleSearch: (Boolean) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     model: Model?,
@@ -215,7 +215,7 @@ private fun AppSearchSettings(
 
     CompositionLocalProvider(LocalAbsoluteTonalElevation provides tonalElevation) {
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             elevation = CardDefaults.cardElevation(defaultElevation = elevation),
             colors = CardDefaults.cardColors(
                 containerColor = containerColor,
@@ -305,7 +305,7 @@ private fun AppSearchSettings(
                     onClick = {
                         onUpdateSearchService(index)
                     },
-                    shape = RoundedCornerShape(24.dp),
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 ) {
                     Row(
                         modifier = Modifier
@@ -358,7 +358,7 @@ private fun BuiltInSearchSetting(model: Model) {
             contentColor = contentColor
         )
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             elevation = cardElevation,
             colors = cardColors
         ) {

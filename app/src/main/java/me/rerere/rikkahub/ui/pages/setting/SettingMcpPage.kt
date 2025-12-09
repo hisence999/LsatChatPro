@@ -226,9 +226,9 @@ private fun McpServerItem(
         modifier = modifier
     ) {
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Row(
@@ -433,7 +433,7 @@ private fun McpCommonOptionsConfigure(
             }
         }
 
-        HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 名称输入框
         FormItem(
@@ -465,7 +465,7 @@ private fun McpCommonOptionsConfigure(
             )
         }
 
-        HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 传输类型选择
         FormItem(
@@ -525,7 +525,7 @@ private fun McpCommonOptionsConfigure(
             }
         }
 
-        HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 服务器地址配置
         FormItem(
@@ -567,7 +567,7 @@ private fun McpCommonOptionsConfigure(
             )
         }
 
-        HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 请求头配置
         FormItem(
@@ -710,9 +710,9 @@ private fun McpToolsConfigure(
         }
         items(config.commonOptions.tools) { tool ->
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Row(

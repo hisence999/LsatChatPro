@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -54,7 +59,7 @@ fun ReasoningButton(
     modifier: Modifier = Modifier,
     onlyIcon: Boolean = false,
     reasoningTokens: Int,
-    shape: Shape = RoundedCornerShape(24.dp),
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
     onUpdateReasoningTokens: (Int) -> Unit,
     contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
@@ -105,129 +110,159 @@ fun ReasoningPicker(
     onUpdateReasoningTokens: (Int) -> Unit,
 ) {
     val currentLevel = ReasoningLevel.fromBudgetTokens(reasoningTokens)
+    val isDarkMode = LocalDarkMode.current
+    
     ModalBottomSheet(
         onDismissRequest = {
             onDismissRequest()
         },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
-            ReasoningLevelCard(
-                selected = currentLevel == ReasoningLevel.OFF,
-                icon = {
-                    Icon(Icons.Rounded.LightbulbCircle, null)
-                },
-                title = {
-                    Text(stringResource(id = R.string.reasoning_off))
-                },
-                description = {
-                    Text(stringResource(id = R.string.reasoning_off_desc))
-                },
-                onClick = {
-                    onUpdateReasoningTokens(0)
-                },
-                containerColor = if (LocalDarkMode.current) Color.Black else Color.White
-            )
-            ReasoningLevelCard(
-                selected = currentLevel == ReasoningLevel.AUTO,
-                icon = {
-                    Icon(Icons.Rounded.AutoAwesome, null)
-                },
-                title = {
-                    Text(stringResource(id = R.string.reasoning_auto))
-                },
-                description = {
-                    Text(stringResource(id = R.string.reasoning_auto_desc))
-                },
-                onClick = {
-                    onUpdateReasoningTokens(-1)
-                },
-                containerColor = if (LocalDarkMode.current) Color.Black else Color.White
-            )
-            
-            val amoledMode by rememberAmoledDarkMode()
-            val isDarkMode = LocalDarkMode.current
-            val isAmoled = amoledMode && isDarkMode
-            
-            val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
-            val contentColor = if (isAmoled) Color.White else MaterialTheme.colorScheme.onSurface
-            val elevation = if (isAmoled) 0.dp else 6.dp
-            val tonalElevation = if (isAmoled) 0.dp else LocalAbsoluteTonalElevation.current
-            
-            CompositionLocalProvider(LocalAbsoluteTonalElevation provides tonalElevation) {
-                val cardElevation = CardDefaults.cardElevation(defaultElevation = elevation)
-                val cardColors = CardDefaults.cardColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
+            // Group 1: OFF and AUTO (2 items)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ReasoningOptionItem(
+                    selected = currentLevel == ReasoningLevel.OFF,
+                    icon = { Icon(Icons.Rounded.LightbulbCircle, null, modifier = Modifier.size(20.dp)) },
+                    title = stringResource(id = R.string.reasoning_off),
+                    subtitle = stringResource(id = R.string.reasoning_off_desc),
+                    onClick = { onUpdateReasoningTokens(0) },
+                    position = ItemPosition.FIRST,
+                    isDarkMode = isDarkMode
                 )
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = cardElevation,
-                    colors = cardColors
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ReasoningLevelCard(
-                            selected = currentLevel == ReasoningLevel.LOW,
-                            icon = {
-                                Icon(Icons.Rounded.Lightbulb, null)
-                            },
-                            title = {
-                                Text(stringResource(id = R.string.reasoning_light))
-                            },
-                            description = {
-                                Text(stringResource(id = R.string.reasoning_light_desc))
-                            },
-                            onClick = {
-                                onUpdateReasoningTokens(1024)
-                            },
-                            shape = RoundedCornerShape(0.dp),
-                            containerColor = containerColor
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        ReasoningLevelCard(
-                            selected = currentLevel == ReasoningLevel.MEDIUM,
-                            icon = {
-                                Icon(Icons.Rounded.Lightbulb, null)
-                            },
-                            title = {
-                                Text(stringResource(id = R.string.reasoning_medium))
-                            },
-                            description = {
-                                Text(stringResource(id = R.string.reasoning_medium_desc))
-                            },
-                            onClick = {
-                                onUpdateReasoningTokens(16_000)
-                            },
-                            shape = RoundedCornerShape(0.dp),
-                            containerColor = containerColor
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        ReasoningLevelCard(
-                            selected = currentLevel == ReasoningLevel.HIGH,
-                            icon = {
-                                Icon(Icons.Rounded.Lightbulb, null)
-                            },
-                            title = {
-                                Text(stringResource(id = R.string.reasoning_heavy))
-                            },
-                            description = {
-                                Text(stringResource(id = R.string.reasoning_heavy_desc))
-                            },
-                            onClick = {
-                                onUpdateReasoningTokens(32_000)
-                            },
-                            shape = RoundedCornerShape(0.dp),
-                            containerColor = containerColor
-                        )
-                    }
-                }
+                ReasoningOptionItem(
+                    selected = currentLevel == ReasoningLevel.AUTO,
+                    icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(20.dp)) },
+                    title = stringResource(id = R.string.reasoning_auto),
+                    subtitle = stringResource(id = R.string.reasoning_auto_desc),
+                    onClick = { onUpdateReasoningTokens(-1) },
+                    position = ItemPosition.LAST,
+                    isDarkMode = isDarkMode
+                )
             }
+            
+            // Spacer between groups
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Group 2: LOW, MEDIUM, HIGH (3 items)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ReasoningOptionItem(
+                    selected = currentLevel == ReasoningLevel.LOW,
+                    icon = { Icon(Icons.Rounded.Lightbulb, null, modifier = Modifier.size(20.dp)) },
+                    title = stringResource(id = R.string.reasoning_light),
+                    subtitle = stringResource(id = R.string.reasoning_light_desc),
+                    onClick = { onUpdateReasoningTokens(1024) },
+                    position = ItemPosition.FIRST,
+                    isDarkMode = isDarkMode
+                )
+                ReasoningOptionItem(
+                    selected = currentLevel == ReasoningLevel.MEDIUM,
+                    icon = { Icon(Icons.Rounded.Lightbulb, null, modifier = Modifier.size(20.dp)) },
+                    title = stringResource(id = R.string.reasoning_medium),
+                    subtitle = stringResource(id = R.string.reasoning_medium_desc),
+                    onClick = { onUpdateReasoningTokens(16_000) },
+                    position = ItemPosition.MIDDLE,
+                    isDarkMode = isDarkMode
+                )
+                ReasoningOptionItem(
+                    selected = currentLevel == ReasoningLevel.HIGH,
+                    icon = { Icon(Icons.Rounded.Lightbulb, null, modifier = Modifier.size(20.dp)) },
+                    title = stringResource(id = R.string.reasoning_heavy),
+                    subtitle = stringResource(id = R.string.reasoning_heavy_desc),
+                    onClick = { onUpdateReasoningTokens(32_000) },
+                    position = ItemPosition.LAST,
+                    isDarkMode = isDarkMode
+                )
+            }
+        }
+    }
+}
+
+// Position in a group for determining corner radius
+private enum class ItemPosition {
+    FIRST,   // Top rounded (24dp top, 10dp bottom)
+    MIDDLE,  // All corners 10dp
+    LAST,    // Bottom rounded (10dp top, 24dp bottom)
+    SINGLE   // All corners 24dp (only item in group)
+}
+
+// Matches SettingGroupItem layout exactly but with selection support
+@Composable
+private fun ReasoningOptionItem(
+    selected: Boolean,
+    icon: @Composable () -> Unit,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    position: ItemPosition = ItemPosition.SINGLE,
+    isDarkMode: Boolean  // Passed from parent to avoid ModalBottomSheet composition issues
+) {
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    // Calculate shape based on position - edges get 24dp, connections get 10dp
+    val itemShape = if (selected) {
+        RoundedCornerShape(50)  // Selected items are fully round
+    } else {
+        when (position) {
+            ItemPosition.FIRST -> RoundedCornerShape(
+                topStart = 24.dp, topEnd = 24.dp,
+                bottomStart = 10.dp, bottomEnd = 10.dp
+            )
+            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+            ItemPosition.LAST -> RoundedCornerShape(
+                topStart = 10.dp, topEnd = 10.dp,
+                bottomStart = 24.dp, bottomEnd = 24.dp
+            )
+            ItemPosition.SINGLE -> RoundedCornerShape(24.dp)
+        }
+    }
+    
+    // Use Row with clip+background like ModelItem does (Surface may apply M3 color transformations)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(itemShape)
+            .background(
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else if (isDarkMode) Color.Black else Color.White
+            )
+            .clickable {
+                haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)
+                onClick()
+            }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            icon()
+        }
+        Column(
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -240,7 +275,7 @@ private fun ReasoningLevelCard(
     title: @Composable () -> Unit = {},
     description: @Composable () -> Unit = {},
     onClick: () -> Unit,
-    shape: Shape = RoundedCornerShape(24.dp),
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
     containerColor: Color? = null
 ) {
     val amoledMode by rememberAmoledDarkMode()
@@ -262,10 +297,12 @@ private fun ReasoningLevelCard(
             containerColor = resolvedContainerColor,
             contentColor = resolvedContentColor
         )
+        // Selected items are completely round, non-selected use 10.dp corners
+        val resolvedShape = if (selected) RoundedCornerShape(50) else RoundedCornerShape(10.dp)
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = shape,
+            shape = resolvedShape,
             elevation = cardElevation,
             colors = cardColors
         ) {

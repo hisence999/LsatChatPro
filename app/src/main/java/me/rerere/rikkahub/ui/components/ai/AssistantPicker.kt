@@ -72,6 +72,9 @@ fun AssistantPicker(
             ) {
                 Text(
                     text = state.currentAssistant.name.ifEmpty { defaultAssistantName },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -108,7 +111,7 @@ fun AssistantPicker(
 }
 
 @Composable
-private fun AssistantPickerSheet(
+fun AssistantPickerSheet(
     settings: Settings,
     currentAssistant: Assistant,
     onAssistantSelected: (Assistant) -> Unit,
@@ -185,7 +188,8 @@ private fun AssistantPickerSheet(
                     val checked = assistant.id == currentAssistant.id
                     Card(
                         onClick = { onAssistantSelected(assistant) },
-                        shape = MaterialTheme.shapes.large,
+                        // Selected items completely round, others use large shape
+                        shape = if (checked) RoundedCornerShape(50) else MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                             contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,

@@ -200,11 +200,13 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                             )
                         }
                     })
-            }
-        }
-    }
 }
 }
+}
+}
+}
+
+    AssistantCreationSheet(state = createState)
 }
 
 @Composable
@@ -292,9 +294,9 @@ fun AssistantItem(
     Card(
         modifier = modifier.fillMaxWidth(),
         onClick = onEdit,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(

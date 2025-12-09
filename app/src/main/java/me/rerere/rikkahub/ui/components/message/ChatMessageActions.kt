@@ -219,7 +219,7 @@ fun ChatMessageActionsSheet(
                     onSelectAndCopy()
                 },
 
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
                     containerColor = androidx.compose.ui.graphics.Color.Black
                 )
@@ -254,7 +254,7 @@ fun ChatMessageActionsSheet(
                         onWebViewPreview()
                     },
 
-                    shape = RoundedCornerShape(24.dp),
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                     colors = CardDefaults.cardColors(
                         containerColor = androidx.compose.ui.graphics.Color.Black
                     )
@@ -286,7 +286,7 @@ fun ChatMessageActionsSheet(
                     onEdit()
                 },
 
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
                     containerColor = androidx.compose.ui.graphics.Color.Black
                 )
@@ -316,7 +316,7 @@ fun ChatMessageActionsSheet(
                     onDismissRequest()
                     onShare()
                 },
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
                     containerColor = androidx.compose.ui.graphics.Color.Black
                 )
@@ -346,7 +346,7 @@ fun ChatMessageActionsSheet(
                     onDismissRequest()
                     onFork()
                 },
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
                     containerColor = androidx.compose.ui.graphics.Color.Black
                 )
@@ -377,7 +377,7 @@ fun ChatMessageActionsSheet(
                     onDelete()
                 },
 
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer
                 )

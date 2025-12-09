@@ -51,7 +51,7 @@ fun Tag(
     ProvideTextStyle(MaterialTheme.typography.labelSmall.copy(color = textColor)) {
         Row(
             modifier = modifier
-                .clip(RoundedCornerShape(50))
+                .clip(me.rerere.rikkahub.ui.theme.AppShapes.Tag)
                 .background(background)
                 .let {
                     if (onClick != null) {

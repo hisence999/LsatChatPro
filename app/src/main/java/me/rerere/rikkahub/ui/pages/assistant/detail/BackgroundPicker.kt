@@ -56,9 +56,9 @@ fun BackgroundPicker(
     }
 
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         FormItem(

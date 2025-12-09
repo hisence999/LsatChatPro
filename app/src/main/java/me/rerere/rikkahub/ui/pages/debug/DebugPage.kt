@@ -3,8 +3,10 @@ package me.rerere.rikkahub.ui.pages.debug
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -47,7 +49,7 @@ import me.rerere.rikkahub.ui.components.richtext.MathBlock
 import me.rerere.rikkahub.ui.components.richtext.Mermaid
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.text.font.FontFamily
 import org.koin.androidx.compose.koinViewModel
 import kotlin.random.Random
 import kotlin.random.nextInt
@@ -248,7 +250,7 @@ private fun LoggingPage(vm: DebugVM) {
             )
         }
         
-        androidx.compose.material3.HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -259,7 +261,7 @@ private fun LoggingPage(vm: DebugVM) {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = JetbrainsMono,
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }
@@ -295,7 +297,7 @@ private fun PromptPage(vm: DebugVM) {
             Text("Generate Prompt")
         }
         
-        androidx.compose.material3.HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
         
         LazyColumn(
             modifier = Modifier.weight(1f)
@@ -303,7 +305,7 @@ private fun PromptPage(vm: DebugVM) {
             item {
                 Text(
                     text = result,
-                    fontFamily = JetbrainsMono,
+                    fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall
                 )
             }

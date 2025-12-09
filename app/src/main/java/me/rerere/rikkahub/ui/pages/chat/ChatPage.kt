@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.LazyListState
@@ -302,6 +304,9 @@ private fun ChatPageContent(
                     },
                     onUpdateTitle = {
                         vm.updateTitle(it)
+                    },
+                    onUpdateSettings = { newSettings ->
+                        vm.updateSettings(newSettings)
                     }
                 )
             },
@@ -468,7 +473,8 @@ private fun TopBar(
     previewMode: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
-    onUpdateTitle: (String) -> Unit
+    onUpdateTitle: (String) -> Unit,
+    onUpdateSettings: (Settings) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -501,45 +507,76 @@ private fun TopBar(
                 },
                 color = Color.Transparent,
             ) {
-                Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
-                    val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (model != null && provider != null) {
-                        Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
-                        )
-                    }
-                }
+                Text(
+                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    onClickMenu()
-                }
-            ) {
-                Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
-            }
+            val isEmpty = conversation.messageNodes.isEmpty()
+            var showAssistantPicker by remember { mutableStateOf(false) }
+            val currentAssistant = settings.getCurrentAssistant()
+            
+            // Fluid transition between assistant icon and search/new icons
+            androidx.compose.animation.AnimatedContent(
+                targetState = isEmpty,
+                transitionSpec = {
+                    (androidx.compose.animation.fadeIn(
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    ) + androidx.compose.animation.scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    )) togetherWith (androidx.compose.animation.fadeOut(
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    ) + androidx.compose.animation.scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    ))
+                },
+                label = "topbar_actions"
+            ) { isEmptyState ->
+                if (isEmptyState) {
+                    IconButton(
+                        onClick = { showAssistantPicker = true }
+                    ) {
+                        me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                            name = currentAssistant.name.ifBlank { "Assistant" },
+                            value = currentAssistant.avatar,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                } else {
+                    Row {
+                        IconButton(
+                            onClick = { onClickMenu() }
+                        ) {
+                            Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
+                        }
 
-            IconButton(
-                onClick = {
-                    onNewChat()
+                        IconButton(
+                            onClick = { onNewChat() }
+                        ) {
+                            Icon(Icons.Rounded.AddCircle, "New Message")
+                        }
+                    }
                 }
-            ) {
-                Icon(Icons.Rounded.AddCircle, "New Message")
+            }
+            
+            // Assistant picker sheet
+            if (showAssistantPicker) {
+                val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(settings, onUpdateSettings)
+                me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
+                    settings = settings,
+                    currentAssistant = currentAssistant,
+                    onAssistantSelected = { selectedAssistant ->
+                        assistantState.setSelectAssistant(selectedAssistant)
+                        showAssistantPicker = false
+                    },
+                    onDismiss = { showAssistantPicker = false }
+                )
             }
         },
     )

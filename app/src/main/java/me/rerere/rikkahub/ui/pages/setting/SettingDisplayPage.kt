@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,6 +43,8 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
+import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
+import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
@@ -86,43 +90,46 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 .fillMaxSize()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .consumeWindowInsets(contentPadding),
-            contentPadding = contentPadding + PaddingValues(16.dp),
+            contentPadding = contentPadding + PaddingValues(horizontal = 0.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_theme_setting),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
+            // Theme Settings
             item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_dynamic_color))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_dynamic_color_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = settings.dynamicColor,
-                            onCheckedChange = {
-                                vm.updateSettings(settings.copy(dynamicColor = it))
-                            },
-                        )
-                    },
-                )
+                var useExpressiveFont by me.rerere.rikkahub.ui.hooks.rememberExpressiveFont()
+                
+                SettingsGroup(
+                    title = stringResource(R.string.setting_page_theme_setting)
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_page_dynamic_color),
+                        subtitle = stringResource(R.string.setting_page_dynamic_color_desc),
+                        trailing = {
+                            Switch(
+                                checked = settings.dynamicColor,
+                                onCheckedChange = {
+                                    vm.updateSettings(settings.copy(dynamicColor = it))
+                                },
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = "Font Style",
+                        subtitle = if (useExpressiveFont) "M3 Expressive (Rounded)" else "Normal",
+                        trailing = {
+                            Switch(
+                                checked = useExpressiveFont,
+                                onCheckedChange = { useExpressiveFont = it }
+                            )
+                        }
+                    )
+                }
             }
 
             if (!settings.dynamicColor) {
                 item {
                     PresetThemeButtonGroup(
                         themeId = settings.themeId,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         onChangeTheme = {
                             vm.updateSettings(settings.copy(themeId = it))
                         }
@@ -131,64 +138,55 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             }
 
 
-
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_basic_settings),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
+            // Basic Settings
             item {
                 var createNewConversationOnStart by rememberSharedPreferenceBoolean(
                     "create_new_conversation_on_start",
                     true
                 )
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_create_new_conversation_on_start_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_create_new_conversation_on_start_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = createNewConversationOnStart,
-                            onCheckedChange = {
-                                createNewConversationOnStart = it
-                            }
-                        )
-                    },
-                )
-            }
-
-
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_notification_message_generated))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_notification_message_generated_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.enableNotificationOnMessageGeneration,
-                            onCheckedChange = {
-                                if (it && !permissionState.allPermissionsGranted) {
-                                    // 请求权限
-                                    permissionState.requestPermissions()
+                SettingsGroup(
+                    title = stringResource(R.string.setting_page_basic_settings)
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_create_new_conversation_on_start_title),
+                        subtitle = stringResource(R.string.setting_display_page_create_new_conversation_on_start_desc),
+                        trailing = {
+                            Switch(
+                                checked = createNewConversationOnStart,
+                                onCheckedChange = {
+                                    createNewConversationOnStart = it
                                 }
-                                updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
-                            }
-                        )
-                    },
-                )
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_notification_message_generated),
+                        subtitle = stringResource(R.string.setting_display_page_notification_message_generated_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.enableNotificationOnMessageGeneration,
+                                onCheckedChange = {
+                                    if (it && !permissionState.allPermissionsGranted) {
+                                        permissionState.requestPermissions()
+                                    }
+                                    updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = "Check for Updates",
+                        subtitle = "Automatically check GitHub for new app versions",
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.checkForUpdates,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(checkForUpdates = it))
+                                }
+                            )
+                        }
+                    )
+                }
             }
 
 //            item {
@@ -211,274 +209,228 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 //                )
 //            }
 
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_chat_settings),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
+            // Chat Display Settings
             item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_show_user_avatar_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_show_user_avatar_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.showUserAvatar,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.showModelIcon,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(showModelIcon = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_show_token_usage_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_show_token_usage_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.showTokenUsage,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.autoCloseThinking,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_show_message_jumper_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_show_message_jumper_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.showMessageJumper,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(showMessageJumper = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            if (displaySetting.showMessageJumper) {
-                item {
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = {
-                            Text(stringResource(R.string.setting_display_page_message_jumper_position_title))
-                        },
-                        supportingContent = {
-                            Text(stringResource(R.string.setting_display_page_message_jumper_position_desc))
-                        },
-                        trailingContent = {
+                SettingsGroup(
+                    title = stringResource(R.string.setting_page_chat_settings)
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_user_avatar_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_user_avatar_desc),
+                        trailing = {
                             Switch(
-                                checked = displaySetting.messageJumperOnLeft,
+                                checked = displaySetting.showUserAvatar,
                                 onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it))
+                                    updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
                                 }
                             )
-                        },
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
+                        subtitle = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.showModelIcon,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showModelIcon = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_token_usage_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_token_usage_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.showTokenUsage,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
+                        subtitle = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.autoCloseThinking,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
+                                }
+                            )
+                        }
                     )
                 }
             }
-
+            
+            // Message Jumper Settings
             item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.enableMessageGenerationHapticEffect,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text("UI Haptic Feedback")
-                    },
-                    supportingContent = {
-                        Text("Enable tactile feedback when tapping buttons and controls")
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.enableUIHaptics,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(enableUIHaptics = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_skip_crop_image_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_skip_crop_image_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.skipCropImage,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(skipCropImage = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.codeBlockAutoWrap,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.codeBlockAutoCollapse,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))
-                            }
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_font_size_title))
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                SettingsGroup(
+                    title = "Message Jumper"
                 ) {
-                    Slider(
-                        value = displaySetting.fontSizeRatio,
-                        onValueChange = {
-                            updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
-                        },
-                        valueRange = 0.5f..2f,
-                        steps = 11,
-                        modifier = Modifier.weight(1f)
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_message_jumper_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_message_jumper_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.showMessageJumper,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showMessageJumper = it))
+                                }
+                            )
+                        }
                     )
-                    Text(
-                        text = "${(displaySetting.fontSizeRatio * 100).toInt()}%",
+                    if (displaySetting.showMessageJumper) {
+                        SettingGroupItem(
+                            title = stringResource(R.string.setting_display_page_message_jumper_position_title),
+                            subtitle = stringResource(R.string.setting_display_page_message_jumper_position_desc),
+                            trailing = {
+                                Switch(
+                                    checked = displaySetting.messageJumperOnLeft,
+                                    onCheckedChange = {
+                                        updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it))
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Haptics Settings
+            item {
+                SettingsGroup(
+                    title = "Haptics"
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title),
+                        subtitle = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.enableMessageGenerationHapticEffect,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = "UI Haptic Feedback",
+                        subtitle = "Enable tactile feedback when tapping buttons and controls",
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.enableUIHaptics,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(enableUIHaptics = it))
+                                }
+                            )
+                        }
                     )
                 }
-                MarkdownBlock(
-                    content = stringResource(R.string.setting_display_page_font_size_preview),
-                    modifier = Modifier.padding(8.dp),
-                    style = LocalTextStyle.current.copy(
-                        fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                        lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+            }
+
+            // Media Settings
+            item {
+                SettingsGroup(
+                    title = "Media"
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_skip_crop_image_title),
+                        subtitle = stringResource(R.string.setting_display_page_skip_crop_image_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.skipCropImage,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(skipCropImage = it))
+                                }
+                            )
+                        }
                     )
-                )
+                }
+            }
+
+            // Code Blocks Settings
+            item {
+                SettingsGroup(
+                    title = "Code Blocks"
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
+                        subtitle = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.codeBlockAutoWrap,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
+                        subtitle = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
+                        trailing = {
+                            Switch(
+                                checked = displaySetting.codeBlockAutoCollapse,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            // Advanced Settings (RP Optimizations & Font Size)
+            item {
+                val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
+                SettingsGroup(
+                    title = "Advanced"
+                ) {
+                    SettingGroupItem(
+                        title = "RP Optimizations",
+                        subtitle = "Custom text styling for roleplay patterns",
+                        onClick = { navController.navigate(me.rerere.rikkahub.Screen.SettingRpOptimizations) }
+                    )
+                }
+            }
+
+            // Font Size Slider
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.setting_display_page_font_size_title)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Slider(
+                            value = displaySetting.fontSizeRatio,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                            },
+                            valueRange = 0.5f..2f,
+                            steps = 11,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${(displaySetting.fontSizeRatio * 100).toInt()}%",
+                        )
+                    }
+                    MarkdownBlock(
+                        content = stringResource(R.string.setting_display_page_font_size_preview),
+                        modifier = Modifier.padding(8.dp),
+                        style = LocalTextStyle.current.copy(
+                            fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
+                            lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+                        )
+                    )
+                }
             }
         }
     }

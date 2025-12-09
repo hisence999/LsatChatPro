@@ -21,7 +21,7 @@ import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.text.font.FontFamily
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
@@ -330,7 +330,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
             modifier = Modifier.fillMaxWidth(),
             maxLines = 6,
             minLines = 3,
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
+            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         )
         OutlinedTextField(
             value = provider.location,

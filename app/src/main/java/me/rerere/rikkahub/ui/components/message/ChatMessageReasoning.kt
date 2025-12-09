@@ -139,7 +139,7 @@ fun ChatMessageReasoning(
 
     Surface(
         modifier = modifier,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {

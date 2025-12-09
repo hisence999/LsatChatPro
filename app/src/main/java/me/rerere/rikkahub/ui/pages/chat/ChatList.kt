@@ -202,6 +202,8 @@ private fun SharedTransitionScope.ChatListNormal(
         modifier = Modifier
             .fillMaxSize(),
     ) {
+        // Empty chat state removed - assistant icon now shown in TopBar
+
         // 自动滚动到底部
         LaunchedEffect(state) {
             snapshotFlow { state.layoutInfo.visibleItemsInfo }.collect { visibleItemsInfo ->

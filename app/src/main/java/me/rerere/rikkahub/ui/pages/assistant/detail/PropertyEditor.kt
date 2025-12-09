@@ -36,7 +36,7 @@ import me.rerere.ai.provider.CustomHeader
 import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.rememberHighlightCodeVisualTransformation
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.text.font.FontFamily
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 private val jsonLenient = Json {
@@ -188,7 +188,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                                 language = "json",
                                 code = bodyValueString
                             ),
-                            textStyle = LocalTextStyle.current.merge(fontFamily = JetbrainsMono),
+                            textStyle = LocalTextStyle.current.merge(fontFamily = FontFamily.Monospace),
                         )
                     }
                     IconButton(onClick = {

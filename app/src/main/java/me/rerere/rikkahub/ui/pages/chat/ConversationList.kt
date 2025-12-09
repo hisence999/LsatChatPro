@@ -231,7 +231,7 @@ fun ColumnScope.ConversationList(
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.surfaceContainer,
+                                MaterialTheme.colorScheme.surfaceContainerLow,
                                 Color.Transparent
                             )
                         )
@@ -250,7 +250,7 @@ fun ColumnScope.ConversationList(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.surfaceContainer
+                                MaterialTheme.colorScheme.surfaceContainerLow
                             )
                         )
                     )
@@ -413,7 +413,7 @@ private fun ConversationItem(
                 expanded = showDropdownMenu,
                 onDismissRequest = { showDropdownMenu = false },
                 shape = RoundedCornerShape(20.dp),
-                containerColor = Color(0xFF1A1A1C),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 DropdownMenuItem(
                     text = {

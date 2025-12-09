@@ -144,7 +144,7 @@ private fun StatsSection(stats: MenuStats) {
                 title = "Avg. Messages/day",
                 value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
                 icon = Icons.Rounded.Chat,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .weight(1f)
@@ -157,7 +157,7 @@ private fun StatsSection(stats: MenuStats) {
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             ),
-            shape = RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -168,7 +168,7 @@ private fun StatsSection(stats: MenuStats) {
                 Surface(
                     color = MaterialTheme.colorScheme.tertiary,
                     contentColor = MaterialTheme.colorScheme.onTertiary,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardSmall,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -211,7 +211,7 @@ private fun StatCard(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        shape = RoundedCornerShape(24.dp)
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium
     ) {
         Column(
             modifier = Modifier
@@ -222,7 +222,7 @@ private fun StatCard(
             Surface(
                 color = contentColor.copy(alpha = 0.2f),
                 contentColor = contentColor,
-                shape = RoundedCornerShape(12.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.Chip,
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -298,8 +298,8 @@ private fun ToolButton(
             haptics.perform(HapticPattern.Pop)
             onClick()
         },
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         interactionSource = interactionSource,
         modifier = modifier
             .height(100.dp)
@@ -315,7 +315,7 @@ private fun ToolButton(
             Surface(
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(12.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.Chip,
                 modifier = Modifier.size(32.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {

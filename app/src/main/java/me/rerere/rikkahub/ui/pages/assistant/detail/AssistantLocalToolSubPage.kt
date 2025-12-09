@@ -94,9 +94,9 @@ private fun LocalToolCard(
     content: @Composable (() -> Unit)? = null
 ) {
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         FormItem(

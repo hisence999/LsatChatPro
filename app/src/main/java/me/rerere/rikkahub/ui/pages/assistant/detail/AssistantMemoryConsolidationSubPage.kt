@@ -57,9 +57,9 @@ fun AssistantMemoryConsolidationSubPage(
         // Settings Card
         item {
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Column(
@@ -77,7 +77,7 @@ fun AssistantMemoryConsolidationSubPage(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    HorizontalDivider()
+
 
                     // Enable Memory Consolidation
                     Row(
@@ -157,7 +157,7 @@ fun AssistantMemoryConsolidationSubPage(
                             )
                         }
 
-                        HorizontalDivider()
+    
 
                         // Consolidation Delay
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -213,9 +213,9 @@ fun AssistantMemoryConsolidationSubPage(
             // Status Card
             item {
                 Card(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
                 ) {
                     Column(
@@ -233,7 +233,7 @@ fun AssistantMemoryConsolidationSubPage(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        HorizontalDivider()
+    
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),

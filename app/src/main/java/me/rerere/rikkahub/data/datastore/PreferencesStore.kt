@@ -349,6 +349,18 @@ data class Settings(
     }
 }
 
+/**
+ * Custom text styling rule for roleplay formatting.
+ * Pattern wrapping (e.g., "*", "%") will be matched and styled with the specified color.
+ */
+@Serializable
+data class RpStyleRule(
+    val id: String = kotlin.uuid.Uuid.random().toString(),
+    val pattern: String = "*",      // The wrapping pattern, e.g., "*" for *text*, "%" for %text%
+    val colorHex: String = "#808080", // Hex color code
+    val enabled: Boolean = true
+)
+
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
@@ -359,15 +371,18 @@ data class DisplaySetting(
     val showTokenUsage: Boolean = true,
     val autoCloseThinking: Boolean = true,
     val showUpdates: Boolean = false,
+    val checkForUpdates: Boolean = false, // Check GitHub for app updates
     val showMessageJumper: Boolean = false,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
+    val useExpressiveFont: Boolean = true, // M3 Expressive font (rounded, wider) vs Normal
     val enableMessageGenerationHapticEffect: Boolean = false,
     val enableUIHaptics: Boolean = true,
     val skipCropImage: Boolean = false,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = false,
+    val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
 )
 
 @Serializable

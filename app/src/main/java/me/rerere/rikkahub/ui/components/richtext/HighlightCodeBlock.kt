@@ -70,7 +70,7 @@ import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.text.font.FontFamily
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.toDp
@@ -165,7 +165,7 @@ fun HighlightCodeBlock(
                 colors = colorPalette,
                 overflow = TextOverflow.Visible,
                 softWrap = autoWrap,
-                fontFamily = JetbrainsMono
+                fontFamily = FontFamily.Monospace
             )
         }
 

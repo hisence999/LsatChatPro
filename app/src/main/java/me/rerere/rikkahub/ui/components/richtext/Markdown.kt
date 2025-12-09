@@ -73,8 +73,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
+import me.rerere.rikkahub.data.datastore.RpStyleRule
 import me.rerere.rikkahub.ui.components.table.DataTable
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
@@ -703,13 +704,14 @@ private fun Paragraph(
 
     val textStyle = LocalTextStyle.current
     val density = LocalDensity.current
+    val rpStyleRules = LocalSettings.current.displaySetting.rpStyleRules
     FlowRow(
         modifier = modifier.then(
             if (node.nextSibling() != null) Modifier.padding(bottom = 4.dp)
             else Modifier
         )
     ) {
-        val annotatedString = remember(content) {
+        val annotatedString = remember(content, rpStyleRules) {
             buildAnnotatedString {
                 node.children.fastForEach { child ->
                     appendMarkdownNodeContent(
@@ -721,6 +723,7 @@ private fun Paragraph(
                         style = textStyle,
                         density = density,
                         trim = trim,
+                        rpStyleRules = rpStyleRules,
                     )
                 }
             }
@@ -799,6 +802,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
     density: Density,
     style: TextStyle,
     onClickCitation: (String) -> Unit = {},
+    rpStyleRules: List<RpStyleRule> = emptyList(),
 ) {
     when {
         node.type == MarkdownTokenTypes.BLOCK_QUOTE -> {}
@@ -826,7 +830,10 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
         }
 
         node.type == MarkdownElementTypes.EMPH -> {
-            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+            // Check for RP color rule for pattern "*" (single emphasis)
+            val emphRule = rpStyleRules.find { it.pattern == "*" && it.enabled }
+            val emphColor = emphRule?.let { runCatching { Color(android.graphics.Color.parseColor(it.colorHex)) }.getOrNull() }
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = emphColor ?: Color.Unspecified)) {
                 node.children.trim(MarkdownTokenTypes.EMPH, 1).fastForEach {
                     appendMarkdownNodeContent(
                         node = it,
@@ -835,14 +842,18 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         colorScheme = colorScheme,
                         density = density,
                         style = style,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        rpStyleRules = rpStyleRules
                     )
                 }
             }
         }
 
         node.type == MarkdownElementTypes.STRONG -> {
-            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+            // Check for RP color rule for pattern "**" (strong emphasis)
+            val strongRule = rpStyleRules.find { it.pattern == "**" && it.enabled }
+            val strongColor = strongRule?.let { runCatching { Color(android.graphics.Color.parseColor(it.colorHex)) }.getOrNull() }
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = strongColor ?: Color.Unspecified)) {
                 node.children.trim(MarkdownTokenTypes.EMPH, 2).fastForEach {
                     appendMarkdownNodeContent(
                         node = it,
@@ -851,7 +862,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         colorScheme = colorScheme,
                         density = density,
                         style = style,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        rpStyleRules = rpStyleRules
                     )
                 }
             }
@@ -867,7 +879,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         colorScheme = colorScheme,
                         density = density,
                         style = style,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        rpStyleRules = rpStyleRules
                     )
                 }
             }
@@ -905,7 +918,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                                         style = TextStyle(
                                             fontSize = 10.sp,
                                             lineHeight = 10.sp,
-                                            fontFamily = JetbrainsMono,
+                                            fontFamily = FontFamily.Monospace,
                                             color = colorScheme.onTertiaryContainer,
                                             fontWeight = FontWeight.Thin
                                         ),
@@ -977,14 +990,15 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
         // 其他类型继续递归处理
         else -> {
             node.children.fastForEach {
-                appendMarkdownNodeContent(
+            appendMarkdownNodeContent(
                     node = it,
                     content = content,
                     inlineContents = inlineContents,
                     colorScheme = colorScheme,
                     density = density,
                     style = style,
-                    onClickCitation = onClickCitation
+                    onClickCitation = onClickCitation,
+                    rpStyleRules = rpStyleRules
                 )
             }
         }

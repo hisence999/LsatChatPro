@@ -100,8 +100,8 @@ fun ChatDrawerContent(
 
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
-        drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        drawerShape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier.padding(8.dp),
@@ -144,7 +144,9 @@ fun ChatDrawerContent(
                     ) {
                         Text(
                             text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.clickable {
@@ -153,7 +155,9 @@ fun ChatDrawerContent(
                     )
                     }
                     Greeting(
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                        ),
                         assistant = settings.getCurrentAssistant()
                     )
                 }

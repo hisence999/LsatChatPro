@@ -159,9 +159,9 @@ fun AssistantMemorySettings(
     ) {
         // ... (existing cards for memory switch and recent chats switch) ...
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -191,9 +191,9 @@ fun AssistantMemorySettings(
 
         if (assistant.enableMemory) {
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 FormItem(
@@ -275,7 +275,7 @@ fun AssistantMemorySettings(
             placeholder = { Text("Search memories...") },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             singleLine = true,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.TextFieldDefaults.colors(
                 focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
@@ -306,9 +306,9 @@ private fun MemoryItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Row(
@@ -376,9 +376,9 @@ private fun MemoryDebugger(
     val (query, setQuery) = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
 
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -423,9 +423,9 @@ private fun MemoryDebugger(
                 )
                 retrievalResults.forEachIndexed { index, (memory, score) ->
                     Card(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
                         modifier = Modifier.padding(vertical = 4.dp)
                     ) {
@@ -492,9 +492,9 @@ private fun AdvancedMemorySettings(
     var isExpanded by remember { mutableStateOf(false) }
     
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -539,7 +539,7 @@ private fun AdvancedMemorySettings(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    HorizontalDivider()
+
                     
                     // Memory Statistics
                     Column(
@@ -582,7 +582,7 @@ private fun AdvancedMemorySettings(
                         }
                     }
                     
-                    HorizontalDivider()
+
                     
                     // RAG Configuration Details
                     Column(
@@ -622,7 +622,7 @@ private fun AdvancedMemorySettings(
                         }
                     }
                     
-                    HorizontalDivider()
+
                     
                     // Memory Type Information
                     Column(
@@ -644,7 +644,7 @@ private fun AdvancedMemorySettings(
                         )
                     }
                     
-                    HorizontalDivider()
+
 
                     // How it works
                     Column(
@@ -664,7 +664,7 @@ private fun AdvancedMemorySettings(
                         )
                     }
                     
-                    HorizontalDivider()
+
                     
                     // Actions
                     Column(

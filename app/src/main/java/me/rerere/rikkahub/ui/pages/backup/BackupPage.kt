@@ -178,9 +178,9 @@ private fun WebDavPage(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(
@@ -249,9 +249,9 @@ private fun WebDavPage(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -479,9 +479,9 @@ private fun BackupItemCard(
     onRestore: (WebDavBackupItem) -> Unit = {},
 ) {
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -651,9 +651,9 @@ private fun ImportExportPage(
 
         item {
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 onClick = {
                     if (!isExporting) {
@@ -690,9 +690,9 @@ private fun ImportExportPage(
 
         item {
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 onClick = {
                     if (!isRestoring) {

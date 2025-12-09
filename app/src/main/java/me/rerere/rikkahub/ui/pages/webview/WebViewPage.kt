@@ -37,7 +37,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
-import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.base64Decode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,7 +160,7 @@ fun WebViewPage(url: String, content: String) {
                                 text = "${message.messageLevel().name}: ${message.message()}\n" +
                                     "Source: ${message.sourceId()}:${message.lineNumber()}",
                                 style = MaterialTheme.typography.bodySmall,
-                                fontFamily = JetbrainsMono,
+                                fontFamily = FontFamily.Monospace,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),

@@ -42,9 +42,9 @@ fun AssistantNotificationSubPage(
     ) {
         // Spontaneous Messaging
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(
@@ -56,7 +56,7 @@ fun AssistantNotificationSubPage(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                HorizontalDivider()
+
 
                 FormItem(
                     label = { Text("Enable Spontaneous Messages") },
@@ -156,9 +156,9 @@ fun AssistantNotificationSubPage(
         // Personalized Greetings
         if (assistant.backgroundModelId != null) {
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Column(
@@ -170,7 +170,7 @@ fun AssistantNotificationSubPage(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    HorizontalDivider()
+    
 
                     FormItem(
                         label = { Text("Enable Personalized Greetings") },

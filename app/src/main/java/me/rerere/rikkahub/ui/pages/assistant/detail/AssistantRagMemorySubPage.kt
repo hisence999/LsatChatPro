@@ -47,9 +47,9 @@ fun AssistantRagMemorySubPage(
     ) {
         // RAG Enable Switch
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             FormItem(
@@ -80,9 +80,9 @@ fun AssistantRagMemorySubPage(
         if (assistant.useRagMemoryRetrieval) {
             // RAG Similarity Threshold
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Column(
@@ -126,9 +126,9 @@ fun AssistantRagMemorySubPage(
 
             // Advanced RAG Settings
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 Column(
@@ -140,7 +140,7 @@ fun AssistantRagMemorySubPage(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    HorizontalDivider()
+
 
                     FormItem(
                         label = { Text("Include Core Memories") },
@@ -174,9 +174,9 @@ fun AssistantRagMemorySubPage(
 
             // Recent Chats Reference
             Card(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
                 FormItem(
@@ -223,9 +223,9 @@ private fun MemoryDebugger(
     val (query, setQuery) = remember { mutableStateOf("") }
 
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -247,12 +247,13 @@ private fun MemoryDebugger(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                androidx.compose.material3.TextField(
+                androidx.compose.material3.OutlinedTextField(
                     value = query,
                     onValueChange = setQuery,
                     label = { Text("Test Query") },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
                 )
                 androidx.compose.material3.Button(
                     onClick = { onTestRetrieval(query) },
@@ -270,9 +271,9 @@ private fun MemoryDebugger(
                 )
                 retrievalResults.forEachIndexed { index, (memory, score) ->
                     Card(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         ),
                         modifier = Modifier.padding(vertical = 4.dp)
                     ) {

@@ -520,7 +520,7 @@ fun ChatInput(
                 if (expand == ExpandState.Files) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                         tonalElevation = 8.dp
                     ) {
                         FilesPicker(
@@ -950,9 +950,7 @@ private fun FilesPicker(
         }
 
         if (!WindowInsets.isImeVisible) {
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth()
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             ListItem(
                 colors = ListItemDefaults.colors(
@@ -1334,7 +1332,7 @@ private fun BigIconTextButton(
                 scaleY = scale
                 this.alpha = alpha
             }
-            .clip(RoundedCornerShape(24.dp))
+            .clip(me.rerere.rikkahub.ui.theme.AppShapes.CardLarge)
             .clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -1349,7 +1347,7 @@ private fun BigIconTextButton(
     ) {
         CompositionLocalProvider(LocalAbsoluteTonalElevation provides if(amoledMode && LocalDarkMode.current) 0.dp else LocalAbsoluteTonalElevation.current) {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 color = if (amoledMode && LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = if (amoledMode && LocalDarkMode.current) 0.dp else 6.dp,
                 modifier = Modifier.fillMaxWidth()

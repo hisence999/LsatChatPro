@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -462,83 +463,81 @@ private fun ColumnScope.ModelList(
                         )
                     }
 
-                    Card(
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (LocalDarkMode.current) Color.Black else Color.White,
-                        )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Column {
-                            val filteredModels = providerSetting.models.fastFilter {
-                                it.type == modelType && it.displayName.contains(
-                                    searchKeywords,
-                                    true
-                                )
-                            }
-                            
-                            if (filteredModels.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.setting_provider_page_no_models),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.extendColors.gray6,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
+                        val filteredModels = providerSetting.models.fastFilter {
+                            it.type == modelType && it.displayName.contains(
+                                searchKeywords,
+                                true
+                            )
+                        }
+                        
+                        if (filteredModels.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.setting_provider_page_no_models),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.extendColors.gray6,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
 
-                            filteredModels.forEachIndexed { index, model ->
-                                val favorite = settings.value.favoriteModels.contains(model.id)
-                                ModelItem(
-                                    model = model,
-                                    onSelect = onSelect,
-                                    modifier = Modifier.animateItem(),
-                                    providerSetting = providerSetting,
-                                    select = currentModel == model.id,
-                                    inGroup = true,
-                                    onDismiss = {
-                                        onDismiss()
-                                    },
-                                    tail = {
-                                        IconButton(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    settingsStore.update { settings ->
-                                                        if (favorite) {
-                                                            settings.copy(
-                                                                favoriteModels = settings.favoriteModels.filter { it != model.id }
-                                                            )
+                        filteredModels.forEachIndexed { index, model ->
+                            val favorite = settings.value.favoriteModels.contains(model.id)
+                            // Calculate position for corner radius
+                            val itemPosition = when {
+                                filteredModels.size == 1 -> ModelItemPosition.SINGLE
+                                index == 0 -> ModelItemPosition.FIRST
+                                index == filteredModels.size - 1 -> ModelItemPosition.LAST
+                                else -> ModelItemPosition.MIDDLE
+                            }
+                            ModelItem(
+                                model = model,
+                                onSelect = onSelect,
+                                modifier = Modifier.animateItem(),
+                                providerSetting = providerSetting,
+                                select = currentModel == model.id,
+                                inGroup = true,
+                                position = itemPosition,
+                                onDismiss = {
+                                    onDismiss()
+                                },
+                                tail = {
+                                    IconButton(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                settingsStore.update { settings ->
+                                                    if (favorite) {
+                                                        settings.copy(
+                                                            favoriteModels = settings.favoriteModels.filter { it != model.id }
+                                                        )
 
-                                                        } else {
-                                                            settings.copy(
-                                                                favoriteModels = settings.favoriteModels + model.id
-                                                            )
-                                                        }
+                                                    } else {
+                                                        settings.copy(
+                                                            favoriteModels = settings.favoriteModels + model.id
+                                                        )
                                                     }
                                                 }
                                             }
-                                        ) {
-                                            if (favorite) {
-                                                Icon(
-                                                    HeartIcon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp),
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            } else {
-                                                Icon(
-                                                    Icons.Rounded.FavoriteBorder,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
+                                        }
+                                    ) {
+                                        if (favorite) {
+                                            Icon(
+                                                HeartIcon,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        } else {
+                                            Icon(
+                                                Icons.Rounded.FavoriteBorder,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
                                         }
                                     }
-                                )
-                                if (index < filteredModels.lastIndex) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp)
-                                    )
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -596,6 +595,13 @@ private fun ColumnScope.ModelList(
     }
 }
 
+// Position in a group for determining corner radius
+private enum class ModelItemPosition {
+    FIRST,   // Top rounded (24dp top, 10dp bottom)
+    MIDDLE,  // All corners 10dp
+    LAST,    // Bottom rounded (10dp top, 24dp bottom)
+    SINGLE   // All corners 24dp (only item in group)
+}
 @Composable
 private fun ModelItem(
     model: Model,
@@ -606,16 +612,37 @@ private fun ModelItem(
     modifier: Modifier = Modifier,
     tail: @Composable RowScope.() -> Unit = {},
     dragHandle: @Composable (RowScope.() -> Unit)? = null,
-    inGroup: Boolean = false
+    inGroup: Boolean = false,
+    position: ModelItemPosition = ModelItemPosition.SINGLE
 ) {
     val navController = LocalNavController.current
     val interactionSource = remember { MutableInteractionSource() }
+    
+    // Calculate shape based on position - edges get 24dp, connections get 10dp
+    val itemShape = if (select) {
+        RoundedCornerShape(50.dp)  // Selected items are fully round
+    } else {
+        when (position) {
+            ModelItemPosition.FIRST -> RoundedCornerShape(
+                topStart = 24.dp, topEnd = 24.dp,
+                bottomStart = 10.dp, bottomEnd = 10.dp
+            )
+            ModelItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+            ModelItemPosition.LAST -> RoundedCornerShape(
+                topStart = 10.dp, topEnd = 10.dp,
+                bottomStart = 24.dp, bottomEnd = 24.dp
+            )
+            ModelItemPosition.SINGLE -> RoundedCornerShape(24.dp)
+        }
+    }
+    
     if(inGroup) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = modifier
                 .fillMaxWidth()
+                .clip(itemShape)
                 .background(
                     color = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else Color.White,
                 )
@@ -680,7 +707,7 @@ private fun ModelItem(
     } else {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = CardDefaults.cardColors(
                 containerColor = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else Color.White,
                 contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else if (LocalDarkMode.current) Color.White else Color.Black,

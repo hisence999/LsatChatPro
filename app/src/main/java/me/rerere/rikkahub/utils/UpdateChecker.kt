@@ -2,6 +2,7 @@ package me.rerere.rikkahub.utils
 
 import android.app.DownloadManager
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.core.net.toUri
@@ -17,7 +18,7 @@ import me.rerere.rikkahub.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-private const val API_URL = "https://updates.rikka-ai.com/"
+private const val GITHUB_API_URL = "https://api.github.com/repos/Cocolalilal/LastChat/releases/latest"
 
 class UpdateChecker(private val client: OkHttpClient) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -29,18 +30,47 @@ class UpdateChecker(private val client: OkHttpClient) {
                 data = try {
                     val response = client.newCall(
                         Request.Builder()
-                            .url(API_URL)
+                            .url(GITHUB_API_URL)
                             .get()
+                            .addHeader("Accept", "application/vnd.github+json")
                             .addHeader(
                                 "User-Agent",
-                                "RikkaHub ${BuildConfig.VERSION_NAME} #${BuildConfig.VERSION_CODE}"
+                                "LastChat ${BuildConfig.VERSION_NAME} #${BuildConfig.VERSION_CODE}"
                             )
                             .build()
                     ).await()
                     if (response.isSuccessful) {
-                        json.decodeFromString<UpdateInfo>(response.body.string())
+                        val release = json.decodeFromString<GitHubRelease>(response.body.string())
+                        
+                        // Convert GitHub release to UpdateInfo
+                        val arch = getDeviceArchitecture()
+                        val downloads = release.assets
+                            .filter { it.name.endsWith(".apk") }
+                            .map { asset ->
+                                UpdateDownload(
+                                    name = asset.name,
+                                    url = asset.browser_download_url,
+                                    size = formatFileSize(asset.size)
+                                )
+                            }
+                        
+                        // Sort downloads to prioritize architecture match
+                        val sortedDownloads = downloads.sortedByDescending { download ->
+                            when {
+                                download.name.contains(arch, ignoreCase = true) -> 2
+                                download.name.contains("universal", ignoreCase = true) -> 1
+                                else -> 0
+                            }
+                        }
+                        
+                        UpdateInfo(
+                            version = release.tag_name.removePrefix("v"),
+                            publishedAt = release.published_at,
+                            changelog = release.body,
+                            downloads = sortedDownloads
+                        )
                     } else {
-                        throw Exception("Failed to fetch update info")
+                        throw Exception("Failed to fetch update info: ${response.code}")
                     }
                 } catch (e: Exception) {
                     throw Exception("Failed to fetch update info", e)
@@ -50,32 +80,60 @@ class UpdateChecker(private val client: OkHttpClient) {
     }.catch {
         emit(UiState.Error(it))
     }.flowOn(Dispatchers.IO)
+    
+    private fun getDeviceArchitecture(): String {
+        val abis = Build.SUPPORTED_ABIS
+        return when {
+            abis.any { it.contains("arm64") } -> "arm64-v8a"
+            abis.any { it.contains("armeabi") } -> "armeabi-v7a"
+            abis.any { it.contains("x86_64") } -> "x86_64"
+            abis.any { it.contains("x86") } -> "x86"
+            else -> "universal"
+        }
+    }
+    
+    private fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes >= 1_048_576 -> String.format("%.1f MB", bytes / 1_048_576.0)
+            bytes >= 1_024 -> String.format("%.1f KB", bytes / 1_024.0)
+            else -> "$bytes B"
+        }
+    }
 
     fun downloadUpdate(context: Context, download: UpdateDownload) {
         runCatching {
             val request = DownloadManager.Request(download.url.toUri()).apply {
-                // 设置下载时通知栏的标题和描述
-                setTitle(download.name)
-                setDescription("正在下载更新包...")
-                // 下载完成后通知栏可见
+                setTitle("LastChat Update")
+                setDescription("Downloading ${download.name}...")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                // 允许在移动网络和WiFi下下载
                 setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
-                // 设置文件保存路径
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, download.name)
-                // 允许下载的文件类型
                 setMimeType("application/vnd.android.package-archive")
             }
-            // 获取系统的DownloadManager
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             dm.enqueue(request)
-            // 你可以保存返回的downloadId到本地，以便后续查询下载进度或状态
         }.onFailure {
-            Toast.makeText(context, "Failed to update", Toast.LENGTH_SHORT).show()
-            context.openUrl(download.url) // 跳转到下载页面
+            Toast.makeText(context, "Failed to download update", Toast.LENGTH_SHORT).show()
+            context.openUrl(download.url)
         }
     }
 }
+
+@Serializable
+data class GitHubRelease(
+    val tag_name: String,
+    val name: String,
+    val body: String,
+    val published_at: String,
+    val assets: List<GitHubAsset>
+)
+
+@Serializable
+data class GitHubAsset(
+    val name: String,
+    val browser_download_url: String,
+    val size: Long
+)
 
 @Serializable
 data class UpdateDownload(

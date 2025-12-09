@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -17,12 +19,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SecondaryScrollableTabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -183,14 +186,16 @@ fun AssistantDetailPage(id: String) {
             }
         })
 
-        // MCP
-        add(TabItem(stringResource(R.string.assistant_page_tab_mcp)) {
-            AssistantMcpSettings(
-                assistant = assistant,
-                onUpdate = { onUpdate(it) },
-                mcpServerConfigs = mcpServerConfigs
-            )
-        })
+        // MCP - only show if MCP servers are configured
+        if (mcpServerConfigs.isNotEmpty()) {
+            add(TabItem(stringResource(R.string.assistant_page_tab_mcp)) {
+                AssistantMcpSettings(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) },
+                    mcpServerConfigs = mcpServerConfigs
+                )
+            })
+        }
     }
 
     val pagerState = rememberPagerState { tabItems.size }
@@ -218,27 +223,48 @@ fun AssistantDetailPage(id: String) {
                 .padding(innerPadding)
                 .fillMaxSize(),
         ) {
-            SecondaryScrollableTabRow(
+            // PixelPlay-style animated tabs with ScrollableTabRow
+            ScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
-                modifier = Modifier.fillMaxWidth(),
-                edgePadding = 20.dp,
-                minTabWidth = 20.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                edgePadding = 12.dp,
+                indicator = { tabPositions ->
+                    if (pagerState.currentPage < tabPositions.size) {
+                        androidx.compose.material3.TabRowDefaults.PrimaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                            height = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                divider = {}
             ) {
                 tabItems.fastForEachIndexed { index, item ->
-                    Tab(
-                        selected = index == pagerState.currentPage,
-                        onClick = { scope.launch { pagerState.scrollToPage(index) } },
-                        text = {
-                            Text(item.title)
-                        }
-                    )
+                    me.rerere.rikkahub.ui.components.ui.TabAnimation(
+                        index = index,
+                        title = item.title,
+                        selectedIndex = pagerState.currentPage,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } }
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (pagerState.currentPage == index) 
+                                androidx.compose.ui.text.font.FontWeight.Bold 
+                            else 
+                                androidx.compose.ui.text.font.FontWeight.Medium
+                        )
+                    }
                 }
             }
+            Spacer(Modifier.height(8.dp))
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                beyondViewportPageCount = 1, // Preload adjacent pages for fluid tab switching
+                key = { index -> tabItems.getOrNull(index)?.title ?: index }
             ) { page ->
                 tabItems.getOrNull(page)?.content?.invoke()
             }
@@ -285,9 +311,9 @@ private fun AssistantBasicSettings(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(
@@ -312,7 +338,7 @@ private fun AssistantBasicSettings(
                     )
                 }
 
-                HorizontalDivider()
+
 
                 FormItem(
                     label = {
@@ -328,7 +354,7 @@ private fun AssistantBasicSettings(
                     )
                 }
 
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
 
                 FormItem(
                     label = {
@@ -354,9 +380,9 @@ private fun AssistantBasicSettings(
         }
 
         Card(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(
@@ -385,7 +411,7 @@ private fun AssistantBasicSettings(
                         )
                     }
                 )
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text("Background Model")
@@ -408,7 +434,7 @@ private fun AssistantBasicSettings(
                         )
                     }
                 )
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text(stringResource(R.string.assistant_page_temperature))
@@ -477,7 +503,7 @@ private fun AssistantBasicSettings(
                         }
                     }
                 }
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text(stringResource(R.string.assistant_page_top_p))
@@ -526,8 +552,8 @@ private fun AssistantBasicSettings(
                         )
                     }
                 }
-                HorizontalDivider()
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text("Maximum Token Usage")
@@ -562,7 +588,7 @@ private fun AssistantBasicSettings(
                     )
                 }
                 
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 FormItem(
                     label = {
@@ -604,7 +630,7 @@ private fun AssistantBasicSettings(
                         }
                     }
                 }
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text(stringResource(R.string.assistant_page_stream_output))
@@ -625,7 +651,7 @@ private fun AssistantBasicSettings(
                         )
                     }
                 )
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text(stringResource(R.string.assistant_page_thinking_budget))
@@ -642,7 +668,7 @@ private fun AssistantBasicSettings(
                         }
                     )
                 }
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
                         Text(stringResource(R.string.assistant_page_max_tokens))
@@ -717,7 +743,7 @@ private fun AssistantCustomRequestSettings(
             }
         )
 
-        HorizontalDivider()
+        Spacer(modifier = Modifier.height(8.dp))
 
         CustomBodies(
             customBodies = assistant.customBodies,

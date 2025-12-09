@@ -71,6 +71,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
+import me.rerere.rikkahub.ui.pages.setting.SettingRpOptimizationsPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
@@ -299,6 +300,10 @@ class RouteActivity : ComponentActivity() {
                         SettingDonatePage()
                     }
 
+                    composable<Screen.SettingRpOptimizations> {
+                        SettingRpOptimizationsPage()
+                    }
+
                     composable<Screen.Developer> {
                         DeveloperPage()
                     }
@@ -372,6 +377,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingDonate : Screen
+
+    @Serializable
+    data object SettingRpOptimizations : Screen
 
     @Serializable
     data object Developer : Screen
