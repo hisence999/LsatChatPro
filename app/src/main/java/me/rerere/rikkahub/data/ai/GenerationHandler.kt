@@ -11,18 +11,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
 import me.rerere.ai.core.merge
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
@@ -46,7 +40,6 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 
@@ -63,7 +56,6 @@ class GenerationHandler(
     private val context: Context,
     private val providerManager: ProviderManager,
     private val json: Json,
-    private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
 ) {
@@ -87,23 +79,7 @@ class GenerationHandler(
         for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
 
-            val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant?.enableMemory == true) {
-                    buildMemoryTools(
-                        onCreation = { content ->
-                            memoryRepo.addMemory(assistant.id.toString(), content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
-                    ).let(this::addAll)
-                }
-                addAll(tools)
-            }
+            val toolsInternal = tools
 
             generateInternal(
                 assistant = assistant,
@@ -488,82 +464,7 @@ class GenerationHandler(
         }
     }
 
-    private fun buildMemoryTools(
-        onCreation: suspend (String) -> AssistantMemory,
-        onUpdate: suspend (Int, String) -> AssistantMemory,
-        onDelete: suspend (Int) -> Unit
-    ) = listOf(
-        Tool(
-            name = "create_memory",
-            description = "Create a new memory record.",
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("content", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Content of the memory.")
-                        })
-                    },
-                    required = listOf("content")
-                )
-            },
-            execute = {
-                val params = it.jsonObject
-                val content =
-                    params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content))
-            }
-        ),
-        Tool(
-            name = "edit_memory",
-            description = "Update an existing memory record.",
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("id", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "ID of the memory to update.")
-                        })
-                        put("content", buildJsonObject {
-                            put("type", "string")
-                            put("description", "New content for the memory.")
-                        })
-                    },
-                    required = listOf("id", "content"),
-                )
-            },
-            execute = {
-                val params = it.jsonObject
-                val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
-                val content =
-                    params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                json.encodeToJsonElement(
-                    AssistantMemory.serializer(), onUpdate(id, content)
-                )
-            }
-        ),
-        Tool(
-            name = "delete_memory",
-            description = "Delete a memory record.",
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("id", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "ID of the memory to delete.")
-                        })
-                    },
-                    required = listOf("id")
-                )
-            },
-            execute = {
-                val params = it.jsonObject
-                val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
-                onDelete(id)
-                JsonPrimitive(true)
-            }
-        )
-    )
+
 
     private suspend fun buildMemoryPrompt(model: Model, memories: List<AssistantMemory>): String {
         Log.d(TAG, "buildMemoryPrompt: Injecting ${memories.size} memories into prompt")
@@ -618,27 +519,7 @@ class GenerationHandler(
                 }
             }
             
-            if (model.abilities.contains(ModelAbility.TOOL)) {
-                append(
-                    """
-                        
-                        ## Memory Tool
-                        You are a stateless large language model; you **cannot store memories** internally. To remember information, you must use **memory tools**.
-                        Memory tools allow you (the assistant) to store multiple pieces of information (records) to recall details across conversations.
-                        You can use the `create_memory`, `edit_memory`, and `delete_memory` tools to create, update, or delete memories.
-                        - If there is no relevant information in memory, call `create_memory` to create a new record.
-                        - If a relevant record already exists, call `edit_memory` to update it.
-                        - If a memory is outdated or no longer useful, call `delete_memory` to remove it.
-                        **Note:** You can only edit or delete **Core Memories** (which have an ID). Episodic Memories are read-only context.
-                        
-                        **Do not store sensitive information.** Sensitive information includes: ethnicity, religious beliefs, sexual orientation, political views, sexual life, criminal records, etc.
-                        During chats, act like a personal secretary and **proactively** record user-related information, including but not limited to:
-                        - Name/Nickname
-                        - Age/Gender/Hobbies
-                        - Plans/To-do items
-                    """.trimIndent()
-                )
-            }
+
         }
     }
 

@@ -16,6 +16,8 @@ import me.rerere.rikkahub.data.api.SponsorAPI
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.Migration_6_7
+import me.rerere.rikkahub.data.db.Migration_19_20
+import me.rerere.rikkahub.data.db.Migration_20_21
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.sync.WebdavSync
 import okhttp3.MediaType.Companion.toMediaType
@@ -34,7 +36,14 @@ val dataSourceModule = module {
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "rikka_hub")
-            .addMigrations(Migration_6_7, AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_14_16)
+            .addMigrations(
+                Migration_6_7, 
+                AppDatabase.MIGRATION_11_12, 
+                AppDatabase.MIGRATION_12_13, 
+                AppDatabase.MIGRATION_14_16,
+                Migration_19_20,
+                Migration_20_21
+            )
             .build()
     }
 
@@ -72,6 +81,10 @@ val dataSourceModule = module {
         get<AppDatabase>().embeddingCacheDao()
     }
 
+    single {
+        get<AppDatabase>().knowledgeGraphDao()
+    }
+
     single { McpManager(settingsStore = get(), appScope = get()) }
 
     single {
@@ -79,7 +92,6 @@ val dataSourceModule = module {
             context = get(),
             providerManager = get(),
             json = get(),
-            memoryRepo = get(),
             conversationRepo = get(),
             aiLoggingManager = get()
         )

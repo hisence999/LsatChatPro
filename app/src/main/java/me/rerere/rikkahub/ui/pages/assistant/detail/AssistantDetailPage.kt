@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -119,51 +120,66 @@ fun AssistantDetailPage(id: String) {
             )
         })
 
-        // Memory
-        add(TabItem(stringResource(R.string.assistant_page_tab_memory)) {
-            val embeddingProgress by vm.embeddingProgress.collectAsStateWithLifecycle()
-            val estimatedMemoryCapacity by vm.estimatedMemoryCapacity.collectAsStateWithLifecycle()
-            val needsEmbeddingRegeneration by vm.needsEmbeddingRegeneration.collectAsStateWithLifecycle()
-            AssistantMemorySettings(
-                assistant = assistant,
-                memories = memories,
-                onUpdateAssistant = { onUpdate(it) },
-                onDeleteMemory = { vm.deleteMemory(it) },
-                onAddMemory = { vm.addMemory(it) },
-                onUpdateMemory = { vm.updateMemory(it) },
-                onRegenerateEmbeddings = { vm.regenerateEmbeddings() },
-                embeddingProgress = embeddingProgress,
-                assistantDetailVM = vm,
-                estimatedMemoryCapacity = estimatedMemoryCapacity,
-                needsEmbeddingRegeneration = needsEmbeddingRegeneration
-            )
-        })
-
-        // RAG Memory & Consolidation (Conditional)
-        if (assistant.enableMemory) {
-            add(TabItem("RAG Memory") {
-                val retrievalResults by vm.retrievalResults.collectAsStateWithLifecycle()
-                AssistantRagMemorySubPage(
-                    assistant = assistant,
-                    onUpdateAssistant = { onUpdate(it) },
-                    onTestRetrieval = { vm.testRetrieval(it) },
-                    retrievalResults = retrievalResults
+        // New Memory System - Knowledge Graph
+        // All memory-related tabs now use the new Knowledge Graph system
+        add(TabItem("Memory") {
+            // Create shared ViewModel for memory tabs
+            val memoryViewModel: me.rerere.rikkahub.ui.pages.assistant.memory.KnowledgeMapViewModel = 
+                org.koin.androidx.compose.koinViewModel(
+                    parameters = { org.koin.core.parameter.parametersOf(id) }
                 )
-            })
-
-            add(TabItem("Consolidation") {
-                val allModels = remember(providers) {
-                    providers.flatMap { it.models }
+            
+            var selectedSubTab by remember { mutableIntStateOf(0) }
+            val subTabs = listOf("Overview", "Entities", "Insights", "Settings")
+            
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Sub-tab row
+                androidx.compose.material3.ScrollableTabRow(
+                    selectedTabIndex = selectedSubTab,
+                    edgePadding = 16.dp,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    divider = {}
+                ) {
+                    subTabs.forEachIndexed { index, title ->
+                        androidx.compose.material3.Tab(
+                            selected = selectedSubTab == index,
+                            onClick = { selectedSubTab = index },
+                            text = { 
+                                Text(
+                                    text = title,
+                                    fontWeight = if (selectedSubTab == index) 
+                                        androidx.compose.ui.text.font.FontWeight.Bold 
+                                    else 
+                                        androidx.compose.ui.text.font.FontWeight.Normal
+                                ) 
+                            }
+                        )
+                    }
                 }
-                AssistantMemoryConsolidationSubPage(
-                    vm = vm,
-                    assistant = assistant,
-                    onUpdate = { onUpdate(it) },
-                    allModels = allModels,
-                    onConsolidate = { vm.consolidateMemories(it) }
-                )
-            })
-        }
+                
+                // Sub-tab content
+                when (selectedSubTab) {
+                    0 -> me.rerere.rikkahub.ui.pages.assistant.memory.MemoryOverviewTab(
+                        viewModel = memoryViewModel,
+                        onNavigateToEntities = { selectedSubTab = 1 },
+                        onNavigateToInsights = { selectedSubTab = 2 },
+                        onNavigateToSettings = { selectedSubTab = 3 }
+                    )
+                    1 -> me.rerere.rikkahub.ui.pages.assistant.memory.EntitiesTab(
+                        viewModel = memoryViewModel,
+                        onEntityClick = { /* Handled internally */ }
+                    )
+                    2 -> me.rerere.rikkahub.ui.pages.assistant.memory.InsightsTab(
+                        viewModel = memoryViewModel
+                    )
+                    3 -> me.rerere.rikkahub.ui.pages.assistant.memory.MemorySettingsTab(
+                        assistant = assistant,
+                        onUpdateAssistant = { onUpdate(it) },
+                        viewModel = memoryViewModel
+                    )
+                }
+            }
+        })
 
         // Notifications
         add(TabItem("Notifications") {

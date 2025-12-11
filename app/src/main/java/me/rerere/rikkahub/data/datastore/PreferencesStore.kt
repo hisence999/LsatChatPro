@@ -82,6 +82,7 @@ class SettingsStore(
         val OCR_MODEL = stringPreferencesKey("ocr_model")
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
         val EMBEDDING_MODEL = stringPreferencesKey("embedding_model")
+        val MEMORY_MODEL = stringPreferencesKey("memory_model")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -142,6 +143,7 @@ class SettingsStore(
                 ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 embeddingModelId = preferences[EMBEDDING_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                memoryModelId = preferences[MEMORY_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
@@ -275,6 +277,7 @@ class SettingsStore(
             preferences[OCR_MODEL] = settings.ocrModelId.toString()
             preferences[OCR_PROMPT] = settings.ocrPrompt
             preferences[EMBEDDING_MODEL] = settings.embeddingModelId.toString()
+            preferences[MEMORY_MODEL] = settings.memoryModelId.toString()
 
             preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
 
@@ -332,6 +335,7 @@ data class Settings(
     val ocrModelId: Uuid = Uuid.random(),
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val embeddingModelId: Uuid = Uuid.random(),
+    val memoryModelId: Uuid = Uuid.random(),  // Model for memory extraction
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,

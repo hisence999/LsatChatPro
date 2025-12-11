@@ -168,108 +168,10 @@ class MemoryRepository(
     }
 
     /**
-     * Retrieve relevant memories with scores for debugging
+     * Retrieve relevant memories with scores using vector similarity search.
+     * Uses early termination optimization: maintains a bounded priority queue
+     * to avoid sorting all results when only top K are needed.
      */
-    suspend fun retrieveRelevantMemoriesWithScores(assistantId: String, query: String, limit: Int = 5, similarityThreshold: Float = 0.5f): List<Pair<AssistantMemory, Float>> {
-        val queryEmbedding = try {
-            embeddingService.embed(query, assistantId)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return emptyList()
-        }
-
-        // Get both core memories and episodes
-        val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
-        val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
-        
-        // Score core memories - use cache for embeddings
-        val memoryScores = memories.mapNotNull { memory ->
-            val embedding = getOrCreateEmbedding(
-                memoryId = memory.id,
-                memoryType = MemoryType.CORE,
-                content = memory.content,
-                assistantId = assistantId
-            ) ?: return@mapNotNull null
-            
-            val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
-            
-            // Core memories don't decay, score is just similarity
-            // But we can give them a slight boost to ensure important facts are prioritized
-            val score = similarity * 1.05f 
-            
-            if (score >= similarityThreshold) {
-                Triple(memory, score, true) // true = is memory
-            } else null
-        }
-        
-        // Score episodes - use cache for embeddings
-        val episodeScores = episodes.mapNotNull { episode ->
-            val embedding = getOrCreateEmbedding(
-                memoryId = episode.id,
-                memoryType = MemoryType.EPISODIC,
-                content = episode.content,
-                assistantId = assistantId
-            ) ?: return@mapNotNull null
-            
-            val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
-            
-            // Calculate Recency Score
-            // Decay over 7 days (half-life)
-            val ageInMillis = System.currentTimeMillis() - episode.startTime
-            val ageInDays = ageInMillis / (1000.0 * 60 * 60 * 24)
-            val recency = (1.0 / (1.0 + (ageInDays / 7.0))).toFloat()
-            
-            // Dual-Track Score Formula
-            val score = (similarity * 0.7f) + (recency * 0.3f)
-            
-            if (score >= similarityThreshold) {
-                Triple(episode as Any, score, false) // false = is episode
-            } else null
-        }
-        
-        // Combine and sort by score
-        val allScored = (memoryScores + episodeScores).sortedByDescending { it.second }
-        
-        // Update lastAccessedAt for retrieved memories
-        allScored.take(limit).forEach { (item, _, isMemory) ->
-            if (isMemory) {
-                val memory = item as MemoryEntity
-                memoryDAO.updateMemory(memory.copy(lastAccessedAt = System.currentTimeMillis()))
-            } else {
-                val episode = item as ChatEpisodeEntity
-                chatEpisodeDAO.insertEpisode(episode.copy(lastAccessedAt = System.currentTimeMillis()))
-            }
-        }
-        
-        return allScored.take(limit).mapNotNull { triple ->
-            val item = triple.first
-            val score = triple.second
-            val isMemory = triple.third
-
-            if (isMemory) {
-                val memory = item as MemoryEntity
-                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.embeddingModelId, memory.createdAt), score)
-            } else {
-                val episode = item as ChatEpisodeEntity
-                // Convert episode to AssistantMemory with a negative ID to distinguish
-                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
-            }
-        }
-    }
-
-    suspend fun retrieveRelevantMemories(
-        assistantId: String,
-        query: String,
-        limit: Int = 5,
-        similarityThreshold: Float = 0.5f,
-        includeCore: Boolean = true,
-        includeEpisodes: Boolean = true
-    ): List<AssistantMemory> {
-        return retrieveRelevantMemoriesWithScores(
-            assistantId, query, limit, similarityThreshold, includeCore, includeEpisodes
-        ).map { it.first }
-    }
-
     suspend fun retrieveRelevantMemoriesWithScores(
         assistantId: String,
         query: String,
@@ -285,38 +187,52 @@ class MemoryRepository(
             return emptyList()
         }
 
-        // Get both core memories and episodes
+        // Pre-filter: only load types that are requested
         val memories = if (includeCore) memoryDAO.getMemoriesOfAssistant(assistantId) else emptyList()
         val episodes = if (includeEpisodes) chatEpisodeDAO.getEpisodesOfAssistant(assistantId) else emptyList()
         
+        // Use a bounded priority queue for early termination optimization
+        // This maintains only the top K elements, avoiding full sort
+        val topResults = java.util.PriorityQueue<Triple<Any, Float, Boolean>>(
+            limit.coerceAtLeast(1) + 1,
+            compareBy { it.second } // Min-heap by score
+        )
+        
+        fun addToTopResults(item: Any, score: Float, isMemory: Boolean) {
+            if (score >= similarityThreshold) {
+                topResults.add(Triple(item, score, isMemory))
+                // If we exceed limit, remove the smallest (lowest score)
+                if (topResults.size > limit) {
+                    topResults.poll()
+                }
+            }
+        }
+        
         // Score core memories - use cache for embeddings
-        val memoryScores = memories.mapNotNull { memory ->
+        memories.forEach { memory ->
             val embedding = getOrCreateEmbedding(
                 memoryId = memory.id,
                 memoryType = MemoryType.CORE,
                 content = memory.content,
                 assistantId = assistantId
-            ) ?: return@mapNotNull null
+            ) ?: return@forEach
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
             // Core memories don't decay, score is just similarity
-            // But we can give them a slight boost to ensure important facts are prioritized
+            // Give them a slight boost to ensure important facts are prioritized
             val score = similarity * 1.05f 
-            
-            if (score >= similarityThreshold) {
-                Triple(memory, score, true) // true = is memory
-            } else null
+            addToTopResults(memory, score, true)
         }
         
         // Score episodes - use cache for embeddings
-        val episodeScores = episodes.mapNotNull { episode ->
+        episodes.forEach { episode ->
             val embedding = getOrCreateEmbedding(
                 memoryId = episode.id,
                 memoryType = MemoryType.EPISODIC,
                 content = episode.content,
                 assistantId = assistantId
-            ) ?: return@mapNotNull null
+            ) ?: return@forEach
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
             
@@ -328,17 +244,14 @@ class MemoryRepository(
             
             // Dual-Track Score Formula
             val score = (similarity * 0.7f) + (recency * 0.3f)
-            
-            if (score >= similarityThreshold) {
-                Triple(episode as Any, score, false) // false = is episode
-            } else null
+            addToTopResults(episode, score, false)
         }
         
-        // Combine and sort by score
-        val allScored = (memoryScores + episodeScores).sortedByDescending { it.second }
+        // Extract results sorted by score (descending)
+        val allScored = topResults.toList().sortedByDescending { it.second }
         
         // Update lastAccessedAt for retrieved memories
-        allScored.take(limit).forEach { (item, _, isMemory) ->
+        allScored.forEach { (item, _, isMemory) ->
             if (isMemory) {
                 val memory = item as MemoryEntity
                 memoryDAO.updateMemory(memory.copy(lastAccessedAt = System.currentTimeMillis()))
@@ -348,7 +261,7 @@ class MemoryRepository(
             }
         }
         
-        return allScored.take(limit).mapNotNull { triple ->
+        return allScored.mapNotNull { triple ->
             val item = triple.first
             val score = triple.second
             val isMemory = triple.third
@@ -362,6 +275,22 @@ class MemoryRepository(
                 Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
             }
         }
+    }
+
+    /**
+     * Retrieve relevant memories without scores (convenience wrapper).
+     */
+    suspend fun retrieveRelevantMemories(
+        assistantId: String,
+        query: String,
+        limit: Int = 5,
+        similarityThreshold: Float = 0.5f,
+        includeCore: Boolean = true,
+        includeEpisodes: Boolean = true
+    ): List<AssistantMemory> {
+        return retrieveRelevantMemoriesWithScores(
+            assistantId, query, limit, similarityThreshold, includeCore, includeEpisodes
+        ).map { it.first }
     }
 
     /**

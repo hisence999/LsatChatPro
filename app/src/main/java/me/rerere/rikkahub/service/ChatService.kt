@@ -103,6 +103,8 @@ class ChatService(
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
+    private val knowledgeGraphRepository: me.rerere.rikkahub.data.memory.repository.KnowledgeGraphRepository,
+    private val memoryExtractionService: me.rerere.rikkahub.data.memory.service.MemoryExtractionService,
     private val generationHandler: GenerationHandler,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
@@ -382,33 +384,91 @@ class ChatService(
                     val assistant = settings.getCurrentAssistant()
                     if (assistant.useRagMemoryRetrieval) {
                         // RAG mode: retrieve relevant memories based on context
-                        val lastUserMessage = conversation.currentMessages.lastOrNull { it.role == MessageRole.USER }?.toText() ?: ""
+                        // Use last 4 messages for better multi-turn context (handles pronouns like "her", "that", etc.)
+                        val recentMessages = conversation.currentMessages.takeLast(4)
+                        val queryContext = recentMessages.mapNotNull { msg ->
+                            when (msg.role) {
+                                MessageRole.USER -> "User: ${msg.toText()}"
+                                MessageRole.ASSISTANT -> "Assistant: ${msg.toText().take(200)}"
+                                else -> null
+                            }
+                        }.joinToString("\n")
                         
                         if (settings.enableRagLogging) {
-                            Log.d("RAG", "Query: $lastUserMessage")
+                            Log.d("RAG", "Query context:\n$queryContext")
                         }
 
-                        if (lastUserMessage.isNotBlank()) {
-                            val results = memoryRepository.retrieveRelevantMemories(
-                                assistantId = settings.assistantId.toString(),
-                                query = lastUserMessage,
-                                limit = 50, // Hardcoded high limit for dynamic context
-                                similarityThreshold = assistant.ragSimilarityThreshold,
-                                includeCore = assistant.ragIncludeCore,
-                                includeEpisodes = assistant.ragIncludeEpisodes
-                            )
+                        if (queryContext.isNotBlank()) {
+                            // Knowledge Graph semantic search (primary system - no legacy fallback)
+                            val tiers = buildSet {
+                                if (assistant.ragIncludeCore) add(me.rerere.rikkahub.data.memory.entity.MemoryTier.CORE)
+                                if (assistant.ragIncludeEpisodes) add(me.rerere.rikkahub.data.memory.entity.MemoryTier.RECALL)
+                                if (isEmpty()) add(me.rerere.rikkahub.data.memory.entity.MemoryTier.RECALL)
+                            }
+                            
+                            val results = try {
+                                knowledgeGraphRepository.semanticSearch(
+                                    query = queryContext,
+                                    assistantId = settings.assistantId.toString(),
+                                    limit = assistant.ragLimit,
+                                    minSimilarity = assistant.ragSimilarityThreshold,
+                                    includeTiers = tiers
+                                ).map { (node, _) ->
+                                    me.rerere.rikkahub.data.model.AssistantMemory(
+                                        id = node.id.hashCode(),
+                                        content = "${node.label}: ${node.content}",
+                                        type = if (node.tier == me.rerere.rikkahub.data.memory.entity.MemoryTier.CORE) 0 else 1,
+                                        hasEmbedding = node.embedding != null,
+                                        embeddingModelId = null,
+                                        timestamp = node.lastAccessedAt
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                if (settings.enableRagLogging) {
+                                    Log.w("RAG", "Knowledge Graph search failed: ${e.message}")
+                                }
+                                emptyList()
+                            }
+                            
                             if (settings.enableRagLogging) {
-                                Log.d("RAG", "Retrieved ${results.size} memories")
+                                Log.d("RAG", "[Knowledge Graph] Retrieved ${results.size} memories")
                                 results.forEach { Log.d("RAG", " - [${it.type}] ${it.content.take(50)}...") }
                             }
                             results
                         } else {
-                            if (settings.enableRagLogging) Log.d("RAG", "Empty query, using all memories")
-                            memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
+                            // Empty query - get all core memories
+                            if (settings.enableRagLogging) Log.d("RAG", "Empty query, using core memories")
+                            try {
+                                knowledgeGraphRepository.getCoreNodes(settings.assistantId.toString()).map { node ->
+                                    me.rerere.rikkahub.data.model.AssistantMemory(
+                                        id = node.id.hashCode(),
+                                        content = "${node.label}: ${node.content}",
+                                        type = 0,
+                                        hasEmbedding = node.embedding != null,
+                                        embeddingModelId = null,
+                                        timestamp = node.lastAccessedAt
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
                         }
                     } else {
-                        // Simple mode: inject all memories
-                        memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
+                        // Simple mode: inject all core memories
+                        try {
+                            knowledgeGraphRepository.getCoreNodes(settings.assistantId.toString()).map { node ->
+                                me.rerere.rikkahub.data.model.AssistantMemory(
+                                    id = node.id.hashCode(),
+                                    content = "${node.label}: ${node.content}",
+                                    type = 0,
+                                    hasEmbedding = node.embedding != null,
+                                    embeddingModelId = null,
+                                    timestamp = node.lastAccessedAt
+                                )
+                            }
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
                     }
                 } else {
                     emptyList()
@@ -478,6 +538,26 @@ class ChatService(
                 coroutineScope {
                     launch { generateTitle(conversationId, finalConversation) }
                     launch { generateSuggestion(conversationId, finalConversation) }
+                    
+                    // Real-time memory extraction (new Knowledge Graph system)
+                    val assistant = settings.getCurrentAssistant()
+                    if (assistant.enableMemory) {
+                        launch {
+                            try {
+                                val stats = memoryExtractionService.extractAndStore(
+                                    messages = finalConversation.currentMessages.takeLast(6),
+                                    assistantId = assistant.id.toString()
+                                )
+                                if (stats.entitiesStored > 0) {
+                                    android.util.Log.d("ChatService", "Memory extraction: ${stats.entitiesStored} entities, ${stats.relationshipsStored} relationships in ${stats.durationMs}ms")
+                                }
+                                // Mark conversation as consolidated since we did real-time extraction
+                                conversationRepo.markAsConsolidated(conversationId)
+                            } catch (e: Exception) {
+                                android.util.Log.e("ChatService", "Memory extraction failed: ${e.message}")
+                            }
+                        }
+                    }
                 }
             }.invokeOnCompletion {
                 removeConversationReference(conversationId) // 移除引用

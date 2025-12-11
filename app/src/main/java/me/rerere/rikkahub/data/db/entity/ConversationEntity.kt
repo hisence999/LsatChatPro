@@ -26,4 +26,8 @@ data class ConversationEntity(
     val isPinned: Boolean,
     @ColumnInfo(name = "is_consolidated", defaultValue = "0")
     val isConsolidated: Boolean = false,
+    @ColumnInfo(name = "consolidation_retry_count", defaultValue = "0")
+    val consolidationRetryCount: Int = 0,
+    @ColumnInfo(name = "consolidation_last_error", defaultValue = "")
+    val consolidationLastError: String = "",
 )
