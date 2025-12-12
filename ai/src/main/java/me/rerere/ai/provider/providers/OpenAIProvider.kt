@@ -68,11 +68,22 @@ class OpenAIProvider(
                 val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
 
                 val isEmbedding = id.contains("embed", ignoreCase = true)
+                
+                // Extract icon URL if available (some APIs provide this)
+                val iconUrl = modelObj["icon"]?.jsonPrimitive?.contentOrNull
+                    ?: modelObj["architecture"]?.jsonObject?.get("icon")?.jsonPrimitive?.contentOrNull
+                
+                // Extract provider slug from model ID (e.g., "anthropic/claude-3.5" -> "anthropic")
+                // Used for LobeHub CDN icon lookup
+                val providerSlug = if (id.contains("/")) id.substringBefore("/") else null
+                
                 Model(
                     modelId = id,
-                    displayName = id,
+                    displayName = modelObj["name"]?.jsonPrimitive?.contentOrNull ?: id,
                     type = if (isEmbedding) me.rerere.ai.provider.ModelType.EMBEDDING else me.rerere.ai.provider.ModelType.CHAT,
-                    outputModalities = listOf(me.rerere.ai.provider.Modality.TEXT)
+                    outputModalities = listOf(me.rerere.ai.provider.Modality.TEXT),
+                    iconUrl = iconUrl,
+                    providerSlug = providerSlug
                 )
             }
         }

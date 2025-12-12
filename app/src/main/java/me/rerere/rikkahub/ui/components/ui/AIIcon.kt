@@ -7,7 +7,10 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +84,157 @@ fun AutoAIIcon(
     )
 }
 
+/**
+ * AI Icon that uses a layered fallback strategy:
+ * 1. Direct icon URL (if provided by API)
+ * 2. LobeHub CDN via provider slug (for OpenRouter models)
+ * 3. Local pattern matching (for known patterns)
+ * 4. Text avatar (final fallback)
+ */
+@Composable
+fun AutoAIIconWithUrl(
+    name: String,
+    iconUrl: String? = null,
+    providerSlug: String? = null,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = LocalContentColor.current,
+    padding: Dp = 4.dp,
+) {
+    val darkMode = LocalDarkMode.current
+    
+    // Priority 1: Direct icon URL from API
+    if (!iconUrl.isNullOrBlank()) {
+        RemoteIcon(
+            url = iconUrl,
+            name = name,
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            padding = padding
+        )
+        return
+    }
+    
+    // Priority 2: LobeHub CDN via provider slug
+    // But skip CDN for models that already have good local icons
+    if (!providerSlug.isNullOrBlank() && !hasGoodLocalIcon(name)) {
+        val lobeHubUrl = getLobeHubIconUrl(providerSlug, darkMode)
+        RemoteIcon(
+            url = lobeHubUrl,
+            name = name,
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            padding = padding,
+            fallback = {
+                // If LobeHub fails, try local pattern matching
+                AutoAIIcon(
+                    name = name,
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                    contentColor = contentColor,
+                    padding = padding
+                )
+            }
+        )
+        return
+    }
+    
+    // Priority 3: Fall back to local pattern matching
+    AutoAIIcon(
+        name = name,
+        modifier = modifier,
+        loading = loading,
+        color = color,
+        contentColor = contentColor,
+        padding = padding
+    )
+}
+
+/**
+ * Check if a model name has a good local icon available
+ * Skip CDN lookup for these models to use local icons which are already excellent
+ */
+private fun hasGoodLocalIcon(name: String): Boolean {
+    val lowerName = name.lowercase()
+    // Models/providers with excellent local icons - skip CDN for these
+    return lowerName.contains("gemini") ||
+           lowerName.contains("claude") ||
+           lowerName.contains("gpt") ||
+           lowerName.contains("deepseek") ||
+           lowerName.contains("qwen") ||
+           lowerName.contains("mistral") ||
+           lowerName.contains("llama") ||
+           lowerName.contains("gemma") ||
+           lowerName.contains("grok") ||
+           lowerName.contains("openai") ||
+           lowerName.contains("google")
+}
+
+/**
+ * Get LobeHub CDN icon URL from provider slug
+ * Uses colored version of icons (with -color suffix)
+ */
+private fun getLobeHubIconUrl(providerSlug: String, darkMode: Boolean): String {
+    // Normalize the slug: lowercase and remove special characters like hyphens
+    val normalizedSlug = providerSlug.lowercase()
+        .replace("-", "")  // z-ai -> zai
+        .replace("_", "")  // some_provider -> someprovider
+        .replace(".", "")  // a.b -> ab
+    
+    // Map some common provider slugs to their LobeHub equivalents
+    val slug = when (normalizedSlug) {
+        "metallama" -> "meta"
+        "mistralai" -> "mistral"
+        "xai" -> "xai"
+        "01ai" -> "yi"  // 01-ai is Yi
+        "moonshotai" -> "moonshot"
+        "nousresearch" -> "nousresearch"
+        else -> normalizedSlug
+    }
+    
+    // Use colored icons with -color suffix
+    // Format: https://unpkg.com/@lobehub/icons-static-png@latest/dark/[slug]-color.png
+    return "https://unpkg.com/@lobehub/icons-static-png@latest/dark/$slug-color.png"
+}
+
+/**
+ * Composable that loads a remote icon with optional fallback
+ */
+@Composable
+private fun RemoteIcon(
+    url: String,
+    name: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    padding: Dp = 4.dp,
+    fallback: @Composable (() -> Unit)? = null
+) {
+    var hasError by remember { mutableStateOf(false) }
+    
+    if (hasError && fallback != null) {
+        fallback()
+        return
+    }
+    
+    Surface(
+        modifier = modifier.size(24.dp),
+        shape = rememberAvatarShape(loading),
+        color = color,
+    ) {
+        AsyncImage(
+            model = url,
+            contentDescription = name,
+            modifier = Modifier.padding(padding),
+            onError = { hasError = true }
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun PreviewAutoAIIcon() {
@@ -95,64 +249,168 @@ private fun computeAIIconByName(name: String): String? {
     ICON_CACHE[name]?.let { return it }
 
     val lowerName = name.lowercase()
-    val result = when {
-        PATTERN_OPENAI.containsMatchIn(lowerName) -> "openai.svg"
-        PATTERN_GEMINI.containsMatchIn(lowerName) -> "gemini-color.svg"
-        PATTERN_GOOGLE.containsMatchIn(lowerName) -> "google-color.svg"
-        PATTERN_CLAUDE.containsMatchIn(lowerName) -> "claude-color.svg"
-        PATTERN_ANTHROPIC.containsMatchIn(lowerName) -> "anthropic.svg"
-        PATTERN_DEEPSEEK.containsMatchIn(lowerName) -> "deepseek-color.svg"
-        PATTERN_GROK.containsMatchIn(lowerName) -> "grok.svg"
-        PATTERN_QWEN.containsMatchIn(lowerName) -> "qwen-color.svg"
-        PATTERN_DOUBAO.containsMatchIn(lowerName) -> "doubao-color.svg"
-        PATTERN_OPENROUTER.containsMatchIn(lowerName) -> "openrouter.svg"
-        PATTERN_ZHIPU.containsMatchIn(lowerName) -> "zhipu-color.svg"
-        PATTERN_MISTRAL.containsMatchIn(lowerName) -> "mistral-color.svg"
-        PATTERN_META.containsMatchIn(lowerName) -> "meta-color.svg"
-        PATTERN_HUNYUAN.containsMatchIn(lowerName) -> "hunyuan-color.svg"
-        PATTERN_GEMMA.containsMatchIn(lowerName) -> "gemma-color.svg"
-        PATTERN_PERPLEXITY.containsMatchIn(lowerName) -> "perplexity-color.svg"
-        PATTERN_ALIYUN.containsMatchIn(lowerName) -> "alibabacloud-color.svg"
-        PATTERN_BYTEDANCE.containsMatchIn(lowerName) -> "bytedance-color.svg"
-        PATTERN_SILLICON_CLOUD.containsMatchIn(lowerName) -> "siliconflow.svg"
-        PATTERN_AIHUBMIX.containsMatchIn(lowerName) -> "aihubmix-color.svg"
-        PATTERN_OLLAMA.containsMatchIn(lowerName) -> "ollama.svg"
-        PATTERN_GITHUB.containsMatchIn(lowerName) -> "github.svg"
-        PATTERN_CLOUDFLARE.containsMatchIn(lowerName) -> "cloudflare-color.svg"
-        PATTERN_MINIMAX.containsMatchIn(lowerName) -> "minimax-color.svg"
-        PATTERN_XAI.containsMatchIn(lowerName) -> "xai.svg"
-        PATTERN_JUHENEXT.containsMatchIn(lowerName) -> "juhenext.png"
-        PATTERN_KIMI.containsMatchIn(lowerName) -> "kimi-color.svg"
-        PATTERN_MOONSHOT.containsMatchIn(lowerName) -> "moonshot.svg"
-        PATTERN_302.containsMatchIn(lowerName) -> "302ai.svg"
-        PATTERN_STEP.containsMatchIn(lowerName) -> "stepfun-color.svg"
-        PATTERN_INTERN.containsMatchIn(lowerName) -> "internlm-color.svg"
-        PATTERN_COHERE.containsMatchIn(lowerName) -> "cohere-color.svg"
-        PATTERN_TAVERN.containsMatchIn(lowerName) -> "tavern.png"
-        PATTERN_CEREBRAS.containsMatchIn(lowerName) -> "cerebras-color.svg"
-        PATTERN_NVIDIA.containsMatchIn(lowerName) -> "nvidia-color.svg"
-        PATTERN_PPIO.containsMatchIn(lowerName) -> "ppio-color.svg"
-        PATTERN_VERCEL.containsMatchIn(lowerName) -> "vercel.svg"
-        PATTERN_GROQ.containsMatchIn(lowerName) -> "groq.svg"
-        PATTERN_TOKENPONY.containsMatchIn(lowerName) -> "tokenpony.svg"
-        PATTERN_LING.containsMatchIn(lowerName) -> "ling.png"
+    
+    // OpenRouter model ID parsing: extract provider and model from "provider/model" format
+    val hasSlash = lowerName.contains("/")
+    val providerPart = if (hasSlash) lowerName.substringBefore("/") else null
+    val modelPart = if (hasSlash) lowerName.substringAfter("/") else null
+    
+    // First, try to match against model name (this is more specific and should take priority)
+    // For OpenRouter: "anthropic/claude-3" should show Claude icon, not Anthropic
+    val modelIcon = modelPart?.let { matchModelPattern(it) }
+    if (modelIcon != null) {
+        ICON_CACHE[name] = modelIcon
+        return modelIcon
+    }
+    
+    // Then, try to match against provider
+    val providerIcon = providerPart?.let { matchProviderPattern(it) }
+    if (providerIcon != null) {
+        ICON_CACHE[name] = providerIcon
+        return providerIcon
+    }
+    
+    // Finally, try to match the full name
+    val fullNameIcon = matchModelPattern(lowerName) ?: matchProviderPattern(lowerName)
+    fullNameIcon?.let { ICON_CACHE[name] = it }
+    
+    return fullNameIcon
+}
 
-        PATTERN_SEARCH_LINKUP.containsMatchIn(lowerName) -> "linkup.png"
-        PATTERN_SEARCH_BING.containsMatchIn(lowerName) -> "bing.png"
-        PATTERN_SEARCH_TAVILY.containsMatchIn(lowerName) -> "tavily.png"
-        PATTERN_SEARCH_EXA.containsMatchIn(lowerName) -> "exa.png"
-        PATTERN_SEARCH_BRAVE.containsMatchIn(lowerName) -> "brave.svg"
-        PATTERN_SEARCH_METASO.containsMatchIn(lowerName) -> "metaso.svg"
-        PATTERN_SEARCH_FIRECRAWL.containsMatchIn(lowerName) -> "firecrawl.svg"
-        PATTERN_SEARCH_JINA.containsMatchIn(lowerName) -> "jina.svg"
-
+// Match against provider/company patterns - used for OpenRouter provider prefixes
+private fun matchProviderPattern(providerName: String): String? {
+    return when {
+        // Companies with their own icons
+        providerName == "openai" -> "openai.svg"
+        providerName == "google" -> "google-color.svg"
+        providerName == "anthropic" -> "claude-color.svg" // Anthropic = Claude
+        providerName == "meta-llama" || providerName == "meta" -> "meta-color.svg"
+        providerName == "mistralai" || providerName == "mistral" -> "mistral-color.svg"
+        providerName == "deepseek" -> "deepseek-color.svg"
+        providerName == "x-ai" || providerName == "xai" -> "xai.svg"
+        providerName == "cohere" -> "cohere-color.svg"
+        providerName == "perplexity" -> "perplexity-color.svg"
+        providerName == "nvidia" -> "nvidia-color.svg"
+        providerName == "qwen" || providerName == "alibaba" -> "qwen-color.svg"
+        providerName == "microsoft" -> "openai.svg" // Azure OpenAI
+        providerName == "groq" -> "groq.svg"
+        providerName == "together" -> "openrouter.svg"
+        providerName == "fireworks" -> "openrouter.svg"
+        providerName == "openrouter" -> "openrouter.svg"
+        
+        // Additional OpenRouter providers - use generic or related icons
+        providerName == "nousresearch" -> "openrouter.svg"
+        providerName == "cognitivecomputations" -> "openrouter.svg"
+        providerName == "databricks" -> "openrouter.svg"
+        providerName == "liquid" -> "openrouter.svg"
+        providerName == "inflection" -> "openrouter.svg"
+        providerName == "neversleep" -> "openrouter.svg"
+        providerName == "sao10k" -> "openrouter.svg"
+        providerName == "ai21" -> "openrouter.svg"
+        providerName == "amazon" -> "openrouter.svg"
+        providerName == "aetherwiing" -> "openrouter.svg"
+        providerName == "thedrummer" -> "openrouter.svg"
+        providerName == "undi95" -> "openrouter.svg"
+        providerName == "01-ai" -> "openrouter.svg" // Yi models
+        providerName == "upstage" -> "openrouter.svg" // Solar
+        providerName == "mancer" -> "openrouter.svg"
+        providerName == "lynn" -> "openrouter.svg"
+        providerName == "pygmalionai" -> "openrouter.svg"
+        
+        // Fallback patterns using contains for partial matches
+        providerName.contains("llama") -> "meta-color.svg"
+        providerName.contains("qwen") -> "qwen-color.svg"
+        
         else -> null
     }
+}
 
-    // 保存到缓存
-    result?.let { ICON_CACHE[name] = it }
+// Match against model name patterns (for model-specific icons)
+private fun matchModelPattern(modelName: String): String? {
+    return when {
+        // Specific model patterns - order matters (more specific first)
+        PATTERN_CLAUDE_MODEL.containsMatchIn(modelName) -> "claude-color.svg"
+        PATTERN_GPT_MODEL.containsMatchIn(modelName) -> "openai.svg"
+        PATTERN_GEMINI_MODEL.containsMatchIn(modelName) -> "gemini-color.svg"
+        PATTERN_GEMMA.containsMatchIn(modelName) -> "gemma-color.svg"
+        PATTERN_DEEPSEEK_MODEL.containsMatchIn(modelName) -> "deepseek-color.svg"
+        PATTERN_GROK_MODEL.containsMatchIn(modelName) -> "grok.svg"
+        PATTERN_LLAMA.containsMatchIn(modelName) -> "meta-color.svg"
+        PATTERN_QWEN_MODEL.containsMatchIn(modelName) -> "qwen-color.svg"
+        PATTERN_MISTRAL_MODEL.containsMatchIn(modelName) -> "mistral-color.svg"
+        PATTERN_MIXTRAL.containsMatchIn(modelName) -> "mistral-color.svg"
+        PATTERN_CODESTRAL.containsMatchIn(modelName) -> "mistral-color.svg"
+        PATTERN_PIXTRAL.containsMatchIn(modelName) -> "mistral-color.svg"
+        PATTERN_PHI.containsMatchIn(modelName) -> "openai.svg" // Microsoft Phi
+        PATTERN_COMMAND.containsMatchIn(modelName) -> "cohere-color.svg"
+        PATTERN_INTERNLM_MODEL.containsMatchIn(modelName) -> "internlm-color.svg"
+        PATTERN_DOLPHIN.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_HERMES.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_SOLAR.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_YI.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_WIZARDLM.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_NOVA.containsMatchIn(modelName) -> "openrouter.svg" // Amazon Nova
+        PATTERN_TOPPY.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_MYTHOMAX.containsMatchIn(modelName) -> "openrouter.svg"
+        PATTERN_SONAR.containsMatchIn(modelName) -> "perplexity-color.svg"
+        PATTERN_JAMBA.containsMatchIn(modelName) -> "openrouter.svg"
+        else -> null
+    }
+}
 
-    return result
+// Also provide legacy matching for non-OpenRouter usage (backwards compat)
+private fun matchIconPattern(searchName: String): String? {
+    return when {
+        PATTERN_OPENAI.containsMatchIn(searchName) -> "openai.svg"
+        PATTERN_GEMINI.containsMatchIn(searchName) -> "gemini-color.svg"
+        PATTERN_GOOGLE.containsMatchIn(searchName) -> "google-color.svg"
+        PATTERN_CLAUDE.containsMatchIn(searchName) -> "claude-color.svg"
+        PATTERN_DEEPSEEK.containsMatchIn(searchName) -> "deepseek-color.svg"
+        PATTERN_GROK.containsMatchIn(searchName) -> "grok.svg"
+        PATTERN_QWEN.containsMatchIn(searchName) -> "qwen-color.svg"
+        PATTERN_DOUBAO.containsMatchIn(searchName) -> "doubao-color.svg"
+        PATTERN_OPENROUTER.containsMatchIn(searchName) -> "openrouter.svg"
+        PATTERN_ZHIPU.containsMatchIn(searchName) -> "zhipu-color.svg"
+        PATTERN_MISTRAL.containsMatchIn(searchName) -> "mistral-color.svg"
+        PATTERN_META.containsMatchIn(searchName) -> "meta-color.svg"
+        PATTERN_HUNYUAN.containsMatchIn(searchName) -> "hunyuan-color.svg"
+        PATTERN_GEMMA.containsMatchIn(searchName) -> "gemma-color.svg"
+        PATTERN_PERPLEXITY.containsMatchIn(searchName) -> "perplexity-color.svg"
+        PATTERN_BYTEDANCE.containsMatchIn(searchName) -> "bytedance-color.svg"
+        PATTERN_ALIYUN.containsMatchIn(searchName) -> "alibabacloud-color.svg"
+        PATTERN_SILLICON_CLOUD.containsMatchIn(searchName) -> "siliconflow.svg"
+        PATTERN_AIHUBMIX.containsMatchIn(searchName) -> "aihubmix-color.svg"
+        PATTERN_OLLAMA.containsMatchIn(searchName) -> "ollama.svg"
+        PATTERN_GITHUB.containsMatchIn(searchName) -> "github.svg"
+        PATTERN_CLOUDFLARE.containsMatchIn(searchName) -> "cloudflare-color.svg"
+        PATTERN_MINIMAX.containsMatchIn(searchName) -> "minimax-color.svg"
+        PATTERN_XAI.containsMatchIn(searchName) -> "xai.svg"
+        PATTERN_JUHENEXT.containsMatchIn(searchName) -> "juhenext.png"
+        PATTERN_KIMI.containsMatchIn(searchName) -> "kimi-color.svg"
+        PATTERN_MOONSHOT.containsMatchIn(searchName) -> "moonshot.svg"
+        PATTERN_302.containsMatchIn(searchName) -> "302ai.svg"
+        PATTERN_STEP.containsMatchIn(searchName) -> "stepfun-color.svg"
+        PATTERN_INTERN.containsMatchIn(searchName) -> "internlm-color.svg"
+        PATTERN_COHERE.containsMatchIn(searchName) -> "cohere-color.svg"
+        PATTERN_TAVERN.containsMatchIn(searchName) -> "tavern.png"
+        PATTERN_CEREBRAS.containsMatchIn(searchName) -> "cerebras-color.svg"
+        PATTERN_NVIDIA.containsMatchIn(searchName) -> "nvidia-color.svg"
+        PATTERN_PPIO.containsMatchIn(searchName) -> "ppio-color.svg"
+        PATTERN_VERCEL.containsMatchIn(searchName) -> "vercel.svg"
+        PATTERN_GROQ.containsMatchIn(searchName) -> "groq.svg"
+        PATTERN_TOKENPONY.containsMatchIn(searchName) -> "tokenpony.svg"
+        PATTERN_LING.containsMatchIn(searchName) -> "ling.png"
+        // Search providers
+        PATTERN_SEARCH_LINKUP.containsMatchIn(searchName) -> "linkup.png"
+        PATTERN_SEARCH_BING.containsMatchIn(searchName) -> "bing.png"
+        PATTERN_SEARCH_TAVILY.containsMatchIn(searchName) -> "tavily.png"
+        PATTERN_SEARCH_EXA.containsMatchIn(searchName) -> "exa.png"
+        PATTERN_SEARCH_BRAVE.containsMatchIn(searchName) -> "brave.svg"
+        PATTERN_SEARCH_METASO.containsMatchIn(searchName) -> "metaso.svg"
+        PATTERN_SEARCH_FIRECRAWL.containsMatchIn(searchName) -> "firecrawl.svg"
+        PATTERN_SEARCH_JINA.containsMatchIn(searchName) -> "jina.svg"
+        else -> null
+    }
 }
 
 // 静态缓存和正则模式
@@ -160,7 +418,6 @@ private val ICON_CACHE = mutableMapOf<String, String>()
 private val PATTERN_OPENAI = Regex("(gpt|openai|o\\d)")
 private val PATTERN_GEMINI = Regex("(gemini)")
 private val PATTERN_GOOGLE = Regex("google")
-private val PATTERN_ANTHROPIC = Regex("anthropic")
 private val PATTERN_CLAUDE = Regex("claude")
 private val PATTERN_DEEPSEEK = Regex("deepseek")
 private val PATTERN_GROK = Regex("grok")
@@ -188,7 +445,7 @@ private val PATTERN_MOONSHOT = Regex("moonshot|月之暗面")
 private val PATTERN_302 = Regex("302")
 private val PATTERN_STEP = Regex("step|阶跃")
 private val PATTERN_INTERN = Regex("intern|书生")
-private val PATTERN_COHERE = Regex("cohere|command-.+")
+private val PATTERN_COHERE = Regex("cohere")
 private val PATTERN_TAVERN = Regex("tavern")
 private val PATTERN_CEREBRAS = Regex("cerebras")
 private val PATTERN_NVIDIA = Regex("nvidia")
@@ -207,6 +464,32 @@ private val PATTERN_SEARCH_METASO = Regex("metaso|秘塔")
 private val PATTERN_SEARCH_FIRECRAWL = Regex("firecrawl")
 private val PATTERN_SEARCH_JINA = Regex("jina")
 
+// Model family patterns (for matching model names in OpenRouter format)
+private val PATTERN_LLAMA = Regex("llama")
+private val PATTERN_QWEN_MODEL = Regex("qwen|qwq|qvq")
+private val PATTERN_MISTRAL_MODEL = Regex("mistral")
+private val PATTERN_PHI = Regex("\\bphi\\b|phi-")
+private val PATTERN_COMMAND = Regex("command-")
+private val PATTERN_CLAUDE_MODEL = Regex("claude")
+private val PATTERN_GPT_MODEL = Regex("gpt-|\\bo\\d")
+private val PATTERN_DEEPSEEK_MODEL = Regex("deepseek")
+private val PATTERN_GEMINI_MODEL = Regex("gemini")
+private val PATTERN_GROK_MODEL = Regex("grok")
+private val PATTERN_MIXTRAL = Regex("mixtral")
+private val PATTERN_CODESTRAL = Regex("codestral")
+private val PATTERN_PIXTRAL = Regex("pixtral")
+private val PATTERN_WIZARDLM = Regex("wizardlm|wizard")
+private val PATTERN_DOLPHIN = Regex("dolphin")
+private val PATTERN_HERMES = Regex("hermes")
+private val PATTERN_SOLAR = Regex("solar")
+private val PATTERN_YI = Regex("\\byi\\b|yi-")
+private val PATTERN_INTERNLM_MODEL = Regex("internlm")
+private val PATTERN_NOVA = Regex("\\bnova\\b")
+private val PATTERN_TOPPY = Regex("toppy")
+private val PATTERN_MYTHOMAX = Regex("mythomax")
+private val PATTERN_SONAR = Regex("sonar")
+private val PATTERN_JAMBA = Regex("jamba")
+
 @Composable
 fun SiliconFlowPowerByIcon(modifier: Modifier = Modifier) {
     val darkMode = LocalDarkMode.current
@@ -216,3 +499,4 @@ fun SiliconFlowPowerByIcon(modifier: Modifier = Modifier) {
         AsyncImage(model = R.drawable.siliconflow_dark, contentDescription = null, modifier = modifier)
     }
 }
+

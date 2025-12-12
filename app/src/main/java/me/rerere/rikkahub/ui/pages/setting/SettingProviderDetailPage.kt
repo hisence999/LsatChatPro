@@ -112,6 +112,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderBalanceText
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoAIIconWithUrl
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -691,6 +692,22 @@ private fun ModelList(
                 onRemoveModel = {
                     onUpdateProvider(providerSetting.delModel(it))
                 },
+                onAddModels = { models ->
+                    // Bulk add: add all models in one update
+                    var updated = providerSetting
+                    models.forEach { model ->
+                        updated = updated.addModel(model)
+                    }
+                    onUpdateProvider(updated)
+                },
+                onRemoveModels = { models ->
+                    // Bulk remove: remove all models in one update  
+                    var updated = providerSetting
+                    models.forEach { model ->
+                        updated = updated.delModel(model)
+                    }
+                    onUpdateProvider(updated)
+                },
                 expanded = expanded,
                 parentProvider = providerSetting
             )
@@ -886,6 +903,8 @@ private fun AddModelButton(
     expanded: Boolean,
     onAddModel: (Model) -> Unit,
     onRemoveModel: (Model) -> Unit,
+    onAddModels: (List<Model>) -> Unit,
+    onRemoveModels: (List<Model>) -> Unit,
     parentProvider: ProviderSetting
 ) {
     val dialogState = useEditState<Model> { onAddModel(it) }
@@ -912,6 +931,12 @@ private fun AddModelButton(
             },
             onModelDeselected = { model ->
                 onRemoveModel(model)
+            },
+            onModelsSelected = { modelList ->
+                onAddModels(modelList)
+            },
+            onModelsDeselected = { modelList ->
+                onRemoveModels(modelList)
             }
         )
 
@@ -1020,7 +1045,9 @@ private fun ModelPicker(
     models: List<Model>,
     selectedModels: List<Model>,
     onModelSelected: (Model) -> Unit,
-    onModelDeselected: (Model) -> Unit
+    onModelDeselected: (Model) -> Unit,
+    onModelsSelected: (List<Model>) -> Unit = {},
+    onModelsDeselected: (List<Model>) -> Unit = {}
 ) {
     var showModal by remember { mutableStateOf(false) }
     if (showModal) {
@@ -1050,6 +1077,45 @@ private fun ModelPicker(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // Select All / Deselect All - show only one based on selection state
+                val allFilteredSelected = filteredModels.isNotEmpty() && filteredModels.all { model ->
+                    selectedModels.any { it.modelId == model.modelId }
+                }
+                
+                if (allFilteredSelected) {
+                    // All filtered models are selected, show Deselect All
+                    TextButton(onClick = {
+                        val modelsToRemove = filteredModels.mapNotNull { model ->
+                            selectedModels.firstOrNull { it.modelId == model.modelId }
+                        }
+                        if (modelsToRemove.isNotEmpty()) {
+                            onModelsDeselected(modelsToRemove)
+                        }
+                    }) {
+                        Text(stringResource(R.string.deselect_all))
+                    }
+                } else {
+                    // Not all selected, show Select All
+                    TextButton(onClick = {
+                        val modelsToAdd = filteredModels.filter { model ->
+                            !selectedModels.any { it.modelId == model.modelId }
+                        }.map { model ->
+                            val inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId)
+                            val outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId)
+                            val abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
+                            model.copy(
+                                inputModalities = inputModalities,
+                                outputModalities = outputModalities,
+                                abilities = abilities
+                            )
+                        }
+                        if (modelsToAdd.isNotEmpty()) {
+                            onModelsSelected(modelsToAdd)
+                        }
+                    }) {
+                        Text(stringResource(R.string.select_all))
+                    }
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1073,9 +1139,11 @@ private fun ModelPicker(
                                     .fillMaxWidth()
                                     .padding(8.dp),
                             ) {
-                                AutoAIIcon(
-                                    it.modelId,
-                                    Modifier.size(32.dp)
+                                AutoAIIconWithUrl(
+                                    name = it.modelId,
+                                    iconUrl = it.iconUrl,
+                                    providerSlug = it.providerSlug,
+                                    modifier = Modifier.size(32.dp)
                                 )
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(

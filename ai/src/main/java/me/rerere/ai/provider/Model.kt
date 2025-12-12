@@ -17,6 +17,8 @@ data class Model(
     val abilities: List<ModelAbility> = emptyList(),
     val tools: Set<BuiltInTools> = emptySet(),
     val providerOverwrite: ProviderSetting? = null,
+    val iconUrl: String? = null, // Remote icon URL
+    val providerSlug: String? = null, // Provider slug for LobeHub CDN icons (e.g., "anthropic")
 )
 
 @Serializable

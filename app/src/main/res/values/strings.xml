@@ -671,4 +671,7 @@
         <string name="web_search_enabled">Web Search Enabled</string>
     <string name="setting_model_page_embedding_model">Embedding Model</string>
     <string name="setting_model_page_embedding_model_desc">Model for text embeddings (e.g. for memory).</string>
+    <string name="select_all">Select All</string>
+    <string name="deselect_all">Deselect All</string>
 </resources>
+
