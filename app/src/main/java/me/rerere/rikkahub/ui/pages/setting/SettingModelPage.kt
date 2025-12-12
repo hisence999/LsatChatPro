@@ -104,10 +104,6 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             item {
                 DefaultEmbeddingModelSetting(settings = settings, vm = vm)
             }
-            
-            item {
-                DefaultMemoryModelSetting(settings = settings, vm = vm)
-            }
         }
     }
 }
@@ -626,45 +622,6 @@ private fun DefaultEmbeddingModelSetting(
                         vm.updateSettings(
                             settings.copy(
                                 embeddingModelId = it.id
-                            )
-                        )
-                    },
-                    providers = settings.providers,
-                    allowClear = true,
-                    modifier = Modifier.wrapContentWidth()
-                )
-            }
-        }
-    )
-}
-
-@Composable
-private fun DefaultMemoryModelSetting(
-    settings: Settings,
-    vm: SettingVM
-) {
-    ModelFeatureCard(
-        title = {
-            Text(
-                text = "Memory Model",
-                maxLines = 1
-            )
-        },
-        description = {
-            Text("Model used for extracting and processing memories from conversations")
-        },
-        icon = {
-            Icon(Icons.Rounded.Psychology, null)
-        },
-        actions = {
-            Box(modifier = Modifier.weight(1f)) {
-                ModelSelector(
-                    modelId = settings.memoryModelId,
-                    type = ModelType.CHAT,
-                    onSelect = {
-                        vm.updateSettings(
-                            settings.copy(
-                                memoryModelId = it.id
                             )
                         )
                     },

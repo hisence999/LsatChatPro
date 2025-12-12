@@ -18,7 +18,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
-import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -40,14 +39,9 @@ class MemoryConsolidationWorker(
     private val conversationRepository: ConversationRepository by inject()
     private val memoryRepository: MemoryRepository by inject()
     private val chatEpisodeDAO: ChatEpisodeDAO by inject()
-    private val conversationDAO: ConversationDAO by inject()
     private val settingsStore: SettingsStore by inject()
     private val embeddingService: EmbeddingService by inject()
     private val providerManager: me.rerere.ai.provider.ProviderManager by inject()
-
-    companion object {
-        private const val MAX_CONSOLIDATION_RETRIES = 3
-    }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -195,17 +189,9 @@ class MemoryConsolidationWorker(
                     
                     conversationRepository.markAsConsolidated(conversation.id)
                     trackACount++
-                    
-                    // Success - reset retry count if it was previously set
-                    conversationDAO.resetConsolidationRetry(conversation.id.toString())
                 }
             } catch (e: Exception) {
                 Log.e("MemoryConsolidation", "Failed to process conversation ${conversation.id}", e)
-                // Track the failure for retry
-                conversationDAO.incrementConsolidationRetry(
-                    id = conversation.id.toString(),
-                    error = e.message?.take(200) ?: "Unknown error"
-                )
             }
         }
         

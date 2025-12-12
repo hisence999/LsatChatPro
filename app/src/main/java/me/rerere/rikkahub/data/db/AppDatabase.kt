@@ -22,23 +22,12 @@ import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.EmbeddingCacheEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
-import me.rerere.rikkahub.data.memory.dao.KnowledgeGraphDAO
-import me.rerere.rikkahub.data.memory.entity.MemoryEdge
-import me.rerere.rikkahub.data.memory.entity.MemoryNode
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
-    entities = [
-        ConversationEntity::class, 
-        MemoryEntity::class, 
-        GenMediaEntity::class, 
-        ChatEpisodeEntity::class, 
-        EmbeddingCacheEntity::class,
-        MemoryNode::class,
-        MemoryEdge::class
-    ],
-    version = 21,
+    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class],
+    version = 18,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -54,12 +43,9 @@ import me.rerere.rikkahub.utils.JsonInstant
         // 14->16 is manual migration
         AutoMigration(from = 16, to = 17),
         AutoMigration(from = 17, to = 18),
-        AutoMigration(from = 18, to = 19), // Adds consolidation retry columns
-        // 19->20 is manual migration for knowledge graph
-        // 20->21 is manual migration for temporal fields
     ]
 )
-@TypeConverters(TokenUsageConverter::class, KnowledgeGraphConverters::class)
+@TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDAO
 
@@ -70,8 +56,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatEpisodeDao(): ChatEpisodeDAO
 
     abstract fun embeddingCacheDao(): EmbeddingCacheDAO
-    
-    abstract fun knowledgeGraphDao(): KnowledgeGraphDAO
 
     companion object {
         const val TAG = "AppDatabase"
@@ -202,149 +186,6 @@ object TokenUsageConverter {
         return JsonInstant.decodeFromString(usage)
     }
 }
-
-/**
- * Type converters for Knowledge Graph entity enums.
- */
-object KnowledgeGraphConverters {
-    @TypeConverter
-    fun fromNodeType(type: me.rerere.rikkahub.data.memory.entity.NodeType): String = type.name
-    
-    @TypeConverter
-    fun toNodeType(name: String): me.rerere.rikkahub.data.memory.entity.NodeType = 
-        me.rerere.rikkahub.data.memory.entity.NodeType.valueOf(name)
-    
-    @TypeConverter
-    fun fromMemoryTier(tier: me.rerere.rikkahub.data.memory.entity.MemoryTier): String = tier.name
-    
-    @TypeConverter
-    fun toMemoryTier(name: String): me.rerere.rikkahub.data.memory.entity.MemoryTier = 
-        me.rerere.rikkahub.data.memory.entity.MemoryTier.valueOf(name)
-    
-    @TypeConverter
-    fun fromMemorySource(source: me.rerere.rikkahub.data.memory.entity.MemorySource): String = source.name
-    
-    @TypeConverter
-    fun toMemorySource(name: String): me.rerere.rikkahub.data.memory.entity.MemorySource = 
-        me.rerere.rikkahub.data.memory.entity.MemorySource.valueOf(name)
-    
-    @TypeConverter
-    fun fromEdgeType(type: me.rerere.rikkahub.data.memory.entity.EdgeType): String = type.name
-    
-    @TypeConverter
-    fun toEdgeType(name: String): me.rerere.rikkahub.data.memory.entity.EdgeType = 
-        me.rerere.rikkahub.data.memory.entity.EdgeType.valueOf(name)
-
-    @TypeConverter
-    fun fromTemporalType(type: me.rerere.rikkahub.data.memory.entity.TemporalType): String = type.name
-
-    @TypeConverter
-    fun toTemporalType(name: String): me.rerere.rikkahub.data.memory.entity.TemporalType =
-        me.rerere.rikkahub.data.memory.entity.TemporalType.valueOf(name)
-}
-
-/**
- * Migration from 19 to 20: Create knowledge graph tables.
- */
-val Migration_19_20 = object : Migration(19, 20) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(AppDatabase.TAG, "migrate: start migrate from 19 to 20 (Knowledge Graph)")
-        
-        // Create memory_nodes table
-        db.execSQL("""
-            CREATE TABLE IF NOT EXISTS `memory_nodes` (
-                `id` TEXT NOT NULL PRIMARY KEY,
-                `assistant_id` TEXT NOT NULL,
-                `node_type` TEXT NOT NULL,
-                `label` TEXT NOT NULL,
-                `content` TEXT NOT NULL,
-                `aliases` TEXT NOT NULL DEFAULT '[]',
-                `embedding` TEXT,
-                `embedding_model_id` TEXT,
-                `created_at` INTEGER NOT NULL,
-                `last_accessed_at` INTEGER NOT NULL,
-                `access_count` INTEGER NOT NULL DEFAULT 1,
-                `decay_rate` REAL NOT NULL DEFAULT 0.5,
-                `tier` TEXT NOT NULL DEFAULT 'RECALL',
-                `emotional_valence` REAL NOT NULL DEFAULT 0,
-                `emotional_arousal` REAL NOT NULL DEFAULT 0.5,
-                `dominant_emotion` TEXT,
-                `confidence` REAL NOT NULL DEFAULT 1.0,
-                `source` TEXT NOT NULL DEFAULT 'INFERRED',
-                `source_conversation_id` TEXT,
-                `source_message_id` TEXT,
-                `event_timestamp` INTEGER,
-                `event_duration_ms` INTEGER,
-                `temporal_type` TEXT NOT NULL DEFAULT 'ETERNAL',
-                `valid_from` INTEGER,
-                `valid_until` INTEGER,
-                `recurrence_pattern` TEXT,
-                `trigger_condition` TEXT,
-                `is_completed` INTEGER NOT NULL DEFAULT 0,
-                `reminder_due_at` INTEGER,
-                `version` INTEGER NOT NULL DEFAULT 1,
-                `superseded_by_id` TEXT,
-                `is_active` INTEGER NOT NULL DEFAULT 1
-            )
-        """.trimIndent())
-        
-        // Create indices for memory_nodes
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_nodes_assistantId` ON `memory_nodes` (`assistant_id`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_nodes_nodeType` ON `memory_nodes` (`node_type`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_nodes_tier` ON `memory_nodes` (`tier`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_nodes_isActive` ON `memory_nodes` (`is_active`)")
-        
-        // Create memory_edges table
-        db.execSQL("""
-            CREATE TABLE IF NOT EXISTS `memory_edges` (
-                `id` TEXT NOT NULL PRIMARY KEY,
-                `assistant_id` TEXT NOT NULL,
-                `source_id` TEXT NOT NULL,
-                `target_id` TEXT NOT NULL,
-                `edge_type` TEXT NOT NULL,
-                `weight` REAL NOT NULL DEFAULT 1.0,
-                `confidence` REAL NOT NULL DEFAULT 1.0,
-                `created_at` INTEGER NOT NULL,
-                `last_accessed_at` INTEGER NOT NULL,
-                `access_count` INTEGER NOT NULL DEFAULT 1,
-                `source_conversation_id` TEXT,
-                `metadata` TEXT,
-                FOREIGN KEY(`source_id`) REFERENCES `memory_nodes`(`id`) ON DELETE CASCADE,
-                FOREIGN KEY(`target_id`) REFERENCES `memory_nodes`(`id`) ON DELETE CASCADE
-            )
-        """.trimIndent())
-        
-        // Create indices for memory_edges
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_edges_assistantId` ON `memory_edges` (`assistant_id`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_edges_sourceId` ON `memory_edges` (`source_id`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_edges_targetId` ON `memory_edges` (`target_id`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_edges_edgeType` ON `memory_edges` (`edge_type`)")
-    }
-}
-
-/**
- * Migration from 20 to 21: Add temporal columns to memory_nodes.
- */
-val Migration_20_21 = object : Migration(20, 21) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(AppDatabase.TAG, "migrate: start migrate from 20 to 21 (Add Temporal Fields)")
-        
-        // Add new columns if they don't exist
-        // Note: SQLite doesn't support IF NOT EXISTS in ADD COLUMN directly, 
-        // so we just run it and catch exception or assume it's needed based on version.
-        // But since we are upgrading from 20, they shouldn't exist unless Migration_19_20 was already correct (it wasn't).
-        
-        try {
-            db.execSQL("ALTER TABLE `memory_nodes` ADD COLUMN `temporal_type` TEXT NOT NULL DEFAULT 'ETERNAL'")
-            db.execSQL("ALTER TABLE `memory_nodes` ADD COLUMN `valid_from` INTEGER")
-            db.execSQL("ALTER TABLE `memory_nodes` ADD COLUMN `valid_until` INTEGER")
-            db.execSQL("ALTER TABLE `memory_nodes` ADD COLUMN `recurrence_pattern` TEXT")
-        } catch (e: Exception) {
-            Log.e(AppDatabase.TAG, "Migration 20->21 error (ignorable if columns exist): ${e.message}")
-        }
-    }
-}    
-
 
 val Migration_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {

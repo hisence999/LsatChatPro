@@ -83,25 +83,4 @@ interface ConversationDAO {
 
     @Query("SELECT assistant_id as assistantId, COUNT(*) as count FROM conversationentity GROUP BY assistant_id ORDER BY count DESC LIMIT 1")
     fun getMostActiveAssistantFlow(): Flow<AssistantCountResult?>
-
-    // Consolidation retry support
-    @Query("""
-        SELECT * FROM conversationentity 
-        WHERE assistant_id = :assistantId 
-          AND is_consolidated = 0 
-          AND consolidation_retry_count < :maxRetries 
-        ORDER BY consolidation_retry_count ASC, update_at DESC 
-        LIMIT :limit
-    """)
-    suspend fun getConversationsNeedingConsolidation(
-        assistantId: String,
-        maxRetries: Int,
-        limit: Int
-    ): List<ConversationEntity>
-
-    @Query("UPDATE conversationentity SET consolidation_retry_count = consolidation_retry_count + 1, consolidation_last_error = :error WHERE id = :id")
-    suspend fun incrementConsolidationRetry(id: String, error: String)
-
-    @Query("UPDATE conversationentity SET consolidation_retry_count = 0, consolidation_last_error = '' WHERE id = :id")
-    suspend fun resetConsolidationRetry(id: String)
 }
