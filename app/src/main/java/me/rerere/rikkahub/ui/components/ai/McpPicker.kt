@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -168,7 +169,12 @@ fun McpPicker(
     ) {
         items(servers.fastFilter { it.commonOptions.enable }) { server ->
             val status by mcpManager.getStatus(server).collectAsStateWithLifecycle(McpStatus.Idle)
-            Card {
+            Card(
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
                 Row(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)

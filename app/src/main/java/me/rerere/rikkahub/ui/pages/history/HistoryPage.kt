@@ -308,7 +308,7 @@ private fun SwipeableConversationItem(
                     .fillMaxSize()
                     .background(
                         MaterialTheme.colorScheme.errorContainer,
-                        me.rerere.rikkahub.ui.theme.AppShapes.ListItem
+                        RoundedCornerShape(10.dp)
                     )
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd
@@ -353,8 +353,8 @@ private fun ConversationItem(
             haptics.perform(HapticPattern.Pop)
             onClick()
         },
-        tonalElevation = 2.dp,
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.ListItem,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
         modifier = modifier.graphicsLayer {
             scaleX = scale

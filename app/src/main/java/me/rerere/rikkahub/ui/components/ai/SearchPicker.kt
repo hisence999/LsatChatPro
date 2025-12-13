@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -208,133 +211,199 @@ private fun AppSearchSettings(
     val isDarkMode = LocalDarkMode.current
     val isAmoled = amoledMode && isDarkMode
     
-    val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
-    val contentColor = if (isAmoled) Color.White else MaterialTheme.colorScheme.onSurface
-    val elevation = if (isAmoled) 0.dp else 6.dp
-    val tonalElevation = if (isAmoled) 0.dp else LocalAbsoluteTonalElevation.current
-
-    CompositionLocalProvider(LocalAbsoluteTonalElevation provides tonalElevation) {
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-            elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor,
-                contentColor = contentColor
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.Public, null)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.use_web_search),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = if (enableSearch) {
-                            stringResource(R.string.web_search_enabled)
-                        } else {
-                            stringResource(R.string.web_search_disabled)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (LocalDarkMode.current) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        onDismiss()
-                        navBackStack.navigate(Screen.SettingSearch)
-                    }
-                ) {
-                    Icon(Icons.Rounded.Settings, null)
-                }
-                Switch(
-                    checked = enableSearch,
-                    onCheckedChange = onToggleSearch
-                )
-            }
+    val numProviders = settings.searchServices.size
+    
+    // Calculate total items for position-based corners
+    // Items: Web Search Toggle + all search providers
+    val totalItems = 1 + numProviders
+    
+    // Position-based corner shape calculator
+    fun getItemShape(index: Int, totalCount: Int, isSelected: Boolean): RoundedCornerShape {
+        if (isSelected) return RoundedCornerShape(50) // Selected = fully round
+        return when {
+            totalCount == 1 -> RoundedCornerShape(24.dp) // Single item
+            index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+            index == totalCount - 1 -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+            else -> RoundedCornerShape(10.dp)
         }
-
-
     }
-
-    LazyVerticalGrid(
-        modifier = modifier.fillMaxSize(),
-        columns = GridCells.Adaptive(150.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        itemsIndexed(settings.searchServices) { index, service ->
-            val containerColor = animateColorAsState(
-                if (settings.searchServiceSelected == index) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    if (LocalDarkMode.current) Color.Black else Color.White
-                }
+        // If no providers, just show the toggle
+        if (numProviders == 0) {
+            SearchToggleItem(
+                enableSearch = enableSearch,
+                onToggleSearch = onToggleSearch,
+                onDismiss = onDismiss,
+                navBackStack = navBackStack,
+                shape = RoundedCornerShape(24.dp),
+                isAmoled = isAmoled,
+                isDarkMode = isDarkMode
             )
-            val textColor = animateColorAsState(
-                if (settings.searchServiceSelected == index) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    if (LocalDarkMode.current) Color.White else Color.Black
-                }
-            )
-            val isSelected = settings.searchServiceSelected == index
-            val itemContainerColor = if(isAmoled && !isSelected) Color.Black else containerColor.value
-            val itemContentColor = if(isAmoled && !isSelected) Color.White else textColor.value
-            val itemElevation = if(isAmoled) 0.dp else 6.dp
-            val itemTonalElevation = if(isAmoled) 0.dp else LocalAbsoluteTonalElevation.current
-
-            CompositionLocalProvider(LocalAbsoluteTonalElevation provides itemTonalElevation) {
-                val cardColors = CardDefaults.cardColors(
-                    containerColor = itemContainerColor,
-                    contentColor = itemContentColor,
-                )
-                val cardElevation = CardDefaults.cardElevation(defaultElevation = itemElevation)
-                Card(
-                    colors = cardColors,
-                    elevation = cardElevation,
-                    onClick = {
-                        onUpdateSearchService(index)
-                    },
-                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AutoAIIcon(
-                            name = SearchServiceOptions.TYPES[service::class] ?: "Search",
-                            modifier = Modifier.size(30.dp)
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text(
-                                text = SearchServiceOptions.TYPES[service::class] ?: "Unknown",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            SearchAbilityTagLine(
-                                options = service,
-                                modifier = Modifier
-                            )
-                        }
-                    }
-                }
-            }
-
         }
+        // If 1 provider, show toggle only (no selection needed)
+        else if (numProviders == 1) {
+            SearchToggleItem(
+                enableSearch = enableSearch,
+                onToggleSearch = onToggleSearch,
+                onDismiss = onDismiss,
+                navBackStack = navBackStack,
+                shape = RoundedCornerShape(24.dp),
+                isAmoled = isAmoled,
+                isDarkMode = isDarkMode
+            )
+        }
+        // If 2 providers, group toggle + providers together
+        else if (numProviders == 2) {
+            // Toggle at position 0
+            SearchToggleItem(
+                enableSearch = enableSearch,
+                onToggleSearch = onToggleSearch,
+                onDismiss = onDismiss,
+                navBackStack = navBackStack,
+                shape = getItemShape(0, totalItems, false),
+                isAmoled = isAmoled,
+                isDarkMode = isDarkMode
+            )
+            // Providers at positions 1-2
+            settings.searchServices.forEachIndexed { index, service ->
+                val isSelected = settings.searchServiceSelected == index
+                SearchProviderItem(
+                    service = service,
+                    isSelected = isSelected,
+                    onClick = { onUpdateSearchService(index) },
+                    shape = getItemShape(index + 1, totalItems, isSelected),
+                    isAmoled = isAmoled,
+                    isDarkMode = isDarkMode
+                )
+            }
+        }
+        // 3+ providers: grouped list with last item spanning 2 columns behavior (simplified to list)
+        else {
+            // Toggle at position 0
+            SearchToggleItem(
+                enableSearch = enableSearch,
+                onToggleSearch = onToggleSearch,
+                onDismiss = onDismiss,
+                navBackStack = navBackStack,
+                shape = getItemShape(0, totalItems, false),
+                isAmoled = isAmoled,
+                isDarkMode = isDarkMode
+            )
+            // All providers
+            settings.searchServices.forEachIndexed { index, service ->
+                val isSelected = settings.searchServiceSelected == index
+                SearchProviderItem(
+                    service = service,
+                    isSelected = isSelected,
+                    onClick = { onUpdateSearchService(index) },
+                    shape = getItemShape(index + 1, totalItems, isSelected),
+                    isAmoled = isAmoled,
+                    isDarkMode = isDarkMode
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchToggleItem(
+    enableSearch: Boolean,
+    onToggleSearch: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    navBackStack: NavHostController,
+    shape: RoundedCornerShape,
+    isAmoled: Boolean,
+    isDarkMode: Boolean
+) {
+    // Use Color.Black/White pattern like ReasoningPicker
+    val containerColor = if (isDarkMode) Color.Black else Color.White
+    val contentColor = if (isDarkMode) Color.White else Color.Black
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(containerColor)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Public, null, tint = contentColor)
+        Text(
+            text = stringResource(R.string.use_web_search),
+            style = MaterialTheme.typography.titleMedium,
+            color = contentColor,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = {
+                onDismiss()
+                navBackStack.navigate(Screen.SettingSearch)
+            }
+        ) {
+            Icon(Icons.Rounded.Settings, null, tint = contentColor)
+        }
+        Switch(
+            checked = enableSearch,
+            onCheckedChange = onToggleSearch
+        )
+    }
+}
+
+@Composable
+private fun SearchProviderItem(
+    service: SearchServiceOptions,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    shape: RoundedCornerShape,
+    isAmoled: Boolean,
+    isDarkMode: Boolean
+) {
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    // Use Color.Black/White pattern like ReasoningPicker
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else if (isDarkMode) {
+        Color.Black
+    } else {
+        Color.White
+    }
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else if (isDarkMode) {
+        Color.White
+    } else {
+        Color.Black
+    }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(containerColor)
+            .clickable {
+                haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)
+                onClick()
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AutoAIIcon(
+            name = SearchServiceOptions.TYPES[service::class] ?: "Search",
+            modifier = Modifier.size(24.dp)
+        )
+        Text(
+            text = SearchServiceOptions.TYPES[service::class] ?: "Unknown",
+            style = MaterialTheme.typography.titleMedium,
+            color = contentColor,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

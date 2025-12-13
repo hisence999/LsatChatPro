@@ -89,6 +89,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoAIIconWithUrl
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.icons.HeartIcon
@@ -125,9 +126,20 @@ fun ModelSelector(
                 },
                 modifier = modifier
             ) {
-                model?.modelId?.let {
-                    AutoAIIcon(
-                        it, Modifier
+                model?.let { m ->
+                    val provider = m.findProvider(providers = providers)
+                    AutoAIIconWithUrl(
+                        name = m.modelId,
+                        iconUrl = m.iconUrl,
+                        providerSlug = m.providerSlug,
+                        providerBaseUrl = when (provider) {
+                            is ProviderSetting.OpenAI -> provider.baseUrl
+                            is ProviderSetting.Google -> provider.baseUrl
+                            is ProviderSetting.Claude -> provider.baseUrl
+                            null -> null
+                        },
+                        isGoogleProvider = provider is ProviderSetting.Google,
+                        modifier = Modifier
                             .padding(end = 4.dp)
                             .size(36.dp)
                     )
@@ -159,9 +171,19 @@ fun ModelSelector(
             },
         ) {
             if (model != null) {
-                AutoAIIcon(
-                    modifier = Modifier.size(36.dp),
+                val provider = model.findProvider(providers = providers)
+                AutoAIIconWithUrl(
                     name = model.modelId,
+                    iconUrl = model.iconUrl,
+                    providerSlug = model.providerSlug,
+                    providerBaseUrl = when (provider) {
+                        is ProviderSetting.OpenAI -> provider.baseUrl
+                        is ProviderSetting.Google -> provider.baseUrl
+                        is ProviderSetting.Claude -> provider.baseUrl
+                        null -> null
+                    },
+                    isGoogleProvider = provider is ProviderSetting.Google,
+                    modifier = Modifier.size(36.dp),
                     color = Color.Transparent,
                 )
             } else {
@@ -668,8 +690,16 @@ private fun ModelItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                AutoAIIcon(
+                AutoAIIconWithUrl(
                     name = model.modelId,
+                    iconUrl = model.iconUrl,
+                    providerSlug = model.providerSlug,
+                    providerBaseUrl = when (providerSetting) {
+                        is ProviderSetting.OpenAI -> providerSetting.baseUrl
+                        is ProviderSetting.Google -> providerSetting.baseUrl
+                        is ProviderSetting.Claude -> providerSetting.baseUrl
+                    },
+                    isGoogleProvider = providerSetting is ProviderSetting.Google,
                     modifier = Modifier
                         .size(32.dp),
                     color = Color.Transparent,
@@ -740,8 +770,16 @@ private fun ModelItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AutoAIIcon(
+                    AutoAIIconWithUrl(
                         name = model.modelId,
+                        iconUrl = model.iconUrl,
+                        providerSlug = model.providerSlug,
+                        providerBaseUrl = when (providerSetting) {
+                            is ProviderSetting.OpenAI -> providerSetting.baseUrl
+                            is ProviderSetting.Google -> providerSetting.baseUrl
+                            is ProviderSetting.Claude -> providerSetting.baseUrl
+                        },
+                        isGoogleProvider = providerSetting is ProviderSetting.Google,
                         modifier = Modifier
                             .size(32.dp),
                         color = Color.Transparent,

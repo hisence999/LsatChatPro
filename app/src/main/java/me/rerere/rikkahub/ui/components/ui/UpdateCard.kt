@@ -59,12 +59,12 @@ fun UpdateCard(vm: ChatVM) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "检查更新失败",
+                    text = "Failed to check for updates",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error
                 )
                 Text(
-                    text = it.message ?: "未知错误",
+                    text = it.message ?: "Unknown error",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -88,7 +88,7 @@ fun UpdateCard(vm: ChatVM) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "发现新版本 ${info.version}",
+                        text = "New version available: ${info.version}",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -104,7 +104,7 @@ fun UpdateCard(vm: ChatVM) {
             val downloadHandler = useThrottle<UpdateDownload>(500) { item ->
                 vm.updateChecker.downloadUpdate(context, item)
                 showDetail = false
-                toaster.show("已在下载，请在状态栏查看下载进度", type = ToastType.Info)
+                toaster.show("Download started, check status bar for progress", type = ToastType.Info)
             }
             ModalBottomSheet(
                 onDismissRequest = { showDetail = false },

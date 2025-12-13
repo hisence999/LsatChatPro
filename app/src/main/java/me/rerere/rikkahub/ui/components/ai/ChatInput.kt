@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -81,6 +82,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -868,29 +870,38 @@ private fun FilesPicker(
     val settings = LocalSettings.current
     val amoledMode by rememberAmoledDarkMode()
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
+    
+    // Position-based corner shapes for 2x2 grid
+    val topLeftShape = RoundedCornerShape(topStart = 24.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+    val topRightShape = RoundedCornerShape(topStart = 10.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+    val bottomLeftShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 10.dp)
+    val bottomRightShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 24.dp)
+    // For single item in row
+    val fullBottomShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         val supportVideo = provider != null && provider is ProviderSetting.Google
         if(supportVideo) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        TakePicButton {
+                        TakePicButton(shape = topLeftShape) {
                             state.addImages(it)
                             onDismiss()
                         }
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        ImagePickButton {
+                        ImagePickButton(shape = topRightShape) {
                             state.addImages(it)
                             onDismiss()
                         }
@@ -898,16 +909,16 @@ private fun FilesPicker(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        VideoPickButton {
+                        VideoPickButton(shape = bottomLeftShape) {
                             state.addVideos(it)
                             onDismiss()
                         }
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        FilePickButton {
+                        FilePickButton(shape = bottomRightShape) {
                             state.addFiles(it)
                             onDismiss()
                         }
@@ -916,20 +927,20 @@ private fun FilesPicker(
             }
         } else {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        TakePicButton {
+                        TakePicButton(shape = topLeftShape) {
                             state.addImages(it)
                             onDismiss()
                         }
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        ImagePickButton {
+                        ImagePickButton(shape = topRightShape) {
                             state.addImages(it)
                             onDismiss()
                         }
@@ -937,10 +948,10 @@ private fun FilesPicker(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        FilePickButton {
+                        FilePickButton(shape = fullBottomShape) {
                             state.addFiles(it)
                             onDismiss()
                         }
@@ -1093,7 +1104,10 @@ private fun useCropLauncher(
 }
 
 @Composable
-private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
+private fun ImagePickButton(
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+    onAddImages: (List<Uri>) -> Unit = {}
+) {
     val context = LocalContext.current
     val settings = LocalSettings.current
 
@@ -1128,6 +1142,7 @@ private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
     }
 
     BigIconTextButton(
+        shape = shape,
         icon = {
             Icon(Icons.Rounded.Photo, null)
         }
@@ -1137,7 +1152,10 @@ private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
 }
 
 @Composable
-fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
+fun TakePicButton(
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+    onAddImages: (List<Uri>) -> Unit = {}
+) {
     val cameraPermission = rememberPermissionState(PermissionCamera)
 
     val context = LocalContext.current
@@ -1186,6 +1204,7 @@ fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
         permissionState = cameraPermission
     ) {
         BigIconTextButton(
+            shape = shape,
             icon = {
                 Icon(Icons.Rounded.CameraAlt, null)
             }
@@ -1208,7 +1227,10 @@ fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
 }
 
 @Composable
-fun VideoPickButton(onAddVideos: (List<Uri>) -> Unit = {}) {
+fun VideoPickButton(
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+    onAddVideos: (List<Uri>) -> Unit = {}
+) {
     val context = LocalContext.current
     val videoPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
@@ -1219,6 +1241,7 @@ fun VideoPickButton(onAddVideos: (List<Uri>) -> Unit = {}) {
     }
 
     BigIconTextButton(
+        shape = shape,
         icon = {
             Icon(Icons.Rounded.VideoLibrary, null)
         }
@@ -1230,7 +1253,10 @@ fun VideoPickButton(onAddVideos: (List<Uri>) -> Unit = {}) {
 
 
 @Composable
-fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
+fun FilePickButton(
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+    onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}
+) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val pickMedia =
@@ -1283,11 +1309,12 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                     onAddFiles(documents)
                 } else {
                     // Show toast for unsupported file types
-                    toaster.show("不支持的文件类型", type = ToastType.Error)
+                    toaster.show("Unsupported file type", type = ToastType.Error)
                 }
             }
         }
     BigIconTextButton(
+        shape = shape,
         icon = {
             Icon(Icons.Rounded.FolderOpen, null)
         }
@@ -1300,6 +1327,7 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
 @Composable
 private fun BigIconTextButton(
     modifier: Modifier = Modifier,
+    shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
     icon: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -1332,7 +1360,7 @@ private fun BigIconTextButton(
                 scaleY = scale
                 this.alpha = alpha
             }
-            .clip(me.rerere.rikkahub.ui.theme.AppShapes.CardLarge)
+            .clip(shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -1347,7 +1375,7 @@ private fun BigIconTextButton(
     ) {
         CompositionLocalProvider(LocalAbsoluteTonalElevation provides if(amoledMode && LocalDarkMode.current) 0.dp else LocalAbsoluteTonalElevation.current) {
             Surface(
-                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                shape = shape,
                 color = if (amoledMode && LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = if (amoledMode && LocalDarkMode.current) 0.dp else 6.dp,
                 modifier = Modifier.fillMaxWidth()

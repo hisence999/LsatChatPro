@@ -64,10 +64,10 @@ fun ImagePreviewDialog(
                     onClick = {
                         scope.launch {
                             runCatching {
-                                toaster.show("正在保存")
+                                toaster.show("Saving...")
                                 val imgUrl = images[state.currentPage]
                                 context.saveMessageImage(imgUrl)
-                                toaster.show(message = "已保存图片", type = ToastType.Success)
+                                toaster.show(message = "Image saved", type = ToastType.Success)
                                 onDismissRequest()
                             }.onFailure {
                                 it.printStackTrace()

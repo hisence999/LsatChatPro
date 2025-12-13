@@ -156,11 +156,11 @@ class WebdavSync(
             Log.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
             if (!file.exists()) {
-                throw Exception("备份文件不存在")
+                throw Exception("Backup file does not exist")
             }
 
             if (!file.canRead()) {
-                throw Exception("无法读取备份文件")
+                throw Exception("Cannot read backup file")
             }
 
             try {
@@ -168,7 +168,7 @@ class WebdavSync(
                 Log.i(TAG, "restoreFromLocalFile: Restore completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
-                throw Exception("恢复失败: ${e.message}")
+                throw Exception("Restore failed: ${e.message}")
             }
         }
 

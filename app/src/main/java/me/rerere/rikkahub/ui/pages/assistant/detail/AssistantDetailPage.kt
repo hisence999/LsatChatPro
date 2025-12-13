@@ -313,7 +313,7 @@ private fun AssistantBasicSettings(
         }
 
         Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
                 containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )
@@ -382,7 +382,7 @@ private fun AssistantBasicSettings(
         }
 
         Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
                 containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
             )

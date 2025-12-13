@@ -31,6 +31,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
@@ -286,12 +287,20 @@ private fun SettingProviderConfigPage(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        ProviderConfigure(
-            provider = internalProvider,
-            onEdit = {
-                internalProvider = it
-            }
-        )
+        Card(
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+            ProviderConfigure(
+                provider = internalProvider,
+                modifier = Modifier.padding(16.dp),
+                onEdit = {
+                    internalProvider = it
+                }
+            )
+        }
 
         if (internalProvider is ProviderSetting.OpenAI) {
             SettingProviderBalanceOption(
@@ -429,43 +438,55 @@ private fun SettingProviderProxyPage(
         when (editingProxy) {
             is ProviderProxy.None -> {}
             is ProviderProxy.Http -> {
-                OutlinedTextField(
-                    value = (editingProxy as ProviderProxy.Http).address,
-                    onValueChange = {
-                        editingProxy = (editingProxy as ProviderProxy.Http).copy(address = it)
-                    },
-                    label = { Text(stringResource(id = R.string.setting_provider_page_proxy_host)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                var portStr by remember { mutableStateOf((editingProxy as ProviderProxy.Http).port.toString()) }
-                OutlinedTextField(
-                    value = portStr,
-                    onValueChange = {
-                        portStr = it
-                        it.toIntOrNull()?.let { port ->
-                            editingProxy = (editingProxy as ProviderProxy.Http).copy(port = port)
-                        }
-                    },
-                    label = { Text(stringResource(id = R.string.setting_provider_page_proxy_port)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = (editingProxy as ProviderProxy.Http).username ?: "",
-                    onValueChange = {
-                        editingProxy = (editingProxy as ProviderProxy.Http).copy(username = it)
-                    },
-                    label = { Text(stringResource(id = R.string.setting_provider_page_proxy_username)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = (editingProxy as ProviderProxy.Http).password ?: "",
-                    onValueChange = {
-                        editingProxy = (editingProxy as ProviderProxy.Http).copy(password = it)
-                    },
-                    label = { Text(stringResource(id = R.string.setting_provider_page_proxy_password)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Card(
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = (editingProxy as ProviderProxy.Http).address,
+                            onValueChange = {
+                                editingProxy = (editingProxy as ProviderProxy.Http).copy(address = it)
+                            },
+                            label = { Text(stringResource(id = R.string.setting_provider_page_proxy_host)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        var portStr by remember { mutableStateOf((editingProxy as ProviderProxy.Http).port.toString()) }
+                        OutlinedTextField(
+                            value = portStr,
+                            onValueChange = {
+                                portStr = it
+                                it.toIntOrNull()?.let { port ->
+                                    editingProxy = (editingProxy as ProviderProxy.Http).copy(port = port)
+                                }
+                            },
+                            label = { Text(stringResource(id = R.string.setting_provider_page_proxy_port)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        OutlinedTextField(
+                            value = (editingProxy as ProviderProxy.Http).username ?: "",
+                            onValueChange = {
+                                editingProxy = (editingProxy as ProviderProxy.Http).copy(username = it)
+                            },
+                            label = { Text(stringResource(id = R.string.setting_provider_page_proxy_username)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = (editingProxy as ProviderProxy.Http).password ?: "",
+                            onValueChange = {
+                                editingProxy = (editingProxy as ProviderProxy.Http).copy(password = it)
+                            },
+                            label = { Text(stringResource(id = R.string.setting_provider_page_proxy_password)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
         }
 
@@ -937,7 +958,8 @@ private fun AddModelButton(
             },
             onModelsDeselected = { modelList ->
                 onRemoveModels(modelList)
-            }
+            },
+            parentProvider = parentProvider
         )
 
         Button(
@@ -1047,7 +1069,8 @@ private fun ModelPicker(
     onModelSelected: (Model) -> Unit,
     onModelDeselected: (Model) -> Unit,
     onModelsSelected: (List<Model>) -> Unit = {},
-    onModelsDeselected: (List<Model>) -> Unit = {}
+    onModelsDeselected: (List<Model>) -> Unit = {},
+    parentProvider: ProviderSetting
 ) {
     var showModal by remember { mutableStateOf(false) }
     if (showModal) {
@@ -1143,6 +1166,12 @@ private fun ModelPicker(
                                     name = it.modelId,
                                     iconUrl = it.iconUrl,
                                     providerSlug = it.providerSlug,
+                                    providerBaseUrl = when (parentProvider) {
+                                        is ProviderSetting.OpenAI -> parentProvider.baseUrl
+                                        is ProviderSetting.Google -> parentProvider.baseUrl
+                                        is ProviderSetting.Claude -> parentProvider.baseUrl
+                                    },
+                                    isGoogleProvider = parentProvider is ProviderSetting.Google,
                                     modifier = Modifier.size(32.dp)
                                 )
                                 Column(
@@ -1519,8 +1548,16 @@ private fun ModelCard(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
-                    AutoAIIcon(
+                    AutoAIIconWithUrl(
                         name = model.modelId,
+                        iconUrl = model.iconUrl,
+                        providerSlug = model.providerSlug,
+                        providerBaseUrl = when (parentProvider) {
+                            is ProviderSetting.OpenAI -> parentProvider.baseUrl
+                            is ProviderSetting.Google -> parentProvider.baseUrl
+                            is ProviderSetting.Claude -> parentProvider.baseUrl
+                        },
+                        isGoogleProvider = parentProvider is ProviderSetting.Google,
                         modifier = Modifier.size(36.dp),
                     )
                 }

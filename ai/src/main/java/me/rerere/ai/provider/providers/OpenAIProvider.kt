@@ -47,46 +47,98 @@ class OpenAIProvider(
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
             val key = keyRoulette.next(providerSetting.apiKey)
-            val request = Request.Builder()
-                .url("${providerSetting.baseUrl}/models")
-                .addHeader("Authorization", "Bearer $key")
-                .get()
-                .build()
-
-            val response =
-                client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-            if (!response.isSuccessful) {
-                error("Failed to get models: ${response.code} ${response.body?.string()}")
-            }
-
-            val bodyStr = response.body?.string() ?: ""
-            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-            val data = bodyJson["data"]?.jsonArray ?: return@withContext emptyList()
-
-            data.mapNotNull { modelJson ->
-                val modelObj = modelJson.jsonObject
-                val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-
-                val isEmbedding = id.contains("embed", ignoreCase = true)
-                
-                // Extract icon URL if available (some APIs provide this)
-                val iconUrl = modelObj["icon"]?.jsonPrimitive?.contentOrNull
-                    ?: modelObj["architecture"]?.jsonObject?.get("icon")?.jsonPrimitive?.contentOrNull
-                
-                // Extract provider slug from model ID (e.g., "anthropic/claude-3.5" -> "anthropic")
-                // Used for LobeHub CDN icon lookup
-                val providerSlug = if (id.contains("/")) id.substringBefore("/") else null
-                
-                Model(
-                    modelId = id,
-                    displayName = modelObj["name"]?.jsonPrimitive?.contentOrNull ?: id,
-                    type = if (isEmbedding) me.rerere.ai.provider.ModelType.EMBEDDING else me.rerere.ai.provider.ModelType.CHAT,
-                    outputModalities = listOf(me.rerere.ai.provider.Modality.TEXT),
-                    iconUrl = iconUrl,
-                    providerSlug = providerSlug
+            
+            // Fetch regular models
+            val regularModels = fetchModelsFromUrl(
+                url = "${providerSetting.baseUrl}/models",
+                key = key,
+                providerSetting = providerSetting
+            )
+            
+            // For OpenRouter, also fetch embedding models using output_modalities filter
+            // OpenRouter's /models endpoint doesn't return embedding models by default
+            val isOpenRouter = providerSetting.baseUrl.contains("openrouter.ai", ignoreCase = true)
+            val embeddingModels = if (isOpenRouter) {
+                fetchModelsFromUrl(
+                    url = "${providerSetting.baseUrl}/models?output_modalities=embeddings",
+                    key = key,
+                    providerSetting = providerSetting,
+                    forceEmbeddingType = true
                 )
+            } else {
+                emptyList()
             }
+            
+            // Combine and deduplicate by model ID
+            val allModels = (regularModels + embeddingModels)
+                .distinctBy { it.modelId }
+            
+            allModels
         }
+    
+    private suspend fun fetchModelsFromUrl(
+        url: String,
+        key: String,
+        providerSetting: ProviderSetting.OpenAI,
+        forceEmbeddingType: Boolean = false
+    ): List<Model> {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $key")
+            .get()
+            .build()
+
+        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+        if (!response.isSuccessful) {
+            // Don't fail completely if embedding endpoint fails, just return empty
+            if (forceEmbeddingType) {
+                return emptyList()
+            }
+            error("Failed to get models: ${response.code} ${response.body?.string()}")
+        }
+
+        val bodyStr = response.body?.string() ?: ""
+        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+        val data = bodyJson["data"]?.jsonArray ?: return emptyList()
+
+        return data.mapNotNull { modelJson ->
+            val modelObj = modelJson.jsonObject
+            val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+
+            // Check if model is embedding type via:
+            // 1. Model ID contains "embed"
+            // 2. architecture.modality contains "embedding" (OpenRouter format)
+            // 3. architecture.output_modalities contains "embedding" (OpenRouter array format)
+            // 4. Forced by forceEmbeddingType parameter (for OpenRouter embedding endpoint)
+            val architecture = modelObj["architecture"]?.jsonObject
+            val modality = architecture?.get("modality")?.jsonPrimitive?.contentOrNull
+            val outputModalities = architecture?.get("output_modalities")?.jsonArray
+                ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                ?: emptyList()
+            
+            val isEmbedding = forceEmbeddingType ||
+                id.contains("embed", ignoreCase = true) ||
+                modality?.contains("embedding", ignoreCase = true) == true ||
+                outputModalities.any { it.contains("embedding", ignoreCase = true) }
+            
+            // Extract icon URL if available (some APIs provide this)
+            val iconUrl = modelObj["icon"]?.jsonPrimitive?.contentOrNull
+                ?: architecture?.get("icon")?.jsonPrimitive?.contentOrNull
+            
+            // Extract provider slug from model ID (e.g., "anthropic/claude-3.5" -> "anthropic")
+            // Used for LobeHub CDN icon lookup
+            val providerSlug = if (id.contains("/")) id.substringBefore("/") else null
+            
+            Model(
+                modelId = id,
+                displayName = modelObj["name"]?.jsonPrimitive?.contentOrNull ?: id,
+                type = if (isEmbedding) me.rerere.ai.provider.ModelType.EMBEDDING else me.rerere.ai.provider.ModelType.CHAT,
+                outputModalities = listOf(me.rerere.ai.provider.Modality.TEXT),
+                iconUrl = iconUrl,
+                providerSlug = providerSlug
+            )
+        }
+    }
 
     override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
         val key = keyRoulette.next(providerSetting.apiKey)

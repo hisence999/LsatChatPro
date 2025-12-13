@@ -79,7 +79,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
     // 处理错误
     LaunchedEffect(Unit) {
         vm.errorFlow.collect { error ->
-            toaster.show(error.message ?: "错误", type = ToastType.Error)
+            toaster.show(error.message ?: "Error", type = ToastType.Error)
         }
     }
 
@@ -200,7 +200,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                     }
                 ) {
                     Icon(Icons.Rounded.ContentCopy, null)
-                    Text("复制翻译结果", modifier = Modifier.padding(start = 4.dp))
+                    Text("Copy translation", modifier = Modifier.padding(start = 4.dp))
                 }
             }
         }

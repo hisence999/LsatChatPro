@@ -394,7 +394,7 @@ private fun ChatPageContent(
                     },
                     onSendClick = {
                         if (currentChatModel == null) {
-                            toaster.show("请先选择模型", type = ToastType.Error)
+                            toaster.show("Please select a model first", type = ToastType.Error)
                             return@ChatInput
                         }
                         if (inputState.isEditing()) {

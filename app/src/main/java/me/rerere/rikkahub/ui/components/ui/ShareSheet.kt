@@ -52,7 +52,7 @@ fun ShareSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("共享你的LLM模型", style = MaterialTheme.typography.titleLarge)
+                    Text("Share your LLM configuration", style = MaterialTheme.typography.titleLarge)
 
                     IconButton(
                         onClick = {
