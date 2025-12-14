@@ -1,29 +1,24 @@
 ---
 name: Bug Report
-about: 报告APP Bug或者崩溃
+about: APP Bug
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-## 问题描述 | Problem Description
+## Problem Description
 
-在这里描述你的问题。  
-Describe your issue here.
+(Describe your issue here)
 
-## 截图 | Screenshot
+## Screenshot
+ 
+(Attach relevant screenshots or screen recordings here)
 
-在这里放置相关截图或者录屏。  
-Attach relevant screenshots or screen recordings here.
+## Version Information
 
-## 版本信息 | Version Information
+App Version: (e.g. v1.1.0)
+ 
+Android Version: (e.g. Android 16)
 
-APP版本: （例如：v1.2.3）  
-App Version: (e.g. v1.2.3)
-
-安卓版本: （例如：Android 12）  
-Android Version: (e.g. Android 12)
-
-手机型号: （例如：小米11）  
-Device Model: (e.g. Xiaomi 11)
+Device Model: (e.g. Samsung Galaxy S24)
