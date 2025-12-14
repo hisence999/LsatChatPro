@@ -61,6 +61,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -625,6 +626,39 @@ private fun ModelList(
             it.printStackTrace()
         }
     }
+    
+    // Sync icon data from fresh API response to existing saved models
+    LaunchedEffect(modelList) {
+        if (modelList.isEmpty()) return@LaunchedEffect
+        
+        var needsUpdate = false
+        val updatedModels = providerSetting.models.map { savedModel ->
+            // Find matching model from fresh API data
+            val freshModel = modelList.find { it.modelId == savedModel.modelId }
+            if (freshModel != null) {
+                // Update icon data if fresh model has data that saved model lacks
+                val shouldUpdateIcon = savedModel.iconUrl.isNullOrBlank() && !freshModel.iconUrl.isNullOrBlank()
+                val shouldUpdateSlug = savedModel.providerSlug.isNullOrBlank() && !freshModel.providerSlug.isNullOrBlank()
+                
+                if (shouldUpdateIcon || shouldUpdateSlug) {
+                    needsUpdate = true
+                    savedModel.copy(
+                        iconUrl = if (shouldUpdateIcon) freshModel.iconUrl else savedModel.iconUrl,
+                        providerSlug = if (shouldUpdateSlug) freshModel.providerSlug else savedModel.providerSlug
+                    )
+                } else {
+                    savedModel
+                }
+            } else {
+                savedModel
+            }
+        }
+        
+        if (needsUpdate) {
+            onUpdateProvider(providerSetting.copyProvider(models = updatedModels))
+        }
+    }
+    
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->

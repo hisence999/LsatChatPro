@@ -24,6 +24,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toCssHex
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Composable
 private fun AIIcon(
@@ -206,14 +207,40 @@ fun AutoAIIconWithUrl(
             )
         }
         else -> {
-            // Other providers: fallback to text avatar
-            TextAvatar(
-                text = name,
-                modifier = modifier,
-                loading = loading,
-                color = color,
-                contentColor = contentColor
-            )
+            // Try provider URL favicon as final fallback before text avatar
+            val faviconUrl = remember(providerBaseUrl) {
+                providerBaseUrl?.toHttpUrlOrNull()?.host?.let { host ->
+                    "https://favicone.com/$host"
+                }
+            }
+            if (faviconUrl != null) {
+                RemoteIcon(
+                    url = faviconUrl,
+                    name = name,
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                    padding = padding,
+                    fallback = {
+                        TextAvatar(
+                            text = name,
+                            modifier = modifier,
+                            loading = loading,
+                            color = color,
+                            contentColor = contentColor
+                        )
+                    }
+                )
+            } else {
+                // Other providers: fallback to text avatar
+                TextAvatar(
+                    text = name,
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                    contentColor = contentColor
+                )
+            }
         }
     }
 }
