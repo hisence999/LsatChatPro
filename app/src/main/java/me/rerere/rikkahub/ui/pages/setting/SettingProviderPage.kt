@@ -58,7 +58,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Input
+import androidx.compose.material.icons.automirrored.rounded.Input
 import com.dokar.sonner.ToastType
 import io.github.g00fy2.quickie.QRResult
 import io.github.g00fy2.quickie.ScanQRCode
@@ -205,7 +205,7 @@ private fun ImportProviderButton(
             showImportDialog = true
         }
     ) {
-        Icon(Icons.Rounded.Input, null)
+        Icon(Icons.AutoMirrored.Rounded.Input, null)
     }
 
     if (showImportDialog) {

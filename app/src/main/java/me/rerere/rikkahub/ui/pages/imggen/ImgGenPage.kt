@@ -60,7 +60,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import android.content.ClipData
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -78,7 +80,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Settings
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
@@ -336,7 +338,7 @@ private fun InputBar(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Rounded.Send,
+                    imageVector = Icons.AutoMirrored.Rounded.Send,
                     contentDescription = stringResource(R.string.imggen_page_generate_image)
                 )
             }
@@ -350,7 +352,7 @@ private fun ImageGalleryScreen(
 ) {
     val generatedImages = vm.generatedImages.collectAsLazyPagingItems()
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val pullToRefreshState = rememberPullToRefreshState()
@@ -437,11 +439,17 @@ private fun ImageGalleryScreen(
                                     Row {
                                         IconButton(
                                             onClick = {
-                                                clipboardManager.setText(AnnotatedString(it.prompt))
-                                                toaster.show(
-                                                    message = "Prompt copied to clipboard",
-                                                    type = ToastType.Success
-                                                )
+                                                scope.launch {
+                                                    clipboard.setClipEntry(
+                                                        ClipEntry(
+                                                            ClipData.newPlainText(null, it.prompt)
+                                                        )
+                                                    )
+                                                    toaster.show(
+                                                        message = "Prompt copied to clipboard",
+                                                        type = ToastType.Success
+                                                    )
+                                                }
                                             },
                                             modifier = Modifier.size(32.dp)
                                         ) {

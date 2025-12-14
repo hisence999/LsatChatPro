@@ -35,7 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.School
@@ -398,7 +398,7 @@ private fun DefaultChatModelSetting(
 ) {
     ModelFeatureCard(
         icon = {
-            Icon(Icons.Rounded.Chat, null)
+            Icon(Icons.AutoMirrored.Rounded.Chat, null)
         },
         title = {
             Text(stringResource(R.string.setting_model_page_chat_model), maxLines = 1)

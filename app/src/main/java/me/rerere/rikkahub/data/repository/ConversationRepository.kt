@@ -252,6 +252,13 @@ class ConversationRepository(
         )
     }
 
+    suspend fun markAsNotConsolidated(conversationId: Uuid) {
+        conversationDAO.updateConsolidatedStatus(
+            id = conversationId.toString(),
+            isConsolidated = false
+        )
+    }
+
     suspend fun getEpisodeCount(): Int {
         return chatEpisodeDAO.getCount()
     }

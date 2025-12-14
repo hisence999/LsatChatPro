@@ -623,7 +623,19 @@ class ChatService(
         val conversation = getConversationFlow(conversationId).value
         var messagesNodes = conversation.messageNodes
 
-        // 移除无效tool call
+        // Step 1: 移除空消息节点 (do this FIRST to prevent exceptions)
+        messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
+
+        // Step 2: 更新无效的selectIndex (do this BEFORE accessing currentMessage)
+        messagesNodes = messagesNodes.map { node ->
+            if (node.selectIndex !in node.messages.indices) {
+                node.copy(selectIndex = 0)
+            } else {
+                node
+            }
+        }
+
+        // Step 3: 移除无效tool call (now safe to access currentMessage)
         messagesNodes = messagesNodes.mapIndexed { index, node ->
             val next = if (index < messagesNodes.size - 1) messagesNodes[index + 1] else null
             if (node.currentMessage.hasPart<UIMessagePart.ToolCall>()) {
@@ -637,17 +649,15 @@ class ChatService(
             node
         }
 
-        // 更新index
+        // Step 4: Final cleanup after tool call removal
+        messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
         messagesNodes = messagesNodes.map { node ->
-            if (node.messages.isNotEmpty() && node.selectIndex !in node.messages.indices) {
-                node.copy(selectIndex = 0)
+            if (node.selectIndex !in node.messages.indices) {
+                node.copy(selectIndex = 0.coerceAtMost(node.messages.lastIndex))
             } else {
                 node
             }
         }
-
-        // 移除无效消息
-        messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
 
         updateConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
     }

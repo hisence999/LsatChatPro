@@ -510,6 +510,18 @@ class ChatVM(
         }
     }
 
+    fun consolidateConversation(conversation: Conversation) {
+        viewModelScope.launch {
+            // Mark conversation as not consolidated so it will be picked up by the worker
+            conversationRepo.markAsNotConsolidated(conversation.id)
+            
+            // Trigger a consolidation run
+            val request = androidx.work.OneTimeWorkRequestBuilder<me.rerere.rikkahub.service.MemoryConsolidationWorker>()
+                .build()
+            androidx.work.WorkManager.getInstance(context).enqueue(request)
+        }
+    }
+
     fun generateSuggestion(conversation: Conversation) {
         viewModelScope.launch {
             chatService.generateSuggestion(_conversationId, conversation)

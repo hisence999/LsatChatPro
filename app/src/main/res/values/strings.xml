@@ -210,6 +210,7 @@
     <string name="chat_page_no_conversations">No conversations</string>
     <string name="chat_page_recent">Recent</string>
     <string name="chat_page_regenerate_title">Regenerate Title</string>
+    <string name="chat_page_consolidate">Consolidate</string>
     <string name="chat_page_save">Save</string>
     <string name="chat_page_scroll_to_bottom">Scroll to Bottom</string>
     <string name="chat_page_search_placeholder">Search chats</string>

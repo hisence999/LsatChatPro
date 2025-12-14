@@ -27,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -134,7 +134,7 @@ fun SettingAboutPage() {
                     icon = Icons.Rounded.Code,
                     title = "Source Code",
                     subtitle = "GitHub Repository",
-                    trailing = Icons.Rounded.OpenInNew,
+                    trailing = Icons.AutoMirrored.Rounded.OpenInNew,
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Cocolalilal/LastChat"))
                         context.startActivity(intent)

@@ -178,6 +178,9 @@ fun ChatDrawerContent(
                 onRegenerateTitle = {
                     vm.generateTitle(it, true)
                 },
+                onConsolidate = {
+                    vm.consolidateConversation(it)
+                },
                 onDelete = {
                     vm.deleteConversation(it)
                     if (it.id == current.id) {
@@ -187,7 +190,8 @@ fun ChatDrawerContent(
                 onPin = {
                     vm.updatePinnedStatus(it)
                 },
-                showUnconsolidatedDot = settings.getCurrentAssistant().enableMemory
+                showUnconsolidatedDot = settings.getCurrentAssistant().enableMemory,
+                showConsolidateOption = settings.getCurrentAssistant().enableMemory
             )
 
             // 助手选择器

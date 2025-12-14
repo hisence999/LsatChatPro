@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CallSplit
+import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -47,7 +47,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.StopCircle
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import kotlinx.coroutines.delay
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.MessageRole
@@ -103,7 +103,7 @@ fun ColumnScope.ChatMessageActionButtons(
             val isSpeaking by tts.isSpeaking.collectAsState()
             val isAvailable by tts.isAvailable.collectAsState()
             Icon(
-                imageVector = if (isSpeaking) Icons.Rounded.StopCircle else Icons.Rounded.VolumeUp,
+                imageVector = if (isSpeaking) Icons.Rounded.StopCircle else Icons.AutoMirrored.Rounded.VolumeUp,
                 contentDescription = stringResource(R.string.tts),
                 modifier = Modifier
                     .clip(CircleShape)
@@ -318,7 +318,7 @@ fun ChatMessageActionsSheet(
                         .fillMaxWidth()
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.CallSplit,
+                        imageVector = Icons.AutoMirrored.Rounded.CallSplit,
                         contentDescription = null,
                         modifier = Modifier.padding(4.dp)
                     )

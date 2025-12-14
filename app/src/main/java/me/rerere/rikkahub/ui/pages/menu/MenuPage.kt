@@ -31,7 +31,7 @@ import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -143,7 +143,7 @@ private fun StatsSection(stats: MenuStats) {
             StatCard(
                 title = "Avg. Messages/day",
                 value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
-                icon = Icons.Rounded.Chat,
+                icon = Icons.AutoMirrored.Rounded.Chat,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier

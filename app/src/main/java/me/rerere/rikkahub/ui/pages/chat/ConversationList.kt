@@ -61,6 +61,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Memory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
@@ -99,8 +100,10 @@ fun ColumnScope.ConversationList(
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
+    onConsolidate: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
-    showUnconsolidatedDot: Boolean = false
+    showUnconsolidatedDot: Boolean = false,
+    showConsolidateOption: Boolean = false
 ) {
     val navController = LocalNavController.current
 
@@ -208,8 +211,10 @@ fun ColumnScope.ConversationList(
                             onClick = onClick,
                             onDelete = onDelete,
                             onRegenerateTitle = onRegenerateTitle,
+                            onConsolidate = onConsolidate,
                             onPin = onPin,
                             showUnconsolidatedDot = showUnconsolidatedDot,
+                            showConsolidateOption = showConsolidateOption,
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -315,8 +320,10 @@ private fun ConversationItem(
     modifier: Modifier = Modifier,
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
+    onConsolidate: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     showUnconsolidatedDot: Boolean = false,
+    showConsolidateOption: Boolean = false,
     onClick: (Conversation) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -447,6 +454,22 @@ private fun ConversationItem(
                         Icon(Icons.Rounded.Refresh, null)
                     }
                 )
+
+                if (showConsolidateOption && !conversation.isConsolidated) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(stringResource(id = R.string.chat_page_consolidate))
+                        },
+                        onClick = {
+                            haptics.perform(HapticPattern.Pop)
+                            onConsolidate(conversation)
+                            showDropdownMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Memory, null)
+                        }
+                    )
+                }
 
                 DropdownMenuItem(
                     text = {

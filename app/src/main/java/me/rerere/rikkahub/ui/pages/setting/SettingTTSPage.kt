@@ -53,7 +53,7 @@ import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.StopCircle
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -402,7 +402,7 @@ private fun TTSProviderItem(
                         }
                     ) {
                         Icon(
-                            imageVector = if (isSpeaking) Icons.Rounded.StopCircle else Icons.Rounded.VolumeUp,
+                            imageVector = if (isSpeaking) Icons.Rounded.StopCircle else Icons.AutoMirrored.Rounded.VolumeUp,
                             contentDescription = if (isSpeaking) stringResource(R.string.stop) else stringResource(R.string.test_tts),
                             tint = if (isSpeaking) MaterialTheme.colorScheme.error else LocalContentColor.current
                         )
