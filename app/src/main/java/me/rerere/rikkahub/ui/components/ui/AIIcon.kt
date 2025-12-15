@@ -86,6 +86,147 @@ fun AutoAIIcon(
 }
 
 /**
+ * Auto icon for Providers (used in the providers page).
+ * Uses fallback strategy:
+ * 1. Local pattern matching (for known provider names)
+ * 2. LobeHub CDN for known provider slugs or derived from name
+ * 3. Text avatar (final fallback)
+ */
+@Composable
+fun AutoProviderIcon(
+    name: String,
+    baseUrl: String? = null,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = LocalContentColor.current,
+    padding: Dp = 4.dp,
+) {
+    val darkMode = LocalDarkMode.current
+    
+    // Priority 1: Local pattern matching
+    val localPath = remember(name) { computeAIIconByName(name) }
+    if (localPath != null) {
+        AIIcon(
+            path = localPath,
+            name = name,
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            padding = padding,
+        )
+        return
+    }
+    
+    // Priority 2: LobeHub CDN - try known slug first, then derive from name
+    val providerSlug = remember(name) { 
+        getProviderSlugFromName(name) ?: name.lowercase().replace(" ", "-").replace("_", "-")
+    }
+    val lobeHubUrls = getLobeHubIconUrls(providerSlug, darkMode)
+    RemoteIcon(
+        url = lobeHubUrls.coloredUrl,
+        fallbackUrl = lobeHubUrls.monochromeUrl,
+        name = name,
+        modifier = modifier,
+        loading = loading,
+        color = color,
+        padding = padding,
+        fallback = {
+            // Priority 3: Text avatar (final fallback)
+            TextAvatar(
+                text = name,
+                modifier = modifier,
+                loading = loading,
+                color = color,
+                contentColor = contentColor
+            )
+        }
+    )
+}
+
+
+/**
+ * Helper composable for provider favicon fallback
+ */
+@Composable
+private fun ProviderFaviconFallback(
+    name: String,
+    baseUrl: String?,
+    modifier: Modifier,
+    loading: Boolean,
+    color: Color,
+    contentColor: Color,
+    padding: Dp
+) {
+    val faviconUrl = remember(baseUrl) {
+        baseUrl?.toHttpUrlOrNull()?.host?.let { host ->
+            "https://favicone.com/$host"
+        }
+    }
+    
+    if (faviconUrl != null) {
+        RemoteIcon(
+            url = faviconUrl,
+            name = name,
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            padding = padding,
+            fallback = {
+                TextAvatar(
+                    text = name,
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                    contentColor = contentColor
+                )
+            }
+        )
+    } else {
+        TextAvatar(
+            text = name,
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            contentColor = contentColor
+        )
+    }
+}
+
+/**
+ * Get a provider slug from a provider name for LobeHub CDN lookup
+ */
+private fun getProviderSlugFromName(name: String): String? {
+    val lowerName = name.lowercase()
+    return when {
+        lowerName.contains("openai") -> "openai"
+        lowerName.contains("anthropic") || lowerName.contains("claude") -> "anthropic"
+        lowerName.contains("google") || lowerName.contains("gemini") -> "google"
+        lowerName.contains("deepseek") -> "deepseek"
+        lowerName.contains("mistral") -> "mistral"
+        lowerName.contains("meta") || lowerName.contains("llama") -> "meta"
+        lowerName.contains("cohere") -> "cohere"
+        lowerName.contains("perplexity") -> "perplexity"
+        lowerName.contains("groq") -> "groq"
+        lowerName.contains("openrouter") -> "openrouter"
+        lowerName.contains("together") -> "together"
+        lowerName.contains("fireworks") -> "fireworks"
+        lowerName.contains("nvidia") -> "nvidia"
+        lowerName.contains("qwen") || lowerName.contains("alibaba") -> "qwen"
+        lowerName.contains("zhipu") || lowerName.contains("glm") -> "zhipu"
+        lowerName.contains("moonshot") || lowerName.contains("kimi") -> "moonshot"
+        lowerName.contains("minimax") -> "minimax"
+        lowerName.contains("xai") || lowerName.contains("grok") -> "xai"
+        lowerName.contains("bytedance") || lowerName.contains("doubao") -> "bytedance"
+        lowerName.contains("siliconflow") || lowerName.contains("silicon") -> "siliconflow"
+        lowerName.contains("cerebras") -> "cerebras"
+        lowerName.contains("cloudflare") -> "cloudflare"
+        lowerName.contains("hunyuan") || lowerName.contains("tencent") -> "hunyuan"
+        else -> null
+    }
+}
+
+/**
  * AI Icon that uses a layered fallback strategy based on provider type:
  * 
  * For OpenRouter providers (openrouter.ai):
@@ -207,40 +348,14 @@ fun AutoAIIconWithUrl(
             )
         }
         else -> {
-            // Try provider URL favicon as final fallback before text avatar
-            val faviconUrl = remember(providerBaseUrl) {
-                providerBaseUrl?.toHttpUrlOrNull()?.host?.let { host ->
-                    "https://favicone.com/$host"
-                }
-            }
-            if (faviconUrl != null) {
-                RemoteIcon(
-                    url = faviconUrl,
-                    name = name,
-                    modifier = modifier,
-                    loading = loading,
-                    color = color,
-                    padding = padding,
-                    fallback = {
-                        TextAvatar(
-                            text = name,
-                            modifier = modifier,
-                            loading = loading,
-                            color = color,
-                            contentColor = contentColor
-                        )
-                    }
-                )
-            } else {
-                // Other providers: fallback to text avatar
-                TextAvatar(
-                    text = name,
-                    modifier = modifier,
-                    loading = loading,
-                    color = color,
-                    contentColor = contentColor
-                )
-            }
+            // For models: fallback directly to text avatar (no favicon fetching)
+            TextAvatar(
+                text = name,
+                modifier = modifier,
+                loading = loading,
+                color = color,
+                contentColor = contentColor
+            )
         }
     }
 }
@@ -318,8 +433,8 @@ private fun RemoteIcon(
     padding: Dp = 4.dp,
     fallback: @Composable (() -> Unit)? = null
 ) {
-    var primaryFailed by remember { mutableStateOf(false) }
-    var fallbackFailed by remember { mutableStateOf(false) }
+    var primaryFailed by remember(url) { mutableStateOf(false) }
+    var fallbackFailed by remember(url, fallbackUrl) { mutableStateOf(false) }
     
     // If both primary and fallback URLs failed, use the fallback composable
     if (primaryFailed && (fallbackUrl == null || fallbackFailed) && fallback != null) {

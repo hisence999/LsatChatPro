@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.RpStyleRule
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -73,17 +75,16 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val lazyListState = rememberLazyListState()
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Text("RP Optimizations")
-                },
+            OneUITopAppBar(
+                title = "RP Optimizations",
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
-                },
-                scrollBehavior = scrollBehavior
+                }
             )
         },
         floatingActionButton = {
@@ -93,13 +94,14 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
             ) {
                 Icon(Icons.Rounded.Add, "Add Rule")
             }
-        }
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .consumeWindowInsets(contentPadding),
+            state = lazyListState,
             contentPadding = contentPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

@@ -10,8 +10,12 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,8 +34,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +69,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -81,6 +90,11 @@ import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.foundation.lazy.itemsIndexed
+import me.rerere.rikkahub.ui.components.ui.ItemPosition
+import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 
 
 @Composable
@@ -104,22 +118,41 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             }
         }
     }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    
+    // Move lazyListState outside for canScroll detection
+    val lazyListState = rememberLazyListState()
+    val isFiltering = selectedTagIds.isNotEmpty()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        if (!isFiltering) {
+            val newAssistants = settings.assistants.toMutableList().apply {
+                add(to.index, removeAt(from.index))
+            }
+            vm.updateSettings(settings.copy(assistants = newAssistants))
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = {
-                Text(stringResource(R.string.assistant_page_title))
-            }, navigationIcon = {
-                BackButton()
-            }, actions = {
-                IconButton(
-                    onClick = {
-                        createState.open(Assistant())
-                    }) {
-                    Icon(Icons.Rounded.Add, stringResource(R.string.assistant_page_add))
+            OneUITopAppBar(
+                title = stringResource(R.string.assistant_page_title),
+                scrollBehavior = scrollBehavior,
+                navigationIcon = {
+                    BackButton()
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            createState.open(Assistant())
+                        }
+                    ) {
+                        Icon(Icons.Rounded.Add, stringResource(R.string.assistant_page_add))
+                    }
                 }
-            })
-        }) {
+            )
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -127,16 +160,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 .consumeWindowInsets(it),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val lazyListState = rememberLazyListState()
-            val isFiltering = selectedTagIds.isNotEmpty()
-            val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-                if (!isFiltering) {
-                    val newAssistants = settings.assistants.toMutableList().apply {
-                        add(to.index, removeAt(from.index))
-                    }
-                    vm.updateSettings(settings.copy(assistants = newAssistants))
-                }
-            }
             val haptic = LocalHapticFeedback.current
 
             // 标签过滤器
@@ -148,58 +171,204 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                     selectedTagIds = ids
                 }
             )
+            
+            // State for swipe neighbor tracking
+            var draggingIndex by remember { mutableStateOf(-1) }
+            var dragOffset by remember { mutableFloatStateOf(0f) }
+            var isUnlocked by remember { mutableStateOf(false) }
+            var neighborsUnlocked by remember { mutableStateOf(false) }
+            
+            // State for reorder ripple effect - use assistant ID to track position after reorder
+            var reorderDropAssistantId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
+            var reorderDropTrigger by remember { mutableStateOf(0) }
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+            
+            // Check if delete is allowed (more than 1 assistant)
+            val canDelete = filteredAssistants.size > 1
+            
+            // Reset neighborsUnlocked when offset returns to 0
+            if (dragOffset == 0f && neighborsUnlocked) {
+                neighborsUnlocked = false
+            }
+            
+            // Ripple animation config
+            val ripplePushDp = 10.dp
+            val ripplePushPx = with(density) { ripplePushDp.toPx() }
+            
+            // Delete confirmation state
+            var showDeleteDialog by remember { mutableStateOf(false) }
+            var assistantToDelete by remember { mutableStateOf<Assistant?>(null) }
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .imePadding(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 state = lazyListState,
             ) {
-                items(filteredAssistants, key = { assistant -> assistant.id }) { assistant ->
+                itemsIndexed(filteredAssistants, key = { _, assistant -> assistant.id }) { index, assistant ->
+                    val position = when {
+                        filteredAssistants.size == 1 -> ItemPosition.ONLY
+                        index == 0 -> ItemPosition.FIRST
+                        index == filteredAssistants.lastIndex -> ItemPosition.LAST
+                        else -> ItemPosition.MIDDLE
+                    }
+                    
+                    // Calculate neighbor offset for swipe effect
+                    val thresholdPx = with(density) { 35.dp.toPx() }
+                    if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
+                        neighborsUnlocked = true
+                    }
+                    
+                    val shouldNeighborFollow = draggingIndex >= 0 && 
+                        draggingIndex != index && 
+                        !isUnlocked && 
+                        !neighborsUnlocked
+                    
+                    val neighborOffset = if (shouldNeighborFollow) {
+                        val distance = kotlin.math.abs(index - draggingIndex)
+                        when (distance) {
+                            1 -> dragOffset * 0.35f
+                            2 -> dragOffset * 0.12f
+                            else -> 0f
+                        }
+                    } else {
+                        0f
+                    }
+                    
+                    // Ripple animation for this item
+                    val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
+                    androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
+                        if (reorderDropTrigger > 0 && reorderDropAssistantId != null && reorderDropAssistantId != assistant.id) {
+                            val dropIndex = filteredAssistants.indexOfFirst { it.id == reorderDropAssistantId }
+                            if (dropIndex >= 0) {
+                                val distance = kotlin.math.abs(index - dropIndex)
+                                if (distance <= 3) {
+                                    val pushAmount = when (distance) {
+                                        1 -> ripplePushPx
+                                        2 -> ripplePushPx * 0.6f
+                                        3 -> ripplePushPx * 0.3f
+                                        else -> 0f
+                                    }
+                                    val direction = if (index < dropIndex) -1f else 1f
+                                    rippleOffset.animateTo(
+                                        targetValue = pushAmount * direction,
+                                        animationSpec = androidx.compose.animation.core.tween(80)
+                                    )
+                                    rippleOffset.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = androidx.compose.animation.core.spring(
+                                            dampingRatio = 0.5f,
+                                            stiffness = 400f
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
                     ReorderableItem(
-                        state = reorderableState, key = assistant.id
+                        state = reorderableState, 
+                        key = assistant.id
                     ) { isDragging ->
                         val memories by vm.getMemories(assistant).collectAsStateWithLifecycle(
                             initialValue = emptyList(),
                         )
-                        AssistantItem(
-                            assistant = assistant,
-                            settings = settings,
-                            memories = memories,
-                            onEdit = {
-                                navController.navigate(Screen.AssistantDetail(id = assistant.id.toString()))
+                        PhysicsSwipeToDelete(
+                            position = position,
+                            deleteEnabled = canDelete,
+                            neighborOffset = neighborOffset,
+                            onDragProgress = { offset, unlocked ->
+                                draggingIndex = index
+                                dragOffset = offset
+                                isUnlocked = unlocked
+                            },
+                            onDragEnd = {
+                                if (draggingIndex == index) {
+                                    draggingIndex = -1
+                                    dragOffset = 0f
+                                }
                             },
                             onDelete = {
-                                vm.removeAssistant(assistant)
-                            },
-                            onCopy = {
-                                vm.copyAssistant(assistant)
+                                assistantToDelete = assistant
+                                showDeleteDialog = true
                             },
                             modifier = Modifier
+                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .scale(if (isDragging) 0.95f else 1f)
                                 .fillMaxWidth()
-                                .animateItem(),
-                            dragHandle = {
-                                // 只有在没有过滤时才显示拖拽手柄
-                                if (!isFiltering) {
-                            Icon(
-                                imageVector = Icons.Rounded.DragIndicator,
-                                contentDescription = null,
-                                modifier = Modifier.longPressDraggableHandle(onDragStarted = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                }, onDragStopped = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                })
+                        ) {
+                            AssistantItemContent(
+                                assistant = assistant,
+                                settings = settings,
+                                memories = memories,
+                                haptics = haptics,
+                                onClick = {
+                                    navController.navigate(Screen.AssistantDetail(id = assistant.id.toString()))
+                                },
+                                onCopy = {
+                                    vm.copyAssistant(assistant)
+                                },
+                                dragHandle = {
+                                    if (!isFiltering) {
+                                        IconButton(
+                                            onClick = {},
+                                            modifier = Modifier.longPressDraggableHandle(
+                                                onDragStarted = {
+                                                    haptics.perform(HapticPattern.Pop)
+                                                },
+                                                onDragStopped = {
+                                                    haptics.perform(HapticPattern.Thud)
+                                                    reorderDropAssistantId = assistant.id
+                                                    reorderDropTrigger++
+                                                }
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.DragIndicator,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    }
+                                }
                             )
                         }
-                    })
-}
-}
-}
-}
-}
+                    }
+                }
+            }
+            
+            // Delete confirmation dialog
+            if (showDeleteDialog && assistantToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { 
+                        showDeleteDialog = false
+                        assistantToDelete = null
+                    },
+                    title = { Text(stringResource(R.string.assistant_page_delete)) },
+                    text = { Text(stringResource(R.string.assistant_page_delete_dialog_text)) },
+                    dismissButton = {
+                        TextButton(onClick = { 
+                            showDeleteDialog = false
+                            assistantToDelete = null
+                        }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            assistantToDelete?.let { vm.removeAssistant(it) }
+                            showDeleteDialog = false
+                            assistantToDelete = null
+                        }) {
+                            Text(stringResource(R.string.confirm))
+                        }
+                    }
+                )
+            }
+        }
+    }
 
     AssistantCreationSheet(state = createState)
 }
@@ -275,47 +444,46 @@ fun AssistantCreationSheet(
 }
 
 @Composable
-fun AssistantItem(
+private fun AssistantItemContent(
     assistant: Assistant,
     settings: Settings,
-    modifier: Modifier = Modifier,
     memories: List<AssistantMemory>,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
+    onClick: () -> Unit,
     onCopy: () -> Unit,
     dragHandle: @Composable () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onEdit,
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable {
+                haptics.perform(HapticPattern.Pop)
+                onClick()
+            }
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        UIAvatar(
+            name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+            value = assistant.avatar,
+            modifier = Modifier.size(40.dp)
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center,
         ) {
-            UIAvatar(
-                name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                value = assistant.avatar,
-                modifier = Modifier.size(40.dp)
+            Text(
+                text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            // Only show tag row when there are tags or memory
+            val hasContent = assistant.enableMemory || assistant.tags.isNotEmpty()
+            if (hasContent) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -349,66 +517,19 @@ fun AssistantItem(
                     }
                 }
             }
-            // Action buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (settings.assistants.size > 1) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = stringResource(R.string.assistant_page_delete),
-                        modifier = Modifier
-                            .onClick {
-                                showDeleteDialog = true
-                            }
-                            .size(20.dp),
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Rounded.ContentCopy,
-                    contentDescription = stringResource(R.string.assistant_page_clone),
-                    modifier = Modifier
-                        .onClick {
-                            onCopy()
-                        }
-                        .size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-                )
-            }
-            dragHandle()
         }
-    }
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-            },
-            title = {
-                Text(stringResource(R.string.assistant_page_delete))
-            },
-            text = {
-                Text(stringResource(R.string.assistant_page_delete_dialog_text))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        onDelete()
-                    }) {
-                    Text(stringResource(R.string.confirm))
+        // Copy button only
+        Icon(
+            imageVector = Icons.Rounded.ContentCopy,
+            contentDescription = stringResource(R.string.assistant_page_clone),
+            modifier = Modifier
+                .onClick {
+                    onCopy()
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                    }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
+                .size(20.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
         )
+        dragHandle()
     }
 }
 

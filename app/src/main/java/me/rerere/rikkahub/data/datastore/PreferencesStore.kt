@@ -371,7 +371,7 @@ data class DisplaySetting(
     val showUserAvatar: Boolean = true,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
-    val showTokenUsage: Boolean = true,
+    val showTokenUsage: Boolean = false,
     val autoCloseThinking: Boolean = true,
     val showUpdates: Boolean = false,
     val checkForUpdates: Boolean = false, // Check GitHub for app updates
@@ -381,10 +381,10 @@ data class DisplaySetting(
     val useExpressiveFont: Boolean = true, // M3 Expressive font (rounded, wider) vs Normal
     val enableMessageGenerationHapticEffect: Boolean = false,
     val enableUIHaptics: Boolean = true,
-    val skipCropImage: Boolean = false,
+    val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
-    val codeBlockAutoCollapse: Boolean = false,
+    val codeBlockAutoCollapse: Boolean = true,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
 )
 

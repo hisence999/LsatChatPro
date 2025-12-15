@@ -30,7 +30,11 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +58,7 @@ import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
@@ -68,17 +73,47 @@ import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.reflect.full.primaryConstructor
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import me.rerere.rikkahub.ui.components.ui.ItemPosition
+import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 
 @Composable
 fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    
+    // Move lazyListState outside for canScroll detection
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        val offset = 0
+        val fromIndex = from.index - offset
+        val toIndex = to.index - offset
+
+        if (fromIndex >= 0 && toIndex >= 0 && fromIndex < settings.searchServices.size && toIndex < settings.searchServices.size) {
+            val newServices = settings.searchServices.toMutableList().apply {
+                add(toIndex, removeAt(fromIndex))
+            }
+            vm.updateSettings(
+                settings.copy(
+                    searchServices = newServices
+                )
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(stringResource(R.string.setting_page_search_title))
-                },
+            OneUITopAppBar(
+                title = stringResource(R.string.setting_page_search_title),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
                 },
@@ -125,284 +160,378 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             )
-        }
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) {
-        val lazyListState = rememberLazyListState()
-        val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-            // 需要考虑标题和按钮以及通用选项可能占用的位置
-            val offset = 0 // 第一个item是标题和按钮
-            val fromIndex = from.index - offset
-            val toIndex = to.index - offset
-
-            if (fromIndex >= 0 && toIndex >= 0 && fromIndex < settings.searchServices.size && toIndex < settings.searchServices.size) {
-                val newServices = settings.searchServices.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
-                }
-                vm.updateSettings(
-                    settings.copy(
-                        searchServices = newServices
-                    )
-                )
-            }
+        val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+        
+        // State for swipe neighbor tracking
+        var draggingIndex by remember { mutableStateOf(-1) }
+        var dragOffset by remember { mutableFloatStateOf(0f) }
+        var isUnlocked by remember { mutableStateOf(false) }
+        var neighborsUnlocked by remember { mutableStateOf(false) }
+        
+        // State for reorder ripple effect
+        var reorderDropServiceId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
+        var reorderDropTrigger by remember { mutableStateOf(0) }
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        
+        // Check if delete is allowed (more than 1 service)
+        val canDelete = settings.searchServices.size > 1
+        
+        // Reset neighborsUnlocked when offset returns to 0
+        if (dragOffset == 0f && neighborsUnlocked) {
+            neighborsUnlocked = false
         }
-        val haptic = LocalHapticFeedback.current
+        
+        // Ripple animation config
+        val ripplePushDp = 10.dp
+        val ripplePushPx = with(density) { ripplePushDp.toPx() }
+        
+        // Delete confirmation state
+        var showDeleteDialog by remember { mutableStateOf(false) }
+        var serviceToDelete by remember { mutableStateOf<SearchServiceOptions?>(null) }
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
             contentPadding = it + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             state = lazyListState
         ) {
-            // 搜索提供商标题和添加按钮
-            // Removed as per request
-
-            // 搜索提供商列表
-            items(settings.searchServices, key = { it.id }) { service ->
-                val index = settings.searchServices.indexOf(service)
+            itemsIndexed(settings.searchServices, key = { _, service -> service.id }) { index, service ->
+                val position = when {
+                    settings.searchServices.size == 1 -> ItemPosition.ONLY
+                    index == 0 -> ItemPosition.FIRST
+                    index == settings.searchServices.lastIndex -> ItemPosition.LAST
+                    else -> ItemPosition.MIDDLE
+                }
+                
+                // Calculate neighbor offset
+                val thresholdPx = with(density) { 35.dp.toPx() }
+                if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
+                    neighborsUnlocked = true
+                }
+                
+                val shouldNeighborFollow = draggingIndex >= 0 && 
+                    draggingIndex != index && 
+                    !isUnlocked && 
+                    !neighborsUnlocked
+                
+                val neighborOffset = if (shouldNeighborFollow) {
+                    val distance = kotlin.math.abs(index - draggingIndex)
+                    when (distance) {
+                        1 -> dragOffset * 0.35f
+                        2 -> dragOffset * 0.12f
+                        else -> 0f
+                    }
+                } else {
+                    0f
+                }
+                
+                // Ripple animation
+                val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
+                androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
+                    if (reorderDropTrigger > 0 && reorderDropServiceId != null && reorderDropServiceId != service.id) {
+                        val dropIndex = settings.searchServices.indexOfFirst { it.id == reorderDropServiceId }
+                        if (dropIndex >= 0) {
+                            val distance = kotlin.math.abs(index - dropIndex)
+                            if (distance <= 3) {
+                                val pushAmount = when (distance) {
+                                    1 -> ripplePushPx
+                                    2 -> ripplePushPx * 0.6f
+                                    3 -> ripplePushPx * 0.3f
+                                    else -> 0f
+                                }
+                                val direction = if (index < dropIndex) -1f else 1f
+                                rippleOffset.animateTo(
+                                    targetValue = pushAmount * direction,
+                                    animationSpec = androidx.compose.animation.core.tween(80)
+                                )
+                                rippleOffset.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = 0.5f,
+                                        stiffness = 400f
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+                
                 ReorderableItem(
                     state = reorderableState,
                     key = service.id
                 ) { isDragging ->
-                    SearchProviderCard(
-                        service = service,
-                        onUpdateService = { updatedService ->
-                            val newServices = settings.searchServices.toMutableList()
-                            newServices[index] = updatedService
-                            vm.updateSettings(
-                                settings.copy(
-                                    searchServices = newServices
-                                )
-                            )
+                    PhysicsSwipeToDelete(
+                        position = position,
+                        deleteEnabled = canDelete,
+                        neighborOffset = neighborOffset,
+                        onDragProgress = { offset, unlocked ->
+                            draggingIndex = index
+                            dragOffset = offset
+                            isUnlocked = unlocked
                         },
-                        onDeleteService = {
-                            if (settings.searchServices.size > 1) {
+                        onDragEnd = {
+                            if (draggingIndex == index) {
+                                draggingIndex = -1
+                                dragOffset = 0f
+                            }
+                        },
+                        onDelete = {
+                            serviceToDelete = service
+                            showDeleteDialog = true
+                        },
+                        modifier = Modifier
+                            .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
+                            .scale(if (isDragging) 0.95f else 1f)
+                            .fillMaxWidth()
+                    ) {
+                        SearchProviderCardContent(
+                            service = service,
+                            haptics = haptics,
+                            onUpdateService = { updatedService ->
                                 val newServices = settings.searchServices.toMutableList()
-                                newServices.removeAt(index)
+                                newServices[index] = updatedService
                                 vm.updateSettings(
                                     settings.copy(
                                         searchServices = newServices
                                     )
                                 )
+                            },
+                            dragHandle = {
+                                IconButton(
+                                    onClick = {},
+                                    modifier = Modifier.longPressDraggableHandle(
+                                        onDragStarted = {
+                                            haptics.perform(HapticPattern.Pop)
+                                        },
+                                        onDragStopped = {
+                                            haptics.perform(HapticPattern.Thud)
+                                            reorderDropServiceId = service.id
+                                            reorderDropTrigger++
+                                        }
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.DragIndicator,
+                                        contentDescription = null
+                                    )
+                                }
                             }
-                        },
-                        canDelete = settings.searchServices.size > 1,
-                        modifier = Modifier
-                            .scale(if (isDragging) 0.95f else 1f)
-                            .animateItem(),
-                        dragHandle = {
-                            Icon(
-                                imageVector = Icons.Rounded.DragIndicator,
-                                contentDescription = null,
-                                modifier = Modifier.longPressDraggableHandle(
-                                    onDragStarted = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                    },
-                                    onDragStopped = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                    }
-                                )
-                            )
-                        }
-                    )
+                        )
+                    }
                 }
             }
-
-            // 通用选项
-            // Removed as per request
+        }
+        
+        // Delete confirmation dialog
+        if (showDeleteDialog && serviceToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { 
+                    showDeleteDialog = false
+                    serviceToDelete = null
+                },
+                title = { Text(stringResource(R.string.confirm_delete)) },
+                text = { Text("Are you sure you want to delete this search service?") },
+                dismissButton = {
+                    TextButton(onClick = { 
+                        showDeleteDialog = false
+                        serviceToDelete = null
+                    }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        serviceToDelete?.let { svc ->
+                            val idx = settings.searchServices.indexOfFirst { it.id == svc.id }
+                            if (idx >= 0) {
+                                val newServices = settings.searchServices.toMutableList()
+                                newServices.removeAt(idx)
+                                vm.updateSettings(settings.copy(searchServices = newServices))
+                            }
+                        }
+                        showDeleteDialog = false
+                        serviceToDelete = null
+                    }) {
+                        Text(stringResource(R.string.confirm))
+                    }
+                }
+            )
         }
     }
 }
 
 
 @Composable
-private fun SearchProviderCard(
+private fun SearchProviderCardContent(
     service: SearchServiceOptions,
+    haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
     onUpdateService: (SearchServiceOptions) -> Unit,
-    onDeleteService: () -> Unit,
-    canDelete: Boolean,
-    modifier: Modifier = Modifier,
-    dragHandle: @Composable () -> Unit = {}
+    dragHandle: @Composable () -> Unit
 ) {
     var options by remember(service) {
         mutableStateOf(service)
     }
     var expand by remember { mutableStateOf(false) }
-    Card(
-        modifier = modifier,
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .animateContentSize()
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Select(
-                    options = SearchServiceOptions.TYPES.keys.toList(),
-                    selectedOption = options::class,
-                    optionToString = { SearchServiceOptions.TYPES[it] ?: "[Unknown]" },
-                    onOptionSelected = {
-                        options = it.primaryConstructor!!.callBy(mapOf())
-                        onUpdateService(options)
-                    },
-                    optionLeading = {
-                        AutoAIIcon(
-                            name = SearchServiceOptions.TYPES[it] ?: it.simpleName ?: "unknown",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
-                    leading = {
-                        AutoAIIcon(
-                            name = SearchServiceOptions.TYPES[options::class] ?: "unknown",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
+    
+    Column(
+        modifier = Modifier
+            .animateContentSize(
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = 0.8f,
+                    stiffness = 400f
                 )
-
-                IconButton(
-                    onClick = {
-                        expand = !expand
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (expand) Icons.Rounded.Close else Icons.Rounded.Edit,
-                        contentDescription = if (expand) "Hide details" else "Show details"
+            )
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable {
+                haptics.perform(HapticPattern.Pop)
+                expand = !expand
+            }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Select(
+                options = SearchServiceOptions.TYPES.keys.toList(),
+                selectedOption = options::class,
+                optionToString = { SearchServiceOptions.TYPES[it] ?: "[Unknown]" },
+                onOptionSelected = {
+                    options = it.primaryConstructor!!.callBy(mapOf())
+                    onUpdateService(options)
+                },
+                optionLeading = {
+                    AutoAIIcon(
+                        name = SearchServiceOptions.TYPES[it] ?: it.simpleName ?: "unknown",
+                        modifier = Modifier.size(24.dp)
                     )
+                },
+                leading = {
+                    AutoAIIcon(
+                        name = SearchServiceOptions.TYPES[options::class] ?: "unknown",
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(
+                onClick = {
+                    expand = !expand
                 }
-            }
-
-            SearchAbilityTagLine(options = options, modifier = Modifier.padding(horizontal = 8.dp))
-
-            AnimatedVisibility(expand) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    when (options) {
-                        is SearchServiceOptions.TavilyOptions -> {
-                            TavilyOptions(options as SearchServiceOptions.TavilyOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.ExaOptions -> {
-                            ExaOptions(options as SearchServiceOptions.ExaOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.ZhipuOptions -> {
-                            ZhipuOptions(options as SearchServiceOptions.ZhipuOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.SearXNGOptions -> {
-                            SearXNGOptions(options as SearchServiceOptions.SearXNGOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.LinkUpOptions -> {
-                            SearchLinkUpOptions(options as SearchServiceOptions.LinkUpOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.BraveOptions -> {
-                            BraveOptions(options as SearchServiceOptions.BraveOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.MetasoOptions -> {
-                            MetasoOptions(options as SearchServiceOptions.MetasoOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.OllamaOptions -> {
-                            OllamaOptions(options as SearchServiceOptions.OllamaOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.PerplexityOptions -> {
-                            PerplexityOptions(options as SearchServiceOptions.PerplexityOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.BingLocalOptions -> {}
-
-                        is SearchServiceOptions.FirecrawlOptions -> {
-                            FirecrawlOptions(options as SearchServiceOptions.FirecrawlOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.JinaOptions -> {
-                            JinaOptions(options as SearchServiceOptions.JinaOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-
-                        is SearchServiceOptions.BochaOptions -> {
-                            BochaOptions(options as SearchServiceOptions.BochaOptions) {
-                                options = it
-                                onUpdateService(options)
-                            }
-                        }
-                    }
-
-                    ProvideTextStyle(MaterialTheme.typography.labelMedium) {
-                        SearchService.getService(options).Description()
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (canDelete) {
-                    IconButton(
-                        onClick = onDeleteService
-                    ) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = stringResource(R.string.setting_page_search_delete_provider)
-                        )
+                Icon(
+                    imageVector = if (expand) Icons.Rounded.Close else Icons.Rounded.Edit,
+                    contentDescription = if (expand) "Hide details" else "Show details"
+                )
+            }
+            
+            dragHandle()
+        }
+
+        SearchAbilityTagLine(options = options)
+
+        AnimatedVisibility(expand) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                when (options) {
+                    is SearchServiceOptions.TavilyOptions -> {
+                        TavilyOptions(options as SearchServiceOptions.TavilyOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.ExaOptions -> {
+                        ExaOptions(options as SearchServiceOptions.ExaOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.ZhipuOptions -> {
+                        ZhipuOptions(options as SearchServiceOptions.ZhipuOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.SearXNGOptions -> {
+                        SearXNGOptions(options as SearchServiceOptions.SearXNGOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.LinkUpOptions -> {
+                        SearchLinkUpOptions(options as SearchServiceOptions.LinkUpOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.BraveOptions -> {
+                        BraveOptions(options as SearchServiceOptions.BraveOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.MetasoOptions -> {
+                        MetasoOptions(options as SearchServiceOptions.MetasoOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.OllamaOptions -> {
+                        OllamaOptions(options as SearchServiceOptions.OllamaOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.PerplexityOptions -> {
+                        PerplexityOptions(options as SearchServiceOptions.PerplexityOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.BingLocalOptions -> {}
+
+                    is SearchServiceOptions.FirecrawlOptions -> {
+                        FirecrawlOptions(options as SearchServiceOptions.FirecrawlOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.JinaOptions -> {
+                        JinaOptions(options as SearchServiceOptions.JinaOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
+                    }
+
+                    is SearchServiceOptions.BochaOptions -> {
+                        BochaOptions(options as SearchServiceOptions.BochaOptions) {
+                            options = it
+                            onUpdateService(options)
+                        }
                     }
                 }
 
-                Spacer(Modifier.weight(1f))
-
-                IconButton(
-                    onClick = {}
-                ) {
-                    dragHandle()
+                ProvideTextStyle(MaterialTheme.typography.labelMedium) {
+                    SearchService.getService(options).Description()
                 }
             }
         }

@@ -1,6 +1,13 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +38,7 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,12 +46,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -51,12 +63,16 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberAssistantState
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import kotlin.uuid.Uuid
 
 @Composable
 fun AssistantPicker(
     settings: Settings,
     onUpdateSettings: (Settings) -> Unit,
+    onNavigate: () -> Unit = {},  // Called after panels close
     modifier: Modifier = Modifier,
     onClickSetting: () -> Unit,
 ) {
@@ -100,8 +116,13 @@ fun AssistantPicker(
             settings = settings,
             currentAssistant = state.currentAssistant,
             onAssistantSelected = { assistant ->
-                showPicker = false
+                // Settings update happens immediately inside the sheet
                 state.setSelectAssistant(assistant)
+            },
+            onNavigate = {
+                // Navigation callback - called after animation
+                showPicker = false
+                onNavigate()
             },
             onDismiss = {
                 showPicker = false
@@ -115,6 +136,7 @@ fun AssistantPickerSheet(
     settings: Settings,
     currentAssistant: Assistant,
     onAssistantSelected: (Assistant) -> Unit,
+    onNavigate: () -> Unit = {},  // Called after animation completes
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -123,6 +145,10 @@ fun AssistantPickerSheet(
 
     // 标签过滤状态
     var selectedTagIds by remember { mutableStateOf(emptySet<Uuid>()) }
+    
+    // Transition state - which assistant is being switched to (null = not transitioning)
+    var transitioningAssistantId by remember { mutableStateOf<Uuid?>(null) }
+    val isTransitioning = transitioningAssistantId != null
 
     // 根据选中的标签过滤助手
     val filteredAssistants = remember(settings.assistants, selectedTagIds) {
@@ -135,6 +161,9 @@ fun AssistantPickerSheet(
         }
     }
 
+    val isDarkMode = LocalDarkMode.current
+    val haptics = rememberPremiumHaptics()
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -143,12 +172,12 @@ fun AssistantPickerSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
             Text(
                 text = stringResource(R.string.assistant_page_title),
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -182,30 +211,129 @@ fun AssistantPickerSheet(
                 modifier = Modifier
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                filteredAssistants.forEach { assistant ->
+                filteredAssistants.forEachIndexed { index, assistant ->
                     val checked = assistant.id == currentAssistant.id
-                    Card(
-                        onClick = { onAssistantSelected(assistant) },
-                        // Selected items completely round, others use large shape
-                        shape = if (checked) RoundedCornerShape(50) else MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                            contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        AssistantItem(
-                            assistant = assistant,
-                            defaultAssistantName = defaultAssistantName,
-                            onEdit = {
-                                scope.launch {
-                                    sheetState.hide()
-                                    onDismiss()
-                                    navController.navigate(Screen.AssistantDetail(assistant.id.toString()))
+                    
+                    // Determine position in the list for corner rounding
+                    val position = when {
+                        filteredAssistants.size == 1 -> "ONLY"
+                        index == 0 -> "FIRST"
+                        index == filteredAssistants.lastIndex -> "LAST"
+                        else -> "MIDDLE"
+                    }
+                    
+                    // Animated corner radius - selected items animate to fully round
+                    val topCorner by animateDpAsState(
+                        targetValue = if (checked) 50.dp else when (position) {
+                            "ONLY", "FIRST" -> 24.dp
+                            else -> 10.dp
+                        },
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+                        label = "topCorner"
+                    )
+                    val bottomCorner by animateDpAsState(
+                        targetValue = if (checked) 50.dp else when (position) {
+                            "ONLY", "LAST" -> 24.dp
+                            else -> 10.dp
+                        },
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+                        label = "bottomCorner"
+                    )
+                    
+                    val shape = RoundedCornerShape(
+                        topStart = topCorner, topEnd = topCorner,
+                        bottomStart = bottomCorner, bottomEnd = bottomCorner
+                    )
+                    
+                    // Use Row+clip+background pattern like ReasoningPicker
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(shape)
+                            .background(
+                                color = if (checked) MaterialTheme.colorScheme.primaryContainer 
+                                       else if (isDarkMode) Color.Black else Color.White
+                            )
+                            .clickable(enabled = !isTransitioning) {
+                                if (!checked) {
+                                    haptics.perform(HapticPattern.Pop)
+                                    transitioningAssistantId = assistant.id
+                                    // Update settings immediately
+                                    onAssistantSelected(assistant)
+                                    // Close panels then navigate
+                                    scope.launch {
+                                        transitioningAssistantId = null
+                                        sheetState.hide() // Animate sheet close
+                                        onNavigate() // drawer close + navigate
+                                    }
                                 }
                             }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        UIAvatar(
+                            name = assistant.name.ifEmpty { defaultAssistantName },
+                            value = assistant.avatar,
+                            modifier = Modifier.size(40.dp)
                         )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = assistant.name.ifEmpty { defaultAssistantName },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = assistant.systemPrompt.ifBlank { stringResource(R.string.assistant_page_no_system_prompt) },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        // Crossfade between edit icon and loading spinner
+                        val showSpinner = transitioningAssistantId == assistant.id
+                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            Crossfade(
+                                targetState = showSpinner,
+                                animationSpec = tween(200),
+                                label = "edit_spinner"
+                            ) { transitioning ->
+                                if (transitioning) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                        color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    IconButton(
+                                        onClick = {
+                                            if (!isTransitioning) {
+                                                scope.launch {
+                                                    sheetState.hide()
+                                                    onDismiss()
+                                                    navController.navigate(Screen.AssistantDetail(assistant.id.toString()))
+                                                }
+                                            }
+                                        },
+                                        enabled = !isTransitioning
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Edit,
+                                            contentDescription = null,
+                                            tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

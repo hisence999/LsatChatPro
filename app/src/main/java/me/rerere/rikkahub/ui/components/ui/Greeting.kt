@@ -1,5 +1,10 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +34,7 @@ fun Greeting(
         if (assistant != null && assistant.enablePersonalizedGreetings && assistant.personalizedGreetings.isNotEmpty()) {
             val greetings = assistant.personalizedGreetings[timeOfDay]
             if (!greetings.isNullOrEmpty()) {
-                return remember(timeOfDay) { greetings.random() }
+                return remember(timeOfDay, assistant.id) { greetings.random() }
             }
         }
 
@@ -41,9 +46,18 @@ fun Greeting(
         }
     }
 
-    Text(
-        text = getGreetingMessage(),
-        style = style,
+    // Animate greeting text when assistant changes
+    AnimatedContent(
+        targetState = getGreetingMessage(),
+        transitionSpec = {
+            fadeIn(tween(250)) togetherWith fadeOut(tween(250))
+        },
+        label = "greeting_animation",
         modifier = modifier
-    )
+    ) { greetingText ->
+        Text(
+            text = greetingText,
+            style = style,
+        )
+    }
 }

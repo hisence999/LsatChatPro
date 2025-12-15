@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,10 +18,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,19 +40,21 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -74,9 +80,12 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
+import me.rerere.rikkahub.ui.components.ui.ItemPosition
 import me.rerere.rikkahub.ui.hooks.EditState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
@@ -107,12 +116,18 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                 }
             ))
     }
+    
+    // Delete confirmation state - at function level so accessible by dialog
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var mcpToDelete by remember { mutableStateOf<McpServerConfig?>(null) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val lazyListState = rememberLazyListState()
+    
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(stringResource(R.string.setting_mcp_page_title))
-                },
+            OneUITopAppBar(
+                title = stringResource(R.string.setting_mcp_page_title),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
                 },
@@ -126,7 +141,8 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             )
-        }
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
         val mcpManager = koinInject<McpManager>()
         val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
@@ -143,27 +159,89 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
             state = state,
             modifier = Modifier.padding(innerPadding)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(mcpConfigs, key = { it.id }) { mcpConfig ->
-                    McpServerItem(
-                        item = mcpConfig,
-                        onEdit = {
-                            editState.open(mcpConfig)
-                        },
-                        onDelete = {
-                            vm.updateSettings(
-                                settings.copy(
-                                    mcpServers = mcpConfigs.filter { it.id != mcpConfig.id }
-                                )
-                            )
-                        },
-                        modifier = Modifier.animateItem()
-                    )
+            // Track which item is being dragged and its offset
+            var draggingIndex by remember { mutableStateOf(-1) }
+            var dragOffset by remember { mutableFloatStateOf(0f) }
+            var isUnlocked by remember { mutableStateOf(false) }
+            var neighborsUnlocked by remember { mutableStateOf(false) }
+            
+            // Reset neighborsUnlocked when offset returns to 0 (entry back in place)
+            if (dragOffset == 0f && neighborsUnlocked) {
+                neighborsUnlocked = false
+            }
+            
+            // Screen-level fade on left edge
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val unlockThresholdPx = with(density) { 35.dp.toPx() }
+            val fadeProgress = (kotlin.math.abs(dragOffset) / unlockThresholdPx).coerceIn(0f, 1f)
+            val backgroundColor = MaterialTheme.colorScheme.surfaceContainerLowest
+            
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    state = lazyListState,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    itemsIndexed(mcpConfigs, key = { _, it -> it.id }) { index, mcpConfig ->
+                        val position = when {
+                            mcpConfigs.size == 1 -> ItemPosition.ONLY
+                            index == 0 -> ItemPosition.FIRST
+                            index == mcpConfigs.lastIndex -> ItemPosition.LAST
+                            else -> ItemPosition.MIDDLE
+                        }
+                        
+                        // Calculate neighbor offset based on distance from dragging item
+                        val thresholdPx = with(density) { 35.dp.toPx() }
+                        
+                        // Check if we just crossed the threshold
+                        if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
+                            neighborsUnlocked = true
+                        }
+                        
+                        // Neighbors only follow if we haven't unlocked yet
+                        val shouldNeighborFollow = draggingIndex >= 0 && 
+                            draggingIndex != index && 
+                            !isUnlocked && 
+                            !neighborsUnlocked
+                        
+                        val neighborOffset = if (shouldNeighborFollow) {
+                            val distance = kotlin.math.abs(index - draggingIndex)
+                            when (distance) {
+                                1 -> dragOffset * 0.35f  // Direct neighbors get 35%
+                                2 -> dragOffset * 0.12f  // Neighbors of neighbors get 12%
+                                else -> 0f
+                            }
+                        } else {
+                            0f
+                        }
+                        
+                        McpServerItem(
+                            item = mcpConfig,
+                            position = position,
+                            neighborOffset = neighborOffset,
+                            onDragProgress = { offset, unlocked ->
+                                draggingIndex = index
+                                dragOffset = offset
+                                isUnlocked = unlocked
+                            },
+                            onDragEnd = {
+                                if (draggingIndex == index) {
+                                    draggingIndex = -1
+                                    dragOffset = 0f
+                                }
+                            },
+                            onEdit = {
+                                editState.open(mcpConfig)
+                            },
+                            onDelete = {
+                                mcpToDelete = mcpConfig
+                                showDeleteDialog = true
+                            },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
                 }
             }
 
@@ -182,6 +260,47 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
             }
         }
     }
+    
+    // Delete confirmation dialog
+    if (showDeleteDialog && mcpToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteDialog = false
+                mcpToDelete = null
+            },
+            title = {
+                Text(stringResource(R.string.confirm_delete))
+            },
+            text = {
+                Text("Are you sure you want to delete this MCP server?")
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showDeleteDialog = false
+                    mcpToDelete = null
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mcpToDelete?.let { mcp ->
+                            vm.updateSettings(
+                                settings.copy(
+                                    mcpServers = mcpConfigs.filter { it.id != mcp.id }
+                                )
+                            )
+                        }
+                        showDeleteDialog = false
+                        mcpToDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            }
+        )
+    }
     McpServerConfigModal(creationState)
     McpServerConfigModal(editState)
 }
@@ -189,40 +308,23 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
 @Composable
 private fun McpServerItem(
     item: McpServerConfig,
+    position: ItemPosition,
+    neighborOffset: Float = 0f,
+    onDragProgress: ((Float, Boolean) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onDelete: () -> Unit,
     onEdit: (McpServerConfig) -> Unit,
 ) {
     val mcpManager = koinInject<McpManager>()
     val status by mcpManager.getStatus(item).collectAsStateWithLifecycle(McpStatus.Idle)
-    val dismissBoxState = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
-    SwipeToDismissBox(
-        state = dismissBoxState,
-        backgroundContent = {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                FilledTonalIconButton(
-                    onClick = {
-                        scope.launch { dismissBoxState.reset() }
-                    }
-                ) {
-                    Icon(Icons.Rounded.Close, null)
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        onDelete()
-                    }
-                ) {
-                    Icon(Icons.Rounded.Delete, null)
-                }
-            }
-        },
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
+    
+    PhysicsSwipeToDelete(
+        onDelete = onDelete,
+        position = position,
+        neighborOffset = neighborOffset,
+        onDragProgress = onDragProgress,
+        onDragEnd = onDragEnd,
         modifier = modifier
     ) {
         Card(
@@ -260,7 +362,7 @@ private fun McpServerItem(
                     ) {
                         Text(
                             text = item.commonOptions.name,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                         )
                         val dotColor =
                             if (item.commonOptions.enable) MaterialTheme.extendColors.green6 else MaterialTheme.extendColors.red6

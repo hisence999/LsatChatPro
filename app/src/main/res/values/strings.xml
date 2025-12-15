@@ -108,7 +108,7 @@
     <string name="assistant_page_template_variables_label">Variables:</string>
     <string name="assistant_page_thinking_budget">Thinking Budget</string>
     <string name="assistant_page_thinking_budget_default">Default</string>
-    <string name="assistant_page_title">Assistant Settings</string>
+    <string name="assistant_page_title">Assistants</string>
     <string name="assistant_page_top_p">Top P</string>
     <string name="assistant_page_top_p_value">Top P: %s</string>
     <string name="assistant_page_top_p_warning">Don\'t modify this unless you know what you are doing</string>
@@ -161,7 +161,7 @@
     <string name="backup_page_restoring">Restoring...</string>
     <string name="backup_page_size">Size</string>
     <string name="backup_page_test_connection">Test Connection</string>
-    <string name="backup_page_title">Backup &amp; Restore</string>
+    <string name="backup_page_title">Data Management</string>
     <string name="backup_page_unknown_error">Unknown Error</string>
     <string name="backup_page_username">Username</string>
     <string name="backup_page_webdav_backup">WebDAV Backup</string>
@@ -431,7 +431,7 @@
     <string name="setting_model_page_suggestion_model">Suggestion Model</string>
     <string name="setting_model_page_suggestion_model_desc">Model for generating chat suggestions. Recommend fast/cheap model.</string>
     <string name="setting_model_page_suggestion_prompt_vars">Vars: Content: {content}, Locale: {locale}</string>
-    <string name="setting_model_page_title">Model Settings</string>
+    <string name="setting_model_page_title">Default Models</string>
     <string name="setting_model_page_title_model">Title Model</string>
     <string name="setting_model_page_title_model_desc">Model for summarizing chat titles. Recommend fast/cheap model.</string>
     <string name="setting_model_page_translate_model">Translate Model</string>
@@ -439,8 +439,8 @@
     <string name="setting_model_page_translate_prompt_vars">Vars: Source: {source_text}, Target Lang: {target_lang}</string>
     <string name="setting_page_about">About</string>
     <string name="setting_page_about_desc">About this App</string>
-    <string name="setting_page_assistant">Assistant</string>
-    <string name="setting_page_assistant_desc">Configure personalized assistants</string>
+    <string name="setting_page_assistant">Assistants</string>
+    <string name="setting_page_assistant_desc">Configure your assistants</string>
     <string name="setting_page_basic_settings">Basic Settings</string>
     <string name="setting_page_built_in_tools">Built-in Tools</string>
     <string name="setting_page_built_in_tools_desc">Select built-in tools supported by model. Currently only for Gemini official API.</string>
@@ -458,7 +458,7 @@
     <string name="setting_page_config">Config</string>
     <string name="setting_page_config_api_desc">You haven\'t configured API and models yet.</string>
     <string name="setting_page_config_api_title">Please configure API</string>
-    <string name="setting_page_data_backup">Data Backup</string>
+    <string name="setting_page_data_backup">Data Management</string>
     <string name="setting_page_data_backup_desc">Backup and restore app data</string>
     <string name="setting_page_data_settings">Data Settings</string>
     <string name="setting_page_default_model">Default Models</string>
@@ -484,9 +484,9 @@
     <string name="setting_page_search_provider_type">Provider Type</string>
     <string name="setting_page_search_providers">Search Providers</string>
     <string name="setting_page_search_result_size">Result Size</string>
-    <string name="setting_page_search_service">Search Service</string>
+    <string name="setting_page_search_service">Search Services</string>
     <string name="setting_page_search_service_desc">Configure search services</string>
-    <string name="setting_page_search_title">Search Service</string>
+    <string name="setting_page_search_title">Search Services</string>
     <string name="setting_page_share">Share</string>
     <string name="setting_page_share_desc">Share this app with friends</string>
     <string name="setting_page_share_text">LastChat - Open Source AI Assistant\n\nWebsite: https://rikka-ai.com/</string>
@@ -494,8 +494,8 @@
     <string name="setting_page_theme_type_high_contrast">High Contrast</string>
     <string name="setting_page_theme_type_medium_contrast">Medium Contrast</string>
     <string name="setting_page_theme_type_standard">Standard</string>
-    <string name="setting_page_tts_service">TTS Service</string>
-    <string name="setting_page_tts_service_desc">Configure Text-to-Speech providers</string>
+    <string name="setting_page_tts_service">TTS Services</string>
+    <string name="setting_page_tts_service_desc">Configure TTS providers</string>
     <string name="setting_provider_page_abilities">Abilities</string>
     <string name="setting_provider_page_add">Add</string>
     <string name="setting_provider_page_add_model">Add Model</string>
@@ -616,7 +616,7 @@
     <string name="setting_tts_page_speed">Speed</string>
     <string name="setting_tts_page_speed_description">Synthesis Speed (0.25 - 4.0)</string>
     <string name="setting_tts_page_test_text">Hello, this is a text-to-speech test.</string>
-    <string name="setting_tts_page_title">Text to Speech</string>
+    <string name="setting_tts_page_title">TTS Services</string>
     <string name="setting_tts_page_voice">Voice</string>
     <string name="setting_tts_page_voice_description">Voice to use for synthesis</string>
     <string name="setting_tts_page_voice_id">Voice ID</string>

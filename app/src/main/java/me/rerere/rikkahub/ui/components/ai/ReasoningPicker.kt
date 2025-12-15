@@ -209,23 +209,28 @@ private fun ReasoningOptionItem(
 ) {
     val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
     
-    // Calculate shape based on position - edges get 24dp, connections get 10dp
-    val itemShape = if (selected) {
-        RoundedCornerShape(50)  // Selected items are fully round
-    } else {
-        when (position) {
-            ItemPosition.FIRST -> RoundedCornerShape(
-                topStart = 24.dp, topEnd = 24.dp,
-                bottomStart = 10.dp, bottomEnd = 10.dp
-            )
-            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
-            ItemPosition.LAST -> RoundedCornerShape(
-                topStart = 10.dp, topEnd = 10.dp,
-                bottomStart = 24.dp, bottomEnd = 24.dp
-            )
-            ItemPosition.SINGLE -> RoundedCornerShape(24.dp)
-        }
-    }
+    // Animated corner radius - selected items animate to fully round
+    val topCorner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected) 50.dp else when (position) {
+            ItemPosition.FIRST, ItemPosition.SINGLE -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "topCorner"
+    )
+    val bottomCorner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected) 50.dp else when (position) {
+            ItemPosition.LAST, ItemPosition.SINGLE -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "bottomCorner"
+    )
+    
+    val itemShape = RoundedCornerShape(
+        topStart = topCorner, topEnd = topCorner,
+        bottomStart = bottomCorner, bottomEnd = bottomCorner
+    )
     
     // Use Row with clip+background like ModelItem does (Surface may apply M3 color transformations)
     Row(

@@ -125,7 +125,8 @@ fun McpPickerButton(
                     text = stringResource(id = R.string.mcp_picker_title),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold
-                    )
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 AnimatedVisibility(loading) {
                     Column(

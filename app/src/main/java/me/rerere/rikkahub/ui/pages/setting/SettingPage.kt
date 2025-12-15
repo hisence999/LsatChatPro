@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,6 +78,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.HapticPattern
@@ -93,16 +95,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val lazyListState = rememberLazyListState()
+    
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Text(text = stringResource(R.string.settings))
-                },
+            OneUITopAppBar(
+                title = stringResource(R.string.settings),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
                 },
-                scrollBehavior = scrollBehavior,
                 actions = {
                     if(settings.developerMode) {
                         IconButton(
@@ -120,8 +122,9 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(horizontal = 0.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            state = lazyListState,
+            contentPadding = innerPadding,
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             if (settings.isNotConfigured()) {
                 item {
@@ -195,6 +198,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         icon = { Icon(Icons.Rounded.AccountTree, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingModels) }
                     )
+
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_providers),
                         subtitle = stringResource(R.string.setting_page_providers_desc),
@@ -279,6 +283,7 @@ private fun SettingsGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
+        modifier = Modifier.padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
@@ -286,7 +291,7 @@ private fun SettingsGroup(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 0.dp)
         )
         Column(
             modifier = Modifier
@@ -478,7 +483,9 @@ private fun UpdateAvailableBanner(
     if (!checkForUpdates) return
     
     val updateChecker = org.koin.compose.koinInject<me.rerere.rikkahub.utils.UpdateChecker>()
-    val updateState by updateChecker.checkUpdate().collectAsStateWithLifecycle(initialValue = me.rerere.rikkahub.utils.UiState.Loading)
+    // Remember the flow to prevent creating a new one on each recomposition
+    val updateFlow = remember(updateChecker) { updateChecker.checkUpdate() }
+    val updateState by updateFlow.collectAsStateWithLifecycle(initialValue = me.rerere.rikkahub.utils.UiState.Loading)
     var showUpdateDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     

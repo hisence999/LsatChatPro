@@ -37,6 +37,9 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import okio.Path.Companion.toOkioPath
 import com.dokar.sonner.Toaster
 import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
@@ -102,6 +105,17 @@ class RouteActivity : ComponentActivity() {
                 setSingletonImageLoaderFactory { context ->
                     ImageLoader.Builder(context)
                         .crossfade(true)
+                        .memoryCache {
+                            MemoryCache.Builder()
+                                .maxSizePercent(context, 0.25) // Use 25% of app's memory for image cache
+                                .build()
+                        }
+                        .diskCache {
+                            DiskCache.Builder()
+                                .directory(context.cacheDir.resolve("image_cache").toOkioPath())
+                                .maxSizeBytes(50 * 1024 * 1024) // 50 MB disk cache for icons
+                                .build()
+                        }
                         .components {
                             add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
                             add(SvgDecoder.Factory(scaleToDensity = true))

@@ -143,7 +143,8 @@ fun SearchPickerButton(
                     text = stringResource(R.string.search_picker_title),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold
-                    )
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 SearchPicker(
@@ -277,7 +278,9 @@ private fun AppSearchSettings(
                     onClick = { onUpdateSearchService(index) },
                     shape = getItemShape(index + 1, totalItems, isSelected),
                     isAmoled = isAmoled,
-                    isDarkMode = isDarkMode
+                    isDarkMode = isDarkMode,
+                    index = index + 1,
+                    totalCount = totalItems
                 )
             }
         }
@@ -302,7 +305,9 @@ private fun AppSearchSettings(
                     onClick = { onUpdateSearchService(index) },
                     shape = getItemShape(index + 1, totalItems, isSelected),
                     isAmoled = isAmoled,
-                    isDarkMode = isDarkMode
+                    isDarkMode = isDarkMode,
+                    index = index + 1,
+                    totalCount = totalItems
                 )
             }
         }
@@ -361,9 +366,36 @@ private fun SearchProviderItem(
     onClick: () -> Unit,
     shape: RoundedCornerShape,
     isAmoled: Boolean,
-    isDarkMode: Boolean
+    isDarkMode: Boolean,
+    index: Int = 0,
+    totalCount: Int = 1
 ) {
     val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    // Animated corner radius - selected items animate to fully round
+    val topCorner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isSelected) 50.dp else when {
+            totalCount == 1 -> 24.dp
+            index == 0 -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "topCorner"
+    )
+    val bottomCorner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isSelected) 50.dp else when {
+            totalCount == 1 -> 24.dp
+            index == totalCount - 1 -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "bottomCorner"
+    )
+    
+    val animatedShape = RoundedCornerShape(
+        topStart = topCorner, topEnd = topCorner,
+        bottomStart = bottomCorner, bottomEnd = bottomCorner
+    )
     
     // Use Color.Black/White pattern like ReasoningPicker
     val containerColor = if (isSelected) {
@@ -384,7 +416,7 @@ private fun SearchProviderItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
+            .clip(animatedShape)
             .background(containerColor)
             .clickable {
                 haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)

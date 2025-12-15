@@ -69,7 +69,13 @@ class MemoryConsolidationWorker(
         // =========================================================================================
         // Convert recent conversations into "Episodes"
         val isFullScan = inputData.getBoolean("FULL_SCAN", false)
-        val conversationsToProcess = if (isFullScan) {
+        val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
+        
+        val conversationsToProcess = if (forceConversationId != null) {
+            // Manual consolidation: only process the specific conversation
+            val targetConversation = conversationRepository.getConversationById(kotlin.uuid.Uuid.parse(forceConversationId))
+            if (targetConversation != null) listOf(targetConversation) else emptyList()
+        } else if (isFullScan) {
             conversationRepository.getConversationsOfAssistant(settings.assistantId).first()
         } else {
             conversationRepository.getRecentConversations(settings.assistantId, 10)
@@ -82,12 +88,13 @@ class MemoryConsolidationWorker(
             // Skip short conversations
             if (conversation.messageNodes.size < 4) continue
             
-            // Check if already consolidated
-            if (conversation.isConsolidated && !isFullScan) continue
+            // Check if already consolidated (unless forced or full scan)
+            if (conversation.isConsolidated && !isFullScan && forceConversationId == null) continue
             
             // CHECK DELAY: Only consolidate if enough time has passed since last update
+            // (Skip delay check for forced/manual consolidation)
             val delayMs = assistant.consolidationDelayMinutes * 60 * 1000L
-            if (now - conversation.updateAt.toEpochMilli() < delayMs && !isFullScan) {
+            if (forceConversationId == null && now - conversation.updateAt.toEpochMilli() < delayMs && !isFullScan) {
                 Log.i("MemoryConsolidation", "Skipping conversation ${conversation.id} (waiting for delay)")
                 continue
             }

@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,10 +29,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -43,6 +49,9 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Edit
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
@@ -74,6 +83,7 @@ fun ChatDrawerContent(
     vm: ChatVM,
     settings: Settings,
     current: Conversation,
+    drawerState: androidx.compose.material3.DrawerState? = null,  // Optional for animated close
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -198,13 +208,21 @@ fun ChatDrawerContent(
             if (settings.assistants.size > 1) {
                 AssistantPicker(
                     settings = settings,
-                    onUpdateSettings = {
-                        vm.updateSettings(it)
+                    onUpdateSettings = { newSettings ->
+                        // Just update settings - don't navigate yet
+                        vm.updateSettings(newSettings)
+                    },
+                    onNavigate = {
+                        // Called after sheet closes - just close drawer and navigate
                         scope.launch {
+                            // Close drawer with animation
+                            drawerState?.close()
+                            
+                            // Navigate to new chat
                             val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
                                 Uuid.random()
                             } else {
-                                repo.getConversationsOfAssistant(it.assistantId)
+                                repo.getConversationsOfAssistant(settings.assistantId)
                                     .first()
                                     .firstOrNull()
                                     ?.id ?: Uuid.random()

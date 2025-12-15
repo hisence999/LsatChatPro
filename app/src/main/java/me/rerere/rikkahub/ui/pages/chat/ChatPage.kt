@@ -182,7 +182,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                         navController = navController,
                         current = conversation,
                         vm = vm,
-                        settings = setting
+                        settings = setting,
+                        drawerState = drawerState
                     )
                 }
             ) {
@@ -210,7 +211,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                         navController = navController,
                         current = conversation,
                         vm = vm,
-                        settings = setting
+                        settings = setting,
+                        drawerState = drawerState
                     )
                 }
             ) {

@@ -245,9 +245,6 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                                 context.getString(R.string.setting_provider_page_save_success),
                                 type = ToastType.Success
                             )
-                        },
-                        onDelete = {
-                            onDelete()
                         }
                     )
                 }
@@ -273,12 +270,10 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
 @Composable
 private fun SettingProviderConfigPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit,
-    onDelete: () -> Unit
+    onEdit: (ProviderSetting) -> Unit
 ) {
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     val scope = rememberCoroutineScope()
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -324,14 +319,6 @@ private fun SettingProviderConfigPage(
 
             Spacer(Modifier.weight(1f))
 
-            IconButton(
-                onClick = {
-                    showDeleteDialog = true
-                },
-            ) {
-                Icon(Icons.Rounded.Delete, "Delete")
-            }
-
             Button(
                 onClick = {
                     onEdit(internalProvider)
@@ -349,34 +336,6 @@ private fun SettingProviderConfigPage(
                     .padding(vertical = 16.dp)
             )
         }
-    }
-
-    // Delete confirmation dialog
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = {
-                Text(stringResource(R.string.confirm_delete))
-            },
-            text = {
-                Text(stringResource(R.string.setting_provider_page_delete_dialog_text))
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        onDelete()
-                    }
-                ) {
-                    Text(stringResource(R.string.delete))
-                }
-            }
-        )
     }
 }
 
@@ -784,13 +743,16 @@ private fun ModelSettingsForm(
         val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
         val outputModality = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id)
         val abilities = ModelRegistry.MODEL_ABILITIES.getData(id)
+        // Extract providerSlug from model ID if it contains "/" (e.g., "anthropic/claude-3.5" -> "anthropic")
+        val providerSlug = if (id.contains("/")) id.substringBefore("/") else null
         onModelChange(
             model.copy(
                 modelId = id,
                 displayName = id.uppercase(),
                 inputModalities = inputModality,
                 outputModalities = outputModality,
-                abilities = abilities
+                abilities = abilities,
+                providerSlug = providerSlug
             )
         )
     }

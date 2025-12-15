@@ -3,6 +3,8 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -16,8 +18,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
@@ -35,10 +39,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,7 +75,11 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoProviderIcon
+import me.rerere.rikkahub.ui.components.ui.ItemPosition
+import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
@@ -95,13 +108,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     }
 
     val filteredProviders = settings.providers
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = stringResource(R.string.setting_provider_page_title))
-                },
+            OneUITopAppBar(
+                title = stringResource(R.string.setting_provider_page_title),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
                 },
@@ -124,57 +137,217 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 }
             )
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Search bar
-            // Search bar removed
-
-
+            // State for swipe neighbor tracking
+            var draggingIndex by remember { mutableStateOf(-1) }
+            var dragOffset by remember { mutableFloatStateOf(0f) }
+            var isUnlocked by remember { mutableStateOf(false) }
+            var neighborsUnlocked by remember { mutableStateOf(false) }
+            
+            // State for reorder ripple effect - use provider ID to track position after reorder
+            var reorderDropProviderId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
+            var reorderDropTrigger by remember { mutableStateOf(0) } // Increment to trigger ripple
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+            
+            // Check if delete is allowed (more than 1 provider)
+            val canDelete = filteredProviders.size > 1
+            
+            // Reset neighborsUnlocked when offset returns to 0
+            if (dragOffset == 0f && neighborsUnlocked) {
+                neighborsUnlocked = false
+            }
+            
+            // Ripple animation for all items
+            val ripplePushDp = 10.dp
+            val ripplePushPx = with(density) { ripplePushDp.toPx() }
+            
+            // Delete confirmation state
+            var showDeleteDialog by remember { mutableStateOf(false) }
+            var providerToDelete by remember { mutableStateOf<ProviderSetting?>(null) }
+            
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .imePadding(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 state = lazyListState,
             ) {
-                items(filteredProviders, key = { it.id }) { provider ->
+                itemsIndexed(filteredProviders, key = { _, it -> it.id }) { index, provider ->
+                    val position = when {
+                        filteredProviders.size == 1 -> ItemPosition.ONLY
+                        index == 0 -> ItemPosition.FIRST
+                        index == filteredProviders.lastIndex -> ItemPosition.LAST
+                        else -> ItemPosition.MIDDLE
+                    }
+                    
+                    // Calculate neighbor offset
+                    val thresholdPx = with(density) { 35.dp.toPx() }
+                    if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
+                        neighborsUnlocked = true
+                    }
+                    
+                    val shouldNeighborFollow = draggingIndex >= 0 && 
+                        draggingIndex != index && 
+                        !isUnlocked && 
+                        !neighborsUnlocked
+                    
+                    val neighborOffset = if (shouldNeighborFollow) {
+                        val distance = kotlin.math.abs(index - draggingIndex)
+                        when (distance) {
+                            1 -> dragOffset * 0.35f
+                            2 -> dragOffset * 0.12f
+                            else -> 0f
+                        }
+                    } else {
+                        0f
+                    }
+                    
+                    // Ripple animation for this item
+                    val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
+                    androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
+                        if (reorderDropTrigger > 0 && reorderDropProviderId != null && reorderDropProviderId != provider.id) {
+                            // Find the current index of the dropped provider in the reordered list
+                            val dropIndex = filteredProviders.indexOfFirst { it.id == reorderDropProviderId }
+                            if (dropIndex >= 0) {
+                                val distance = kotlin.math.abs(index - dropIndex)
+                                if (distance <= 3) {
+                                    // Push amount decreases with distance
+                                    val pushAmount = when (distance) {
+                                        1 -> ripplePushPx
+                                        2 -> ripplePushPx * 0.6f
+                                        3 -> ripplePushPx * 0.3f
+                                        else -> 0f
+                                    }
+                                    // Direction: items above drop push up, items below push down
+                                    val direction = if (index < dropIndex) -1f else 1f
+                                    // Quick push out
+                                    rippleOffset.animateTo(
+                                        targetValue = pushAmount * direction,
+                                        animationSpec = androidx.compose.animation.core.tween(80)
+                                    )
+                                    // Spring back
+                                    rippleOffset.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = androidx.compose.animation.core.spring(
+                                            dampingRatio = 0.5f,
+                                            stiffness = 400f
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
                     ReorderableItem(
                         state = reorderableState,
                         key = provider.id
                     ) { isDragging ->
-                        ProviderItem(
-                            modifier = Modifier
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .fillMaxWidth(),
-                            provider = provider,
-                            haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics),
-                            dragHandle = {
-                                IconButton(
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .longPressDraggableHandle(
-                                            onDragStarted = {},
-                                            onDragStopped = {}
-                                        )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.DragIndicator,
-                                        contentDescription = null
-                                    )
+                        PhysicsSwipeToDelete(
+                            position = position,
+                            deleteEnabled = canDelete,
+                            neighborOffset = neighborOffset,
+                            onDragProgress = { offset, unlocked ->
+                                draggingIndex = index
+                                dragOffset = offset
+                                isUnlocked = unlocked
+                            },
+                            onDragEnd = {
+                                if (draggingIndex == index) {
+                                    draggingIndex = -1
+                                    dragOffset = 0f
                                 }
                             },
-                            onClick = {
-                                navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
-                            }
-                        )
+                            onDelete = {
+                                providerToDelete = provider
+                                showDeleteDialog = true
+                            },
+                            modifier = Modifier
+                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
+                                .scale(if (isDragging) 0.95f else 1f)
+                                .fillMaxWidth()
+                        ) {
+                            ProviderItemContent(
+                                provider = provider,
+                                haptics = haptics,
+                                dragHandle = {
+                                    IconButton(
+                                        onClick = {},
+                                        modifier = Modifier
+                                            .longPressDraggableHandle(
+                                                onDragStarted = {
+                                                    haptics.perform(HapticPattern.Pop)
+                                                },
+                                                onDragStopped = {
+                                                    haptics.perform(HapticPattern.Thud)
+                                                    // Trigger ripple using provider ID
+                                                    reorderDropProviderId = provider.id
+                                                    reorderDropTrigger++
+                                                }
+                                            )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.DragIndicator,
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
+                                }
+                            )
+                        }
                     }
                 }
+            }
+            
+            // Delete confirmation dialog
+            if (showDeleteDialog && providerToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { 
+                        showDeleteDialog = false
+                        providerToDelete = null
+                    },
+                    title = {
+                        Text(stringResource(R.string.confirm_delete))
+                    },
+                    text = {
+                        Text(stringResource(R.string.setting_provider_page_delete_dialog_text))
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { 
+                            showDeleteDialog = false
+                            providerToDelete = null
+                        }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                providerToDelete?.let { p ->
+                                    vm.updateSettings(
+                                        settings.copy(
+                                            providers = settings.providers.filter { it.id != p.id }
+                                        )
+                                    )
+                                }
+                                showDeleteDialog = false
+                                providerToDelete = null
+                            }
+                        ) {
+                            Text(stringResource(R.string.delete))
+                        }
+                    }
+                )
             }
         }
     }
@@ -439,70 +612,71 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
 }
 
 @Composable
-private fun ProviderItem(
+private fun ProviderItemContent(
     provider: ProviderSetting,
-    modifier: Modifier = Modifier,
     haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
     dragHandle: @Composable () -> Unit,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = if (provider.enabled) {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            } else MaterialTheme.colorScheme.errorContainer,
-        ),
-        onClick = {
-            haptics.perform(HapticPattern.Pop)
-            onClick()
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AutoAIIcon(
-                name = provider.name,
-                modifier = Modifier.size(40.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (provider.enabled) {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                } else {
+                    MaterialTheme.colorScheme.errorContainer
+                }
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            .clickable {
+                haptics.perform(HapticPattern.Pop)
+                onClick()
+            }
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AutoProviderIcon(
+            name = provider.name,
+            baseUrl = when (provider) {
+                is ProviderSetting.OpenAI -> provider.baseUrl
+                is ProviderSetting.Google -> provider.baseUrl
+                is ProviderSetting.Claude -> provider.baseUrl
+            },
+            modifier = Modifier.size(40.dp)
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = provider.name,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = provider.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Tag(type = if (provider.enabled) TagType.SUCCESS else TagType.WARNING) {
-                        Text(stringResource(if (provider.enabled) R.string.setting_provider_page_enabled else R.string.setting_provider_page_disabled))
-                    }
-                    Tag(type = TagType.INFO) {
-                        Text(
-                            stringResource(
-                                R.string.setting_provider_page_model_count,
-                                provider.models.size
-                            )
+                Tag(type = if (provider.enabled) TagType.SUCCESS else TagType.WARNING) {
+                    Text(stringResource(if (provider.enabled) R.string.setting_provider_page_enabled else R.string.setting_provider_page_disabled))
+                }
+                Tag(type = TagType.INFO) {
+                    Text(
+                        stringResource(
+                            R.string.setting_provider_page_model_count,
+                            provider.models.size
                         )
-                    }
-                    if (provider.name == "AiHubMix") {
-                        Tag(type = TagType.INFO) {
-                            Text("10% off")
-                        }
+                    )
+                }
+                if (provider.name == "AiHubMix") {
+                    Tag(type = TagType.INFO) {
+                        Text("10% off")
                     }
                 }
             }
-            dragHandle()
         }
+        dragHandle()
     }
 }

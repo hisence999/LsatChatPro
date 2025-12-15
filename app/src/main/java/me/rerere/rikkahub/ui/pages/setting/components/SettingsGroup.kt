@@ -37,6 +37,7 @@ fun SettingsGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
+        modifier = Modifier.padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
@@ -44,7 +45,7 @@ fun SettingsGroup(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 0.dp)
         )
         Column(
             modifier = Modifier

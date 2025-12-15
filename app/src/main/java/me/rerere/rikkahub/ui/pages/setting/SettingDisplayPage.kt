@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -36,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
@@ -64,6 +67,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val lazyListState = rememberLazyListState()
 
     val permissionState = rememberPermissionState(
         permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setOf(
@@ -74,24 +78,21 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Text(stringResource(R.string.setting_display_page_title))
-                },
+            OneUITopAppBar(
+                title = stringResource(R.string.setting_display_page_title),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
-                },
-                scrollBehavior = scrollBehavior
+                }
             )
-        }
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { contentPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .consumeWindowInsets(contentPadding),
-            contentPadding = contentPadding + PaddingValues(horizontal = 0.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize(),
+            state = lazyListState,
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // Theme Settings
             item {

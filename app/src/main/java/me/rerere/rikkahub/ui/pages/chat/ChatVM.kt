@@ -515,8 +515,13 @@ class ChatVM(
             // Mark conversation as not consolidated so it will be picked up by the worker
             conversationRepo.markAsNotConsolidated(conversation.id)
             
-            // Trigger a consolidation run
+            // Trigger a consolidation run with specific conversation ID
             val request = androidx.work.OneTimeWorkRequestBuilder<me.rerere.rikkahub.service.MemoryConsolidationWorker>()
+                .setInputData(
+                    androidx.work.workDataOf(
+                        "FORCE_CONVERSATION_ID" to conversation.id.toString()
+                    )
+                )
                 .build()
             androidx.work.WorkManager.getInstance(context).enqueue(request)
         }
