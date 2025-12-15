@@ -47,8 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -160,7 +159,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 .consumeWindowInsets(it),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val haptic = LocalHapticFeedback.current
+
 
             // 标签过滤器
             AssistantTagsFilterRow(
@@ -276,29 +275,31 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                         val memories by vm.getMemories(assistant).collectAsStateWithLifecycle(
                             initialValue = emptyList(),
                         )
-                        PhysicsSwipeToDelete(
-                            position = position,
-                            deleteEnabled = canDelete,
-                            neighborOffset = neighborOffset,
-                            onDragProgress = { offset, unlocked ->
-                                draggingIndex = index
-                                dragOffset = offset
-                                isUnlocked = unlocked
-                            },
-                            onDragEnd = {
-                                if (draggingIndex == index) {
-                                    draggingIndex = -1
-                                    dragOffset = 0f
-                                }
-                            },
-                            onDelete = {
-                                assistantToDelete = assistant
-                                showDeleteDialog = true
-                            },
-                            modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .fillMaxWidth()
+                        // Key on canDelete to force complete PhysicsSwipeToDelete recreation when list size changes
+                        androidx.compose.runtime.key(canDelete) {
+                            PhysicsSwipeToDelete(
+                                position = position,
+                                deleteEnabled = canDelete,
+                                neighborOffset = neighborOffset,
+                                onDragProgress = { offset, unlocked ->
+                                    draggingIndex = index
+                                    dragOffset = offset
+                                    isUnlocked = unlocked
+                                },
+                                onDragEnd = {
+                                    if (draggingIndex == index) {
+                                        draggingIndex = -1
+                                        dragOffset = 0f
+                                    }
+                                },
+                                onDelete = {
+                                    assistantToDelete = assistant
+                                    showDeleteDialog = true
+                                },
+                                modifier = Modifier
+                                    .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
+                                    .scale(if (isDragging) 0.95f else 1f)
+                                    .fillMaxWidth()
                         ) {
                             AssistantItemContent(
                                 assistant = assistant,
@@ -334,8 +335,9 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                     }
                                 }
                             )
-                        }
-                    }
+                            }  // end PhysicsSwipeToDelete content
+                        }  // key(canDelete)
+                    }  // ReorderableItem
                 }
             }
             

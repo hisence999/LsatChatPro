@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -53,7 +51,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -255,31 +252,7 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     
-    // Simple send animation - just a quick pulse effect on the input
-    val sendPulse = remember { Animatable(1f) }
-    var isSending by remember { mutableStateOf(false) }
-    
-    // Trigger send animation
-    LaunchedEffect(isSending) {
-        if (isSending) {
-            // Quick scale down then back up - satisfying "send" pulse
-            sendPulse.animateTo(
-                targetValue = 0.95f,
-                animationSpec = spring(
-                    dampingRatio = 0.3f,
-                    stiffness = 500f
-                )
-            )
-            sendPulse.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = 0.4f,
-                    stiffness = 300f
-                )
-            )
-            isSending = false
-        }
-    }
+
 
     LaunchedEffect(loadingJob) {
         inputState.loading = loadingJob != null
@@ -378,11 +351,7 @@ private fun ChatPageContent(
 
                 ChatInput(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .graphicsLayer {
-                            scaleX = sendPulse.value
-                            scaleY = sendPulse.value
-                        },
+                        .align(Alignment.BottomCenter),
                     state = inputState,
                     settings = setting,
                     conversation = conversation,
@@ -405,8 +374,7 @@ private fun ChatPageContent(
                                 messageId = inputState.editingMessage!!,
                             )
                         } else {
-                            // Trigger send pulse animation
-                            isSending = true
+
                             vm.handleMessageSend(inputState.getContents())
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)

@@ -251,30 +251,32 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                         state = reorderableState,
                         key = provider.id
                     ) { isDragging ->
-                        PhysicsSwipeToDelete(
-                            position = position,
-                            deleteEnabled = canDelete,
-                            neighborOffset = neighborOffset,
-                            onDragProgress = { offset, unlocked ->
-                                draggingIndex = index
-                                dragOffset = offset
-                                isUnlocked = unlocked
-                            },
-                            onDragEnd = {
-                                if (draggingIndex == index) {
-                                    draggingIndex = -1
-                                    dragOffset = 0f
-                                }
-                            },
-                            onDelete = {
-                                providerToDelete = provider
-                                showDeleteDialog = true
-                            },
-                            modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .fillMaxWidth()
-                        ) {
+                        // Key on canDelete to force complete PhysicsSwipeToDelete recreation when list size changes
+                        androidx.compose.runtime.key(canDelete) {
+                            PhysicsSwipeToDelete(
+                                position = position,
+                                deleteEnabled = canDelete,
+                                neighborOffset = neighborOffset,
+                                onDragProgress = { offset, unlocked ->
+                                    draggingIndex = index
+                                    dragOffset = offset
+                                    isUnlocked = unlocked
+                                },
+                                onDragEnd = {
+                                    if (draggingIndex == index) {
+                                        draggingIndex = -1
+                                        dragOffset = 0f
+                                    }
+                                },
+                                onDelete = {
+                                    providerToDelete = provider
+                                    showDeleteDialog = true
+                                },
+                                modifier = Modifier
+                                    .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
+                                    .scale(if (isDragging) 0.95f else 1f)
+                                    .fillMaxWidth()
+                            ) {
                             ProviderItemContent(
                                 provider = provider,
                                 haptics = haptics,
@@ -304,8 +306,9 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                     navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
                                 }
                             )
-                        }
-                    }
+                            }  // end PhysicsSwipeToDelete content
+                        }  // key(canDelete)
+                    }  // ReorderableItem
                 }
             }
             

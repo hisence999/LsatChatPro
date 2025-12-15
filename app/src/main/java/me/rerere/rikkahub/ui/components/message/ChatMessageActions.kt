@@ -113,7 +113,7 @@ fun ColumnScope.ChatMessageActionButtons(
                         indication = LocalIndication.current,
                         onClick = {
                             if (!isSpeaking) {
-                                tts.speak(message.toText())
+                                tts.speak(message.toContentText())
                             } else {
                                 tts.stop()
                             }

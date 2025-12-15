@@ -212,7 +212,7 @@ fun PhysicsSwipeToDelete(
         ) {
             // Cancel button - only show when delete is enabled
             if (deleteEnabled) {
-                FilledTonalIconButton(
+                AnimatedFilledTonalIconButton(
                     onClick = {
                         haptics.perform(HapticPattern.Cancel)
                         scope.launch {
@@ -229,8 +229,6 @@ fun PhysicsSwipeToDelete(
                     modifier = Modifier
                         .graphicsLayer {
                             alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                            scaleX = 0.8f + 0.2f * (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                            scaleY = scaleX
                         }
                 ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Cancel")
@@ -239,7 +237,7 @@ fun PhysicsSwipeToDelete(
             
             // Delete button - only show when delete is enabled
             if (deleteEnabled) {
-                FilledTonalIconButton(
+                AnimatedFilledTonalIconButton(
                     onClick = {
                         haptics.perform(HapticPattern.Error)
                         onDelete()
@@ -247,8 +245,6 @@ fun PhysicsSwipeToDelete(
                     modifier = Modifier
                         .graphicsLayer {
                             alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                            scaleX = 0.8f + 0.2f * (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                            scaleY = scaleX
                         }
                 ) {
                     Icon(Icons.Rounded.Delete, contentDescription = "Delete")

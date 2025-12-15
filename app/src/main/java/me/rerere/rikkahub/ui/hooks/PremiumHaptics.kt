@@ -6,6 +6,8 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -251,9 +253,16 @@ class PremiumHaptics(
 }
 
 @Composable
-fun rememberPremiumHaptics(enabled: Boolean = true): PremiumHaptics {
+fun rememberPremiumHaptics(enabled: Boolean? = null): PremiumHaptics {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
+    
+    // Read enableUIHaptics from settings if not explicitly provided
+    val settingsStore = org.koin.compose.koinInject<me.rerere.rikkahub.data.datastore.SettingsStore>()
+    val settings by settingsStore.settingsFlow.collectAsState(
+        initial = me.rerere.rikkahub.data.datastore.Settings(init = true, providers = emptyList())
+    )
+    val isEnabled = enabled ?: settings.displaySetting.enableUIHaptics
     
     val vibrator = remember {
         try {
@@ -270,8 +279,8 @@ fun rememberPremiumHaptics(enabled: Boolean = true): PremiumHaptics {
         }
     }
     
-    return remember(hapticFeedback, vibrator, enabled) {
-        PremiumHaptics(hapticFeedback, vibrator, enabled)
+    return remember(hapticFeedback, vibrator, isEnabled) {
+        PremiumHaptics(hapticFeedback, vibrator, isEnabled)
     }
 }
 
