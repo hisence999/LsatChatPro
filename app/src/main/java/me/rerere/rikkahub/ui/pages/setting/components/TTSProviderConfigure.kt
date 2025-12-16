@@ -52,6 +52,7 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.Gemini -> "Gemini"
                         is TTSProviderSetting.SystemTTS -> "System TTS"
                         is TTSProviderSetting.MiniMax -> "MiniMax"
+                        is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -75,6 +76,7 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.Gemini::class -> "Gemini"
                                         TTSProviderSetting.SystemTTS::class -> "System TTS"
                                         TTSProviderSetting.MiniMax::class -> "MiniMax"
+                                        TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                                         else -> providerClass.simpleName ?: "Unknown"
                                     }
                                 )
@@ -100,6 +102,11 @@ fun TTSProviderConfigure(
                                     TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax(
                                         id = setting.id,
                                         name = "MiniMax TTS"
+                                    )
+
+                                    TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs(
+                                        id = setting.id,
+                                        name = "ElevenLabs TTS"
                                     )
 
                                     else -> setting
@@ -132,6 +139,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.OpenAI -> OpenAITTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Gemini -> GeminiTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.MiniMax -> MiniMaxTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.ElevenLabs -> ElevenLabsTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.SystemTTS -> SystemTTSConfiguration(setting, onValueChange)
         }
     }
@@ -493,5 +501,87 @@ private fun SystemTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
             label = stringResource(R.string.setting_tts_page_pitch)
         )
+    }
+}
+
+@Composable
+private fun ElevenLabsTTSConfiguration(
+    setting: TTSProviderSetting.ElevenLabs,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    // API Key
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text("Your ElevenLabs API key from your account settings") }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { newApiKey ->
+                onValueChange(setting.copy(apiKey = newApiKey))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("xi-...") },
+        )
+    }
+
+    // Voice ID
+    FormItem(
+        label = { Text("Voice ID") },
+        description = { Text("The ID of the voice to use. Find voice IDs in ElevenLabs Voice Library.") }
+    ) {
+        OutlinedTextField(
+            value = setting.voiceId,
+            onValueChange = { newVoiceId ->
+                onValueChange(setting.copy(voiceId = newVoiceId))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("21m00Tcm4TlvDq8ikWAM") }
+        )
+    }
+
+    // Model ID
+    var modelExpanded by remember { mutableStateOf(false) }
+    val models = listOf(
+        "eleven_multilingual_v2",
+        "eleven_flash_v2_5",
+        "eleven_turbo_v2_5",
+        "eleven_monolingual_v1"
+    )
+
+    FormItem(
+        label = { Text("Model") },
+        description = { Text("The TTS model to use. Multilingual v2 supports 29 languages.") }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = modelExpanded,
+            onExpandedChange = { modelExpanded = !modelExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.modelId,
+                onValueChange = { newModel ->
+                    onValueChange(setting.copy(modelId = newModel))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = modelExpanded,
+                onDismissRequest = { modelExpanded = false }
+            ) {
+                models.forEach { model ->
+                    DropdownMenuItem(
+                        text = { Text(model) },
+                        onClick = {
+                            modelExpanded = false
+                            onValueChange(setting.copy(modelId = model))
+                        }
+                    )
+                }
+            }
+        }
     }
 }

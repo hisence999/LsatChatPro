@@ -383,8 +383,8 @@
     <string name="setting_display_page_message_jumper_position_desc">Move jumper to left side</string>
     <string name="setting_display_page_show_model_name_desc">Show model name in chat messages</string>
     <string name="setting_display_page_show_model_name_title">Show Model Name</string>
-    <string name="setting_display_page_show_token_usage_desc">Show token usage and message count</string>
-    <string name="setting_display_page_show_token_usage_title">Show Token Usage</string>
+    <string name="setting_display_page_show_token_usage_desc">Show token statistics below AI responses</string>
+    <string name="setting_display_page_show_token_usage_title">Show Token Statistics</string>
     <string name="setting_display_page_show_updates_desc">Show app update notifications</string>
     <string name="setting_display_page_show_updates_title">Show Updates</string>
     <string name="setting_display_page_show_user_avatar_desc">Show user avatar in chat messages</string>
@@ -678,5 +678,6 @@
     <string name="deselect_all">Deselect All</string>
     <string name="temporary_chat_title">Temporary Chat</string>
     <string name="temporary_chat_description">Your assistant won\'t remember this chat and you won\'t be able to access it once you close it.</string>
+    <string name="delete_memory_confirmation">Are you sure you want to delete this memory? This cannot be undone.</string>
 </resources>
 

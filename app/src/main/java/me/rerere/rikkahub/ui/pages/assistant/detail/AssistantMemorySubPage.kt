@@ -311,6 +311,37 @@ private fun MemoryItem(
     useRagMemoryRetrieval: Boolean = false,
     currentEmbeddingModelId: String = ""
 ) {
+    // Delete confirmation dialog state
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    
+    // Delete confirmation dialog
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.assistant_page_delete)) },
+            text = { 
+                Text(
+                    text = stringResource(R.string.delete_memory_confirmation) + "\n\n\"${memory.content.take(100)}${if (memory.content.length > 100) "..." else ""}\""
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDeleteMemory(memory)
+                    }
+                ) {
+                    Text(stringResource(R.string.assistant_page_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            }
+        )
+    }
+    
     // Determine embedding status - simplified since cache handles model switching
     val embeddingStatus = if (memory.hasEmbedding) {
         EmbeddingStatus.EMBEDDED
@@ -389,7 +420,7 @@ private fun MemoryItem(
             }
             if (memory.type == 0) { // Only show delete for CORE memories
                 IconButton(
-                    onClick = { onDeleteMemory(memory) }
+                    onClick = { showDeleteConfirmation = true }
                 ) {
                     Icon(
                         Icons.Rounded.Delete,

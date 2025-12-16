@@ -427,35 +427,11 @@ class AssistantDetailVM(
             val avgMsgTokens = (avgMsgLen / 4).coerceAtLeast(10)
             val avgMemTokens = (avgMemLen / 4).coerceAtLeast(10)
 
-            val minHistory = avgMsgTokens * 2
-            val minMemory = if (assistant.enableMemory) avgMemTokens * 2 else 0
+            // Calculate how many messages OR memories can fit in the remaining space
+            val estHistoryMsgs = remaining / avgMsgTokens
+            val estMemories = remaining / avgMemTokens
 
-            var available = remaining - minHistory - minMemory
-            if (available < 0) available = 0
-
-            // Rough distribution based on priority
-            val (estHistoryTokens, estMemoryTokens) = when (assistant.contextPriority) {
-                me.rerere.rikkahub.data.model.ContextPriority.CHAT_HISTORY -> {
-                    val hist = minHistory + available
-                    val mem = minMemory
-                    hist to mem
-                }
-                me.rerere.rikkahub.data.model.ContextPriority.MEMORIES -> {
-                    val hist = minHistory
-                    val mem = minMemory + available
-                    hist to mem
-                }
-                me.rerere.rikkahub.data.model.ContextPriority.BALANCED -> {
-                    val hist = minHistory + (available / 2)
-                    val mem = minMemory + (available / 2)
-                    hist to mem
-                }
-            }
-
-            val estHistoryMsgs = estHistoryTokens / avgMsgTokens
-            val estMemories = estMemoryTokens / avgMemTokens
-
-            "Est. History: ~$estHistoryMsgs msgs, Memories: ~$estMemories (based on your avg usage)"
+            "Est. History: ~$estHistoryMsgs msgs or Memories: ~$estMemories"
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, "Calculating...")
 }

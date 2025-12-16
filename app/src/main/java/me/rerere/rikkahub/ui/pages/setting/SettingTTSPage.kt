@@ -1,11 +1,13 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -42,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,12 +61,13 @@ import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.StopCircle
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoProviderIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -74,6 +78,7 @@ import me.rerere.tts.provider.TTSProviderSetting
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.layout.offset
@@ -105,6 +110,9 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
         vm.updateSettings(settings.copy(ttsProviders = newProviders))
     }
 
+    // State for TTS text filter settings dialog
+    var showFilterSettingsDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             OneUITopAppBar(
@@ -114,6 +122,9 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
+                    IconButton(onClick = { showFilterSettingsDialog = true }) {
+                        Icon(Icons.Rounded.Settings, contentDescription = "TTS Settings")
+                    }
                     AddTTSProviderButton {
                         vm.updateSettings(
                             settings.copy(
@@ -336,6 +347,8 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
     editingProvider?.let { provider ->
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var currentProvider by remember(provider) { mutableStateOf(provider) }
+        val tts = LocalTTSState.current
+        val scope = rememberCoroutineScope()
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -353,10 +366,32 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                     .fillMaxHeight(0.8f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.setting_tts_page_edit_provider),
-                    style = MaterialTheme.typography.headlineSmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_tts_page_edit_provider),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                tts.speak(
+                                    text = "Hello user, this is what your assistants will sound like if you use this setup!",
+                                    overrideSetting = currentProvider
+                                )
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
+                            contentDescription = "Test TTS"
+                        )
+                    }
+                }
+
 
                 TTSProviderConfigure(
                     setting = currentProvider,
@@ -395,8 +430,303 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
             }
         }
     }
+    
+    // TTS Text Filter Settings Dialog
+    if (showFilterSettingsDialog) {
+        TtsTextFilterSettingsDialog(
+            rules = settings.displaySetting.ttsTextFilterRules,
+            onDismiss = { showFilterSettingsDialog = false },
+            onUpdateRules = { newRules ->
+                vm.updateSettings(
+                    settings.copy(
+                        displaySetting = settings.displaySetting.copy(
+                            ttsTextFilterRules = newRules
+                        )
+                    )
+                )
+            }
+        )
+    }
 }
 
+@Composable
+private fun TtsTextFilterSettingsDialog(
+    rules: List<me.rerere.rikkahub.data.datastore.TtsTextFilterRule>,
+    onDismiss: () -> Unit,
+    onUpdateRules: (List<me.rerere.rikkahub.data.datastore.TtsTextFilterRule>) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingRule by remember { mutableStateOf<me.rerere.rikkahub.data.datastore.TtsTextFilterRule?>(null) }
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Text Filter Rules",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Rounded.Add, contentDescription = "Add Rule")
+                }
+            }
+            
+            // Description
+            androidx.compose.material3.Card(
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Configure text patterns for TTS",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    Text(
+                        text = "Skip: Text matching the pattern will be skipped.\nOnly Read: Only text matching the pattern will be read.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            // Rules list
+            if (rules.isEmpty()) {
+                androidx.compose.material3.Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No rules yet. Tap + to add one.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rules.forEach { rule ->
+                        TtsFilterRuleItem(
+                            rule = rule,
+                            onToggle = { enabled ->
+                                onUpdateRules(rules.map {
+                                    if (it.id == rule.id) it.copy(enabled = enabled) else it
+                                })
+                            },
+                            onEdit = { editingRule = rule },
+                            onDelete = {
+                                onUpdateRules(rules.filter { it.id != rule.id })
+                            }
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+    
+    // Add/Edit Dialog
+    if (showAddDialog || editingRule != null) {
+        TtsFilterRuleEditDialog(
+            rule = editingRule,
+            onDismiss = {
+                showAddDialog = false
+                editingRule = null
+            },
+            onSave = { newRule ->
+                if (editingRule != null) {
+                    onUpdateRules(rules.map {
+                        if (it.id == editingRule!!.id) newRule else it
+                    })
+                } else {
+                    onUpdateRules(rules + newRule)
+                }
+                showAddDialog = false
+                editingRule = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun TtsFilterRuleItem(
+    rule: me.rerere.rikkahub.data.datastore.TtsTextFilterRule,
+    onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val modeText = when (rule.mode) {
+        me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP -> "Skip"
+        me.rerere.rikkahub.data.datastore.TtsFilterMode.ONLY_READ -> "Only Read"
+    }
+    val modeColor = when (rule.mode) {
+        me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP -> MaterialTheme.colorScheme.error
+        me.rerere.rikkahub.data.datastore.TtsFilterMode.ONLY_READ -> MaterialTheme.colorScheme.primary
+    }
+    
+    androidx.compose.material3.Card(
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+        onClick = onEdit
+    ) {
+        androidx.compose.material3.ListItem(
+            colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            headlineContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("${rule.pattern}text${rule.pattern}")
+                }
+            },
+            supportingContent = {
+                Text(
+                    text = modeText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = modeColor
+                )
+            },
+            trailingContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            "Delete",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Switch(
+                        checked = rule.enabled,
+                        onCheckedChange = onToggle
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun TtsFilterRuleEditDialog(
+    rule: me.rerere.rikkahub.data.datastore.TtsTextFilterRule?,
+    onDismiss: () -> Unit,
+    onSave: (me.rerere.rikkahub.data.datastore.TtsTextFilterRule) -> Unit
+) {
+    var pattern by remember { mutableStateOf(rule?.pattern ?: "*") }
+    var mode by remember { mutableStateOf(rule?.mode ?: me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP) }
+    
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (rule != null) "Edit Rule" else "Add Rule")
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = pattern,
+                    onValueChange = { pattern = it },
+                    label = { Text("Pattern") },
+                    placeholder = { Text("e.g., * or %") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        Text("Text wrapped like ${pattern}text${pattern} will be filtered")
+                    }
+                )
+                
+                // Mode selector
+                Text(
+                    text = "Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    androidx.compose.material3.FilterChip(
+                        selected = mode == me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP,
+                        onClick = { mode = me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP },
+                        label = { Text("Skip") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    androidx.compose.material3.FilterChip(
+                        selected = mode == me.rerere.rikkahub.data.datastore.TtsFilterMode.ONLY_READ,
+                        onClick = { mode = me.rerere.rikkahub.data.datastore.TtsFilterMode.ONLY_READ },
+                        label = { Text("Only Read") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                // Mode description
+                Text(
+                    text = when (mode) {
+                        me.rerere.rikkahub.data.datastore.TtsFilterMode.SKIP -> "Text inside ${pattern}...${pattern} will be skipped"
+                        me.rerere.rikkahub.data.datastore.TtsFilterMode.ONLY_READ -> "Only text inside ${pattern}...${pattern} will be read"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (pattern.isNotBlank()) {
+                        onSave(
+                            me.rerere.rikkahub.data.datastore.TtsTextFilterRule(
+                                id = rule?.id ?: kotlin.uuid.Uuid.random().toString(),
+                                pattern = pattern,
+                                mode = mode,
+                                enabled = rule?.enabled ?: true
+                            )
+                        )
+                    }
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
 @Composable
 private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -523,10 +853,40 @@ private fun TTSProviderItemContent(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AutoAIIcon(
-            name = provider.name.ifEmpty { stringResource(R.string.setting_tts_page_default_name) },
-            modifier = Modifier.size(40.dp)
-        )
+        // Icon: System TTS shows a phone icon, others use provider icon lookup
+        when (provider) {
+            is TTSProviderSetting.SystemTTS -> {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = me.rerere.rikkahub.ui.hooks.rememberAvatarShape(false)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PhoneAndroid,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            else -> {
+                // Use provider type name for icon lookup (OpenAI, Gemini, MiniMax, ElevenLabs)
+                val providerTypeName = when (provider) {
+                    is TTSProviderSetting.OpenAI -> "OpenAI"
+                    is TTSProviderSetting.Gemini -> "Google"
+                    is TTSProviderSetting.MiniMax -> "MiniMax"
+                    is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
+                    is TTSProviderSetting.SystemTTS -> "System"
+                }
+                AutoProviderIcon(
+                    name = providerTypeName,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
 
         Column(
             modifier = Modifier.weight(1f),
@@ -543,6 +903,7 @@ private fun TTSProviderItemContent(
                     is TTSProviderSetting.OpenAI -> stringResource(R.string.setting_tts_page_provider_openai)
                     is TTSProviderSetting.Gemini -> stringResource(R.string.setting_tts_page_provider_gemini)
                     is TTSProviderSetting.MiniMax -> "MiniMax"
+                    is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                     is TTSProviderSetting.SystemTTS -> stringResource(R.string.setting_tts_page_provider_system)
                 },
                 style = MaterialTheme.typography.bodySmall,

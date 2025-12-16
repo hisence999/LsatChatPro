@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -301,9 +303,8 @@ private fun ColumnScope.ModelList(
         0
     }
 
-    val lazyListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = selectedModelPosition
-    )
+    // Simple list state - always starts from top
+    val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         // 计算favorite models在列表中的位置偏移
         var favoriteStartIndex = 0
@@ -333,23 +334,21 @@ private fun ColumnScope.ModelList(
     }
     val haptics = rememberPremiumHaptics(enabled = settings.value.displaySetting.enableUIHaptics)
 
+    // Calculate the LazyColumn item index for each provider
+    // Structure: [no-providers-item?] [favorites-header?] [favorite items...] [provider items...]
     val providerPositions = remember(providers, favoriteModels) {
-        var currentIndex = 0
+        var baseIndex = 0
         if (providers.isEmpty()) {
-            currentIndex = 1 // no providers item
+            baseIndex = 1 // no providers item takes index 0
         }
         if (favoriteModels.isNotEmpty()) {
-            currentIndex += 1 // favorite header
-            currentIndex += favoriteModels.size // favorite models
+            baseIndex += 1 // favorite header
+            baseIndex += favoriteModels.size // each favorite model is one item
         }
 
+        // Each provider is ONE item in the LazyColumn (contains header + all models inside)
         providers.mapIndexed { index, provider ->
-            val position = currentIndex
-            currentIndex += 1 // provider header
-            currentIndex += provider.models.fastFilter {
-                it.type == modelType && it.displayName.contains(searchKeywords, true)
-            }.size
-            provider.id to position
+            provider.id to (baseIndex + index)
         }.toMap()
     }
 

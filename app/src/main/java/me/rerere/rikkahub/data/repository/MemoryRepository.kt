@@ -365,11 +365,10 @@ class MemoryRepository(
     }
 
     /**
-     * Regenerate embeddings for ALL memories and episodes.
-     * This is useful when:
-     * - Embedding model has changed
-     * - Old memories were created before embeddings were implemented
-     * - Embeddings failed to generate initially
+     * Regenerate embeddings for memories and episodes that need it.
+     * Only processes memories that:
+     * - Have no embedding
+     * - Have an embedding from a different model
      * 
      * @param assistantId The assistant ID to regenerate embeddings for
      * @return Pair of (successCount, failureCount)
@@ -378,9 +377,21 @@ class MemoryRepository(
         assistantId: String,
         onProgress: (Int, Int) -> Unit
     ): Pair<Int, Int> {
-        val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
-        val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
-        val total = memories.size + episodes.size
+        val allMemories = memoryDAO.getMemoriesOfAssistant(assistantId)
+        val allEpisodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
+        
+        // Get current embedding model ID
+        val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
+        
+        // Filter to only memories that need embedding
+        val memoriesNeedingEmbedding = allMemories.filter { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+        val episodesNeedingEmbedding = allEpisodes.filter { 
+            it.embedding == null || it.embeddingModelId != currentModelId 
+        }
+        
+        val total = memoriesNeedingEmbedding.size + episodesNeedingEmbedding.size
         var current = 0
         var successCount = 0
         var failureCount = 0
@@ -388,11 +399,8 @@ class MemoryRepository(
         onProgress(0, total)
         if (total == 0) return 0 to 0
 
-        // Get current embedding model ID
-        val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
-
-        // Process ALL Core Memories (force regeneration)
-        memories.forEach { memory ->
+        // Process Core Memories that need embedding
+        memoriesNeedingEmbedding.forEach { memory ->
             current++
             try {
                 val embedding = embeddingService.embed(memory.content, assistantId)
@@ -420,8 +428,8 @@ class MemoryRepository(
             onProgress(current, total)
         }
 
-        // Process ALL Episodes (force regeneration)
-        episodes.forEach { episode ->
+        // Process Episodes that need embedding
+        episodesNeedingEmbedding.forEach { episode ->
             current++
             try {
                 val embedding = embeddingService.embed(episode.content, assistantId)

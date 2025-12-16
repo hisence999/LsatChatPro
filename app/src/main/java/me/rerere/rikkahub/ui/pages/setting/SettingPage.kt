@@ -501,7 +501,8 @@ private fun UpdateAvailableBanner(
                     shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Row(
                         modifier = Modifier

@@ -26,7 +26,8 @@ data class UIMessage(
         .toLocalDateTime(TimeZone.currentSystemDefault()),
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
-    val translation: String? = null
+    val translation: String? = null,
+    val generationDurationMs: Long? = null // Duration of AI generation in milliseconds
 ) {
     private fun appendChunk(chunk: MessageChunk): UIMessage {
         val choice = chunk.choices.getOrNull(0)

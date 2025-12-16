@@ -11,6 +11,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.LocalIndication
@@ -84,8 +85,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.layout.onSizeChanged
 import me.rerere.ai.core.ReasoningLevel
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -243,15 +246,9 @@ fun ChatInput(
     ) {
 
 
-        val isPillShape = !state.isEditing() && state.textContent.text.length < 40 && state.textContent.text.lines().size <= 1
-        val outerCornerSize by animateDpAsState(
-            targetValue = if (isPillShape) 100.dp else 48.dp,
-            label = "outer_corner_size"
-        )
-        val innerCornerSize by animateDpAsState(
-            targetValue = if (isPillShape) 100.dp else 40.dp,
-            label = "inner_corner_size"
-        )
+        // Corner radius for pill-shaped input bar (35dp outer, 28dp inner)
+        val cornerRadius = 35.dp
+        val innerCornerSize = 28.dp
 
         Column(
             modifier = Modifier
@@ -265,7 +262,7 @@ fun ChatInput(
 
             // Floating Input Bar
             Surface(
-                shape = RoundedCornerShape(outerCornerSize), // Dynamic Outer Shape
+                shape = RoundedCornerShape(cornerRadius),
                 color = MaterialTheme.colorScheme.surfaceContainerLow, // Material You Surface Color
                 tonalElevation = 8.dp,
                 modifier = Modifier.fillMaxWidth()

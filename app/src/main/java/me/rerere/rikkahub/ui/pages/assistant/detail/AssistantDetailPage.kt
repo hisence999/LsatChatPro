@@ -31,10 +31,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
@@ -60,13 +63,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import me.rerere.rikkahub.data.model.Tag as DataTag
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import me.rerere.rikkahub.data.model.ContextPriority
 
 @Composable
 fun AssistantDetailPage(id: String) {
@@ -558,27 +554,51 @@ private fun AssistantBasicSettings(
                 Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
-                        Text("Maximum Token Usage")
+                        Text("Token Limit")
                     },
                     description = {
-                        Text("Limit the total number of tokens used for context (System + Chat + Memories).")
+                        Text("Maximum tokens for context (System + Chat + Memories).")
                     }
                 ) {
                     val smartMinTokenUsage by vm.smartMinTokenUsage.collectAsStateWithLifecycle()
                     val estimatedAllocation by vm.estimatedAllocation.collectAsStateWithLifecycle()
+                    
+                    // Local state for editing - allows any input while typing
+                    var localValue by remember(assistant.maxTokenUsage) { 
+                        mutableStateOf(assistant.maxTokenUsage.toString()) 
+                    }
+                    
+                    // Commit value when focus is lost - apply minimum if needed
+                    fun commitValue() {
+                        val parsedValue = localValue.toIntOrNull() ?: 0
+                        val finalValue = parsedValue.coerceAtLeast(smartMinTokenUsage)
+                        localValue = finalValue.toString()
+                        onUpdate(assistant.copy(maxTokenUsage = finalValue))
+                    }
 
                     OutlinedTextField(
-                        value = assistant.maxTokenUsage.toString(),
-                        onValueChange = {
-                            val value = it.toIntOrNull() ?: 0
-                            onUpdate(assistant.copy(maxTokenUsage = value))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
+                        value = localValue,
+                        onValueChange = { localValue = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (!focusState.isFocused) {
+                                    commitValue()
+                                }
+                            },
                         label = { Text("Tokens (Min: $smartMinTokenUsage)") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onDone = { commitValue() }
+                        ),
                         supportingText = {
                             Column {
                                 Text(estimatedAllocation)
-                                if (assistant.maxTokenUsage < smartMinTokenUsage) {
+                                val currentValue = localValue.toIntOrNull() ?: 0
+                                if (currentValue < smartMinTokenUsage) {
                                     Text(
                                         text = "Warning: Below recommended minimum ($smartMinTokenUsage)",
                                         color = MaterialTheme.colorScheme.error
@@ -586,51 +606,8 @@ private fun AssistantBasicSettings(
                                 }
                             }
                         },
-                        isError = assistant.maxTokenUsage < smartMinTokenUsage
+                        isError = (localValue.toIntOrNull() ?: 0) < smartMinTokenUsage
                     )
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                FormItem(
-                    label = {
-                        Text("Context Priority")
-                    },
-                    description = {
-                        Text("Determine what to prioritize when context limit is reached.")
-                    }
-                ) {
-                    @OptIn(ExperimentalMaterial3Api::class)
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded },
-                    ) {
-                        OutlinedTextField(
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            readOnly = true,
-                            value = assistant.contextPriority.name,
-                            onValueChange = {},
-                            label = { Text("Priority") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                        ) {
-                            ContextPriority.entries.forEach { priority ->
-                                DropdownMenuItem(
-                                    text = { Text(priority.name) },
-                                    onClick = {
-                                        onUpdate(assistant.copy(contextPriority = priority))
-                                        expanded = false
-                                    },
-                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                                )
-                            }
-                        }
-                    }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 FormItem(

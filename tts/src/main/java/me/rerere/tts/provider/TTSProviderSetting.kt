@@ -98,6 +98,26 @@ sealed class TTSProviderSetting {
         }
     }
 
+    @Serializable
+    @SerialName("elevenlabs")
+    data class ElevenLabs(
+        override var id: Uuid = Uuid.random(),
+        override var name: String = "ElevenLabs TTS",
+        val apiKey: String = "",
+        val voiceId: String = "21m00Tcm4TlvDq8ikWAM", // Default "Rachel" voice
+        val modelId: String = "eleven_multilingual_v2"
+    ) : TTSProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): TTSProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -105,7 +125,9 @@ sealed class TTSProviderSetting {
                 Gemini::class,
                 SystemTTS::class,
                 MiniMax::class,
+                ElevenLabs::class,
             )
         }
     }
 }
+

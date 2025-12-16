@@ -370,6 +370,24 @@ data class RpStyleRule(
     val enabled: Boolean = true
 )
 
+/**
+ * TTS text filter rule for skipping or only reading text matching a pattern.
+ * Pattern wrapping (e.g., "*", "%") will be matched and filtered accordingly.
+ */
+@Serializable
+data class TtsTextFilterRule(
+    val id: String = kotlin.uuid.Uuid.random().toString(),
+    val pattern: String = "*",      // The wrapping pattern, e.g., "*" for *text*
+    val mode: TtsFilterMode = TtsFilterMode.SKIP,
+    val enabled: Boolean = true
+)
+
+@Serializable
+enum class TtsFilterMode {
+    SKIP,       // Skip text inside this pattern (don't read it)
+    ONLY_READ   // Only read text inside this pattern (skip everything else)
+}
+
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
@@ -392,6 +410,7 @@ data class DisplaySetting(
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
+    val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
 )
 

@@ -61,6 +61,9 @@ import androidx.core.net.toFile
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Videocam
 import kotlinx.coroutines.FlowPreview
@@ -91,6 +94,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
+import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import kotlin.time.Duration.Companion.milliseconds
@@ -174,6 +178,13 @@ fun ChatMessage(
             !loading
         } else {
             message.parts.isEmptyUIMessage().not()
+        }
+
+        // Token Statistics Row (only for assistant messages when setting is enabled)
+        if (message.role == MessageRole.ASSISTANT && settings.showTokenUsage && !loading) {
+            message.usage?.let { usage ->
+                TokenStatisticsRow(usage = usage, message = message)
+            }
         }
 
         AnimatedVisibility(
@@ -600,6 +611,88 @@ private fun MessagePartsBlock(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Token statistics row shown at the bottom of AI responses.
+ * Shows: sent tokens (arrow up), received tokens (arrow down), tokens per second (bolt)
+ */
+@Composable
+private fun TokenStatisticsRow(
+    usage: me.rerere.ai.core.TokenUsage,
+    message: UIMessage
+) {
+    val grayColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    
+    // Calculate tokens per second from generation duration
+    val tokensPerSecond: Float? = message.generationDurationMs?.let { durationMs ->
+        if (durationMs > 0) {
+            val durationSeconds = durationMs / 1000.0
+            (usage.completionTokens / durationSeconds).toFloat()
+        } else null
+    }
+    
+    Row(
+        modifier = Modifier.padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Sent tokens (prompt tokens)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowUpward,
+                contentDescription = "Sent",
+                modifier = Modifier.size(14.dp),
+                tint = grayColor
+            )
+            Text(
+                text = "${usage.promptTokens.formatNumber()} tokens",
+                style = MaterialTheme.typography.labelSmall,
+                color = grayColor
+            )
+        }
+        
+        // Received tokens (completion tokens)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowDownward,
+                contentDescription = "Received",
+                modifier = Modifier.size(14.dp),
+                tint = grayColor
+            )
+            Text(
+                text = "${usage.completionTokens.formatNumber()} tokens",
+                style = MaterialTheme.typography.labelSmall,
+                color = grayColor
+            )
+        }
+        
+        // Tokens per second (only shown if calculable)
+        tokensPerSecond?.let { tps ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Bolt,
+                    contentDescription = "Speed",
+                    modifier = Modifier.size(14.dp),
+                    tint = grayColor
+                )
+                Text(
+                    text = String.format("%.1f tok/s", tps),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = grayColor
+                )
             }
         }
     }

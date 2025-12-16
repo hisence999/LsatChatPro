@@ -103,26 +103,12 @@ fun ChatMessageAssistantAvatar(
                     modifier = Modifier.weight(1f)
                 ) {
                     if(settings.displaySetting.showModelName) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
                             Text(
                                 text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalContentColor.current.copy(alpha = 0.8f),
                                 maxLines = 1,
                             )
-                            if (settings.displaySetting.showTokenUsage) {
-                                message.usage?.let { usage ->
-                                    Text(
-                                        text = "${usage.totalTokens.formatNumber()} tokens",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LocalContentColor.current.copy(alpha = 0.8f),
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
-                        }
                         Text(
                             text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
                             style = MaterialTheme.typography.titleMedium,
@@ -142,25 +128,11 @@ fun ChatMessageAssistantAvatar(
                     modifier = Modifier.weight(1f)
                 ) {
                     if(settings.displaySetting.showModelName) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
                             Text(
                                 text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalContentColor.current.copy(alpha = 0.8f)
                             )
-                            if (settings.displaySetting.showTokenUsage) {
-                                message.usage?.let { usage ->
-                                    Text(
-                                        text = if (usage.cachedTokens == 0) "${usage.totalTokens.formatNumber()} tokens" else "${usage.totalTokens.formatNumber()} tokens (${usage.cachedTokens.formatNumber()} cached)",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LocalContentColor.current.copy(alpha = 0.8f),
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
-                        }
                         Text(
                             text = model.displayName,
                             style = MaterialTheme.typography.titleSmall,

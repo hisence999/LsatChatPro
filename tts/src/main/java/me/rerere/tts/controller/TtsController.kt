@@ -143,6 +143,42 @@ class TtsController(
         prefetchFrom((_currentChunk.value).coerceAtLeast(0))
     }
 
+    /**
+     * Speak text with a specific provider (temporary override)
+     * Used for testing TTS settings before saving
+     */
+    fun speakWithProvider(text: String, provider: TTSProviderSetting, flush: Boolean = true) {
+        if (text.isBlank()) return
+        
+        val newChunks = chunker.split(text)
+        if (newChunks.isEmpty()) return
+
+        if (flush) {
+            internalReset()
+            allChunks.addAll(newChunks)
+            queue.addAll(newChunks)
+            _currentChunk.update { 0 }
+        } else {
+            val startIndex = (allChunks.lastOrNull()?.index ?: -1) + 1
+            val remapped = newChunks.mapIndexed { i, c -> c.copy(index = startIndex + i) }
+            allChunks.addAll(remapped)
+            queue.addAll(remapped)
+        }
+        _totalChunks.update { queue.size }
+        _error.update { null }
+
+        _playbackState.update {
+            it.copy(
+                currentChunkIndex = _currentChunk.value,
+                totalChunks = _totalChunks.value,
+                status = PlaybackStatus.Buffering
+            )
+        }
+
+        if (workerJob?.isActive != true) startWorkerWithProvider(provider)
+        prefetchFromWithProvider((_currentChunk.value).coerceAtLeast(0), provider)
+    }
+
     private fun internalReset() {
         // Reset current session while keeping provider availability
         workerJob?.cancel()
@@ -250,23 +286,49 @@ class TtsController(
                     // 预取下一窗口
                     prefetchFrom(chunk.index + 1)
 
-                    val response = try {
-                        awaitOrCreate(chunk, provider)
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e(TAG, "Synthesis error", e)
-                        _error.update { e.message ?: "TTS synthesis error" }
+                    // Retry logic for synthesis with exponential backoff
+                    var response: TTSResponse? = null
+                    var lastError: Exception? = null
+                    val maxRetries = 3
+                    
+                    for (attempt in 1..maxRetries) {
+                        try {
+                            response = awaitOrCreate(chunk, provider)
+                            break // Success, exit retry loop
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            lastError = e
+                            Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                            
+                            if (attempt < maxRetries) {
+                                // Exponential backoff: 500ms, 1000ms, 2000ms
+                                delay((500L * (1 shl (attempt - 1))))
+                            }
+                        }
+                    }
+                    
+                    if (response == null) {
+                        Log.e(TAG, "All synthesis retries failed for chunk ${chunk.index}", lastError)
+                        _error.update { lastError?.message ?: "TTS synthesis error" }
                         processedCount++
                         continue
                     }
 
-                    // 播放
-                    try {
-                        audio.play(response)
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e(TAG, "Playback error", e)
-                        _error.update { e.message ?: "Audio playback error" }
+                    // 播放 with retry
+                    for (attempt in 1..2) {
+                        try {
+                            audio.play(response)
+                            break
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w(TAG, "Playback attempt $attempt failed", e)
+                            if (attempt == 2) {
+                                Log.e(TAG, "All playback retries failed", e)
+                                _error.update { e.message ?: "Audio playback error" }
+                            } else {
+                                delay(300)
+                            }
+                        }
                     }
 
                     if (queue.isNotEmpty()) delay(chunkDelayMs)
@@ -306,6 +368,101 @@ class TtsController(
         } finally {
             // 可按需保留缓存（此处保留，便于重播/重试）
         }
+    }
+
+    // Worker with explicit provider (for testing)
+    private fun startWorkerWithProvider(provider: TTSProviderSetting) {
+        workerJob = scope.launch {
+            _isSpeaking.update { true }
+            var processedCount = _currentChunk.value
+            try {
+                while (isActive) {
+                    if (isPaused) {
+                        delay(80)
+                        continue
+                    }
+
+                    val chunk = queue.poll() ?: break
+
+                    _currentChunk.update { processedCount + 1 }
+                    _totalChunks.update { queue.size + 1 }
+                    _playbackState.update {
+                        it.copy(
+                            currentChunkIndex = _currentChunk.value,
+                            totalChunks = _totalChunks.value
+                        )
+                    }
+
+                    prefetchFromWithProvider(chunk.index + 1, provider)
+
+                    // Retry logic for synthesis with exponential backoff
+                    var response: TTSResponse? = null
+                    var lastError: Exception? = null
+                    val maxRetries = 3
+                    
+                    for (attempt in 1..maxRetries) {
+                        try {
+                            response = awaitOrCreate(chunk, provider)
+                            break
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            lastError = e
+                            Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                            
+                            if (attempt < maxRetries) {
+                                delay((500L * (1 shl (attempt - 1))))
+                            }
+                        }
+                    }
+                    
+                    if (response == null) {
+                        Log.e(TAG, "All synthesis retries failed for chunk ${chunk.index}", lastError)
+                        _error.update { lastError?.message ?: "TTS synthesis error" }
+                        processedCount++
+                        continue
+                    }
+
+                    // Playback with retry
+                    for (attempt in 1..2) {
+                        try {
+                            audio.play(response)
+                            break
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w(TAG, "Playback attempt $attempt failed", e)
+                            if (attempt == 2) {
+                                Log.e(TAG, "All playback retries failed", e)
+                                _error.update { e.message ?: "Audio playback error" }
+                            } else {
+                                delay(300)
+                            }
+                        }
+                    }
+
+                    if (queue.isNotEmpty()) delay(chunkDelayMs)
+                    processedCount++
+                }
+            } finally {
+                _isSpeaking.update { false }
+                if (queue.isEmpty()) {
+                    _playbackState.update { it.copy(status = PlaybackStatus.Ended) }
+                }
+            }
+        }
+    }
+
+    private fun prefetchFromWithProvider(startIndex: Int, provider: TTSProviderSetting) {
+        val begin = startIndex.coerceAtLeast(lastPrefetchedIndex + 1)
+        val endExclusive = (begin + prefetchCount).coerceAtMost(allChunks.size)
+        if (begin >= endExclusive) return
+
+        for (i in begin until endExclusive) {
+            val chunk = allChunks.getOrNull(i) ?: continue
+            cache.computeIfAbsent(chunk.id) {
+                scope.async(Dispatchers.IO) { synthesizer.synthesize(provider, chunk) }
+            }
+        }
+        lastPrefetchedIndex = endExclusive - 1
     }
     // endregion
 }

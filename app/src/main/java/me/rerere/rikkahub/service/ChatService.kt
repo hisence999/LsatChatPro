@@ -358,6 +358,10 @@ class ChatService(
         val settings = settingsStore.settingsFlow.first()
         val model = settings.getCurrentChatModel() ?: return
 
+        // Track generation start time for tokens/sec calculation
+        // Set on first token arrival to exclude TTFT (time to first token) from the calculation
+        var firstTokenTime: Long? = null
+
         runCatching {
             val conversation = getConversationFlow(conversationId).value
 
@@ -450,10 +454,22 @@ class ChatService(
                 },
                 truncateIndex = conversation.truncateIndex,
             ).onCompletion {
+                // Calculate generation duration from first token (excludes TTFT)
+                val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
+                
                 // 可能被取消了，或者意外结束，兜底更新
                 val updatedConversation = getConversationFlow(conversationId).value.copy(
-                    messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
-                        node.copy(messages = node.messages.map { it.finishReasoning() })
+                    messageNodes = getConversationFlow(conversationId).value.messageNodes.mapIndexed { index, node ->
+                        val isLastNode = index == getConversationFlow(conversationId).value.messageNodes.lastIndex
+                        node.copy(messages = node.messages.map { msg ->
+                            val finishedMsg = msg.finishReasoning()
+                            // Add generation duration to the last assistant message
+                            if (isLastNode && finishedMsg.role == MessageRole.ASSISTANT && finishedMsg.generationDurationMs == null) {
+                                finishedMsg.copy(generationDurationMs = generationDurationMs)
+                            } else {
+                                finishedMsg
+                            }
+                        })
                     },
                     updateAt = Instant.now()
                 )
@@ -464,6 +480,11 @@ class ChatService(
                     sendGenerationDoneNotification(conversationId)
                 }
             }.collect { chunk ->
+                // Set first token time on first chunk arrival (excludes TTFT from tok/s)
+                if (firstTokenTime == null) {
+                    firstTokenTime = System.currentTimeMillis()
+                }
+                
                 when (chunk) {
                     is GenerationChunk.Messages -> {
                         val updatedConversation = getConversationFlow(conversationId).value
