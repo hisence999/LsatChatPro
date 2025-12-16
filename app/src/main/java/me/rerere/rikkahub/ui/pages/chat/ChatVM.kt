@@ -256,8 +256,9 @@ class ChatVM(
      *
      * @param content 消息内容
      * @param answer 是否触发消息生成，如果为false，则仅添加消息到消息列表中
+     * @param isTemporaryChat 是否为临时对话（不保存历史、不使用记忆）
      */
-    fun handleMessageSend(content: List<UIMessagePart>,answer: Boolean = true) {
+    fun handleMessageSend(content: List<UIMessagePart>, answer: Boolean = true, isTemporaryChat: Boolean = false) {
         if (content.isEmptyInputMessage()) return
         analytics.logEvent("ai_send_message", null)
 
@@ -282,7 +283,7 @@ class ChatVM(
             content
         }
 
-        chatService.sendMessage(_conversationId, processedContent, answer)
+        chatService.sendMessage(_conversationId, processedContent, answer, isTemporaryChat)
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {

@@ -24,20 +24,7 @@ fun Greeting(
     @Composable
     fun getGreetingMessage(): String {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val timeOfDay = when (hour) {
-            in 5..11 -> "Morning"
-            in 12..17 -> "Afternoon"
-            in 18..22 -> "Evening"
-            else -> "Night"
-        }
-
-        if (assistant != null && assistant.enablePersonalizedGreetings && assistant.personalizedGreetings.isNotEmpty()) {
-            val greetings = assistant.personalizedGreetings[timeOfDay]
-            if (!greetings.isNullOrEmpty()) {
-                return remember(timeOfDay, assistant.id) { greetings.random() }
-            }
-        }
-
+        
         return when (hour) {
             in 5..11 -> stringResource(id = R.string.menu_page_morning_greeting)
             in 12..17 -> stringResource(id = R.string.menu_page_afternoon_greeting)

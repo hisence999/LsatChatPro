@@ -63,6 +63,8 @@ import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.HistoryToggleOff
 
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Job
@@ -251,7 +253,8 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
-    
+    var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
+
 
 
     LaunchedEffect(loadingJob) {
@@ -271,7 +274,9 @@ private fun ChatPageContent(
                     bigScreen = bigScreen,
                     drawerState = drawerState,
                     previewMode = previewMode,
+                    isTemporaryChat = isTemporaryChat,
                     onNewChat = {
+                        // Temporary chats are not persisted, so just navigate to new chat
                         navigateToChatPage(navController)
                     },
                     onClickMenu = {
@@ -282,6 +287,9 @@ private fun ChatPageContent(
                     },
                     onUpdateSettings = { newSettings ->
                         vm.updateSettings(newSettings)
+                    },
+                    onToggleTemporaryChat = {
+                        isTemporaryChat = !isTemporaryChat
                     }
                 )
             },
@@ -333,6 +341,35 @@ private fun ChatPageContent(
                     },
                 )
 
+                // Temporary chat overlay - shown when no user messages and temporary
+                // (ignores preset messages from assistant)
+                val hasUserSentMessages = conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isTemporaryChat && !hasUserSentMessages,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.HistoryToggleOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = stringResource(R.string.temporary_chat_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+
                 // Gradient behind floating toolbar
                 Box(
                     modifier = Modifier
@@ -375,7 +412,7 @@ private fun ChatPageContent(
                             )
                         } else {
 
-                            vm.handleMessageSend(inputState.getContents())
+                            vm.handleMessageSend(inputState.getContents(), isTemporaryChat = isTemporaryChat)
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
@@ -389,7 +426,7 @@ private fun ChatPageContent(
                                 messageId = inputState.editingMessage!!,
                             )
                         } else {
-                            vm.handleMessageSend(content = inputState.getContents(), answer = false)
+                            vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
@@ -435,10 +472,12 @@ private fun TopBar(
     drawerState: DrawerState,
     bigScreen: Boolean,
     previewMode: Boolean,
+    isTemporaryChat: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit,
-    onUpdateSettings: (Settings) -> Unit
+    onUpdateSettings: (Settings) -> Unit,
+    onToggleTemporaryChat: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -461,32 +500,56 @@ private fun TopBar(
         },
         title = {
             val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
-            Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
+            
+            // Crossfade between normal title and "Temporary Chat"
+            androidx.compose.animation.AnimatedContent(
+                targetState = isTemporaryChat,
+                transitionSpec = {
+                    androidx.compose.animation.fadeIn(
+                        animationSpec = androidx.compose.animation.core.tween(200)
+                    ) togetherWith androidx.compose.animation.fadeOut(
+                        animationSpec = androidx.compose.animation.core.tween(200)
+                    )
                 },
-                color = Color.Transparent,
-            ) {
-                Text(
-                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                    maxLines = 1,
-                    style = MaterialTheme.typography.titleMedium,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                label = "title_crossfade"
+            ) { isTempChat ->
+                if (isTempChat) {
+                    Text(
+                        text = stringResource(R.string.temporary_chat_title),
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleMedium,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else {
+                    Surface(
+                        onClick = {
+                            if (conversation.messageNodes.isNotEmpty()) {
+                                titleState.open(conversation.title)
+                            } else {
+                                toaster.show(editTitleWarning, type = ToastType.Warning)
+                            }
+                        },
+                        color = Color.Transparent,
+                    ) {
+                        Text(
+                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                            maxLines = 1,
+                            style = MaterialTheme.typography.titleMedium,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         },
         actions = {
-            val isEmpty = conversation.messageNodes.isEmpty()
+            // Check if chat is "empty" (no user-sent messages, ignoring preset messages)
+            val isEmpty = !conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
             var showAssistantPicker by remember { mutableStateOf(false) }
             val currentAssistant = settings.getCurrentAssistant()
             
             // Fluid transition between assistant icon and search/new icons
             androidx.compose.animation.AnimatedContent(
-                targetState = isEmpty,
+                targetState = isEmpty to isTemporaryChat,
                 transitionSpec = {
                     (androidx.compose.animation.fadeIn(
                         animationSpec = androidx.compose.animation.core.tween(300)
@@ -501,29 +564,47 @@ private fun TopBar(
                     ))
                 },
                 label = "topbar_actions"
-            ) { isEmptyState ->
-                if (isEmptyState) {
-                    IconButton(
-                        onClick = { showAssistantPicker = true }
-                    ) {
-                        me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                            name = currentAssistant.name.ifBlank { "Assistant" },
-                            value = currentAssistant.avatar,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                } else {
-                    Row {
-                        IconButton(
-                            onClick = { onClickMenu() }
-                        ) {
-                            Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
+            ) { (isEmptyState, isTempChat) ->
+                when {
+                    // Empty normal chat: show temp toggle + assistant
+                    isEmptyState && !isTempChat -> {
+                        Row {
+                            IconButton(onClick = { onToggleTemporaryChat() }) {
+                                Icon(Icons.Rounded.HistoryToggleOff, "Temporary Chat")
+                            }
+                            IconButton(onClick = { showAssistantPicker = true }) {
+                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                    name = currentAssistant.name.ifBlank { "Assistant" },
+                                    value = currentAssistant.avatar,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
-
-                        IconButton(
-                            onClick = { onNewChat() }
-                        ) {
-                            Icon(Icons.Rounded.AddCircle, "New Message")
+                    }
+                    // Empty temporary chat: show history (toggle back) + assistant
+                    isEmptyState && isTempChat -> {
+                        Row {
+                            IconButton(onClick = { onToggleTemporaryChat() }) {
+                                Icon(Icons.Rounded.History, "Make Normal Chat")
+                            }
+                            IconButton(onClick = { showAssistantPicker = true }) {
+                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                    name = currentAssistant.name.ifBlank { "Assistant" },
+                                    value = currentAssistant.avatar,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                    // Non-empty (either temporary or normal): show search + new chat
+                    else -> {
+                        Row {
+                            IconButton(onClick = { onClickMenu() }) {
+                                Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
+                            }
+                            IconButton(onClick = { onNewChat() }) {
+                                Icon(Icons.Rounded.AddCircle, "New Message")
+                            }
                         }
                     }
                 }

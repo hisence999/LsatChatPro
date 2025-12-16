@@ -115,6 +115,9 @@ class ChatService(
     // 记录哪些conversation有VM引用
     private val conversationReferences = ConcurrentHashMap<Uuid, Int>()
 
+    // 记录哪些对话是临时对话（不持久化、不使用记忆）
+    private val temporaryConversations = ConcurrentHashMap.newKeySet<Uuid>()
+
     // 存储每个对话的生成任务状态
     private val _generationJobs = MutableStateFlow<Map<Uuid, Job?>>(emptyMap())
     private val generationJobs: StateFlow<Map<Uuid, Job?>> = _generationJobs
@@ -255,7 +258,12 @@ class ChatService(
     }
 
     // 发送消息
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean=true) {
+    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean=true, isTemporaryChat: Boolean = false) {
+        // 标记为临时对话
+        if (isTemporaryChat) {
+            temporaryConversations.add(conversationId)
+        }
+        
         // 取消现有的生成任务
         getGenerationJob(conversationId)?.cancel()
 
@@ -378,7 +386,7 @@ class ChatService(
                     }
                 },
                 assistant = settings.getCurrentAssistant(),
-                memories = if (settings.getCurrentAssistant().enableMemory) {
+                memories = if (settings.getCurrentAssistant().enableMemory && !temporaryConversations.contains(conversationId)) {
                     val assistant = settings.getCurrentAssistant()
                     if (assistant.useRagMemoryRetrieval) {
                         // RAG mode: retrieve relevant memories based on context
@@ -817,6 +825,12 @@ class ChatService(
     // 保存对话
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
         if (conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return // 如果对话为空，则不保存
+        
+        // 临时对话不持久化到数据库
+        if (temporaryConversations.contains(conversationId)) {
+            updateConversation(conversationId, conversation)
+            return
+        }
 
         val updatedConversation = conversation.copy()
         updateConversation(conversationId, updatedConversation)

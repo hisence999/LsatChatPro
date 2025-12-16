@@ -90,6 +90,7 @@ class SettingsStore(
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
         val ASSISTANTS = stringPreferencesKey("assistants")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
+        val PROVIDER_TAGS = stringPreferencesKey("provider_tags")
 
         // 搜索
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
@@ -145,6 +146,9 @@ class SettingsStore(
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+                providerTags = preferences[PROVIDER_TAGS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 providers = JsonInstant.decodeFromString(preferences[PROVIDERS] ?: "[]"),
@@ -281,6 +285,7 @@ class SettingsStore(
             preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
             preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
+            preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(settings.providerTags)
 
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
@@ -336,6 +341,7 @@ data class Settings(
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
+    val providerTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
@@ -386,7 +392,14 @@ data class DisplaySetting(
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
+    val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
 )
+
+@Serializable
+enum class ProviderViewMode {
+    LIST,
+    GRID
+}
 
 @Serializable
 data class WebDavConfig(

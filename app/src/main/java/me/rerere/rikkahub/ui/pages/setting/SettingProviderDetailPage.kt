@@ -119,6 +119,7 @@ import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -135,6 +136,8 @@ import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.model.Tag as DataTag
+import me.rerere.rikkahub.ui.components.ui.FormItem
 
 @Composable
 fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
@@ -184,6 +187,13 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                 actions = {
                     val shareSheetState = rememberShareSheetState()
                     ShareSheet(shareSheetState)
+                    
+                    // Test connection button
+                    ConnectionTesterButton(
+                        provider = provider,
+                        scope = scope
+                    )
+                    
                     IconButton(
                         onClick = {
                             shareSheetState.show(provider)
@@ -239,12 +249,25 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                 0 -> {
                     SettingProviderConfigPage(
                         provider = provider,
+                        providerTags = settings.providerTags,
                         onEdit = {
                             onEdit(it)
-                            toaster.show(
-                                context.getString(R.string.setting_provider_page_save_success),
-                                type = ToastType.Success
+                        },
+                        onUpdateTags = { providerWithNewTags, updatedTags ->
+                            // Update the provider first
+                            val updatedProviders = settings.providers.map {
+                                if (it.id == providerWithNewTags.id) providerWithNewTags else it
+                            }
+                            
+                            // Auto-cleanup: Filter out tags that are no longer used by any provider
+                            val usedTagIds = updatedProviders.flatMap { it.tags }.toSet()
+                            val cleanedTags = updatedTags.filter { tag -> tag.id in usedTagIds }
+                            
+                            val newSettings = settings.copy(
+                                providers = updatedProviders,
+                                providerTags = cleanedTags
                             )
+                            vm.updateSettings(newSettings)
                         }
                     )
                 }
@@ -270,7 +293,9 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
 @Composable
 private fun SettingProviderConfigPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit
+    providerTags: List<DataTag>,
+    onEdit: (ProviderSetting) -> Unit,
+    onUpdateTags: (ProviderSetting, List<DataTag>) -> Unit
 ) {
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     val scope = rememberCoroutineScope()
@@ -294,8 +319,41 @@ private fun SettingProviderConfigPage(
                 modifier = Modifier.padding(16.dp),
                 onEdit = {
                     internalProvider = it
+                    // Auto-save immediately
+                    onEdit(it)
                 }
             )
+        }
+        
+        // Tags section
+        Card(
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FormItem(
+                    label = {
+                        Text(stringResource(R.string.assistant_page_tags))
+                    },
+                ) {
+                    TagsInput(
+                        value = internalProvider.tags,
+                        tags = providerTags,
+                        onValueChange = { tagIds, updatedTags ->
+                            // Update internal provider with new tag IDs
+                            val updatedProvider = internalProvider.copyProvider(tags = tagIds)
+                            internalProvider = updatedProvider
+                            // Update both provider and global tags
+                            onUpdateTags(updatedProvider, updatedTags)
+                        },
+                    )
+                }
+            }
         }
 
         if (internalProvider is ProviderSetting.OpenAI) {
@@ -307,28 +365,7 @@ private fun SettingProviderConfigPage(
             ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ConnectionTester(
-                internalProvider = internalProvider,
-                scope = scope
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    onEdit(internalProvider)
-                }
-            ) {
-                Text(stringResource(R.string.setting_provider_page_save))
-            }
-        }
-
-        // 硅基流动图标
+        // SiliconFlow icon
         if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
             SiliconFlowPowerByIcon(
                 modifier = Modifier
@@ -470,8 +507,8 @@ private fun SettingProviderProxyPage(
 }
 
 @Composable
-private fun ConnectionTester(
-    internalProvider: ProviderSetting,
+private fun ConnectionTesterButton(
+    provider: ProviderSetting,
     scope: CoroutineScope
 ) {
     var showTestDialog by remember { mutableStateOf(false) }
@@ -484,8 +521,8 @@ private fun ConnectionTester(
         Icon(Icons.Rounded.NetworkCheck, null)
     }
     if (showTestDialog) {
-        var model by remember(internalProvider) {
-            mutableStateOf(internalProvider.models.firstOrNull { it.type == ModelType.CHAT })
+        var model by remember(provider) {
+            mutableStateOf(provider.models.firstOrNull { it.type == ModelType.CHAT })
         }
         var testState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
         AlertDialog(
@@ -500,7 +537,7 @@ private fun ConnectionTester(
                 ) {
                     ModelSelector(
                         modelId = model?.id,
-                        providers = listOf(internalProvider),
+                        providers = listOf(provider),
                         type = ModelType.CHAT,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -541,12 +578,12 @@ private fun ConnectionTester(
                 TextButton(
                     onClick = {
                         if (model == null) return@TextButton
-                        val provider = providerManager.getProviderByType(internalProvider)
+                        val providerInstance = providerManager.getProviderByType(provider)
                         scope.launch {
                             runCatching {
                                 testState = UiState.Loading
-                                provider.generateText(
-                                    providerSetting = internalProvider,
+                                providerInstance.generateText(
+                                    providerSetting = provider,
                                     messages = listOf(
                                         UIMessage.user("hello")
                                     ),

@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,7 +25,6 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import androidx.compose.ui.text.font.FontFamily
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlin.reflect.KClass
-import kotlin.reflect.full.primaryConstructor
 
 @Composable
 fun ProviderConfigure(
@@ -36,7 +36,32 @@ fun ProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier
     ) {
-        // Type
+        // 1. Enable/Disable Toggle with text
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (provider.enabled) {
+                    stringResource(id = R.string.setting_provider_page_enabled)
+                } else {
+                    stringResource(id = R.string.setting_provider_page_disabled)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = provider.enabled,
+                onCheckedChange = { enabled ->
+                    val updated = when (provider) {
+                        is ProviderSetting.OpenAI -> provider.copy(enabled = enabled)
+                        is ProviderSetting.Google -> provider.copy(enabled = enabled)
+                        is ProviderSetting.Claude -> provider.copy(enabled = enabled)
+                    }
+                    onEdit(updated)
+                }
+            )
+        }
+
+        // 2. Type selector (for non-built-in providers)
         if (!provider.builtIn) {
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
@@ -59,10 +84,24 @@ fun ProviderConfigure(
             }
         }
 
-        // [!] just for debugging
-        // Text(JsonInstant.encodeToString(provider), fontSize = 10.sp)
+        // 3. Name field (shared)
+        OutlinedTextField(
+            value = provider.name,
+            onValueChange = { newName ->
+                val updated = when (provider) {
+                    is ProviderSetting.OpenAI -> provider.copy(name = newName.trim())
+                    is ProviderSetting.Google -> provider.copy(name = newName.trim())
+                    is ProviderSetting.Claude -> provider.copy(name = newName.trim())
+                }
+                onEdit(updated)
+            },
+            label = {
+                Text(stringResource(id = R.string.setting_provider_page_name))
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-        // Provider Configure
+        // 4. Provider-specific configuration
         when (provider) {
             is ProviderSetting.OpenAI -> {
                 ProviderConfigureOpenAI(provider, onEdit)
@@ -79,17 +118,53 @@ fun ProviderConfigure(
     }
 }
 
+/**
+ * Convert a provider to a different type while preserving all common properties.
+ */
 fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {
+    // If same type, return unchanged
+    if (this::class == type) return this
+
+    // Extract API key from current provider
     val apiKey = when (this) {
         is ProviderSetting.OpenAI -> this.apiKey
         is ProviderSetting.Google -> this.apiKey
         is ProviderSetting.Claude -> this.apiKey
     }
-    val newProvider = type.primaryConstructor!!.callBy(emptyMap())
-    return when (newProvider) {
-        is ProviderSetting.OpenAI -> newProvider.copy(apiKey = apiKey)
-        is ProviderSetting.Google -> newProvider.copy(apiKey = apiKey)
-        is ProviderSetting.Claude -> newProvider.copy(apiKey = apiKey)
+
+    // Convert to target type while preserving common properties
+    return when (type) {
+        ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            apiKey = apiKey,
+            baseUrl = if (this is ProviderSetting.OpenAI) this.baseUrl else "https://api.openai.com/v1"
+        )
+        ProviderSetting.Google::class -> ProviderSetting.Google(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            apiKey = apiKey,
+            baseUrl = if (this is ProviderSetting.Google) this.baseUrl else "https://generativelanguage.googleapis.com/v1beta"
+        )
+        ProviderSetting.Claude::class -> ProviderSetting.Claude(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            apiKey = apiKey,
+            baseUrl = if (this is ProviderSetting.Claude) this.baseUrl else "https://api.anthropic.com/v1"
+        )
+        else -> this // Return unchanged if unknown type
     }
 }
 
@@ -101,29 +176,6 @@ private fun ColumnScope.ProviderConfigureOpenAI(
     val toaster = LocalToaster.current
 
     provider.description()
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
-            checked = provider.enabled,
-            onCheckedChange = {
-                onEdit(provider.copy(enabled = it))
-            }
-        )
-    }
-
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = {
-            onEdit(provider.copy(name = it.trim()))
-        },
-        label = {
-            Text(stringResource(id = R.string.setting_provider_page_name))
-        },
-        modifier = Modifier.fillMaxWidth(),
-    )
 
     OutlinedTextField(
         value = provider.apiKey,
@@ -190,30 +242,6 @@ private fun ColumnScope.ProviderConfigureClaude(
 ) {
     provider.description()
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
-            checked = provider.enabled,
-            onCheckedChange = {
-                onEdit(provider.copy(enabled = it))
-            }
-        )
-    }
-
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = {
-            onEdit(provider.copy(name = it.trim()))
-        },
-        label = {
-            Text(stringResource(id = R.string.setting_provider_page_name))
-        },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-    )
-
     OutlinedTextField(
         value = provider.apiKey,
         onValueChange = {
@@ -243,29 +271,6 @@ private fun ColumnScope.ProviderConfigureGoogle(
     onEdit: (provider: ProviderSetting.Google) -> Unit
 ) {
     provider.description()
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
-            checked = provider.enabled,
-            onCheckedChange = {
-                onEdit(provider.copy(enabled = it))
-            }
-        )
-    }
-
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = {
-            onEdit(provider.copy(name = it.trim()))
-        },
-        label = {
-            Text(stringResource(id = R.string.setting_provider_page_name))
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
 
     Row(
         verticalAlignment = Alignment.CenterVertically

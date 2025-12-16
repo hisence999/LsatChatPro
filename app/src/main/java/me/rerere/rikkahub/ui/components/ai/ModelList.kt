@@ -353,6 +353,8 @@ private fun ColumnScope.ModelList(
         }.toMap()
     }
 
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    
     OutlinedTextField(
         value = searchKeywords,
         onValueChange = { searchKeywords = it },
@@ -362,8 +364,20 @@ private fun ColumnScope.ModelList(
         leadingIcon = {
             Icon(Icons.Rounded.Search, null)
         },
+        placeholder = {
+            Text(stringResource(R.string.model_list_search_placeholder))
+        },
         maxLines = 1,
-        shape = RoundedCornerShape(50)
+        singleLine = true,
+        shape = RoundedCornerShape(50),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            onDone = {
+                focusManager.clearFocus()
+            }
+        )
     )
 
 

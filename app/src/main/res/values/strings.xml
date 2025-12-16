@@ -109,6 +109,7 @@
     <string name="assistant_page_thinking_budget">Thinking Budget</string>
     <string name="assistant_page_thinking_budget_default">Default</string>
     <string name="assistant_page_title">Assistants</string>
+    <string name="assistant_page_search_placeholder">Search assistants...</string>
     <string name="assistant_page_top_p">Top P</string>
     <string name="assistant_page_top_p_value">Top P: %s</string>
     <string name="assistant_page_top_p_warning">Don\'t modify this unless you know what you are doing</string>
@@ -292,14 +293,14 @@
     <string name="mcp_picker_syncing">Syncing MCP servers...</string>
     <string name="mcp_picker_title">MCP Servers</string>
     <string name="menu">Menu</string>
-    <string name="menu_page_afternoon_greeting">Good Afternoon \uD83D\uDC4B</string>
+    <string name="menu_page_afternoon_greeting">Good Afternoon!</string>
     <string name="menu_page_ai_translator">AI Translator</string>
-    <string name="menu_page_evening_greeting">Good Evening \uD83D\uDC4B</string>
+    <string name="menu_page_evening_greeting">Good Evening!</string>
     <string name="menu_page_image_generation">Image Gen</string>
     <string name="menu_page_knowledge_base">Knowledge Base (WIP)</string>
     <string name="menu_page_llm_leaderboard">LLM Leaderboard</string>
-    <string name="menu_page_morning_greeting">Good Morning \uD83D\uDC4B</string>
-    <string name="menu_page_night_greeting">Good Night \uD83D\uDC4B</string>
+    <string name="menu_page_morning_greeting">Good Morning!</string>
+    <string name="menu_page_night_greeting">Good Night!</string>
     <string name="mermaid_export">Export</string>
     <string name="mermaid_export_failed">Export Failed</string>
     <string name="mermaid_export_success">Export Success</string>
@@ -572,6 +573,7 @@
     <string name="setting_provider_page_title">Providers</string>
     <string name="setting_provider_page_tool">Tools</string>
     <string name="setting_provider_page_vertex_ai">Vertex AI</string>
+    <string name="setting_provider_page_search_placeholder">Search providers...</string>
     <string name="setting_tts_page_add">Add</string>
     <string name="setting_tts_page_add_provider">Add TTS Provider</string>
     <string name="setting_tts_page_add_provider_content_description">Add TTS Provider</string>
@@ -674,5 +676,7 @@
     <string name="setting_model_page_embedding_model_desc">Model for text embeddings (e.g. for memory).</string>
     <string name="select_all">Select All</string>
     <string name="deselect_all">Deselect All</string>
+    <string name="temporary_chat_title">Temporary Chat</string>
+    <string name="temporary_chat_description">Your assistant won\'t remember this chat and you won\'t be able to access it once you close it.</string>
 </resources>
 

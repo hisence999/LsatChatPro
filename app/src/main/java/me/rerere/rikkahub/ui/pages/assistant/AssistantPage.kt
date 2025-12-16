@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
@@ -47,19 +49,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clipToBounds
 
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.PowerOff
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -103,25 +114,40 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         vm.addAssistant(it)
     }
     val navController = LocalNavController.current
-
-    // 标签过滤状态
-    var selectedTagIds by remember { mutableStateOf(emptySet<Uuid>()) }
-
-    // 根据选中的标签过滤助手
-    val filteredAssistants = remember(settings.assistants, selectedTagIds) {
-        if (selectedTagIds.isEmpty()) {
-            settings.assistants
-        } else {
-            settings.assistants.filter { assistant ->
-                assistant.tags.any { tagId -> tagId in selectedTagIds }
+    
+    // Search query state
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Tag filter state
+    var selectedTagIds by remember { mutableStateOf(emptySet<kotlin.uuid.Uuid>()) }
+    
+    // Filter assistants by both search query and tags
+    val filteredAssistants = remember(settings.assistants, searchQuery, selectedTagIds) {
+        var result = settings.assistants
+        
+        // Filter by search query
+        if (searchQuery.isNotBlank()) {
+            result = result.filter { assistant ->
+                assistant.name.contains(searchQuery, ignoreCase = true)
             }
         }
+        
+        // Filter by tags
+        if (selectedTagIds.isNotEmpty()) {
+            result = result.filter { assistant ->
+                assistant.tags.containsAll(selectedTagIds)
+            }
+        }
+        
+        result
     }
+    
+    val isFiltering = selectedTagIds.isNotEmpty() || searchQuery.isNotBlank()
+    
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     // Move lazyListState outside for canScroll detection
     val lazyListState = rememberLazyListState()
-    val isFiltering = selectedTagIds.isNotEmpty()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         if (!isFiltering) {
             val newAssistants = settings.assistants.toMutableList().apply {
@@ -157,19 +183,38 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 .fillMaxSize()
                 .padding(it)
                 .consumeWindowInsets(it),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-
-
-            // 标签过滤器
-            AssistantTagsFilterRow(
-                settings = settings,
-                vm = vm,
-                selectedTagIds = selectedTagIds,
-                onUpdateSelectedTagIds = { ids ->
-                    selectedTagIds = ids
-                }
+            // Search bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.assistant_page_search_placeholder)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.SearchField,
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                        }
+                    }
+                } else null
             )
+            
+            // Tag filter row - only show when there are tags
+            if (settings.assistantTags.isNotEmpty()) {
+                AssistantTagsFilterRow(
+                    settings = settings,
+                    vm = vm,
+                    selectedTagIds = selectedTagIds,
+                    onUpdateSelectedTagIds = { ids ->
+                        selectedTagIds = ids
+                    }
+                )
+            }
             
             // State for swipe neighbor tracking
             var draggingIndex by remember { mutableStateOf(-1) }
@@ -184,7 +229,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
             
             // Check if delete is allowed (more than 1 assistant)
-            val canDelete = filteredAssistants.size > 1
+            val canDelete = settings.assistants.size > 1
             
             // Reset neighborsUnlocked when offset returns to 0
             if (dragOffset == 0f && neighborsUnlocked) {
@@ -486,37 +531,53 @@ private fun AssistantItemContent(
             val hasContent = assistant.enableMemory || assistant.tags.isNotEmpty()
             if (hasContent) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Non-interactive tag row with fixed height - fades to card background at right edge
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clipToBounds()
                 ) {
-                    if (assistant.enableMemory) {
-                        Tag(type = TagType.SUCCESS) {
-                            Text(stringResource(R.string.assistant_page_memory_count, memories.size))
-                        }
-                    }
-                    if (assistant.tags.isNotEmpty()) {
-                        assistant.tags.take(2).fastForEach { tagId ->
-                            val tag = settings.assistantTags.find { it.id == tagId } ?: return@fastForEach
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.tertiaryContainer,
-                            ) {
-                                Text(
-                                    text = tag.name,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)
+                    ) {
+                        if (assistant.enableMemory) {
+                            Tag(type = TagType.SUCCESS) {
+                                Text(stringResource(R.string.assistant_page_memory_count, memories.size))
                             }
                         }
-                        if (assistant.tags.size > 2) {
-                            Text(
-                                text = "+${assistant.tags.size - 2}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        if (assistant.tags.isNotEmpty()) {
+                            assistant.tags.fastForEach { tagId ->
+                                val tag = settings.assistantTags.find { it.id == tagId } ?: return@fastForEach
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                ) {
+                                    Text(
+                                        text = tag.name,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
+                            }
                         }
                     }
+                    // Fade gradient overlay to card background color
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(width = 40.dp, height = 24.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.surfaceContainerLow
+                                    )
+                                )
+                            )
+                    )
                 }
             }
         }
@@ -543,10 +604,41 @@ fun AssistantTagsFilterRow(
     onUpdateSelectedTagIds: (Set<Uuid>) -> Unit
 ) {
     val tags = settings.assistantTags
+    val scrollState = rememberLazyListState()
+    val canScrollBackward by remember { derivedStateOf { scrollState.canScrollBackward } }
+    val canScrollForward by remember { derivedStateOf { scrollState.canScrollForward } }
+    
     LazyRow(
+        state = scrollState,
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawWithContent {
+                drawContent()
+                // Left edge fade (only if can scroll backward)
+                if (canScrollBackward) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Black, Color.Transparent),
+                            startX = 0f,
+                            endX = 24.dp.toPx()
+                        ),
+                        blendMode = BlendMode.DstOut
+                    )
+                }
+                // Right edge fade (only if can scroll forward)
+                if (canScrollForward) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startX = size.width - 24.dp.toPx(),
+                            endX = size.width
+                        ),
+                        blendMode = BlendMode.DstOut
+                    )
+                }
+            }
     ) {
         lazyItems(tags) { tag ->
             FilterChip(

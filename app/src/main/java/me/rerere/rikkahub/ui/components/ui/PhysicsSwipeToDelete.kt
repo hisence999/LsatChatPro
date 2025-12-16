@@ -2,9 +2,12 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -22,6 +26,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -206,13 +211,13 @@ fun PhysicsSwipeToDelete(
         Row(
             modifier = Modifier
                 .matchParentSize()
-                .padding(end = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                .padding(end = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Cancel button - only show when delete is enabled
             if (deleteEnabled) {
-                AnimatedFilledTonalIconButton(
+                PhysicsSwipeActionButton(
                     onClick = {
                         haptics.perform(HapticPattern.Cancel)
                         scope.launch {
@@ -226,28 +231,33 @@ fun PhysicsSwipeToDelete(
                             isUnlocked = false
                         }
                     },
-                    modifier = Modifier
-                        .graphicsLayer {
-                            alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                        }
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
                 ) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Cancel")
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = "Cancel",
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
             
             // Delete button - only show when delete is enabled
             if (deleteEnabled) {
-                AnimatedFilledTonalIconButton(
+                PhysicsSwipeActionButton(
                     onClick = {
                         haptics.perform(HapticPattern.Error)
                         onDelete()
                     },
-                    modifier = Modifier
-                        .graphicsLayer {
-                            alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
-                        }
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    alpha = (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f)
                 ) {
-                    Icon(Icons.Rounded.Delete, contentDescription = "Delete")
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
@@ -356,6 +366,59 @@ fun PhysicsSwipeToDelete(
                         }
                     )
                 }
+        ) {
+            content()
+        }
+    }
+}
+
+/**
+ * Physics-animated action button for swipe-to-delete cancel/delete actions
+ */
+@Composable
+private fun PhysicsSwipeActionButton(
+    onClick: () -> Unit,
+    containerColor: Color,
+    alpha: Float,
+    content: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.4f,
+            stiffness = 400f
+        ),
+        label = "button_scale"
+    )
+    val pressAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.7f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = 300f
+        ),
+        label = "button_alpha"
+    )
+    
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = containerColor,
+        tonalElevation = 4.dp,
+        interactionSource = interactionSource,
+        modifier = Modifier
+            .size(44.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha * pressAlpha
+            }
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
         ) {
             content()
         }
