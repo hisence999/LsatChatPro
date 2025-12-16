@@ -117,7 +117,6 @@ fun ChatList(
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
-    onClickSuggestion: (String) -> Unit = {},
     onJumpToMessage: (Int) -> Unit = {},
 ) {
     SharedTransitionLayout {
@@ -148,7 +147,6 @@ fun ChatList(
                     onForkMessage = onForkMessage,
                     onDelete = onDelete,
                     onUpdateMessage = onUpdateMessage,
-                    onClickSuggestion = onClickSuggestion,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
             }
@@ -168,7 +166,6 @@ private fun SharedTransitionScope.ChatListNormal(
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
-    onClickSuggestion: (String) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
@@ -409,15 +406,6 @@ private fun SharedTransitionScope.ChatListNormal(
                 scope = scope,
                 state = state
             )
-
-            // Suggestion
-            if (conversation.chatSuggestions.isNotEmpty() && !captureProgress) {
-                ChatSuggestionsRow(
-                    conversation = conversation,
-                    onClickSuggestion = onClickSuggestion,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
         }
     }
 }
@@ -610,37 +598,6 @@ private fun SharedTransitionScope.ChatListPreview(
     }
 }
 
-@Composable
-private fun ChatSuggestionsRow(
-    modifier: Modifier = Modifier,
-    conversation: Conversation,
-    onClickSuggestion: (String) -> Unit
-) {
-    LazyRow(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items(conversation.chatSuggestions) { suggestion ->
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .clickable {
-                        onClickSuggestion(suggestion)
-                    }
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-                    .padding(vertical = 4.dp, horizontal = 8.dp),
-            ) {
-                Text(
-                    text = suggestion,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun BoxScope.MessageJumper(

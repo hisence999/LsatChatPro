@@ -393,6 +393,20 @@ private fun ChatPageContent(
                     settings = setting,
                     conversation = conversation,
                     mcpManager = vm.mcpManager,
+                    chatSuggestions = conversation.chatSuggestions,
+                    onClickSuggestion = { suggestion ->
+                        if (currentChatModel != null) {
+                            vm.handleMessageSend(
+                                listOf(me.rerere.ai.ui.UIMessagePart.Text(suggestion)),
+                                isTemporaryChat = isTemporaryChat
+                            )
+                            scope.launch {
+                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                            }
+                        } else {
+                            toaster.show("Please select a model first", type = ToastType.Error)
+                        }
+                    },
                     onCancelClick = {
                         loadingJob?.cancel()
                     },

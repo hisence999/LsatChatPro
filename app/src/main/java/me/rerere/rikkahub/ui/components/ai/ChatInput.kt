@@ -181,6 +181,8 @@ fun ChatInput(
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    chatSuggestions: List<String> = emptyList(),
+    onClickSuggestion: (String) -> Unit = {},
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
@@ -256,8 +258,26 @@ fun ChatInput(
                 .padding(bottom = 8.dp, start = 16.dp, end = 16.dp), // Raised toolbar
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Medias
-            MediaFileInputRow(state = state, context = context)
+            // Medias (shown above suggestions when both exist)
+            if (state.messageContent.isNotEmpty()) {
+                MediaFileInputRow(state = state, context = context)
+            }
+
+            // Suggestions row (shown above toolbar, below images)
+            if (chatSuggestions.isNotEmpty()) {
+                ChatSuggestionsRow(
+                    suggestions = chatSuggestions,
+                    onClickSuggestion = onClickSuggestion
+                )
+            }
+
+            // Medias (only show if no suggestions - handled above)
+            if (state.messageContent.isEmpty()) {
+                // No-op: medias already shown above when present
+            } else if (chatSuggestions.isEmpty()) {
+                // Only show media row here if there are no suggestions and has content
+                // (already handled at top)
+            }
 
             // Floating Input Bar
             Surface(
@@ -851,6 +871,72 @@ private fun MediaFileInputRow(
                     )
                 }
             }
+    }
+}
+
+@Composable
+private fun ChatSuggestionsRow(
+    modifier: Modifier = Modifier,
+    suggestions: List<String>,
+    onClickSuggestion: (String) -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        suggestions.forEachIndexed { index, suggestion ->
+            // Each chip animates in with a staggered delay
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(suggestion) {
+                kotlinx.coroutines.delay(index * 50L) // Staggered delay
+                visible = true
+            }
+            
+            // Animate alpha and scale with physics-based spring
+            val alpha by animateFloatAsState(
+                targetValue = if (visible) 1f else 0f,
+                animationSpec = spring(
+                    dampingRatio = 0.7f,
+                    stiffness = 300f
+                ),
+                label = "suggestion_alpha"
+            )
+            val scale by animateFloatAsState(
+                targetValue = if (visible) 1f else 0.8f,
+                animationSpec = spring(
+                    dampingRatio = 0.5f, // Slight bounce
+                    stiffness = 400f
+                ),
+                label = "suggestion_scale"
+            )
+            
+            Surface(
+                modifier = Modifier
+                    .graphicsLayer {
+                        this.alpha = alpha
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(RoundedCornerShape(50))
+                    .clickable { onClickSuggestion(suggestion) },
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                )
+            ) {
+                Text(
+                    text = suggestion,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 12.dp)
+                )
+            }
+        }
     }
 }
 
