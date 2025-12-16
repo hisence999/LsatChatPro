@@ -4,7 +4,7 @@
   <img src="docs/app_icon.png" alt="LastChat Icon" width="128" height="128" />
 </div>
 
-**LastChat** is a feature-rich AI assistant application for Android. It is a fork of [RikkaHub](https://github.com/re-ovo/RikkaHub), modified using **Gemini 3 Pro** and **Claude 4.5 Opus**
+**LastChat** is a feature-rich AI assistant application for Android. It is a fork of [RikkaHub](https://github.com/re-ovo/RikkaHub), modified using **Claude 4.5 Opus** and **Gemini 3 Pro**
 
 This project aims to provide a privacy-focused and highly personalized AI chat experience on Android
 
@@ -68,9 +68,8 @@ This project aims to provide a privacy-focused and highly personalized AI chat e
 *   Assistant settings menu layout comes in part from [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
 *   Image cropper is an edited version from the image editor found in [LavenderPhotos](https://github.com/kaii-lb/LavenderPhotos)
 *   Made with **AI Agents** based on:
-    *   **Gemini 3 Pro**
-    *   **Claude 4.5 Sonnet**
     *   **Claude 4.5 Opus**
+    *   **Gemini 3 Pro**
 
 ---
 *Note: This project is a fork and may contain modifications or features not present in the original RikkaHub repository.*
