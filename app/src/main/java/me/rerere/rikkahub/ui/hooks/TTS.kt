@@ -138,8 +138,9 @@ private class CustomTtsStateImpl(
     }
 
     override fun speak(text: String, flushCalled: Boolean, overrideSetting: TTSProviderSetting?) {
-        val stripped = text.stripMarkdown()
-        val processed = applyTtsTextFilters(stripped)
+        // Apply TTS filters FIRST (before markdown stripping), so patterns like * can match
+        val filtered = applyTtsTextFilters(text)
+        val processed = filtered.stripMarkdown()
         
         if (processed.isBlank()) {
             Log.d(TAG, "Text fully filtered, nothing to speak")

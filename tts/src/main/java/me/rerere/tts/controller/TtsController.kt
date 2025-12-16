@@ -287,46 +287,66 @@ class TtsController(
                     prefetchFrom(chunk.index + 1)
 
                     // Retry logic for synthesis with exponential backoff
+                    // We keep retrying until success to ensure no chunk is skipped
                     var response: TTSResponse? = null
                     var lastError: Exception? = null
-                    val maxRetries = 3
+                    val maxRetries = 5  // Increased from 3
+                    var totalAttempts = 0
                     
-                    for (attempt in 1..maxRetries) {
-                        try {
-                            response = awaitOrCreate(chunk, provider)
-                            break // Success, exit retry loop
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            lastError = e
-                            Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                    while (response == null && isActive) {
+                        for (attempt in 1..maxRetries) {
+                            totalAttempts++
+                            try {
+                                response = awaitOrCreate(chunk, provider)
+                                break // Success, exit retry loop
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                lastError = e
+                                Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                                
+                                if (attempt < maxRetries) {
+                                    // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
+                                    delay((500L * (1 shl (attempt - 1))).coerceAtMost(8000L))
+                                }
+                            }
+                        }
+                        
+                        // If still no response after max retries, wait longer and try again
+                        if (response == null) {
+                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts)")
+                            _error.update { "Retrying TTS synthesis..." }
+                            delay(5000L) // Wait 5 seconds before retrying the whole loop
                             
-                            if (attempt < maxRetries) {
-                                // Exponential backoff: 500ms, 1000ms, 2000ms
-                                delay((500L * (1 shl (attempt - 1))))
+                            // After too many overall attempts, give up on this chunk
+                            if (totalAttempts >= 15) {
+                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts", lastError)
+                                _error.update { "Skipped chunk due to repeated failures" }
+                                break
                             }
                         }
                     }
                     
                     if (response == null) {
-                        Log.e(TAG, "All synthesis retries failed for chunk ${chunk.index}", lastError)
-                        _error.update { lastError?.message ?: "TTS synthesis error" }
+                        // Only skip if we gave up after many attempts
                         processedCount++
                         continue
                     }
 
-                    // 播放 with retry
-                    for (attempt in 1..2) {
+                    // 播放 with retry - never skip playback failures either
+                    var playbackSuccess = false
+                    for (attempt in 1..3) {
                         try {
                             audio.play(response)
+                            playbackSuccess = true
                             break
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
                             Log.w(TAG, "Playback attempt $attempt failed", e)
-                            if (attempt == 2) {
+                            if (attempt == 3) {
                                 Log.e(TAG, "All playback retries failed", e)
                                 _error.update { e.message ?: "Audio playback error" }
                             } else {
-                                delay(300)
+                                delay(500)
                             }
                         }
                     }
@@ -396,45 +416,62 @@ class TtsController(
                     prefetchFromWithProvider(chunk.index + 1, provider)
 
                     // Retry logic for synthesis with exponential backoff
+                    // We keep retrying until success to ensure no chunk is skipped
                     var response: TTSResponse? = null
                     var lastError: Exception? = null
-                    val maxRetries = 3
+                    val maxRetries = 5
+                    var totalAttempts = 0
                     
-                    for (attempt in 1..maxRetries) {
-                        try {
-                            response = awaitOrCreate(chunk, provider)
-                            break
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            lastError = e
-                            Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                    while (response == null && isActive) {
+                        for (attempt in 1..maxRetries) {
+                            totalAttempts++
+                            try {
+                                response = awaitOrCreate(chunk, provider)
+                                break
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                lastError = e
+                                Log.w(TAG, "Synthesis attempt $attempt/$maxRetries failed for chunk ${chunk.index}", e)
+                                
+                                if (attempt < maxRetries) {
+                                    delay((500L * (1 shl (attempt - 1))).coerceAtMost(8000L))
+                                }
+                            }
+                        }
+                        
+                        if (response == null) {
+                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts)")
+                            _error.update { "Retrying TTS synthesis..." }
+                            delay(5000L)
                             
-                            if (attempt < maxRetries) {
-                                delay((500L * (1 shl (attempt - 1))))
+                            if (totalAttempts >= 15) {
+                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts", lastError)
+                                _error.update { "Skipped chunk due to repeated failures" }
+                                break
                             }
                         }
                     }
                     
                     if (response == null) {
-                        Log.e(TAG, "All synthesis retries failed for chunk ${chunk.index}", lastError)
-                        _error.update { lastError?.message ?: "TTS synthesis error" }
                         processedCount++
                         continue
                     }
 
                     // Playback with retry
-                    for (attempt in 1..2) {
+                    var playbackSuccess = false
+                    for (attempt in 1..3) {
                         try {
                             audio.play(response)
+                            playbackSuccess = true
                             break
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
                             Log.w(TAG, "Playback attempt $attempt failed", e)
-                            if (attempt == 2) {
+                            if (attempt == 3) {
                                 Log.e(TAG, "All playback retries failed", e)
                                 _error.update { e.message ?: "Audio playback error" }
                             } else {
-                                delay(300)
+                                delay(500)
                             }
                         }
                     }

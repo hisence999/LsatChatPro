@@ -2,12 +2,12 @@ package me.rerere.rikkahub.ui.components.ai
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
+
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResultLauncher
+
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -124,8 +124,7 @@ import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.ui.draw.rotate
 import com.dokar.sonner.ToastType
-import com.yalantis.ucrop.UCrop
-import com.yalantis.ucrop.UCropActivity
+import me.rerere.rikkahub.ui.components.crop.CropImageScreen
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -1056,63 +1055,32 @@ private fun FullScreenEditor(
 }
 
 @Composable
-private fun useCropLauncher(
-    onCroppedImageReady: (Uri) -> Unit,
-    onCleanup: (() -> Unit)? = null
-): Pair<ActivityResultLauncher<Intent>, (Uri) -> Unit> {
-    val context = LocalContext.current
-    var cropOutputUri by remember { mutableStateOf<Uri?>(null) }
-
-    val cropActivityLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            cropOutputUri?.let { croppedUri ->
-                onCroppedImageReady(croppedUri)
-            }
-        }
-        // Clean up crop output file
-        cropOutputUri?.toFile()?.delete()
-        cropOutputUri = null
-        onCleanup?.invoke()
-    }
-
-    val launchCrop: (Uri) -> Unit = { sourceUri ->
-        val outputFile = File(context.appTempFolder, "crop_output_${System.currentTimeMillis()}.jpg")
-        cropOutputUri = Uri.fromFile(outputFile)
-
-        val cropIntent = UCrop.of(sourceUri, cropOutputUri!!)
-            .withOptions(UCrop.Options().apply {
-                setFreeStyleCropEnabled(true)
-                setAllowedGestures(
-                    UCropActivity.SCALE,
-                    UCropActivity.ROTATE,
-                    UCropActivity.NONE
-                )
-                setCompressionFormat(Bitmap.CompressFormat.PNG)
-            })
-            .withMaxResultSize(4096, 4096)
-            .getIntent(context)
-
-        cropActivityLauncher.launch(cropIntent)
-    }
-
-    return Pair(cropActivityLauncher, launchCrop)
-}
-
-@Composable
 private fun ImagePickButton(
     shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
     onAddImages: (List<Uri>) -> Unit = {}
 ) {
     val context = LocalContext.current
     val settings = LocalSettings.current
+    
+    // State for crop dialog
+    var showCropScreen by remember { mutableStateOf(false) }
+    var imageToCrop by remember { mutableStateOf<Uri?>(null) }
 
-    val (_, launchCrop) = useCropLauncher(
-        onCroppedImageReady = { croppedUri ->
-            onAddImages(context.createChatFilesByContents(listOf(croppedUri)))
-        }
-    )
+    // Show crop screen dialog
+    if (showCropScreen && imageToCrop != null) {
+        CropImageScreen(
+            sourceUri = imageToCrop!!,
+            onCropComplete = { croppedUri ->
+                onAddImages(context.createChatFilesByContents(listOf(croppedUri)))
+                showCropScreen = false
+                imageToCrop = null
+            },
+            onCancel = {
+                showCropScreen = false
+                imageToCrop = null
+            }
+        )
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
@@ -1127,7 +1095,8 @@ private fun ImagePickButton(
                 // Show crop interface
                 if (selectedUris.size == 1) {
                     // Single image - offer crop
-                    launchCrop(selectedUris.first())
+                    imageToCrop = selectedUris.first()
+                    showCropScreen = true
                 } else {
                     // Multiple images - no crop
                     onAddImages(context.createChatFilesByContents(selectedUris))
@@ -1148,6 +1117,7 @@ private fun ImagePickButton(
     }
 }
 
+
 @Composable
 fun TakePicButton(
     shape: Shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
@@ -1159,18 +1129,34 @@ fun TakePicButton(
     val settings = LocalSettings.current
     var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
     var cameraOutputFile by remember { mutableStateOf<File?>(null) }
+    
+    // State for crop dialog
+    var showCropScreen by remember { mutableStateOf(false) }
+    var imageToCrop by remember { mutableStateOf<Uri?>(null) }
 
-    val (_, launchCrop) = useCropLauncher(
-        onCroppedImageReady = { croppedUri ->
-            onAddImages(context.createChatFilesByContents(listOf(croppedUri)))
-        },
-        onCleanup = {
-            // Clean up camera temp file after cropping is done
-            cameraOutputFile?.delete()
-            cameraOutputFile = null
-            cameraOutputUri = null
-        }
-    )
+    // Show crop screen dialog
+    if (showCropScreen && imageToCrop != null) {
+        CropImageScreen(
+            sourceUri = imageToCrop!!,
+            onCropComplete = { croppedUri ->
+                onAddImages(context.createChatFilesByContents(listOf(croppedUri)))
+                showCropScreen = false
+                imageToCrop = null
+                // Clean up camera temp file after cropping is done
+                cameraOutputFile?.delete()
+                cameraOutputFile = null
+                cameraOutputUri = null
+            },
+            onCancel = {
+                showCropScreen = false
+                imageToCrop = null
+                // Clean up camera temp file if crop cancelled
+                cameraOutputFile?.delete()
+                cameraOutputFile = null
+                cameraOutputUri = null
+            }
+        )
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -1186,7 +1172,8 @@ fun TakePicButton(
                 cameraOutputUri = null
             } else {
                 // Show crop interface
-                launchCrop(cameraOutputUri!!)
+                imageToCrop = cameraOutputUri
+                showCropScreen = true
             }
         } else {
             // Clean up camera temp file if capture failed
@@ -1222,6 +1209,7 @@ fun TakePicButton(
         }
     }
 }
+
 
 @Composable
 fun VideoPickButton(

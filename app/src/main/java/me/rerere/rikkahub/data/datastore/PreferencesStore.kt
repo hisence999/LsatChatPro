@@ -405,7 +405,7 @@ data class DisplaySetting(
     val useExpressiveFont: Boolean = true, // M3 Expressive font (rounded, wider) vs Normal
     val enableMessageGenerationHapticEffect: Boolean = false,
     val enableUIHaptics: Boolean = true,
-    val skipCropImage: Boolean = true,
+    val skipCropImage: Boolean = false,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
