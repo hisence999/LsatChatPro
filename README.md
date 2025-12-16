@@ -65,6 +65,8 @@ This project aims to provide a privacy-focused and highly personalized AI chat e
 
 ## Credits
 *   Original Project: [RikkaHub](https://github.com/re-ovo/RikkaHub)
+*   Assistant settings menu layout comes in part from [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
+*   Image cropper is an edited version from the cropper found in [LavenderPhotos](https://github.com/kaii-lb/LavenderPhotos)
 *   Made with **AI Agents** based on:
     *   **Gemini 3 Pro**
     *   **Claude 4.5 Sonnet**
