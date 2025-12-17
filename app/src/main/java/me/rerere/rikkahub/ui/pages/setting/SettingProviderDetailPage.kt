@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +59,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -311,7 +315,7 @@ private fun SettingProviderConfigPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             ProviderConfigure(
@@ -329,7 +333,7 @@ private fun SettingProviderConfigPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             Column(
@@ -438,7 +442,7 @@ private fun SettingProviderProxyPage(
                 Card(
                     shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                     )
                 ) {
                     Column(
@@ -678,6 +682,13 @@ private fun ModelList(
             // 模型列表
             if (providerSetting.models.isEmpty()) {
                 item {
+                    // Check if provider has an API key
+                    val hasApiKey = when (providerSetting) {
+                        is ProviderSetting.OpenAI -> providerSetting.apiKey.isNotBlank()
+                        is ProviderSetting.Google -> providerSetting.apiKey.isNotBlank()
+                        is ProviderSetting.Claude -> providerSetting.apiKey.isNotBlank()
+                    }
+                    
                     Column(
                         modifier = Modifier
                             .fillParentMaxHeight(0.8f)
@@ -690,10 +701,16 @@ private fun ModelList(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.setting_provider_page_add_models_hint),
+                            text = stringResource(
+                                if (hasApiKey) R.string.setting_provider_page_no_models_with_api_key
+                                else R.string.setting_provider_page_no_models_no_api_key
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         )
                     }
                 }
@@ -1175,7 +1192,8 @@ private fun ModelPicker(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .clipToBounds(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(8.dp),
                 ) {
@@ -1183,7 +1201,7 @@ private fun ModelPicker(
                         Card(
                             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                             colors = androidx.compose.material3.CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                         ) {
                             Row(
@@ -1675,7 +1693,7 @@ private fun BuiltInToolsSettings(
                 modifier = Modifier.fillMaxWidth(),
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             ) {
                 Row(

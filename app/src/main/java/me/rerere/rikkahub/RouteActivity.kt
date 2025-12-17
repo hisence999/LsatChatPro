@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -179,7 +180,8 @@ class RouteActivity : ComponentActivity() {
                     darkTheme = LocalDarkMode.current,
                     richColors = true,
                     alignment = Alignment.TopCenter,
-                    showCloseButton = true,
+                    showCloseButton = false,
+                    shape = { androidx.compose.foundation.shape.RoundedCornerShape(24.dp) },
                 )
                 TTSController()
                 NavHost(

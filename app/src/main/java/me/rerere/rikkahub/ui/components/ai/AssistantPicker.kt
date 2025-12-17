@@ -254,7 +254,7 @@ fun AssistantPickerSheet(
                             .clip(shape)
                             .background(
                                 color = if (checked) MaterialTheme.colorScheme.primaryContainer 
-                                       else if (isDarkMode) Color.Black else Color.White
+                                       else if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable(enabled = !isTransitioning) {
                                 if (!checked) {

@@ -344,8 +344,10 @@ private fun ChatPageContent(
                 // Temporary chat overlay - shown when no user messages and temporary
                 // (ignores preset messages from assistant)
                 val hasUserSentMessages = conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
+                val currentAssistant = setting.getCurrentAssistant()
+                val hasAnyPresetMessages = currentAssistant.presetMessages.isNotEmpty()
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = isTemporaryChat && !hasUserSentMessages,
+                    visible = isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages,
                     enter = androidx.compose.animation.fadeIn(),
                     exit = androidx.compose.animation.fadeOut(),
                     modifier = Modifier.align(Alignment.Center)

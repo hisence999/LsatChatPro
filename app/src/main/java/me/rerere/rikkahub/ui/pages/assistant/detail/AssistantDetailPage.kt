@@ -311,7 +311,7 @@ private fun AssistantBasicSettings(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             Column(
@@ -380,7 +380,7 @@ private fun AssistantBasicSettings(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             Column(

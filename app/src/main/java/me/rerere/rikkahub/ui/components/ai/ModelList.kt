@@ -4,6 +4,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -384,6 +385,7 @@ private fun ColumnScope.ModelList(
         modifier = Modifier
             .weight(1f)
             .fillMaxWidth()
+            .clipToBounds()
     ) {
         LazyColumn(
             state = lazyListState,
@@ -680,7 +682,7 @@ private fun ModelItem(
                 .fillMaxWidth()
                 .clip(itemShape)
                 .background(
-                    color = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else Color.White,
+                    color = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
                 )
                 .padding(vertical = 12.dp, horizontal = 16.dp)
         ) {
@@ -717,7 +719,7 @@ private fun ModelItem(
                     modifier = Modifier
                         .size(32.dp),
                     color = Color.Transparent,
-                    contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else if (LocalDarkMode.current) Color.White else Color.Black
+                    contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -728,7 +730,7 @@ private fun ModelItem(
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = if (select) MaterialTheme.colorScheme.onPrimaryContainer else if (LocalDarkMode.current) Color.White else Color.Black
+                        color = if (select) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                     )
 
                     FlowRow(
@@ -753,8 +755,8 @@ private fun ModelItem(
             modifier = modifier,
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
             colors = CardDefaults.cardColors(
-                containerColor = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else Color.White,
-                contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else if (LocalDarkMode.current) Color.White else Color.Black,
+                containerColor = if (select) MaterialTheme.colorScheme.primaryContainer else if (LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
             )
         ) {
             Row(

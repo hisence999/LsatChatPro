@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -201,7 +203,7 @@ fun PhysicsSwipeToDelete(
     
     // Background color
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainerLowest
-    val fadeColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val fadeColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
     
     Box(
         modifier = modifier

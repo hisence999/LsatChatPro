@@ -89,15 +89,18 @@ fun UIAvatar(
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
     var urlInput by remember { mutableStateOf("") }
+    
+    // State for square cropper
+    var showCropper by remember { mutableStateOf(false) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val localUris = context.createChatFilesByContents(listOf(it))
-            localUris.firstOrNull()?.let { localUri ->
-                onUpdate?.invoke(Avatar.Image(localUri.toString()))
-            }
+            // Show the cropper instead of directly using the image
+            selectedImageUri = it
+            showCropper = true
         }
     }
 
@@ -284,6 +287,22 @@ fun UIAvatar(
                 ) {
                     Text(stringResource(id = R.string.avatar_cancel))
                 }
+            }
+        )
+    }
+    
+    // Square cropper dialog
+    if (showCropper && selectedImageUri != null) {
+        me.rerere.rikkahub.ui.components.crop.SquareCropImageScreen(
+            sourceUri = selectedImageUri!!,
+            onCropComplete = { croppedUri ->
+                showCropper = false
+                selectedImageUri = null
+                onUpdate?.invoke(Avatar.Image(croppedUri.toString()))
+            },
+            onCancel = {
+                showCropper = false
+                selectedImageUri = null
             }
         )
     }

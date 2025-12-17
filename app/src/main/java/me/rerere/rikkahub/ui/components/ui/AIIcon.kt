@@ -411,10 +411,11 @@ private fun getLobeHubIconUrls(providerSlug: String, darkMode: Boolean): IconUrl
     }
     
     // Return both colored and monochrome URLs for fallback chain
-    // Format: https://unpkg.com/@lobehub/icons-static-png@latest/dark/[slug]-color.png
+    // Format: https://unpkg.com/@lobehub/icons-static-png@latest/[light|dark]/[slug]-color.png
+    val theme = if (darkMode) "dark" else "light"
     return IconUrlPair(
-        coloredUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/dark/$slug-color.png",
-        monochromeUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/dark/$slug.png"
+        coloredUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/$theme/$slug-color.png",
+        monochromeUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/$theme/$slug.png"
     )
 }
 

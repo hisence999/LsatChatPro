@@ -88,6 +88,8 @@ import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.utils.countChatFiles
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
+import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
+import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -277,111 +279,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     }
 }
 
-@Composable
-private fun SettingsGroup(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp, top = 0.dp)
-        )
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(24.dp)),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            content = content
-        )
-    }
-}
-
-@Composable
-private fun SettingGroupItem(
-    title: String,
-    subtitle: String? = null,
-    icon: @Composable () -> Unit,
-    trailing: @Composable (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null
-) {
-    val haptics = rememberPremiumHaptics()
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
-        label = "scale"
-    )
-    
-    Surface(
-        onClick = {
-            if (onClick != null) {
-                haptics.perform(HapticPattern.Pop)
-                onClick()
-            }
-        },
-        enabled = onClick != null,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(10.dp),
-        interactionSource = interactionSource,
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Box(
-                modifier = Modifier.size(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                icon()
-            }
-            Column(
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            if (trailing != null) {
-                trailing()
-            } else if (onClick != null) {
-                Icon(
-                    Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun ProviderConfigWarningCard(navController: NavHostController) {

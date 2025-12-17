@@ -417,24 +417,25 @@ class ChatVM(
 
     private fun deleteMessageInternal(message: UIMessage) {
         val conversation = conversation.value
-        val node = conversation.getMessageNodeByMessage(message) ?: return
+        // Use ID-based lookup instead of object equality to avoid issues after recomposition
+        val node = conversation.getMessageNodeByMessageId(message.id) ?: return
         val nodeIndex = conversation.messageNodes.indexOf(node)
         if (nodeIndex == -1) return
         val newConversation = if (node.messages.size == 1) {
             conversation.copy(
                 messageNodes = conversation.messageNodes.filterIndexed { index, _ -> index != nodeIndex })
         } else {
-            val updatedNodes = conversation.messageNodes.mapNotNull { node ->
-                val newMessages = node.messages.filter { it.id != message.id }
+            val updatedNodes = conversation.messageNodes.mapNotNull { n ->
+                val newMessages = n.messages.filter { it.id != message.id }
                 if (newMessages.isEmpty()) {
                     null
                 } else {
-                    val newSelectIndex = if (node.selectIndex >= newMessages.size) {
+                    val newSelectIndex = if (n.selectIndex >= newMessages.size) {
                         newMessages.lastIndex
                     } else {
-                        node.selectIndex
+                        n.selectIndex
                     }
-                    node.copy(
+                    n.copy(
                         messages = newMessages,
                         selectIndex = newSelectIndex
                     )
@@ -449,7 +450,8 @@ class ChatVM(
 
     private fun collectRelatedMessages(message: UIMessage): List<UIMessage> {
         val currentMessages = conversation.value.currentMessages
-        val index = currentMessages.indexOf(message)
+        // Use ID-based lookup instead of object equality
+        val index = currentMessages.indexOfFirst { it.id == message.id }
         if (index == -1) return emptyList()
 
         val relatedMessages = hashSetOf<UIMessage>()

@@ -180,7 +180,7 @@ fun ChatMessageActionsSheet(
 
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Black
+                    containerColor = if(me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             ) {
                 Row(
@@ -215,7 +215,7 @@ fun ChatMessageActionsSheet(
 
                     shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                     colors = CardDefaults.cardColors(
-                        containerColor = androidx.compose.ui.graphics.Color.Black
+                        containerColor = if(me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                     )
                 ) {
                     Row(
@@ -247,7 +247,7 @@ fun ChatMessageActionsSheet(
 
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Black
+                    containerColor = if(me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             ) {
                 Row(
@@ -277,7 +277,7 @@ fun ChatMessageActionsSheet(
                 },
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Black
+                    containerColor = if(me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             ) {
                 Row(
@@ -307,7 +307,7 @@ fun ChatMessageActionsSheet(
                 },
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
                 colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Black
+                    containerColor = if(me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             ) {
                 Row(

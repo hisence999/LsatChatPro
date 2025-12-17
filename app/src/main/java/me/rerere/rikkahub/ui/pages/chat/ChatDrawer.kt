@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -111,7 +113,7 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
         drawerShape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        drawerContainerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier.padding(8.dp),

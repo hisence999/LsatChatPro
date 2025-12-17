@@ -48,7 +48,7 @@ class ElevenLabsTTSProvider : TTSProvider<TTSProviderSetting.ElevenLabs> {
         if (!response.isSuccessful) {
             val errorBody = response.body.string()
             Log.e(TAG, "TTS request failed: ${response.code} $errorBody")
-            throw Exception("ElevenLabs TTS request failed: ${response.code} ${response.message}")
+            throw Exception("ElevenLabs TTS failed: $errorBody")
         }
 
         val audioData = response.body.bytes()

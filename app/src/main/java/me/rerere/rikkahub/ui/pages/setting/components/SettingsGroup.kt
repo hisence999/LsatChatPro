@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -83,7 +85,7 @@ fun SettingGroupItem(
             }
         },
         enabled = onClick != null,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
         modifier = Modifier

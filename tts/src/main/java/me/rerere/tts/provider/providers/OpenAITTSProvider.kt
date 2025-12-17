@@ -48,7 +48,9 @@ class OpenAITTSProvider : TTSProvider<TTSProviderSetting.OpenAI> {
         val response = httpClient.newCall(httpRequest).execute()
 
         if (!response.isSuccessful) {
-            throw Exception("TTS request failed: ${response.code} ${response.message}")
+            val errorBody = response.body.string()
+            Log.e(TAG, "TTS request failed: ${response.code} $errorBody")
+            throw Exception("OpenAI TTS failed: $errorBody")
         }
 
         val audioData = response.body.bytes()

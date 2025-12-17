@@ -98,6 +98,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberCoroutineScope
 import me.rerere.ai.provider.BuiltInTools
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.DialogProperties
@@ -282,7 +284,7 @@ fun ChatInput(
             // Floating Input Bar
             Surface(
                 shape = RoundedCornerShape(cornerRadius),
-                color = MaterialTheme.colorScheme.surfaceContainerLow, // Material You Surface Color
+                color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerLow, // Material You Surface Color
                 tonalElevation = 8.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -539,6 +541,7 @@ fun ChatInput(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerLow,
                         tonalElevation = 8.dp
                     ) {
                         FilesPicker(
@@ -881,6 +884,12 @@ private fun ChatSuggestionsRow(
     onClickSuggestion: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    
+    // State to track interaction
+    var pressedSuggestionIndex by remember { mutableStateOf<Int?>(null) }
+    var selectedSuggestionIndex by remember { mutableStateOf<Int?>(null) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -895,46 +904,95 @@ private fun ChatSuggestionsRow(
                 kotlinx.coroutines.delay(index * 50L) // Staggered delay
                 visible = true
             }
+
+            // Determine if this item is selected or pressed
+            val isSelected = selectedSuggestionIndex == index
+            val isPressed = pressedSuggestionIndex == index
+            val isAnythingSelected = selectedSuggestionIndex != null
+            val isAnythingPressed = pressedSuggestionIndex != null
             
-            // Animate alpha and scale with physics-based spring
-            val alpha by animateFloatAsState(
-                targetValue = if (visible) 1f else 0f,
+            // Animation States
+            val targetScale = when {
+                isSelected -> 1.05f // quick spring up before disappearing
+                isPressed -> 0.9f // shrink when pressed
+                else -> 1f
+            }
+            
+            val targetAlpha = when {
+                isSelected -> 0f // fade out after selection
+                isAnythingSelected -> 0f // others disappear immediately
+                isAnythingPressed && !isPressed -> 0.5f // others fade when one is pressed
+                visible -> 1f
+                else -> 0f
+            }
+
+            // Animate scale
+            val scale by animateFloatAsState(
+                targetValue = targetScale,
                 animationSpec = spring(
-                    dampingRatio = 0.7f,
+                    dampingRatio = if (isSelected) 0.4f else 0.7f,
+                    stiffness = if (isSelected) 500f else 300f
+                ),
+                label = "suggestion_scale"
+            )
+
+            // Animate alpha
+            val alpha by animateFloatAsState(
+                targetValue = targetAlpha,
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
                     stiffness = 300f
                 ),
                 label = "suggestion_alpha"
             )
-            val scale by animateFloatAsState(
-                targetValue = if (visible) 1f else 0.8f,
-                animationSpec = spring(
-                    dampingRatio = 0.5f, // Slight bounce
-                    stiffness = 400f
-                ),
-                label = "suggestion_scale"
-            )
             
-            Surface(
-                modifier = Modifier
-                    .graphicsLayer {
-                        this.alpha = alpha
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onClickSuggestion(suggestion) },
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                )
-            ) {
-                Text(
-                    text = suggestion,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 12.dp)
-                )
+            // Handle disappearance after selection animation
+            // When selected, wait for animation then trigger callback
+            LaunchedEffect(isSelected) {
+                if(isSelected) {
+                    kotlinx.coroutines.delay(200) // Wait for spring up
+                    onClickSuggestion(suggestion)
+                    //Reset state is handled by parent recomposition usually, 
+                    // or we can reset here but the list might change.
+                    selectedSuggestionIndex = null 
+                    pressedSuggestionIndex = null
+                }
+            }
+
+            if (alpha > 0.01f) {
+                Surface(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            this.alpha = alpha
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .clip(RoundedCornerShape(50))
+                        .pointerInput(suggestion) {
+                            detectTapGestures(
+                                onPress = {
+                                    pressedSuggestionIndex = index
+                                    tryAwaitRelease()
+                                    pressedSuggestionIndex = null
+                                },
+                                onTap = {
+                                    selectedSuggestionIndex = index
+                                }
+                            )
+                        },
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Text(
+                        text = suggestion,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 6.dp, horizontal = 12.dp)
+                    )
+                }
             }
         }
     }
@@ -1047,7 +1105,7 @@ private fun FilesPicker(
 
             ListItem(
                 colors = ListItemDefaults.colors(
-                    containerColor = if (amoledMode && LocalDarkMode.current) Color.Black else Color.Transparent
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 leadingContent = {
                     Icon(

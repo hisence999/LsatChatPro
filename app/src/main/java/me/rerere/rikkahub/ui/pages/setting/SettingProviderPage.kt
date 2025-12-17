@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +36,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -64,6 +70,7 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +79,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
@@ -80,6 +88,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -131,13 +142,16 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.pages.setting.components.PROVIDER_PRESETS
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.toProviderSetting
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.utils.ImageUtils
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import me.rerere.rikkahub.data.model.Tag as DataTag
+
 
 @Composable
 fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
@@ -194,7 +208,9 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                             )
                         )
                     }
-                    AddButton {
+                    AddButton(
+                        enableHaptics = settings.displaySetting.enableUIHaptics
+                    ) {
                         vm.updateSettings(
                             settings.copy(
                                 providers = listOf(it) + settings.providers
@@ -252,6 +268,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 allProviders = settings.providers,
                 settings = settings,
                 haptics = haptics,
+                searchQuery = searchQuery,
                 onNavigateToDetail = { provider ->
                     navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
                 },
@@ -264,6 +281,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                         add(to, removeAt(from))
                     }
                     vm.updateSettings(settings.copy(providers = newProviders))
+                },
+                onAddProvider = { provider ->
+                    vm.updateSettings(
+                        settings.copy(
+                            providers = listOf(provider) + settings.providers
+                        )
+                    )
                 }
             )
             
@@ -355,9 +379,11 @@ private fun ProviderListView(
     allProviders: List<ProviderSetting>,
     settings: me.rerere.rikkahub.data.datastore.Settings,
     haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
+    searchQuery: String,
     onNavigateToDetail: (ProviderSetting) -> Unit,
     onDeleteRequest: (ProviderSetting) -> Unit,
-    onReorder: (Int, Int) -> Unit
+    onReorder: (Int, Int) -> Unit,
+    onAddProvider: (ProviderSetting) -> Unit
 ) {
     val lazyListState = rememberLazyListState()
     val density = LocalDensity.current
@@ -384,6 +410,16 @@ private fun ProviderListView(
     if (dragOffset == 0f && neighborsUnlocked) {
         neighborsUnlocked = false
     }
+    
+    // Check for matching preset when no providers found
+    val matchingPreset = remember(searchQuery, providers) {
+        if (providers.isEmpty() && searchQuery.isNotBlank()) {
+            PROVIDER_PRESETS.find { preset ->
+                preset.name.contains(searchQuery, ignoreCase = true) ||
+                preset.description.contains(searchQuery, ignoreCase = true)
+            }
+        } else null
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -393,6 +429,64 @@ private fun ProviderListView(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         state = lazyListState,
     ) {
+        // Show preset suggestion if no providers match but preset exists
+        if (matchingPreset != null) {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_no_providers_but_preset),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                    
+                    Surface(
+                        onClick = {
+                            val provider = matchingPreset.toProviderSetting()
+                            onAddProvider(provider)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = if (isSystemInDarkTheme()) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AutoProviderIcon(
+                                name = matchingPreset.name,
+                                baseUrl = matchingPreset.baseUrl,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = matchingPreset.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = matchingPreset.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         itemsIndexed(providers, key = { _, it -> it.id }) { index, provider ->
                 val position = when {
                     providers.size == 1 -> ItemPosition.ONLY
@@ -720,38 +814,246 @@ private fun handleImageQRCode(
 
 
 @Composable
-private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
-    val dialogState = useEditState<ProviderSetting> {
+private fun AddButton(
+    enableHaptics: Boolean,
+    onAdd: (ProviderSetting) -> Unit
+) {
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showCustomProviderDialog by remember { mutableStateOf(false) }
+    
+    // Custom provider dialog state
+    val customDialogState = useEditState<ProviderSetting> {
         onAdd(it)
     }
 
     IconButton(
         onClick = {
-            dialogState.open(ProviderSetting.OpenAI())
+            searchQuery = ""
+            showBottomSheet = true
         }
     ) {
         Icon(Icons.Rounded.Add, "Add")
     }
 
-    if (dialogState.isEditing) {
+    val haptics = rememberPremiumHaptics(enabled = enableHaptics)
+
+    // Provider selection bottom sheet
+    if (showBottomSheet) {
+        val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        
+        ModalBottomSheet(
+            onDismissRequest = {
+                showBottomSheet = false
+            },
+            sheetState = bottomSheetState,
+            dragHandle = {
+                BottomSheetDefaults.DragHandle()
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .fillMaxHeight(0.85f)
+                    .clipToBounds()
+            ) {
+                // Title
+                Text(
+                    text = stringResource(R.string.setting_provider_page_choose_provider),
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                )
+                
+                // Search bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.setting_provider_page_search_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = AppShapes.SearchField,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            }
+                        }
+                    } else null
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Filter presets based on search
+                val filteredPresets = remember(searchQuery) {
+                    if (searchQuery.isBlank()) {
+                        PROVIDER_PRESETS
+                    } else {
+                        PROVIDER_PRESETS.filter { preset ->
+                            preset.name.contains(searchQuery, ignoreCase = true) ||
+                            preset.description.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+                }
+                
+                CompositionLocalProvider(
+                    LocalOverscrollFactory provides null
+                ) {
+                    val lazyListState = rememberLazyListState()
+                    // Consume scroll events to prevent sheet from closing when scrolling
+                    val nestedScrollConnection = remember {
+                        object : NestedScrollConnection {
+                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                // Only consume if we're not at the top and scrolling up
+                                if (lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0) {
+                                    return Offset.Zero // Let the list handle it
+                                }
+                                return Offset.Zero
+                            }
+                        }
+                    }
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clipToBounds()
+                            .nestedScroll(nestedScrollConnection),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                    // Add Custom Provider card at the top
+                    item {
+                        Card(
+                            onClick = {
+                                haptics.perform(HapticPattern.Pop)
+                                showBottomSheet = false
+                                customDialogState.open(ProviderSetting.OpenAI())
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.setting_provider_page_add_custom_provider),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.setting_provider_page_add_custom_provider_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    
+                    // Provider presets
+                    itemsIndexed(filteredPresets, key = { _, preset -> preset.name }) { index, preset ->
+                        val position = when {
+                            filteredPresets.size == 1 -> ItemPosition.ONLY
+                            index == 0 -> ItemPosition.FIRST
+                            index == filteredPresets.lastIndex -> ItemPosition.LAST
+                            else -> ItemPosition.MIDDLE
+                        }
+                        
+                        val shape = when (position) {
+                            ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+                            ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+                            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+                            ItemPosition.ONLY -> RoundedCornerShape(24.dp)
+                        }
+                        
+                        Surface(
+                            onClick = {
+                                haptics.perform(HapticPattern.Pop)
+                                val provider = preset.toProviderSetting()
+                                onAdd(provider)
+                                showBottomSheet = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = shape,
+                            color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AutoProviderIcon(
+                                    name = preset.name,
+                                    baseUrl = preset.baseUrl,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = preset.name,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = preset.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Custom provider dialog (old behavior)
+    if (customDialogState.isEditing) {
         AlertDialog(
             onDismissRequest = {
-                dialogState.dismiss()
+                customDialogState.dismiss()
             },
             title = {
                 Text(stringResource(R.string.setting_provider_page_add_provider))
             },
             text = {
-                dialogState.currentState?.let {
+                customDialogState.currentState?.let {
                     ProviderConfigure(it) { newState ->
-                        dialogState.currentState = newState
+                        customDialogState.currentState = newState
                     }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        dialogState.confirm()
+                        customDialogState.confirm()
                     }
                 ) {
                     Text(stringResource(R.string.setting_provider_page_add))
@@ -760,7 +1062,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             dismissButton = {
                 TextButton(
                     onClick = {
-                        dialogState.dismiss()
+                        customDialogState.dismiss()
                     }
                 ) {
                     Text(stringResource(R.string.cancel))
@@ -769,6 +1071,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
         )
     }
 }
+
 
 @Composable
 private fun ProviderItemContent(
@@ -783,7 +1086,7 @@ private fun ProviderItemContent(
             .fillMaxWidth()
             .background(
                 if (provider.enabled) {
-                    MaterialTheme.colorScheme.surfaceContainerLow
+                    if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                 } else {
                     MaterialTheme.colorScheme.errorContainer
                 }
@@ -865,7 +1168,7 @@ private fun ProviderItemContent(
                                 colors = listOf(
                                     Color.Transparent,
                                     if (provider.enabled) {
-                                        MaterialTheme.colorScheme.surfaceContainerLow
+                                        if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                                     } else {
                                         MaterialTheme.colorScheme.errorContainer
                                     }

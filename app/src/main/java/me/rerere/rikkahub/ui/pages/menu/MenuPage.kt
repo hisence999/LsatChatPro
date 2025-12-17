@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.menu
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -144,7 +146,7 @@ private fun StatsSection(stats: MenuStats) {
                 title = "Avg. Messages/day",
                 value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
                 icon = Icons.AutoMirrored.Rounded.Chat,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .weight(1f)
@@ -299,7 +301,7 @@ private fun ToolButton(
             onClick()
         },
         shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         interactionSource = interactionSource,
         modifier = modifier
             .height(100.dp)

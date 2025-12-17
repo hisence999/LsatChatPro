@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,6 +75,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalTTSState
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
 import me.rerere.rikkahub.utils.plus
 import me.rerere.tts.provider.TTSProviderSetting
@@ -93,6 +97,17 @@ import me.rerere.rikkahub.ui.components.ui.ItemPosition
 import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Warning
+import me.rerere.rikkahub.ui.theme.AppShapes
 
 @Composable
 fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
@@ -166,6 +181,21 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
         // Delete confirmation state
         var showDeleteDialog by remember { mutableStateOf(false) }
         var providerToDelete by remember { mutableStateOf<TTSProviderSetting?>(null) }
+        
+        // TTS error state - show as toast notification
+        val tts = LocalTTSState.current
+        val ttsError by tts.error.collectAsState()
+        val toaster = LocalToaster.current
+        
+        // Show error toast when TTS error changes
+        LaunchedEffect(ttsError) {
+            ttsError?.let { errorMessage ->
+                toaster.show(
+                    message = "TTS Error: $errorMessage",
+                    type = com.dokar.sonner.ToastType.Error
+                )
+            }
+        }
 
         LazyColumn(
             modifier = Modifier
@@ -236,7 +266,8 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                 
                 ReorderableItem(
                     state = reorderableState,
-                    key = provider.id
+                    key = provider.id,
+                    animateItemModifier = Modifier
                 ) { isDragging ->
                     // Key on isSelected to force complete PhysicsSwipeToDelete recreation when selection changes
                     key(isSelected) {
@@ -486,7 +517,7 @@ private fun TtsTextFilterSettingsDialog(
             // Description
             androidx.compose.material3.Card(
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
             ) {
@@ -511,7 +542,7 @@ private fun TtsTextFilterSettingsDialog(
             if (rules.isEmpty()) {
                 androidx.compose.material3.Card(
                     colors = androidx.compose.material3.CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
                     shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
                 ) {
@@ -594,7 +625,7 @@ private fun TtsFilterRuleItem(
     
     androidx.compose.material3.Card(
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         ),
         shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
         onClick = onEdit
@@ -730,11 +761,13 @@ private fun TtsFilterRuleEditDialog(
 @Composable
 private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
     var showBottomSheet by remember { mutableStateOf(false) }
-    var currentProvider: TTSProviderSetting by remember { mutableStateOf(TTSProviderSetting.SystemTTS()) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val haptics = rememberPremiumHaptics()
 
     IconButton(
         onClick = {
-            currentProvider = TTSProviderSetting.SystemTTS()
+            searchQuery = ""
             showBottomSheet = true
         }
     ) {
@@ -743,6 +776,37 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
 
     if (showBottomSheet) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        
+        // TTS Provider presets
+        data class TTSPreset(
+            val type: kotlin.reflect.KClass<out TTSProviderSetting>,
+            val name: String,
+            val description: String,
+            val isLocal: Boolean = false
+        )
+        
+        val allTtsPresets = remember {
+            listOf(
+                TTSPreset(TTSProviderSetting.SystemTTS::class, "System TTS", "Uses device's built-in TTS engine", isLocal = true),
+                TTSPreset(TTSProviderSetting.OpenAI::class, "OpenAI", "High-quality voices with emotion"),
+                TTSPreset(TTSProviderSetting.Gemini::class, "Gemini", "Google's TTS with natural voices"),
+                TTSPreset(TTSProviderSetting.ElevenLabs::class, "ElevenLabs", "Professional voice cloning"),
+                TTSPreset(TTSProviderSetting.MiniMax::class, "MiniMax", "Chinese TTS with emotions"),
+            )
+        }
+        
+        // Filter presets based on search
+        val filteredPresets = remember(searchQuery) {
+            if (searchQuery.isBlank()) {
+                allTtsPresets
+            } else {
+                allTtsPresets.filter { preset ->
+                    preset.name.contains(searchQuery, ignoreCase = true) ||
+                    preset.description.contains(searchQuery, ignoreCase = true)
+                }
+            }
+        }
+        
         ModalBottomSheet(
             onDismissRequest = {
                 showBottomSheet = false
@@ -755,50 +819,156 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .fillMaxHeight(0.8f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 16.dp)
+                    .fillMaxHeight(0.85f)
+                    .clipToBounds()
             ) {
+                // Title
                 Text(
                     text = stringResource(R.string.setting_tts_page_add_provider),
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 )
-
-                TTSProviderConfigure(
-                    setting = currentProvider,
-                    onValueChange = { newState ->
-                        currentProvider = newState
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-
-                Row(
+                
+                // Search bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.setting_provider_page_search_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    shape = AppShapes.SearchField,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            }
+                        }
+                    } else null
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    TextButton(
-                        onClick = {
-                            showBottomSheet = false
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.cancel))
+                    itemsIndexed(filteredPresets, key = { _, preset -> preset.name }) { index, preset ->
+                        val position = when {
+                            filteredPresets.size == 1 -> ItemPosition.ONLY
+                            index == 0 -> ItemPosition.FIRST
+                            index == filteredPresets.lastIndex -> ItemPosition.LAST
+                            else -> ItemPosition.MIDDLE
+                        }
+                        
+                        val shape = when (position) {
+                            ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+                            ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+                            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+                            ItemPosition.ONLY -> RoundedCornerShape(24.dp)
+                        }
+                        
+                        androidx.compose.material3.Surface(
+                            onClick = {
+                                haptics.perform(HapticPattern.Pop)
+                                val newProvider = when (preset.type) {
+                                    TTSProviderSetting.SystemTTS::class -> TTSProviderSetting.SystemTTS()
+                                    TTSProviderSetting.OpenAI::class -> TTSProviderSetting.OpenAI()
+                                    TTSProviderSetting.Gemini::class -> TTSProviderSetting.Gemini()
+                                    TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs()
+                                    TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax()
+                                    else -> TTSProviderSetting.SystemTTS()
+                                }
+                                onAdd(newProvider)
+                                showBottomSheet = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = shape,
+                            color = if (LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Icon
+                                when (preset.type) {
+                                    TTSProviderSetting.SystemTTS::class -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                                    shape = me.rerere.rikkahub.ui.hooks.rememberAvatarShape(false)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.PhoneAndroid,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        val providerName = when (preset.type) {
+                                            TTSProviderSetting.OpenAI::class -> "OpenAI"
+                                            TTSProviderSetting.Gemini::class -> "Google"
+                                            TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
+                                            TTSProviderSetting.MiniMax::class -> "MiniMax"
+                                            else -> "Unknown"
+                                        }
+                                        AutoProviderIcon(
+                                            name = providerName,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                    }
+                                }
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = preset.name,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = preset.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                
+                                // Tags on right side
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (preset.isLocal) {
+                                        Tag(type = TagType.SUCCESS) {
+                                            Text("Local")
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-
-                    TextButton(
-                        onClick = {
-                            onAdd(currentProvider)
-                            showBottomSheet = false
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.setting_tts_page_add))
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun TTSProviderItemContent(
@@ -818,7 +988,7 @@ private fun TTSProviderItemContent(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         },
         animationSpec = tween(300),
         label = "selectionBackground"
@@ -832,31 +1002,23 @@ private fun TTSProviderItemContent(
         animationSpec = tween(300),
         label = "textColor"
     )
-    val subtitleColor by androidx.compose.animation.animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        animationSpec = tween(300),
-        label = "subtitleColor"
-    )
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor)
             .clickable {
+                haptics.perform(HapticPattern.Pop)
                 onSelect()
             }
-            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
+            .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Icon: System TTS shows a phone icon, others use provider icon lookup
         when (provider) {
             is TTSProviderSetting.SystemTTS -> {
-                androidx.compose.foundation.layout.Box(
+                Box(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
@@ -890,28 +1052,52 @@ private fun TTSProviderItemContent(
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = if (provider is TTSProviderSetting.SystemTTS) Arrangement.spacedBy(8.dp) else Arrangement.Center,
         ) {
             Text(
                 text = provider.name.ifEmpty { stringResource(R.string.setting_tts_page_default_name) },
                 style = MaterialTheme.typography.titleMedium,
-                color = textColor
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-
-            Text(
-                text = when (provider) {
-                    is TTSProviderSetting.OpenAI -> stringResource(R.string.setting_tts_page_provider_openai)
-                    is TTSProviderSetting.Gemini -> stringResource(R.string.setting_tts_page_provider_gemini)
-                    is TTSProviderSetting.MiniMax -> "MiniMax"
-                    is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
-                    is TTSProviderSetting.SystemTTS -> stringResource(R.string.setting_tts_page_provider_system)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = subtitleColor
-            )
+            
+            // Tags row - only show for SystemTTS
+            if (provider is TTSProviderSetting.SystemTTS) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clipToBounds()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)
+                    ) {
+                        Tag(type = TagType.SUCCESS) {
+                            Text("Local")
+                        }
+                    }
+                    // Fade gradient overlay
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(width = 40.dp, height = 24.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        backgroundColor
+                                    )
+                                )
+                            )
+                    )
+                }
+            }
         }
-
-        // Settings button - directly opens edit (no spacing after)
+        
+        // Settings button first
         IconButton(
             onClick = {
                 haptics.perform(HapticPattern.Pop)
@@ -924,6 +1110,7 @@ private fun TTSProviderItemContent(
             )
         }
         
+        // Drag handle at the end
         dragHandle()
     }
 }

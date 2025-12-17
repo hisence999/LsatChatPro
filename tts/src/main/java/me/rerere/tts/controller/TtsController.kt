@@ -313,14 +313,16 @@ class TtsController(
                         
                         // If still no response after max retries, wait longer and try again
                         if (response == null) {
-                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts)")
-                            _error.update { "Retrying TTS synthesis..." }
+                            val errorMsg = lastError?.message ?: "Unknown error"
+                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts): $errorMsg")
+                            _error.update { "TTS Error: $errorMsg" }
                             delay(5000L) // Wait 5 seconds before retrying the whole loop
                             
                             // After too many overall attempts, give up on this chunk
                             if (totalAttempts >= 15) {
-                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts", lastError)
-                                _error.update { "Skipped chunk due to repeated failures" }
+                                val errorMsg = lastError?.message ?: "Unknown error"
+                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts: $errorMsg", lastError)
+                                _error.update { "TTS failed after $totalAttempts attempts: $errorMsg" }
                                 break
                             }
                         }
@@ -440,13 +442,15 @@ class TtsController(
                         }
                         
                         if (response == null) {
-                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts)")
-                            _error.update { "Retrying TTS synthesis..." }
+                            val errorMsg = lastError?.message ?: "Unknown error"
+                            Log.w(TAG, "Retrying chunk ${chunk.index} after extended delay (total attempts: $totalAttempts): $errorMsg")
+                            _error.update { "TTS Error: $errorMsg" }
                             delay(5000L)
                             
                             if (totalAttempts >= 15) {
-                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts", lastError)
-                                _error.update { "Skipped chunk due to repeated failures" }
+                                val errorMsg = lastError?.message ?: "Unknown error"
+                                Log.e(TAG, "Giving up on chunk ${chunk.index} after $totalAttempts attempts: $errorMsg", lastError)
+                                _error.update { "TTS failed after $totalAttempts attempts: $errorMsg" }
                                 break
                             }
                         }

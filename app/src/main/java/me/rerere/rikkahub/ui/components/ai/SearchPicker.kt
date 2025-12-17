@@ -324,9 +324,9 @@ private fun SearchToggleItem(
     isAmoled: Boolean,
     isDarkMode: Boolean
 ) {
-    // Use Color.Black/White pattern like ReasoningPicker
-    val containerColor = if (isDarkMode) Color.Black else Color.White
-    val contentColor = if (isDarkMode) Color.White else Color.Black
+    // Use surfaceContainerHigh for Light Mode consistency
+    val containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+    val contentColor = MaterialTheme.colorScheme.onSurface
     
     Row(
         modifier = Modifier
@@ -397,20 +397,18 @@ private fun SearchProviderItem(
         bottomStart = bottomCorner, bottomEnd = bottomCorner
     )
     
-    // Use Color.Black/White pattern like ReasoningPicker
+    // Use surfaceContainerHigh for Light Mode consistency
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer
     } else if (isDarkMode) {
         Color.Black
     } else {
-        Color.White
+        MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val contentColor = if (isSelected) {
         MaterialTheme.colorScheme.onPrimaryContainer
-    } else if (isDarkMode) {
-        Color.White
     } else {
-        Color.Black
+        MaterialTheme.colorScheme.onSurface
     }
     
     Row(

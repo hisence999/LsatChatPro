@@ -34,91 +34,6 @@ fun TTSProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
     ) {
-        // Provider type selector
-        var expanded by remember { mutableStateOf(false) }
-        val providers = remember { TTSProviderSetting.Types }
-
-        FormItem(
-            label = { Text(stringResource(R.string.setting_tts_page_provider_type)) },
-            description = { Text(stringResource(R.string.setting_tts_page_provider_type_description)) },
-        ) {
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = when (setting) {
-                        is TTSProviderSetting.OpenAI -> "OpenAI"
-                        is TTSProviderSetting.Gemini -> "Gemini"
-                        is TTSProviderSetting.SystemTTS -> "System TTS"
-                        is TTSProviderSetting.MiniMax -> "MiniMax"
-                        is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
-                    },
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    providers.forEach { providerClass ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    when (providerClass) {
-                                        TTSProviderSetting.OpenAI::class -> "OpenAI"
-                                        TTSProviderSetting.Gemini::class -> "Gemini"
-                                        TTSProviderSetting.SystemTTS::class -> "System TTS"
-                                        TTSProviderSetting.MiniMax::class -> "MiniMax"
-                                        TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
-                                        else -> providerClass.simpleName ?: "Unknown"
-                                    }
-                                )
-                            },
-                            onClick = {
-                                expanded = false
-                                val newSetting = when (providerClass) {
-                                    TTSProviderSetting.OpenAI::class -> TTSProviderSetting.OpenAI(
-                                        id = setting.id,
-                                        name = "OpenAI TTS"
-                                    )
-
-                                    TTSProviderSetting.Gemini::class -> TTSProviderSetting.Gemini(
-                                        id = setting.id,
-                                        name = "Gemini TTS"
-                                    )
-
-                                    TTSProviderSetting.SystemTTS::class -> TTSProviderSetting.SystemTTS(
-                                        id = setting.id,
-                                        name = "System TTS"
-                                    )
-
-                                    TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax(
-                                        id = setting.id,
-                                        name = "MiniMax TTS"
-                                    )
-
-                                    TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs(
-                                        id = setting.id,
-                                        name = "ElevenLabs TTS"
-                                    )
-
-                                    else -> setting
-                                }
-                                onValueChange(newSetting)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
         // Name
         FormItem(
             label = { Text(stringResource(R.string.setting_tts_page_name)) },
@@ -144,6 +59,7 @@ fun TTSProviderConfigure(
         }
     }
 }
+
 
 @Composable
 private fun OpenAITTSConfiguration(

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.history;
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -353,7 +355,7 @@ private fun ConversationItem(
             haptics.perform(HapticPattern.Pop)
             onClick()
         },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
         modifier = modifier.graphicsLayer {

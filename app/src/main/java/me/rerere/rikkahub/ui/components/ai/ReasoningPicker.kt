@@ -117,7 +117,7 @@ fun ReasoningPicker(
             onDismissRequest()
         },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surface,
+        containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -238,7 +238,7 @@ private fun ReasoningOptionItem(
             .fillMaxWidth()
             .clip(itemShape)
             .background(
-                color = if (selected) MaterialTheme.colorScheme.primaryContainer else if (isDarkMode) Color.Black else Color.White
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
             )
             .clickable {
                 haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)

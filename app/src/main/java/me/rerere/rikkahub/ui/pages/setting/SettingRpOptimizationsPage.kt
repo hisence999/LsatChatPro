@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +111,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
                     shape = AppShapes.CardLarge
                 ) {
@@ -136,7 +138,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                         ),
                         shape = AppShapes.CardLarge
                     ) {
@@ -189,7 +191,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                         ),
                         shape = AppShapes.CardLarge
                     ) {
@@ -269,7 +271,7 @@ private fun RpStyleRuleItem(
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         ),
         shape = AppShapes.CardLarge,
         onClick = onEdit

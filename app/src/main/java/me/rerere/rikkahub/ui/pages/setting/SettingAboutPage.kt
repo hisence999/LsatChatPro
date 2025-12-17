@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
@@ -222,7 +224,7 @@ private fun AboutItem(
             }
         },
         enabled = onClick != null,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
         modifier = Modifier

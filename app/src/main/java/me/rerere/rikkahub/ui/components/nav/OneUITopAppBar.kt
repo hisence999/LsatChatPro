@@ -106,7 +106,7 @@ fun OneUITopAppBar(
         modifier = modifier
             .fillMaxWidth()
             .height(currentHeight)
-            .background(if (LocalDarkMode.current) Color.Black else Color.White)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         // Status bar spacer
         Spacer(modifier = Modifier.height(statusBarHeight))

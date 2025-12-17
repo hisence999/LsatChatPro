@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -167,7 +169,7 @@ fun ColumnScope.ConversationList(
                             .fillMaxWidth()
                             .padding(16.dp),
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
                             text = stringResource(id = R.string.chat_page_no_conversations),
@@ -236,7 +238,7 @@ fun ColumnScope.ConversationList(
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.surfaceContainerLow,
+                                if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
                                 Color.Transparent
                             )
                         )
@@ -255,7 +257,7 @@ fun ColumnScope.ConversationList(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.surfaceContainerLow
+                                if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                         )
                     )

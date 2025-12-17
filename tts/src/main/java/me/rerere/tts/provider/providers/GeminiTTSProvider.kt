@@ -96,7 +96,9 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
         val response = httpClient.newCall(httpRequest).execute()
 
         if (!response.isSuccessful) {
-            throw Exception("Gemini TTS request failed: ${response.code} ${response.message}")
+            val errorBody = response.body.string()
+            Log.e(TAG, "TTS request failed: ${response.code} $errorBody")
+            throw Exception("Gemini TTS failed: $errorBody")
         }
 
         val responseJson = response.body.string()

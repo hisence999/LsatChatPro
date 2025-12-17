@@ -122,7 +122,7 @@ fun AssistantPromptSubPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             FormItem(
@@ -251,7 +251,7 @@ fun AssistantPromptSubPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             FormItem(
@@ -371,7 +371,7 @@ fun AssistantPromptSubPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             FormItem(
@@ -476,7 +476,7 @@ fun AssistantPromptSubPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             FormItem(
@@ -572,7 +572,7 @@ fun AssistantPromptSubPage(
         Card(
             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
             )
         ) {
             FormItem(
@@ -631,7 +631,7 @@ private fun AssistantRegexCard(
         modifier = Modifier.fillMaxWidth(),
         shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
         colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
