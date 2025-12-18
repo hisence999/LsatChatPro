@@ -546,13 +546,19 @@ class ChatService(
                         val results =
                             JsonInstantPretty.encodeToJsonElement(result.getOrThrow()).jsonObject.let { json ->
                                 val map = json.toMutableMap()
-                                map["items"] =
-                                    JsonArray(map["items"]!!.jsonArray.mapIndexed { index, item ->
-                                        JsonObject(item.jsonObject.toMutableMap().apply {
-                                            put("id", JsonPrimitive(Uuid.random().toString().take(6)))
-                                            put("index", JsonPrimitive(index + 1))
-                                        })
+                                val items = map["items"]
+                                if (items is JsonArray) {
+                                    map["items"] = JsonArray(items.mapIndexed { index, item ->
+                                        if (item is JsonObject) {
+                                            JsonObject(item.toMutableMap().apply {
+                                                put("id", JsonPrimitive(Uuid.random().toString().take(6)))
+                                                put("index", JsonPrimitive(index + 1))
+                                            })
+                                        } else {
+                                            item
+                                        }
                                     })
+                                }
                                 JsonObject(map)
                             }
                         results
