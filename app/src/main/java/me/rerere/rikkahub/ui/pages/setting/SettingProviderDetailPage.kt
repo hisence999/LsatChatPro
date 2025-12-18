@@ -3,6 +3,8 @@ package me.rerere.rikkahub.ui.pages.setting
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -124,6 +129,8 @@ import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.TagsInput
+import me.rerere.rikkahub.ui.components.ui.ItemPosition
+import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -664,6 +671,20 @@ private fun ModelList(
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onUpdateProvider(providerSetting.moveMove(from.index, to.index))
     }
+    val density = LocalDensity.current
+    
+    // State for swipe neighbor tracking
+    var draggingIndex by remember { mutableStateOf(-1) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var isUnlocked by remember { mutableStateOf(false) }
+    var neighborsUnlocked by remember { mutableStateOf(false) }
+    
+    val canDelete = providerSetting.models.size > 1
+    
+    // Reset neighborsUnlocked when offset returns to 0
+    if (dragOffset == 0f && neighborsUnlocked) {
+        neighborsUnlocked = false
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -674,38 +695,93 @@ private fun ModelList(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false },
                 ),
-            contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + PaddingValues(bottom = 128.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             state = lazyListState
         ) {
             // 模型列表
-            items(providerSetting.models, key = { it.id }) { item ->
+            itemsIndexed(providerSetting.models, key = { _, item -> item.id }) { index, item ->
+                val position = when {
+                    providerSetting.models.size == 1 -> ItemPosition.ONLY
+                    index == 0 -> ItemPosition.FIRST
+                    index == providerSetting.models.lastIndex -> ItemPosition.LAST
+                    else -> ItemPosition.MIDDLE
+                }
+                
+                // Calculate neighbor offset
+                val thresholdPx = with(density) { 35.dp.toPx() }
+                if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
+                    neighborsUnlocked = true
+                }
+                
+                val shouldNeighborFollow = draggingIndex >= 0 && 
+                    draggingIndex != index && 
+                    !isUnlocked && 
+                    !neighborsUnlocked
+                
+                val neighborOffset = if (shouldNeighborFollow) {
+                    val distance = kotlin.math.abs(index - draggingIndex)
+                    when (distance) {
+                        1 -> dragOffset * 0.35f
+                        2 -> dragOffset * 0.12f
+                        else -> 0f
+                    }
+                } else {
+                    0f
+                }
+                
                 ReorderableItem(
                     state = reorderableLazyListState,
                     key = item.id
                 ) { isDragging ->
-                    ModelCard(
-                        model = item,
-                        onDelete = {
-                            onUpdateProvider(providerSetting.delModel(item))
-                        },
-                        onEdit = { editedModel ->
-                            onUpdateProvider(providerSetting.editModel(editedModel))
-                        },
-                        parentProvider = providerSetting,
-                        modifier = Modifier
-                            .longPressDraggableHandle()
-                            .graphicsLayer {
-                                if (isDragging) {
-                                    scaleX = 1.05f
-                                    scaleY = 1.05f
-                                } else {
-                                    scaleX = 1f
-                                    scaleY = 1f
+                    androidx.compose.runtime.key(canDelete) {
+                        ModelCard(
+                            model = item,
+                            position = position,
+                            canDelete = canDelete,
+                            neighborOffset = neighborOffset,
+                            onDragProgress = { offset, unlocked ->
+                                draggingIndex = index
+                                dragOffset = offset
+                                isUnlocked = unlocked
+                            },
+                            onDragEnd = {
+                                if (draggingIndex == index) {
+                                    draggingIndex = -1
+                                    dragOffset = 0f
                                 }
                             },
-                    )
+                            onDelete = {
+                                onUpdateProvider(providerSetting.delModel(item))
+                            },
+                            onEdit = { editedModel ->
+                                onUpdateProvider(providerSetting.editModel(editedModel))
+                            },
+                            parentProvider = providerSetting,
+                            dragHandle = {
+                                IconButton(
+                                    onClick = {},
+                                    modifier = Modifier.longPressDraggableHandle()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.DragIndicator,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    if (isDragging) {
+                                        scaleX = 0.95f
+                                        scaleY = 0.95f
+                                    } else {
+                                        scaleX = 1f
+                                        scaleY = 1f
+                                    }
+                                },
+                        )
+                    }
                 }
             }
             
@@ -1477,15 +1553,20 @@ fun ModalAbilitySelector(
 @Composable
 private fun ModelCard(
     model: Model,
-    modifier: Modifier = Modifier,
+    position: ItemPosition,
+    canDelete: Boolean,
+    neighborOffset: Float,
+    onDragProgress: (Float, Boolean) -> Unit,
+    onDragEnd: () -> Unit,
     onDelete: () -> Unit,
     onEdit: (Model) -> Unit,
-    parentProvider: ProviderSetting
+    parentProvider: ProviderSetting,
+    dragHandle: @Composable () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val dialogState = useEditState<Model> {
         onEdit(it)
     }
-    val swipeToDismissBoxState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
 
 
@@ -1568,108 +1649,71 @@ private fun ModelCard(
         }
     }
 
-    SwipeToDismissBox(
-        state = swipeToDismissBoxState,
-        backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        scope.launch {
-                            swipeToDismissBoxState.reset()
-                        }
-                    }
-                ) {
-                    Icon(Icons.Rounded.Close, null)
-                }
-                FilledIconButton(
-                    onClick = {
-                        scope.launch {
-                            onDelete()
-                            swipeToDismissBoxState.reset()
-                        }
-                    }
-                ) {
-                    Icon(
-                        Icons.Rounded.Delete,
-                        contentDescription = stringResource(R.string.chat_page_delete)
-                    )
-                }
-            }
-        },
-        enableDismissFromStartToEnd = false,
-        gesturesEnabled = true,
-        modifier = modifier
+    PhysicsSwipeToDelete(
+        position = position,
+        deleteEnabled = canDelete,
+        neighborOffset = neighborOffset,
+        onDragProgress = onDragProgress,
+        onDragEnd = onDragEnd,
+        onDelete = onDelete,
+        modifier = modifier.fillMaxWidth()
     ) {
-        OutlinedCard(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.small,
-                ) {
-                    AutoAIIconWithUrl(
-                        name = model.modelId,
-                        iconUrl = model.iconUrl,
-                        providerSlug = model.providerSlug,
-                        providerBaseUrl = when (parentProvider) {
-                            is ProviderSetting.OpenAI -> parentProvider.baseUrl
-                            is ProviderSetting.Google -> parentProvider.baseUrl
-                            is ProviderSetting.Claude -> parentProvider.baseUrl
-                        },
-                        isGoogleProvider = parentProvider is ProviderSetting.Google,
-                        modifier = Modifier.size(36.dp),
-                    )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) 
+                        MaterialTheme.colorScheme.surfaceContainerLow 
+                    else 
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+                .clickable {
+                    dialogState.open(model.copy())
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AutoAIIconWithUrl(
+                name = model.modelId,
+                iconUrl = model.iconUrl,
+                providerSlug = model.providerSlug,
+                providerBaseUrl = when (parentProvider) {
+                    is ProviderSetting.OpenAI -> parentProvider.baseUrl
+                    is ProviderSetting.Google -> parentProvider.baseUrl
+                    is ProviderSetting.Claude -> parentProvider.baseUrl
+                },
+                isGoogleProvider = parentProvider is ProviderSetting.Google,
+                modifier = Modifier.size(32.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = model.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(
-                        text = model.displayName,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        if (model.providerOverwrite != null) {
-                            Tag(type = TagType.INFO) {
-                                Text(
-                                    model.providerOverwrite?.javaClass?.simpleName ?: model.providerOverwrite?.name
-                                    ?: "ProviderOverwrite"
-                                )
-                            }
+                    if (model.providerOverwrite != null) {
+                        Tag(type = TagType.INFO) {
+                            Text(
+                                model.providerOverwrite?.javaClass?.simpleName ?: model.providerOverwrite?.name
+                                ?: "ProviderOverwrite"
+                            )
                         }
-                        ModelTypeTag(model = model)
-                        ModelModalityTag(model = model)
-                        ModelAbilityTag(model = model)
                     }
-                }
-
-                // Edit button
-                IconButton(
-                    onClick = {
-                        dialogState.open(model.copy())
-                    }
-                ) {
-                    Icon(Icons.Rounded.Edit, "Edit")
+                    ModelTypeTag(model = model)
+                    ModelModalityTag(model = model)
+                    ModelAbilityTag(model = model)
                 }
             }
+            dragHandle()
         }
     }
 }
