@@ -5,10 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,7 +22,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -67,6 +75,7 @@ private fun OpenAITTSConfiguration(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
+    var apiKeyVisible by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
@@ -76,8 +85,19 @@ private fun OpenAITTSConfiguration(
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
             placeholder = { Text(stringResource(R.string.setting_tts_page_api_key_placeholder_openai)) },
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                    )
+                }
+            }
         )
     }
 
@@ -159,6 +179,7 @@ private fun MiniMaxTTSConfiguration(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
+    var apiKeyVisible by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
@@ -168,7 +189,18 @@ private fun MiniMaxTTSConfiguration(
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                    )
+                }
+            }
         )
     }
 
@@ -320,6 +352,7 @@ private fun GeminiTTSConfiguration(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
+    var apiKeyVisible by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
@@ -329,8 +362,19 @@ private fun GeminiTTSConfiguration(
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
             placeholder = { Text(stringResource(R.string.setting_tts_page_api_key_placeholder_gemini)) },
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                    )
+                }
+            }
         )
     }
 
@@ -426,6 +470,7 @@ private fun ElevenLabsTTSConfiguration(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
+    var apiKeyVisible by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text("Your ElevenLabs API key from your account settings") }
@@ -435,8 +480,19 @@ private fun ElevenLabsTTSConfiguration(
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
             placeholder = { Text("xi-...") },
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                    )
+                }
+            }
         )
     }
 

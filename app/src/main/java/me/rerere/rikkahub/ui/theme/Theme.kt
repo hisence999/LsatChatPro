@@ -80,7 +80,9 @@ fun RikkahubTheme(
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme
             }
+            @Suppress("DEPRECATION")
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
             window.statusBarColor = android.graphics.Color.TRANSPARENT
         }
     }

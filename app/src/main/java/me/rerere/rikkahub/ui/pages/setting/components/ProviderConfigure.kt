@@ -5,7 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -14,9 +19,16 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ProviderSetting
@@ -177,6 +189,7 @@ private fun ColumnScope.ProviderConfigureOpenAI(
 
     provider.description()
 
+    var apiKeyVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = provider.apiKey,
         onValueChange = {
@@ -185,8 +198,19 @@ private fun ColumnScope.ProviderConfigureOpenAI(
         label = {
             Text(stringResource(id = R.string.setting_provider_page_api_key))
         },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
+        maxLines = if (apiKeyVisible) 3 else 1,
+        visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                Icon(
+                    imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                )
+            }
+        }
     )
 
     OutlinedTextField(
@@ -242,6 +266,7 @@ private fun ColumnScope.ProviderConfigureClaude(
 ) {
     provider.description()
 
+    var apiKeyVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = provider.apiKey,
         onValueChange = {
@@ -250,7 +275,19 @@ private fun ColumnScope.ProviderConfigureClaude(
         label = {
             Text(stringResource(id = R.string.setting_provider_page_api_key))
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
+        maxLines = 1,
+        visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                Icon(
+                    imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                )
+            }
+        }
     )
 
     OutlinedTextField(
@@ -285,6 +322,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
     }
 
     if (!provider.vertexAI) {
+        var apiKeyVisible by remember { mutableStateOf(false) }
         OutlinedTextField(
             value = provider.apiKey,
             onValueChange = {
@@ -293,8 +331,19 @@ private fun ColumnScope.ProviderConfigureGoogle(
             label = {
                 Text(stringResource(id = R.string.setting_provider_page_api_key))
             },
-            modifier = Modifier.fillMaxWidth(),
-            maxLines = 3,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused) apiKeyVisible = false },
+            maxLines = if (apiKeyVisible) 3 else 1,
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                    )
+                }
+            }
         )
 
         OutlinedTextField(

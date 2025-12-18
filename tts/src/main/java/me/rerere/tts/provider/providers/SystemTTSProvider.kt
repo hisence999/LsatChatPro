@@ -76,6 +76,7 @@ class SystemTTSProvider : TTSProvider<TTSProviderSetting.SystemTTS> {
                         }
                     }
 
+                    @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
                         Log.e(TAG, "onError: TTS synthesis failed!")
                         audioFile.delete()
