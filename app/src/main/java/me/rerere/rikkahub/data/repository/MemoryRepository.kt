@@ -39,10 +39,6 @@ class MemoryRepository(
             .map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.embeddingModelId, it.createdAt) }
     }
 
-    // ... (omitted methods) ...
-
-
-
     suspend fun getMemoryEntitiesOfAssistant(assistantId: String): List<MemoryEntity> {
         return memoryDAO.getMemoriesOfAssistant(assistantId)
     }
@@ -60,7 +56,9 @@ class MemoryRepository(
         memoryId: Int,
         memoryType: Int,
         content: String,
-        assistantId: String
+        assistantId: String,
+        existingEmbedding: String? = null,
+        existingModelId: String? = null
     ): List<Float>? {
         val modelId = embeddingService.getEmbeddingModelId(assistantId)
         
@@ -74,6 +72,25 @@ class MemoryRepository(
             }
         }
         
+        // Check existing embedding in entity (Fallback / Optimization)
+        if (existingEmbedding != null && existingModelId == modelId) {
+             try {
+                val emb = JsonInstant.decodeFromString<List<Float>>(existingEmbedding)
+                // Backfill cache for future performance
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = memoryId,
+                        memoryType = memoryType,
+                        modelId = modelId,
+                        embedding = existingEmbedding
+                    )
+                )
+                return emb
+             } catch (e: Exception) {
+                 e.printStackTrace()
+             }
+        }
+
         // Generate new embedding
         return try {
             val embedding = embeddingService.embed(content, assistantId)
@@ -112,6 +129,10 @@ class MemoryRepository(
         val memory = memoryDAO.getMemoryById(id) ?: error("Memory not found")
         val newMemory = memory.copy(content = content, embedding = null) // Invalidate embedding
         memoryDAO.updateMemory(newMemory)
+
+        // Invalidate cache
+        embeddingCacheDAO.deleteByMemoryId(id, MemoryType.CORE)
+
         return AssistantMemory(
             id = newMemory.id,
             content = newMemory.content,
@@ -125,6 +146,10 @@ class MemoryRepository(
         val episode = chatEpisodeDAO.getEpisodeById(id) ?: error("Episode not found")
         val newEpisode = episode.copy(content = content, embedding = null) // Invalidate embedding
         chatEpisodeDAO.insertEpisode(newEpisode)
+
+        // Invalidate cache
+        embeddingCacheDAO.deleteByMemoryId(id, MemoryType.EPISODIC)
+
         return AssistantMemory(
             id = -newEpisode.id,
             content = newEpisode.content,
@@ -154,6 +179,18 @@ class MemoryRepository(
         
         val id = memoryDAO.insertMemory(entity)
         
+        // Add to cache immediately if available
+        if (embeddingResult != null && embeddingResult.embeddings.isNotEmpty()) {
+             embeddingCacheDAO.insertEmbedding(
+                EmbeddingCacheEntity(
+                    memoryId = id.toInt(),
+                    memoryType = MemoryType.CORE,
+                    modelId = embeddingResult.modelId,
+                    embedding = JsonInstant.encodeToString(embeddingResult.embeddings.first())
+                )
+             )
+        }
+
         return AssistantMemory(
             id = id.toInt(),
             content = content,
@@ -165,96 +202,21 @@ class MemoryRepository(
 
     suspend fun deleteMemory(id: Int) {
         memoryDAO.deleteMemory(id)
+        embeddingCacheDAO.deleteByMemoryId(id, MemoryType.CORE)
     }
 
     /**
      * Retrieve relevant memories with scores for debugging
      */
     suspend fun retrieveRelevantMemoriesWithScores(assistantId: String, query: String, limit: Int = 5, similarityThreshold: Float = 0.5f): List<Pair<AssistantMemory, Float>> {
-        val queryEmbedding = try {
-            embeddingService.embed(query, assistantId)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return emptyList()
-        }
-
-        // Get both core memories and episodes
-        val memories = memoryDAO.getMemoriesOfAssistant(assistantId)
-        val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
-        
-        // Score core memories - use cache for embeddings
-        val memoryScores = memories.mapNotNull { memory ->
-            val embedding = getOrCreateEmbedding(
-                memoryId = memory.id,
-                memoryType = MemoryType.CORE,
-                content = memory.content,
-                assistantId = assistantId
-            ) ?: return@mapNotNull null
-            
-            val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
-            
-            // Core memories don't decay, score is just similarity
-            // But we can give them a slight boost to ensure important facts are prioritized
-            val score = similarity * 1.05f 
-            
-            if (score >= similarityThreshold) {
-                Triple(memory, score, true) // true = is memory
-            } else null
-        }
-        
-        // Score episodes - use cache for embeddings
-        val episodeScores = episodes.mapNotNull { episode ->
-            val embedding = getOrCreateEmbedding(
-                memoryId = episode.id,
-                memoryType = MemoryType.EPISODIC,
-                content = episode.content,
-                assistantId = assistantId
-            ) ?: return@mapNotNull null
-            
-            val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
-            
-            // Calculate Recency Score
-            // Decay over 7 days (half-life)
-            val ageInMillis = System.currentTimeMillis() - episode.startTime
-            val ageInDays = ageInMillis / (1000.0 * 60 * 60 * 24)
-            val recency = (1.0 / (1.0 + (ageInDays / 7.0))).toFloat()
-            
-            // Dual-Track Score Formula
-            val score = (similarity * 0.7f) + (recency * 0.3f)
-            
-            if (score >= similarityThreshold) {
-                Triple(episode as Any, score, false) // false = is episode
-            } else null
-        }
-        
-        // Combine and sort by score
-        val allScored = (memoryScores + episodeScores).sortedByDescending { it.second }
-        
-        // Update lastAccessedAt for retrieved memories
-        allScored.take(limit).forEach { (item, _, isMemory) ->
-            if (isMemory) {
-                val memory = item as MemoryEntity
-                memoryDAO.updateMemory(memory.copy(lastAccessedAt = System.currentTimeMillis()))
-            } else {
-                val episode = item as ChatEpisodeEntity
-                chatEpisodeDAO.insertEpisode(episode.copy(lastAccessedAt = System.currentTimeMillis()))
-            }
-        }
-        
-        return allScored.take(limit).mapNotNull { triple ->
-            val item = triple.first
-            val score = triple.second
-            val isMemory = triple.third
-
-            if (isMemory) {
-                val memory = item as MemoryEntity
-                Pair<AssistantMemory, Float>(AssistantMemory(memory.id, memory.content, memory.type, true, memory.embeddingModelId, memory.createdAt), score)
-            } else {
-                val episode = item as ChatEpisodeEntity
-                // Convert episode to AssistantMemory with a negative ID to distinguish
-                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
-            }
-        }
+        return retrieveRelevantMemoriesWithScores(
+            assistantId = assistantId,
+            query = query,
+            limit = limit,
+            similarityThreshold = similarityThreshold,
+            includeCore = true,
+            includeEpisodes = true
+        )
     }
 
     suspend fun retrieveRelevantMemories(
@@ -295,7 +257,9 @@ class MemoryRepository(
                 memoryId = memory.id,
                 memoryType = MemoryType.CORE,
                 content = memory.content,
-                assistantId = assistantId
+                assistantId = assistantId,
+                existingEmbedding = memory.embedding,
+                existingModelId = memory.embeddingModelId
             ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
@@ -315,7 +279,9 @@ class MemoryRepository(
                 memoryId = episode.id,
                 memoryType = MemoryType.EPISODIC,
                 content = episode.content,
-                assistantId = assistantId
+                assistantId = assistantId,
+                existingEmbedding = episode.embedding,
+                existingModelId = episode.embeddingModelId
             ) ?: return@mapNotNull null
             
             val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
@@ -487,11 +453,25 @@ class MemoryRepository(
         memoriesNeedingEmbedding.forEach { memory ->
             try {
                 val embedding = embeddingService.embed(memory.content, assistantId)
-                memoryDAO.updateMemory(memory.copy(
-                    embedding = JsonInstant.encodeToString(embedding),
-                    embeddingModelId = currentModelId
-                ))
-                successCount++
+                if (embedding != null) {
+                    val embeddingJson = JsonInstant.encodeToString(embedding)
+                    memoryDAO.updateMemory(memory.copy(
+                        embedding = embeddingJson,
+                        embeddingModelId = currentModelId
+                    ))
+                    // Also cache
+                    embeddingCacheDAO.insertEmbedding(
+                        EmbeddingCacheEntity(
+                            memoryId = memory.id,
+                            memoryType = MemoryType.CORE,
+                            modelId = currentModelId,
+                            embedding = embeddingJson
+                        )
+                    )
+                    successCount++
+                } else {
+                    failureCount++
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
@@ -502,11 +482,25 @@ class MemoryRepository(
         episodesNeedingEmbedding.forEach { episode ->
             try {
                 val embedding = embeddingService.embed(episode.content, assistantId)
-                chatEpisodeDAO.insertEpisode(episode.copy(
-                    embedding = JsonInstant.encodeToString(embedding),
-                    embeddingModelId = currentModelId
-                ))
-                successCount++
+                if (embedding != null) {
+                    val embeddingJson = JsonInstant.encodeToString(embedding)
+                    chatEpisodeDAO.insertEpisode(episode.copy(
+                        embedding = embeddingJson,
+                        embeddingModelId = currentModelId
+                    ))
+                    // Also cache
+                    embeddingCacheDAO.insertEmbedding(
+                        EmbeddingCacheEntity(
+                            memoryId = episode.id,
+                            memoryType = MemoryType.EPISODIC,
+                            modelId = currentModelId,
+                            embedding = embeddingJson
+                        )
+                    )
+                    successCount++
+                } else {
+                    failureCount++
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
