@@ -94,17 +94,15 @@ class MemoryRepository(
         // Generate new embedding
         return try {
             val embedding = embeddingService.embed(content, assistantId)
-            if (embedding != null) {
-                // Cache it
-                embeddingCacheDAO.insertEmbedding(
-                    EmbeddingCacheEntity(
-                        memoryId = memoryId,
-                        memoryType = memoryType,
-                        modelId = modelId,
-                        embedding = JsonInstant.encodeToString(embedding)
-                    )
+            // Cache it
+            embeddingCacheDAO.insertEmbedding(
+                EmbeddingCacheEntity(
+                    memoryId = memoryId,
+                    memoryType = memoryType,
+                    modelId = modelId,
+                    embedding = JsonInstant.encodeToString(embedding)
                 )
-            }
+            )
             embedding
         } catch (e: Exception) {
             e.printStackTrace()
@@ -370,23 +368,19 @@ class MemoryRepository(
             current++
             try {
                 val embedding = embeddingService.embed(memory.content, assistantId)
-                if (embedding != null) {
-                    val embeddingJson = JsonInstant.encodeToString(embedding)
-                    // Store in entity for backward compatibility
-                    memoryDAO.updateMemory(memory.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
-                    // Store in cache for model-based persistence
-                    embeddingCacheDAO.insertEmbedding(
-                        EmbeddingCacheEntity(
-                            memoryId = memory.id,
-                            memoryType = MemoryType.CORE,
-                            modelId = currentModelId,
-                            embedding = embeddingJson
-                        )
+                val embeddingJson = JsonInstant.encodeToString(embedding)
+                // Store in entity for backward compatibility
+                memoryDAO.updateMemory(memory.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
+                // Store in cache for model-based persistence
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = memory.id,
+                        memoryType = MemoryType.CORE,
+                        modelId = currentModelId,
+                        embedding = embeddingJson
                     )
-                    successCount++
-                } else {
-                    failureCount++
-                }
+                )
+                successCount++
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
@@ -399,23 +393,19 @@ class MemoryRepository(
             current++
             try {
                 val embedding = embeddingService.embed(episode.content, assistantId)
-                if (embedding != null) {
-                    val embeddingJson = JsonInstant.encodeToString(embedding)
-                    // Store in entity for backward compatibility
-                    chatEpisodeDAO.insertEpisode(episode.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
-                    // Store in cache for model-based persistence
-                    embeddingCacheDAO.insertEmbedding(
-                        EmbeddingCacheEntity(
-                            memoryId = episode.id,
-                            memoryType = MemoryType.EPISODIC,
-                            modelId = currentModelId,
-                            embedding = embeddingJson
-                        )
+                val embeddingJson = JsonInstant.encodeToString(embedding)
+                // Store in entity for backward compatibility
+                chatEpisodeDAO.insertEpisode(episode.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
+                // Store in cache for model-based persistence
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = episode.id,
+                        memoryType = MemoryType.EPISODIC,
+                        modelId = currentModelId,
+                        embedding = embeddingJson
                     )
-                    successCount++
-                } else {
-                    failureCount++
-                }
+                )
+                successCount++
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
@@ -453,25 +443,21 @@ class MemoryRepository(
         memoriesNeedingEmbedding.forEach { memory ->
             try {
                 val embedding = embeddingService.embed(memory.content, assistantId)
-                if (embedding != null) {
-                    val embeddingJson = JsonInstant.encodeToString(embedding)
-                    memoryDAO.updateMemory(memory.copy(
-                        embedding = embeddingJson,
-                        embeddingModelId = currentModelId
-                    ))
-                    // Also cache
-                    embeddingCacheDAO.insertEmbedding(
-                        EmbeddingCacheEntity(
-                            memoryId = memory.id,
-                            memoryType = MemoryType.CORE,
-                            modelId = currentModelId,
-                            embedding = embeddingJson
-                        )
+                val embeddingJson = JsonInstant.encodeToString(embedding)
+                memoryDAO.updateMemory(memory.copy(
+                    embedding = embeddingJson,
+                    embeddingModelId = currentModelId
+                ))
+                // Also cache
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = memory.id,
+                        memoryType = MemoryType.CORE,
+                        modelId = currentModelId,
+                        embedding = embeddingJson
                     )
-                    successCount++
-                } else {
-                    failureCount++
-                }
+                )
+                successCount++
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++
@@ -482,25 +468,21 @@ class MemoryRepository(
         episodesNeedingEmbedding.forEach { episode ->
             try {
                 val embedding = embeddingService.embed(episode.content, assistantId)
-                if (embedding != null) {
-                    val embeddingJson = JsonInstant.encodeToString(embedding)
-                    chatEpisodeDAO.insertEpisode(episode.copy(
-                        embedding = embeddingJson,
-                        embeddingModelId = currentModelId
-                    ))
-                    // Also cache
-                    embeddingCacheDAO.insertEmbedding(
-                        EmbeddingCacheEntity(
-                            memoryId = episode.id,
-                            memoryType = MemoryType.EPISODIC,
-                            modelId = currentModelId,
-                            embedding = embeddingJson
-                        )
+                val embeddingJson = JsonInstant.encodeToString(embedding)
+                chatEpisodeDAO.insertEpisode(episode.copy(
+                    embedding = embeddingJson,
+                    embeddingModelId = currentModelId
+                ))
+                // Also cache
+                embeddingCacheDAO.insertEmbedding(
+                    EmbeddingCacheEntity(
+                        memoryId = episode.id,
+                        memoryType = MemoryType.EPISODIC,
+                        modelId = currentModelId,
+                        embedding = embeddingJson
                     )
-                    successCount++
-                } else {
-                    failureCount++
-                }
+                )
+                successCount++
             } catch (e: Exception) {
                 e.printStackTrace()
                 failureCount++

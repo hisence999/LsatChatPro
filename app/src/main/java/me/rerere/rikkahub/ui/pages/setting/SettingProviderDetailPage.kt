@@ -680,15 +680,38 @@ private fun ModelList(
             state = lazyListState
         ) {
             // 模型列表
+            items(providerSetting.models, key = { it.id }) { item ->
+                ReorderableItem(
+                    state = reorderableLazyListState,
+                    key = item.id
+                ) { isDragging ->
+                    ModelCard(
+                        model = item,
+                        onDelete = {
+                            onUpdateProvider(providerSetting.delModel(item))
+                        },
+                        onEdit = { editedModel ->
+                            onUpdateProvider(providerSetting.editModel(editedModel))
+                        },
+                        parentProvider = providerSetting,
+                        modifier = Modifier
+                            .longPressDraggableHandle()
+                            .graphicsLayer {
+                                if (isDragging) {
+                                    scaleX = 1.05f
+                                    scaleY = 1.05f
+                                } else {
+                                    scaleX = 1f
+                                    scaleY = 1f
+                                }
+                            },
+                    )
+                }
+            }
+            
+            // Empty state for saved models
             if (providerSetting.models.isEmpty()) {
                 item {
-                    // Check if provider has an API key
-                    val hasApiKey = when (providerSetting) {
-                        is ProviderSetting.OpenAI -> providerSetting.apiKey.isNotBlank()
-                        is ProviderSetting.Google -> providerSetting.apiKey.isNotBlank()
-                        is ProviderSetting.Claude -> providerSetting.apiKey.isNotBlank()
-                    }
-                    
                     Column(
                         modifier = Modifier
                             .fillParentMaxHeight(0.8f)
@@ -703,43 +726,11 @@ private fun ModelList(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(
-                                if (hasApiKey) R.string.setting_provider_page_no_models_with_api_key
-                                else R.string.setting_provider_page_no_models_no_api_key
-                            ),
+                            text = stringResource(R.string.setting_provider_page_add_models_hint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 32.dp)
-                        )
-                    }
-                }
-            } else {
-                items(providerSetting.models, key = { it.id }) { item ->
-                    ReorderableItem(
-                        state = reorderableLazyListState,
-                        key = item.id
-                    ) { isDragging ->
-                        ModelCard(
-                            model = item,
-                            onDelete = {
-                                onUpdateProvider(providerSetting.delModel(item))
-                            },
-                            onEdit = { editedModel ->
-                                onUpdateProvider(providerSetting.editModel(editedModel))
-                            },
-                            parentProvider = providerSetting,
-                            modifier = Modifier
-                                .longPressDraggableHandle()
-                                .graphicsLayer {
-                                    if (isDragging) {
-                                        scaleX = 1.05f
-                                        scaleY = 1.05f
-                                    } else {
-                                        scaleX = 1f
-                                        scaleY = 1f
-                                    }
-                                },
                         )
                     }
                 }
@@ -1197,6 +1188,36 @@ private fun ModelPicker(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(8.dp),
                 ) {
+                    // Empty state for API model list
+                    if (models.isEmpty()) {
+                        item {
+                            // Check if provider has an API key
+                            val hasApiKey = when (parentProvider) {
+                                is ProviderSetting.OpenAI -> parentProvider.apiKey.isNotBlank()
+                                is ProviderSetting.Google -> parentProvider.apiKey.isNotBlank()
+                                is ProviderSetting.Claude -> parentProvider.apiKey.isNotBlank()
+                            }
+                            
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (hasApiKey) R.string.setting_provider_page_no_models_with_api_key
+                                        else R.string.setting_provider_page_no_models_no_api_key
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                            }
+                        }
+                    }
                     items(filteredModels) {
                         Card(
                             shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
