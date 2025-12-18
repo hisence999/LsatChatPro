@@ -24,10 +24,6 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("device_control")
     data object DeviceControl : LocalToolOption()
-    
-    @Serializable
-    @SerialName("shell_command")
-    data object ShellCommand : LocalToolOption()
 }
 
 class LocalTools(private val context: Context) {
@@ -573,50 +569,6 @@ class LocalTools(private val context: Context) {
             )
         )
     }
-    
-    val shellTools by lazy {
-        listOf(
-            Tool(
-                name = "run_shell_command",
-                description = "Execute a shell command on the Android device. Use for advanced operations like listing files (ls), checking network (ping), or running system utilities. Commands run in app sandbox with limited privileges.",
-                parameters = {
-                    InputSchema.Obj(
-                        properties = buildJsonObject {
-                            put("command", buildJsonObject {
-                                put("type", "string")
-                                put("description", "Shell command to execute")
-                            })
-                        },
-                        required = listOf("command")
-                    )
-                },
-                execute = {
-                    val command = it.jsonObject["command"]?.jsonPrimitive?.contentOrNull ?: ""
-                    try {
-                        val process = Runtime.getRuntime().exec(command)
-                        val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
-                        val errorReader = java.io.BufferedReader(java.io.InputStreamReader(process.errorStream))
-                        
-                        val output = StringBuilder()
-                        reader.forEachLine { line -> output.append(line).append("\n") }
-                        
-                        val errors = StringBuilder()
-                        errorReader.forEachLine { line -> errors.append(line).append("\n") }
-                        
-                        process.waitFor()
-                        
-                        val result = if (output.isNotEmpty()) output.toString() else errors.toString()
-                        buildJsonObject {
-                            put("output", result.ifBlank { "Command executed (no output)" })
-                        }
-                    } catch (e: Exception) {
-                        buildJsonObject { put("error", e.message ?: "Unknown error") }
-                    }
-                }
-            )
-        )
-    }
-
     fun getTools(options: List<LocalToolOption>, assistantId: Uuid, conversationId: Uuid): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
@@ -624,9 +576,6 @@ class LocalTools(private val context: Context) {
         }
         if (options.contains(LocalToolOption.DeviceControl)) {
             tools.addAll(getDeviceControlTools(assistantId, conversationId))
-        }
-        if (options.contains(LocalToolOption.ShellCommand)) {
-            tools.addAll(shellTools)
         }
         return tools
     }
