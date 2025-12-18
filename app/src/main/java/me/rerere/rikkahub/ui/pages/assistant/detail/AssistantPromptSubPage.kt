@@ -141,23 +141,34 @@ fun AssistantPromptSubPage(
                     }
                 },
             ) {
-                // Key on assistant.id + systemPrompt hash to recreate state when assistant or content changes
-                val systemPromptValue = androidx.compose.runtime.key(assistant.id, assistant.systemPrompt.hashCode()) {
+                // Initialize state with current system prompt. Key on assistant.id to reset when switching assistants.
+                val systemPromptValue = androidx.compose.runtime.key(assistant.id) {
                     rememberTextFieldState(
                         initialText = assistant.systemPrompt,
                     )
                 }
-                // Use drop(1) to skip the initial emission that happens before
-                // the assistant is properly loaded, preventing empty overwrites
+
+                // Sync from external state (e.g. undo/redo, cloud sync)
+                LaunchedEffect(assistant.systemPrompt) {
+                    if (systemPromptValue.text.toString() != assistant.systemPrompt) {
+                        systemPromptValue.edit {
+                            replace(0, length, assistant.systemPrompt)
+                        }
+                    }
+                }
+
+                // Sync to external state
                 LaunchedEffect(assistant.id) {
                     snapshotFlow { systemPromptValue.text }
                         .drop(1) // Skip initial emission
                         .collect {
-                            onUpdate(
-                                assistant.copy(
-                                    systemPrompt = it.toString()
+                            if (it.toString() != assistant.systemPrompt) {
+                                onUpdate(
+                                    assistant.copy(
+                                        systemPrompt = it.toString()
+                                    )
                                 )
-                            )
+                            }
                         }
                 }
                 OutlinedTextField(

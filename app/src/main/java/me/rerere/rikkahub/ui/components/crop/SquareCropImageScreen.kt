@@ -302,8 +302,12 @@ private suspend fun squareCropAndSaveImage(
             squareSize
         )
         
-        // Save to temp file
-        val outputFile = File(context.appTempFolder, "avatar_${System.currentTimeMillis()}.png")
+        // Save to persistent file
+        val avatarsDir = File(context.filesDir, "avatars")
+        if (!avatarsDir.exists()) {
+            avatarsDir.mkdirs()
+        }
+        val outputFile = File(avatarsDir, "avatar_${System.currentTimeMillis()}.png")
         FileOutputStream(outputFile).use { stream ->
             croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         }
