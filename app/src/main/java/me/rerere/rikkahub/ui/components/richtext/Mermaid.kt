@@ -5,19 +5,34 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountTree
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,28 +43,52 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Visibility
 import com.dokar.sonner.ToastType
 import com.google.common.cache.CacheBuilder
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
-import me.rerere.rikkahub.utils.escapeHtml
 import me.rerere.rikkahub.utils.exportImage
 import me.rerere.rikkahub.utils.toCssHex
 
 private val mermaidHeightCache = CacheBuilder.newBuilder()
     .maximumSize(100)
     .build<String, Int>()
+
+/**
+ * Normalize mermaid code by replacing problematic Unicode characters
+ * that AI models sometimes generate (fancy quotes, non-breaking hyphens, etc.)
+ */
+private fun String.normalizeMermaidCode(): String {
+    return this
+        // Replace non-breaking hyphens with regular hyphens
+        .replace('\u2011', '-')  // Non-breaking hyphen
+        .replace('\u2010', '-')  // Hyphen
+        .replace('\u2012', '-')  // Figure dash
+        .replace('\u2013', '-')  // En dash
+        .replace('\u2014', '-')  // Em dash
+        // Replace fancy quotes with regular quotes
+        .replace('\u201C', '"')  // Left double quote
+        .replace('\u201D', '"')  // Right double quote
+        .replace('\u2018', '\'') // Left single quote
+        .replace('\u2019', '\'') // Right single quote
+        // Escape < and > for HTML safety (but not &, which may be used for entities)
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+}
 
 /**
  * A component that renders Mermaid diagrams.
@@ -69,6 +108,7 @@ fun Mermaid(
     val activity = LocalActivity.current
     val toaster = LocalToaster.current
 
+    var isExpanded by remember { mutableStateOf(true) }
     var contentHeight by remember { mutableIntStateOf(mermaidHeightCache.getIfPresent(code) ?: 150) }
     val height = with(density) {
         contentHeight.toDp()
@@ -135,51 +175,141 @@ fun Mermaid(
     )
 
     var preview by remember { mutableStateOf(false) }
-    Box(
-        modifier = modifier
-    ) {
-        WebView(
-            state = webViewState,
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .animateContentSize()
-                .height(height),
-            onUpdated = {
-                it.evaluateJavascript("calculateAndSendHeight();", null)
-            }
-        )
+    
+    // Physics-based header animations
+    val headerInteractionSource = remember { MutableInteractionSource() }
+    val isHeaderPressed by headerInteractionSource.collectIsPressedAsState()
+    val headerScale by animateFloatAsState(
+        targetValue = if (isHeaderPressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.4f,
+            stiffness = 400f
+        ),
+        label = "header_scale"
+    )
+    val headerAlpha by animateFloatAsState(
+        targetValue = if (isHeaderPressed) 0.7f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = 300f
+        ),
+        label = "header_alpha"
+    )
 
-        // 导出图片按钮
-        if (activity != null) {
+    Surface(
+        modifier = modifier,
+        shape = AppShapes.CardLarge,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .clipToBounds()
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = 0.7f,
+                        stiffness = 300f
+                    )
+                ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Header row - always full width with icons at far right
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = headerScale
+                        scaleY = headerScale
+                        alpha = headerAlpha
+                    }
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(
+                        onClick = { isExpanded = !isExpanded },
+                        indication = LocalIndication.current,
+                        interactionSource = headerInteractionSource
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .semantics { role = Role.Button },
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = {
-                        preview = true
-                    },
-                ) {
-                    Icon(
-                        Icons.Rounded.Visibility,
-                        contentDescription = "Prewview"
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        webViewState.webView?.evaluateJavascript(
-                            "exportSvgToPng();",
-                            null
+                // Left side: Icon and title
+                Icon(
+                    imageVector = Icons.Rounded.AccountTree,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.mermaid_diagram),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                // Spacer to push icons to the right
+                Spacer(modifier = Modifier.weight(1f))
+                
+                // Right side: Action icons + chevron
+                if (activity != null) {
+                    // Preview icon
+                    IconButton(
+                        onClick = { preview = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Visibility,
+                            contentDescription = stringResource(R.string.mermaid_preview),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                ) {
-                    Icon(
-                        Icons.Rounded.Download,
-                        contentDescription = stringResource(R.string.mermaid_export)
-                    )
+                    }
+                    
+                    // Download icon
+                    IconButton(
+                        onClick = {
+                            webViewState.webView?.evaluateJavascript(
+                                "exportSvgToPng();",
+                                null
+                            )
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = stringResource(R.string.mermaid_export),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+                
+                // Expand/collapse chevron
+                Icon(
+                    imageVector = if (isExpanded) {
+                        Icons.Rounded.KeyboardArrowUp
+                    } else {
+                        Icons.Rounded.KeyboardArrowDown
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            // Diagram content (only when expanded)
+            if (isExpanded) {
+                WebView(
+                    state = webViewState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .height(height),
+                    onUpdated = {
+                        it.evaluateJavascript("calculateAndSendHeight();", null)
+                    }
+                )
             }
         }
     }
@@ -230,7 +360,7 @@ fun Mermaid(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(400.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(MaterialTheme.shapes.medium)
                 )
             }
         }
@@ -303,7 +433,7 @@ private fun buildMermaidHtml(
         </head>
         <body>
             <pre class="mermaid">
-                ${code.escapeHtml()}
+                ${code.normalizeMermaidCode()}
             </pre>
             <script>
               mermaid.initialize({

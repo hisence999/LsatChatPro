@@ -323,15 +323,6 @@ fun HighlightCodeBlock(
                 )
             }
 
-            // Mermaid special handling
-            if (completeCodeBlock && language == "mermaid") {
-                Mermaid(
-                    code = code,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                return@Column
-            }
-
             // Code content with fade gradients (only when expanded)
             if (expandState.expanded) {
                 val textStyle = LocalTextStyle.current.merge(style)

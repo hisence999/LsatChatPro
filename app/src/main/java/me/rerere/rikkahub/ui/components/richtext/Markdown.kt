@@ -524,14 +524,24 @@ private fun MarkdownNode(
                 node.findChildOfTypeRecursive(MarkdownTokenTypes.FENCE_LANG)?.getTextInNode(content) ?: "plaintext"
             val hasEnd = node.findChildOfTypeRecursive(MarkdownTokenTypes.CODE_FENCE_END) != null
 
-            HighlightCodeBlock(
-                code = code,
-                language = language,
-                modifier = Modifier
-                    .padding(bottom = 4.dp)
-                    .fillMaxWidth(),
-                completeCodeBlock = hasEnd
-            )
+            // Mermaid diagrams: render directly without HighlightCodeBlock wrapper
+            if (hasEnd && language == "mermaid") {
+                Mermaid(
+                    code = code,
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .fillMaxWidth(),
+                )
+            } else {
+                HighlightCodeBlock(
+                    code = code,
+                    language = language,
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .fillMaxWidth(),
+                    completeCodeBlock = hasEnd
+                )
+            }
         }
 
         MarkdownTokenTypes.TEXT -> {

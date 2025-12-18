@@ -284,9 +284,11 @@
     <string name="menu_page_llm_leaderboard">LLM Leaderboard</string>
     <string name="menu_page_morning_greeting">Good Morning!</string>
     <string name="menu_page_night_greeting">Good Night!</string>
+    <string name="mermaid_diagram">Mermaid Diagram</string>
     <string name="mermaid_export">Export</string>
     <string name="mermaid_export_failed">Export Failed</string>
     <string name="mermaid_export_success">Export Success</string>
+    <string name="mermaid_preview">Preview</string>
     <string name="model_list_favorite">Favorite</string>
     <string name="model_list_no_providers">No AI providers available, please add in settings</string>
     <string name="model_list_search_placeholder">Search models</string>
