@@ -379,6 +379,15 @@ fun ChatInput(
                                 },
                                 onUpdateSearchService = onUpdateSearchService,
                                 model = chatModel,
+                                selectedProviderIndex = when (val mode = assistant.searchMode) {
+                                    is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> mode.index
+                                    else -> -1
+                                },
+                                isBuiltInMode = assistant.searchMode is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn,
+                                preferBuiltInSearch = assistant.preferBuiltInSearch,
+                                onTogglePreferBuiltInSearch = { enabled ->
+                                    onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))
+                                },
                                 contentColor = if (enableSearch || chatModel?.tools?.contains(BuiltInTools.Search) == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 onlyIcon = true
                             )

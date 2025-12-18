@@ -102,10 +102,40 @@ class ChatVM(
     val settings: StateFlow<Settings> =
         settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
 
-    // 网络搜索
-    val enableWebSearch = settings.map {
-        it.enableWebSearch
+    // 网络搜索 - 从当前助手的searchMode派生
+    val enableWebSearch = settings.map { settings ->
+        val assistant = settings.assistants.find { it.id == settings.assistantId }
+        when (assistant?.searchMode) {
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.Off -> false
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn -> true
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> true
+            null -> false
+        }
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)
+    
+    // 获取当前助手的searchMode
+    val currentSearchMode = settings.map { settings ->
+        val assistant = settings.assistants.find { it.id == settings.assistantId }
+        assistant?.searchMode ?: me.rerere.rikkahub.data.model.AssistantSearchMode.Off
+    }.stateIn(viewModelScope, SharingStarted.Lazily, me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+    
+    // 更新当前助手的searchMode
+    fun updateAssistantSearchMode(searchMode: me.rerere.rikkahub.data.model.AssistantSearchMode) {
+        viewModelScope.launch {
+            settingsStore.update { settings ->
+                val assistantId = settings.assistantId
+                settings.copy(
+                    assistants = settings.assistants.map {
+                        if (it.id == assistantId) {
+                            it.copy(searchMode = searchMode)
+                        } else {
+                            it
+                        }
+                    }
+                )
+            }
+        }
+    }
 
     // 搜索关键词
     private val _searchQuery = MutableStateFlow("")

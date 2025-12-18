@@ -63,6 +63,14 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import me.rerere.rikkahub.data.model.Tag as DataTag
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.Icon
 
 @Composable
 fun AssistantDetailPage(id: String) {
@@ -432,6 +440,108 @@ private fun AssistantBasicSettings(
                         )
                     }
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Search Mode dropdown
+                val settings by vm.settings.collectAsStateWithLifecycle()
+                val chatModel = remember(assistant.chatModelId, providers) {
+                    providers.flatMap { it.models }.find { it.id == assistant.chatModelId }
+                }
+                val supportsBuiltInSearch = chatModel != null && 
+                    me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(chatModel.modelId)
+                
+                FormItem(
+                    label = {
+                        Text("Search Mode")
+                    },
+                    description = {
+                        Text("Configure web search for this assistant.")
+                    }
+                ) {
+                    var expanded by remember { mutableStateOf(false) }
+                    val currentSearchMode = assistant.searchMode
+                    
+                    val displayText = when (currentSearchMode) {
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Off -> "Off"
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn -> "Off" // Legacy: treat as Off
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> {
+                            settings.searchServices.getOrNull(currentSearchMode.index)?.let {
+                                me.rerere.search.SearchServiceOptions.TYPES[it::class] ?: "Provider ${currentSearchMode.index + 1}"
+                            } ?: "Provider ${currentSearchMode.index + 1}"
+                        }
+                    }
+                    
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = displayText,
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            // Off option
+                            DropdownMenuItem(
+                                text = { Text("Off") },
+                                onClick = {
+                                    onUpdate(assistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Off))
+                                    expanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                            
+                            // Configured search providers
+                            settings.searchServices.forEachIndexed { index, service ->
+                                val serviceName = me.rerere.search.SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
+                                DropdownMenuItem(
+                                    text = { Text(serviceName) },
+                                    onClick = {
+                                        onUpdate(assistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index)))
+                                        expanded = false
+                                    },
+                                    leadingIcon = {
+                                        me.rerere.rikkahub.ui.components.ui.AutoAIIcon(
+                                            name = serviceName,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // Prefer Built-in Search Toggle
+                FormItem(
+                    label = {
+                        Text("Prefer Built-in Search")
+                    },
+                    description = {
+                        Text("Falls back to selected provider above if not supported.")
+                    }
+                ) {
+                    Switch(
+                        checked = assistant.preferBuiltInSearch,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(preferBuiltInSearch = it))
+                        }
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {

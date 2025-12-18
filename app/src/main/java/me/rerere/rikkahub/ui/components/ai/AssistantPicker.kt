@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,6 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -163,6 +168,10 @@ fun AssistantPickerSheet(
 
     val isDarkMode = LocalDarkMode.current
     val haptics = rememberPremiumHaptics()
+    
+    // State to lock the sheet height to its initial size to prevent jumping animations
+    var sheetHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -172,7 +181,15 @@ fun AssistantPickerSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .then(
+                    if (sheetHeight > 0.dp) Modifier.heightIn(min = sheetHeight) else Modifier
+                )
+                .onSizeChanged {
+                    if (sheetHeight == 0.dp) {
+                        sheetHeight = with(density) { it.height.toDp() }
+                    }
+                },
         ) {
             Text(
                 text = stringResource(R.string.assistant_page_title),
@@ -189,6 +206,7 @@ fun AssistantPickerSheet(
                 ) {
                     items(settings.assistantTags, key = { tag -> tag.id }) { tag ->
                         FilterChip(
+                            modifier = Modifier.animateItem(),
                             onClick = {
                                 selectedTagIds = if (tag.id in selectedTagIds) {
                                     selectedTagIds - tag.id
@@ -207,13 +225,12 @@ fun AssistantPickerSheet(
 
             // 助手列表
             val navController = LocalNavController.current
-            Column(
+            LazyColumn(
                 modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
+                    .weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                filteredAssistants.forEachIndexed { index, assistant ->
+                itemsIndexed(filteredAssistants, key = { _, item -> item.id }) { index, assistant ->
                     val checked = assistant.id == currentAssistant.id
                     
                     // Determine position in the list for corner rounding
@@ -250,6 +267,7 @@ fun AssistantPickerSheet(
                     // Use Row+clip+background pattern like ReasoningPicker
                     Row(
                         modifier = Modifier
+                            .animateItem()
                             .fillMaxWidth()
                             .clip(shape)
                             .background(

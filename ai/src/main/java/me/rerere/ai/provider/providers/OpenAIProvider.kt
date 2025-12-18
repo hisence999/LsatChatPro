@@ -218,13 +218,20 @@ class OpenAIProvider(
             buildJsonObject {
                 put("model", params.model.modelId)
                 put("prompt", params.prompt)
-                put("n", params.numOfImages)
+                // DALL-E 3 only supports n=1, DALL-E 2 supports up to 10
+                val isDalle3 = params.model.modelId.contains("dall-e-3", ignoreCase = true)
+                put("n", if (isDalle3) 1 else params.numOfImages.coerceIn(1, 10))
                 put("response_format", "b64_json")
+                // DALL-E 3: 1024x1024, 1792x1024, 1024x1792
+                // DALL-E 2: 256x256, 512x512, 1024x1024
                 put(
-                    "size", when (params.aspectRatio) {
-                        ImageAspectRatio.SQUARE -> "1024x1024"
-                        ImageAspectRatio.LANDSCAPE -> "1536x1024"
-                        ImageAspectRatio.PORTRAIT -> "1024x1536"
+                    "size", when {
+                        isDalle3 -> when (params.aspectRatio) {
+                            ImageAspectRatio.SQUARE -> "1024x1024"
+                            ImageAspectRatio.LANDSCAPE -> "1792x1024"
+                            ImageAspectRatio.PORTRAIT -> "1024x1792"
+                        }
+                        else -> "1024x1024" // DALL-E 2 only supports square
                     }
                 )
             }.mergeCustomBody(params.customBody)

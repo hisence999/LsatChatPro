@@ -13,6 +13,8 @@ data class Assistant(
     val id: Uuid = Uuid.random(),
     val chatModelId: Uuid? = null, // 如果为null, 使用全局默认模型
     val backgroundModelId: Uuid? = null, // 用于后台检查的模型
+    val searchMode: AssistantSearchMode = AssistantSearchMode.Off, // Search mode for this assistant
+    val preferBuiltInSearch: Boolean = false, // If true, use built-in search when model supports it, otherwise fall back to searchMode
     val embeddingModelId: Uuid? = null, // 用于生成嵌入的模型
     val name: String = "",
     val avatar: Avatar = Avatar.Dummy,
@@ -92,6 +94,21 @@ enum class ContextPriority {
     CHAT_HISTORY,
     BALANCED,
     MEMORIES
+}
+
+@Serializable
+sealed class AssistantSearchMode {
+    @Serializable
+    @SerialName("off")
+    data object Off : AssistantSearchMode()
+    
+    @Serializable
+    @SerialName("builtin")
+    data object BuiltIn : AssistantSearchMode()
+    
+    @Serializable
+    @SerialName("provider")
+    data class Provider(val index: Int) : AssistantSearchMode()
 }
 
 @Serializable

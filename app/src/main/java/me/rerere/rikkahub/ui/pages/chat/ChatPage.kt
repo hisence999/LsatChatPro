@@ -414,7 +414,14 @@ private fun ChatPageContent(
                     },
                     enableSearch = enableWebSearch,
                     onToggleSearch = {
-                        vm.updateSettings(setting.copy(enableWebSearch = !enableWebSearch))
+                        if (enableWebSearch) {
+                            vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                        } else {
+                            // Turn on search - use first provider if available
+                            if (setting.searchServices.isNotEmpty()) {
+                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(0))
+                            }
+                        }
                     },
                     onSendClick = {
                         if (currentChatModel == null) {
@@ -466,11 +473,14 @@ private fun ChatPageContent(
                         )
                     },
                     onUpdateSearchService = { index ->
+                        // Update global searchServiceSelected for backward compatibility
                         vm.updateSettings(
                             setting.copy(
                                 searchServiceSelected = index
                             )
                         )
+                        // Also persist the selection to the assistant's searchMode
+                        vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index))
                     },
                     onClearContext = {
                         vm.handleMessageTruncate()

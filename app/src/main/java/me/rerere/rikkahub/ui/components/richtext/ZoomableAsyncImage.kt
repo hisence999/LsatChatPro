@@ -64,8 +64,9 @@ fun ZoomableAsyncImage(
         },
     )
     if (showImageViewer) {
-        ImagePreviewDialog(images = listOf(model ?: "")) {
-            showImageViewer = false
-        }
+        ImagePreviewDialog(
+            images = listOf(model ?: ""),
+            onDismissRequest = { showImageViewer = false }
+        )
     }
 }

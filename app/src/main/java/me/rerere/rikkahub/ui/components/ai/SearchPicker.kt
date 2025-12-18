@@ -79,6 +79,10 @@ fun SearchPickerButton(
     onToggleSearch: (Boolean) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     model: Model?,
+    selectedProviderIndex: Int = -1, // -1 means use global setting, otherwise use this index
+    isBuiltInMode: Boolean = false, // true when assistant's searchMode is BuiltIn
+    preferBuiltInSearch: Boolean = false, // true when prefer built-in search toggle is ON
+    onTogglePreferBuiltInSearch: (Boolean) -> Unit = {}, // callback to update assistant.preferBuiltInSearch
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     onlyIcon: Boolean = false
 ) {
@@ -88,7 +92,9 @@ fun SearchPickerButton(
     // I'm correcting 'currentmember' to 'current' to ensure syntactic correctness of the access pattern.
     val toaster = LocalToaster.current // { mutableStateOf(false) } - removed the lambda as it's not how current is typically used.
     var showSearchPicker by remember { mutableStateOf(false) }
-    val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+    // Use selectedProviderIndex if provided (>= 0), otherwise fall back to global setting
+    val effectiveProviderIndex = if (selectedProviderIndex >= 0) selectedProviderIndex else settings.searchServiceSelected
+    val currentService = settings.searchServices.getOrNull(effectiveProviderIndex)
 
     ToggleSurface(
         modifier = modifier,
@@ -110,7 +116,13 @@ fun SearchPickerButton(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (enableSearch && currentService != null) {
+                // Determine if built-in search is effectively active
+                val modelSupportsBuiltIn = model != null && me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
+                val isUsingBuiltIn = preferBuiltInSearch && modelSupportsBuiltIn
+                
+                // Show globe icon when: using built-in search, or no provider selected, or search is off
+                // Show provider icon only when: search is on, NOT using built-in, and has a provider
+                if (enableSearch && !isUsingBuiltIn && currentService != null) {
                     AutoAIIcon(
                         name = SearchServiceOptions.TYPES[currentService::class] ?: "Search",
                         color = Color.Transparent
@@ -133,9 +145,8 @@ fun SearchPickerButton(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.5f)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .padding(bottom = 16.dp), // Extra padding at bottom for navigation bar
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -155,9 +166,11 @@ fun SearchPickerButton(
                         onUpdateSearchService(index)
                     },
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                        .fillMaxWidth(),
                     model = model,
+                    selectedProviderIndex = effectiveProviderIndex,
+                    preferBuiltInSearch = preferBuiltInSearch,
+                    onTogglePreferBuiltInSearch = onTogglePreferBuiltInSearch,
                     onDismiss = {
                         showSearchPicker = false
                     }
@@ -175,27 +188,32 @@ private fun SearchPicker(
     modifier: Modifier = Modifier,
     onToggleSearch: (Boolean) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
+    selectedProviderIndex: Int = -1,
+    preferBuiltInSearch: Boolean = false,
+    onTogglePreferBuiltInSearch: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val navBackStack = LocalNavController.current
 
-    // 模型内置搜索
+    // 模型内置搜索 (only show if model supports it)
     if (model != null && ModelRegistry.GEMINI_SERIES.match(model.modelId)) {
-        BuiltInSearchSetting(model = model)
-    }
-
-    // 如果没有开启内置搜索，显示搜索服务选择
-    if (model?.tools?.contains(BuiltInTools.Search) != true) {
-        AppSearchSettings(
-            enableSearch = enableSearch,
-            onDismiss = onDismiss,
-            navBackStack = navBackStack,
-            onToggleSearch = onToggleSearch,
-            modifier = modifier,
-            settings = settings,
-            onUpdateSearchService = onUpdateSearchService
+        BuiltInSearchSetting(
+            preferBuiltInSearch = preferBuiltInSearch,
+            onTogglePreferBuiltInSearch = onTogglePreferBuiltInSearch
         )
     }
+
+    // 显示搜索服务选择 (always show, but selection only applies when not using built-in)
+    AppSearchSettings(
+        enableSearch = enableSearch,
+        onDismiss = onDismiss,
+        navBackStack = navBackStack,
+        onToggleSearch = onToggleSearch,
+        modifier = modifier,
+        settings = settings,
+        selectedProviderIndex = selectedProviderIndex,
+        onUpdateSearchService = onUpdateSearchService
+    )
 }
 
 @Composable
@@ -206,6 +224,7 @@ private fun AppSearchSettings(
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier,
     settings: Settings,
+    selectedProviderIndex: Int = -1,
     onUpdateSearchService: (Int) -> Unit
 ) {
     val amoledMode by rememberAmoledDarkMode()
@@ -271,7 +290,7 @@ private fun AppSearchSettings(
             )
             // Providers at positions 1-2
             settings.searchServices.forEachIndexed { index, service ->
-                val isSelected = settings.searchServiceSelected == index
+                val isSelected = selectedProviderIndex == index
                 SearchProviderItem(
                     service = service,
                     isSelected = isSelected,
@@ -298,7 +317,7 @@ private fun AppSearchSettings(
             )
             // All providers
             settings.searchServices.forEachIndexed { index, service ->
-                val isSelected = settings.searchServiceSelected == index
+                val isSelected = selectedProviderIndex == index
                 SearchProviderItem(
                     service = service,
                     isSelected = isSelected,
@@ -438,9 +457,10 @@ private fun SearchProviderItem(
 }
 
 @Composable
-private fun BuiltInSearchSetting(model: Model) {
-    val settingsStore = koinInject<SettingsStore>()
-    val scope = rememberCoroutineScope()
+private fun BuiltInSearchSetting(
+    preferBuiltInSearch: Boolean,
+    onTogglePreferBuiltInSearch: (Boolean) -> Unit
+) {
     val amoledMode by rememberAmoledDarkMode()
     val isDarkMode = LocalDarkMode.current
     val isAmoled = amoledMode && isDarkMode
@@ -485,22 +505,9 @@ private fun BuiltInSearchSetting(model: Model) {
                 }
 
                 Switch(
-                    checked = model.tools.contains(BuiltInTools.Search),
+                    checked = preferBuiltInSearch,
                     onCheckedChange = { checked ->
-                        val settings = settingsStore.settingsFlow.value
-                        scope.launch {
-                            settingsStore.update(
-                                settings.copy(
-                                    providers = settings.providers.map { providerSetting ->
-                                        providerSetting.editModel(
-                                            model.copy(
-                                                tools = if (checked) model.tools + BuiltInTools.Search else model.tools - BuiltInTools.Search
-                                            )
-                                        )
-                                    }
-                                )
-                            )
-                        }
+                        onTogglePreferBuiltInSearch(checked)
                     }
                 )
             }

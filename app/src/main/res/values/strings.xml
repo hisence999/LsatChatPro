@@ -508,6 +508,10 @@
     <string name="setting_provider_page_filter_placeholder">Filter models...</string>
     <string name="setting_provider_page_image">Image</string>
     <string name="setting_provider_page_image_model">Image</string>
+    <string name="setting_provider_page_image_method">Generation Method</string>
+    <string name="setting_provider_page_image_method_diffusion">Diffusion</string>
+    <string name="setting_provider_page_image_method_multimodal">Multimodal</string>
+    <string name="setting_provider_page_image_input">Supports Image Input</string>
     <string name="setting_provider_page_image_qr_decode_failed">QR decode failed: %s</string>
     <string name="setting_provider_page_image_read_failed">Failed to read image</string>
     <string name="setting_provider_page_import_dialog_message">Select import method:</string>

@@ -19,6 +19,7 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     val iconUrl: String? = null, // Remote icon URL
     val providerSlug: String? = null, // Provider slug for LobeHub CDN icons (e.g., "anthropic")
+    val imageGenerationMethod: ImageGenerationMethod? = null, // Only for IMAGE type models
 )
 
 @Serializable
@@ -32,6 +33,14 @@ enum class ModelType {
 enum class Modality {
     TEXT,
     IMAGE,
+}
+
+@Serializable
+enum class ImageGenerationMethod {
+    @SerialName("diffusion")
+    DIFFUSION,      // Traditional diffusion models like DALL-E, Stable Diffusion
+    @SerialName("multimodal")
+    MULTIMODAL,     // Chat models with image output (GPT-4o, Gemini 2.0 Flash)
 }
 
 @Serializable
@@ -53,6 +62,4 @@ sealed class BuiltInTools {
     @SerialName("url_context")
     data object UrlContext : BuiltInTools()
 }
-
-
 

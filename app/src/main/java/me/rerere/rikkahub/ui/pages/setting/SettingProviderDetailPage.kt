@@ -93,6 +93,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NetworkCheck
@@ -109,6 +110,7 @@ import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
+import me.rerere.ai.provider.ImageGenerationMethod
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderProxy
 import me.rerere.ai.provider.ProviderSetting
@@ -964,6 +966,25 @@ private fun ModelSettingsForm(
                             }
                         )
 
+                        // Image Generation Method selector (only for IMAGE type)
+                        if (model.type == ModelType.IMAGE) {
+                            ImageGenerationMethodSelector(
+                                selectedMethod = model.imageGenerationMethod,
+                                onMethodSelected = {
+                                    onModelChange(model.copy(imageGenerationMethod = it))
+                                },
+                                supportsImageInput = model.inputModalities.contains(Modality.IMAGE),
+                                onImageInputChanged = { supportsImage ->
+                                    val newInputModalities = if (supportsImage) {
+                                        model.inputModalities + Modality.IMAGE
+                                    } else {
+                                        model.inputModalities - Modality.IMAGE
+                                    }
+                                    onModelChange(model.copy(inputModalities = newInputModalities))
+                                }
+                            )
+                        }
+
                         ModelModalitySelector(
                             model = model,
                             inputModalities = model.inputModalities,
@@ -1436,6 +1457,57 @@ private fun ModelTypeSelector(
                 onClick = { onTypeSelected(type) }
             )
         }
+    }
+}
+
+@Composable
+private fun ImageGenerationMethodSelector(
+    selectedMethod: ImageGenerationMethod?,
+    onMethodSelected: (ImageGenerationMethod) -> Unit,
+    supportsImageInput: Boolean = false,
+    onImageInputChanged: (Boolean) -> Unit = {}
+) {
+    Text(
+        stringResource(R.string.setting_provider_page_image_method),
+        style = MaterialTheme.typography.titleSmall
+    )
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ImageGenerationMethod.entries.forEachIndexed { index, method ->
+            SegmentedButton(
+                shape = SegmentedButtonDefaults.itemShape(index, ImageGenerationMethod.entries.size),
+                label = {
+                    Text(
+                        text = stringResource(
+                            when (method) {
+                                ImageGenerationMethod.DIFFUSION -> R.string.setting_provider_page_image_method_diffusion
+                                ImageGenerationMethod.MULTIMODAL -> R.string.setting_provider_page_image_method_multimodal
+                            }
+                        )
+                    )
+                },
+                selected = selectedMethod == method,
+                onClick = { onMethodSelected(method) }
+            )
+        }
+    }
+
+    // Image input toggle (for image-to-image generation)
+    Spacer(modifier = Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            stringResource(R.string.setting_provider_page_image_input),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Switch(
+            checked = supportsImageInput,
+            onCheckedChange = onImageInputChanged
+        )
     }
 }
 

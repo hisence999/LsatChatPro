@@ -68,6 +68,9 @@ class ImgGenVM(
     private val _aspectRatio = MutableStateFlow(ImageAspectRatio.SQUARE)
     val aspectRatio: StateFlow<ImageAspectRatio> = _aspectRatio
 
+    private val _selectedImageUri = MutableStateFlow<android.net.Uri?>(null)
+    val selectedImageUri: StateFlow<android.net.Uri?> = _selectedImageUri
+
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating
     private var cancelJob: Job? = null
@@ -100,6 +103,14 @@ class ImgGenVM(
         _aspectRatio.value = aspectRatio
     }
 
+    fun setSelectedImage(uri: android.net.Uri?) {
+        _selectedImageUri.value = uri
+    }
+
+    fun clearSelectedImage() {
+        _selectedImageUri.value = null
+    }
+
     fun clearError() {
         _error.value = null
     }
@@ -123,21 +134,34 @@ class ImgGenVM(
                 val providerSetting = settings.providers.find { it.id == provider.id }
                     ?: throw IllegalStateException("Provider setting not found")
 
-                val params = ImageGenerationParams(
-                    model = model,
-                    prompt = _prompt.value,
-                    numOfImages = _numberOfImages.value,
-                    aspectRatio = _aspectRatio.value,
-                    customHeaders = model.customHeaders,
-                    customBody = model.customBodies
-                )
+                // Check image generation method
+                val method = model.imageGenerationMethod 
+                    ?: me.rerere.ai.provider.ImageGenerationMethod.DIFFUSION // Default to diffusion for backward compatibility
 
-                val result = providerManager.getProviderByType(provider)
-                    .generateImage(providerSetting, params)
+                val items = when (method) {
+                    me.rerere.ai.provider.ImageGenerationMethod.MULTIMODAL -> {
+                        // Use chat/text generation API for multimodal models
+                        generateImageViaChat(model, providerSetting, provider)
+                    }
+                    me.rerere.ai.provider.ImageGenerationMethod.DIFFUSION -> {
+                        // Use dedicated image generation API
+                        val params = ImageGenerationParams(
+                            model = model,
+                            prompt = _prompt.value,
+                            numOfImages = _numberOfImages.value,
+                            aspectRatio = _aspectRatio.value,
+                            customHeaders = model.customHeaders,
+                            customBody = model.customBodies
+                        )
+                        val result = providerManager.getProviderByType(provider)
+                            .generateImage(providerSetting, params)
+                        result.items
+                    }
+                }
 
                 val newImages = mutableListOf<GeneratedImage>()
 
-                result.items.forEachIndexed { index, item ->
+                items.forEachIndexed { index, item ->
                     val imageFile = saveImageToStorage(
                         item = item,
                         prompt = _prompt.value,
@@ -164,6 +188,89 @@ class ImgGenVM(
             }
         }
     }
+
+    /**
+     * Generate image via chat/text generation API for multimodal models
+     * These models (like Gemini 2.0 Flash, GPT-4o) output images as part of chat completions
+     */
+    private suspend fun generateImageViaChat(
+        model: me.rerere.ai.provider.Model,
+        providerSetting: me.rerere.ai.provider.ProviderSetting,
+        provider: me.rerere.ai.provider.ProviderSetting
+    ): List<me.rerere.ai.ui.ImageGenerationItem> {
+        // Ensure model has IMAGE in outputModalities for multimodal generation
+        val modelWithImageOutput = model.copy(
+            outputModalities = model.outputModalities + me.rerere.ai.provider.Modality.IMAGE
+        )
+
+        val params = me.rerere.ai.provider.TextGenerationParams(
+            model = modelWithImageOutput,
+            temperature = null,
+            topP = null,
+            maxTokens = null,
+            tools = emptyList(),
+            thinkingBudget = null,
+            customHeaders = model.customHeaders,
+            customBody = model.customBodies
+        )
+
+        // Create a user message with prompt and optional image
+        val parts = mutableListOf<me.rerere.ai.ui.UIMessagePart>(
+            me.rerere.ai.ui.UIMessagePart.Text(_prompt.value)
+        )
+        
+        _selectedImageUri.value?.let { uri ->
+            try {
+                val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+                
+                if (bytes != null) {
+                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    // Determine mime type
+                    val mimeType = getApplication<Application>().contentResolver.getType(uri) ?: "image/jpeg"
+                    val url = "data:$mimeType;base64,$base64"
+                    
+                    parts.add(0, me.rerere.ai.ui.UIMessagePart.Image(url = url))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read selected image", e)
+            }
+        }
+
+        val messages = listOf(
+            me.rerere.ai.ui.UIMessage(
+                role = me.rerere.ai.core.MessageRole.USER,
+                parts = parts
+            )
+        )
+
+        // Use non-streaming text generation
+        val result = providerManager.getProviderByType(provider)
+            .generateText(providerSetting, messages, params)
+
+        // Extract images from the response
+        val images = mutableListOf<me.rerere.ai.ui.ImageGenerationItem>()
+        result.choices.forEach { choice ->
+            choice.message?.parts?.forEach { part ->
+                if (part is me.rerere.ai.ui.UIMessagePart.Image) {
+                    images.add(
+                        me.rerere.ai.ui.ImageGenerationItem(
+                            data = part.url, // Base64 encoded image data
+                            mimeType = "image/png"
+                        )
+                    )
+                }
+            }
+        }
+
+        if (images.isEmpty()) {
+            throw IllegalStateException("No images generated. The model may not support image output or the prompt was rejected.")
+        }
+
+        return images
+    }
+
 
     fun cancelGeneration() {
         cancelJob?.cancel()
