@@ -456,15 +456,20 @@ class ChatService(
             ).onCompletion {
                 // Calculate generation duration from first token (excludes TTFT)
                 val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
-                
+
                 // 可能被取消了，或者意外结束，兜底更新
-                val updatedConversation = getConversationFlow(conversationId).value.copy(
-                    messageNodes = getConversationFlow(conversationId).value.messageNodes.mapIndexed { index, node ->
-                        val isLastNode = index == getConversationFlow(conversationId).value.messageNodes.lastIndex
+                val currentConversation = getConversationFlow(conversationId).value
+                val updatedConversation = currentConversation.copy(
+                    messageNodes = currentConversation.messageNodes.mapIndexed { index, node ->
+                        val isLastNode = index == currentConversation.messageNodes.lastIndex
                         node.copy(messages = node.messages.map { msg ->
                             val finishedMsg = msg.finishReasoning()
                             // Add generation duration to the last assistant message
                             if (isLastNode && finishedMsg.role == MessageRole.ASSISTANT && finishedMsg.generationDurationMs == null) {
+                                // Debug usage
+                                if (finishedMsg.usage == null) {
+                                    Log.w(TAG, "Assistant message usage is null in onCompletion")
+                                }
                                 finishedMsg.copy(generationDurationMs = generationDurationMs)
                             } else {
                                 finishedMsg
