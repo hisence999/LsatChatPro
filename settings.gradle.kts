@@ -29,7 +29,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "rikkahub"
+rootProject.name = "lastchat"
 include(":app")
 include(":highlight")
 include(":ai")
