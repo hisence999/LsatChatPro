@@ -60,7 +60,7 @@ fun AssistantLocalToolSubPage(
         // Device Control
         LocalToolCard(
             title = "Device Control",
-            description = "Allow assistant to control device settings (Brightness, Volume, Torch, etc.) and send notifications.",
+            description = "Allow assistant to interact with device (Send Notifications, Read Notifications, Launch Apps, Set Alarms, Set Reminders).",
             isEnabled = assistant.localTools.contains(LocalToolOption.DeviceControl),
             onToggle = { enabled ->
                 if (enabled) {
