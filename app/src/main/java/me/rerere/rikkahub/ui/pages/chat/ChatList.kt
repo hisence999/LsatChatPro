@@ -53,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -237,16 +238,18 @@ private fun SharedTransitionScope.ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    val isSelected by remember(node.id) {
+                        derivedStateOf { selectedItems.contains(node.id) }
+                    }
                     ListSelectableItem(
-                        key = node.id,
-                        onSelectChange = {
-                            if (!selectedItems.contains(node.id)) {
+                        isSelected = isSelected,
+                        onSelectChange = { checked ->
+                            if (checked) {
                                 selectedItems.add(node.id)
                             } else {
                                 selectedItems.remove(node.id)
                             }
                         },
-                        selectedKeys = selectedItems,
                         enabled = selecting,
                     ) {
                         ChatMessage(
