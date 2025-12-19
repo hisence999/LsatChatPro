@@ -30,11 +30,9 @@ This project aims to provide a privacy-focused and highly personalized AI chat e
 ### Tools & Integrations
 *   **Local Device Control**: The AI can interact with your device if you want:
     *   Send notifications
-    *   Adjust brightness and volume
-    *   Toggle flashlight/torch
-    *   Control music playback
-    *   Read clipboard
     *   Launch apps
+    *   Read notifications
+    *   set alarms/reminders
 *   **Code Execution**: Built-in **JavaScript Engine** (QuickJS) for performing calculations and logic.
 *   **Web Search**: Integrated web search capabilities to fetch real-time information.
 
