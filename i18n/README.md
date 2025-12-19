@@ -1,4 +1,4 @@
-# RikkaHub I18n Translation Manager
+# LastChat I18n Translation Manager
 
 AI-powered translation manager for Android string resources with interactive TUI.
 

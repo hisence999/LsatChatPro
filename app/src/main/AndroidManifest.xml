@@ -21,7 +21,7 @@
     android:required="false" />
 
   <application
-    android:name=".RikkaHubApp"
+        android:name=".LastChatApp"
     android:allowBackup="true"
     android:appCategory="productivity"
     android:dataExtractionRules="@xml/data_extraction_rules"
@@ -60,7 +60,7 @@
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
-            <data android:scheme="rikkahub" android:host="shortcut" />
+            <data android:scheme="lastchat" android:host="shortcut" />
         </intent-filter>
     </activity>
 
