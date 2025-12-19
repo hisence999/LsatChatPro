@@ -11,9 +11,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ListSelectableItem(
-    key: Any,
-    selectedKeys: List<Any>,
-    onSelectChange: (Any) -> Unit,
+    isSelected: Boolean,
+    onSelectChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     content: @Composable () -> Unit
@@ -24,10 +23,8 @@ fun ListSelectableItem(
     ) {
         if (enabled) {
             Checkbox(
-                checked = key in selectedKeys,
-                onCheckedChange = {
-                    onSelectChange(key)
-                }
+                checked = isSelected,
+                onCheckedChange = onSelectChange
             )
         }
         Box(
