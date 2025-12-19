@@ -32,7 +32,7 @@ This project aims to provide a privacy-focused and highly personalized AI chat e
     *   Send notifications
     *   Launch apps
     *   Read notifications
-    *   set alarms/reminders
+    *   Set alarms/reminders
 *   **Code Execution**: Built-in **JavaScript Engine** (QuickJS) for performing calculations and logic.
 *   **Web Search**: Integrated web search capabilities to fetch real-time information.
 
