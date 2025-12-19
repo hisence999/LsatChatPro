@@ -61,7 +61,7 @@ val PROVIDER_PRESETS = listOf(
     ),
     ProviderPreset(
         name = "Ollama",
-        description = "Cloud LLMs (add models manually)",
+        description = "Cloud LLMs hosted by Ollama",
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://ollama.com/v1"
     ),

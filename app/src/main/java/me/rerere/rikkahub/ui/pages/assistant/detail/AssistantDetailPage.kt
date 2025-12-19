@@ -58,6 +58,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
 import me.rerere.rikkahub.utils.toFixed
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -331,7 +332,7 @@ private fun AssistantBasicSettings(
                         Text(stringResource(R.string.assistant_page_name))
                     },
                 ) {
-                    OutlinedTextField(
+                    DebouncedTextField(
                         value = assistant.name,
                         onValueChange = {
                             onUpdate(
@@ -340,6 +341,7 @@ private fun AssistantBasicSettings(
                                 )
                             )
                         },
+                        stateKey = assistant.id,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

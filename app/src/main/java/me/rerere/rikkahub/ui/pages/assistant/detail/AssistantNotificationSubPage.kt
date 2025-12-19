@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
 
 @Composable
 fun AssistantNotificationSubPage(
@@ -139,11 +140,12 @@ fun AssistantNotificationSubPage(
                         label = { Text("Custom Prompt") },
                         description = { Text("Instructions for spontaneous messages. Use {{history}} and {{memories}}.") }
                     ) {
-                        OutlinedTextField(
+                        DebouncedTextField(
                             value = assistant.spontaneousPrompt,
                             onValueChange = { 
                                 onUpdateAssistant(assistant.copy(spontaneousPrompt = it))
                             },
+                            stateKey = assistant.id,
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 3
                         )

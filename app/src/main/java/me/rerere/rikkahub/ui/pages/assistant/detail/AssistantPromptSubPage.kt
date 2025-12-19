@@ -48,6 +48,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,11 +94,13 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import androidx.compose.ui.text.font.FontFamily
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.insertAtCursor
+import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
 import me.rerere.rikkahub.utils.onError
 import me.rerere.rikkahub.utils.onSuccess
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
+@OptIn(FlowPreview::class)
 @Composable
 fun AssistantPromptSubPage(
     assistant: Assistant,
@@ -148,19 +152,21 @@ fun AssistantPromptSubPage(
                     )
                 }
 
-                // Sync from external state (e.g. undo/redo, cloud sync)
-                LaunchedEffect(assistant.systemPrompt) {
-                    if (systemPromptValue.text.toString() != assistant.systemPrompt) {
+                // Sync from external state ONLY when NOT focused
+                // This prevents overwriting user input during typing
+                LaunchedEffect(assistant.systemPrompt, isFocused) {
+                    if (!isFocused && systemPromptValue.text.toString() != assistant.systemPrompt) {
                         systemPromptValue.edit {
                             replace(0, length, assistant.systemPrompt)
                         }
                     }
                 }
 
-                // Sync to external state
+                // Debounced sync to external state
                 LaunchedEffect(assistant.id) {
                     snapshotFlow { systemPromptValue.text }
                         .drop(1) // Skip initial emission
+                        .debounce(150L) // Debounce to prevent race conditions
                         .collect {
                             if (it.toString() != assistant.systemPrompt) {
                                 onUpdate(
@@ -271,7 +277,7 @@ fun AssistantPromptSubPage(
                     Text(stringResource(R.string.assistant_page_message_template))
                 },
                 content = {
-                    OutlinedTextField(
+                    DebouncedTextField(
                         value = assistant.messageTemplate,
                         onValueChange = {
                             onUpdate(
@@ -280,6 +286,7 @@ fun AssistantPromptSubPage(
                                 )
                             )
                         },
+                        stateKey = assistant.id,
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 5,
                         maxLines = 15,
@@ -440,7 +447,7 @@ fun AssistantPromptSubPage(
                                 Icon(Icons.Rounded.Close, null)
                             }
                         }
-                        OutlinedTextField(
+                        DebouncedTextField(
                             value = presetMessage.toText(),
                             onValueChange = { text ->
                                 onUpdate(
@@ -455,6 +462,7 @@ fun AssistantPromptSubPage(
                                     )
                                 )
                             },
+                            stateKey = "preset_$index",
                             modifier = Modifier.fillMaxWidth(),
                             maxLines = 6
                         )
@@ -512,7 +520,7 @@ fun AssistantPromptSubPage(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            OutlinedTextField(
+                            DebouncedTextField(
                                 value = quickMessage.title,
                                 onValueChange = { title ->
                                     onUpdate(
@@ -527,8 +535,8 @@ fun AssistantPromptSubPage(
                                         )
                                     )
                                 },
-                                modifier = Modifier.weight(1f),
-                                label = { Text(stringResource(R.string.assistant_page_quick_message_title)) }
+                                stateKey = "quick_title_$index",
+                                modifier = Modifier.weight(1f)
                             )
                             IconButton(
                                 onClick = {
@@ -544,7 +552,7 @@ fun AssistantPromptSubPage(
                                 Icon(Icons.Rounded.Close, null)
                             }
                         }
-                        OutlinedTextField(
+                        DebouncedTextField(
                             value = quickMessage.content,
                             onValueChange = { text ->
                                 onUpdate(
@@ -559,9 +567,9 @@ fun AssistantPromptSubPage(
                                     )
                                 )
                             },
+                            stateKey = "quick_content_$index",
                             modifier = Modifier.fillMaxWidth(),
-                            maxLines = 6,
-                            label = { Text(stringResource(R.string.assistant_page_quick_message_content)) }
+                            maxLines = 6
                         )
                     }
                 }
@@ -693,7 +701,7 @@ private fun AssistantRegexCard(
 
             if (expanded) {
 
-                OutlinedTextField(
+                DebouncedTextField(
                     value = regex.name,
                     onValueChange = { name ->
                         onUpdate(
@@ -708,11 +716,11 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.assistant_page_regex_name)) }
+                    stateKey = "regex_name_${regex.id}",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                DebouncedTextField(
                     value = regex.findRegex,
                     onValueChange = { findRegex ->
                         onUpdate(
@@ -727,12 +735,11 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.assistant_page_regex_find_regex)) },
-                    placeholder = { Text("e.g., \\b\\w+@\\w+\\.\\w+\\b") },
+                    stateKey = "regex_find_${regex.id}",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                DebouncedTextField(
                     value = regex.replaceString,
                     onValueChange = { replaceString ->
                         onUpdate(
@@ -747,9 +754,8 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.assistant_page_regex_replace_string)) },
-                    placeholder = { Text("e.g., [EMAIL]") }
+                    stateKey = "regex_replace_${regex.id}",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Column {
