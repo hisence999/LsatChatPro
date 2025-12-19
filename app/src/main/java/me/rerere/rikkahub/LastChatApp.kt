@@ -36,16 +36,16 @@ import java.util.concurrent.TimeUnit
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
 
-private const val TAG = "RikkaHubApp"
+private const val TAG = "LastChatApp"
 
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 
-class RikkaHubApp : Application() {
+class LastChatApp : Application() {
     override fun onCreate() {
         super.onCreate()
         startKoin {
             androidLogger()
-            androidContext(this@RikkaHubApp)
+            androidContext(this@LastChatApp)
             workManagerFactory()
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
@@ -92,7 +92,7 @@ class RikkaHubApp : Application() {
                         }
                         .build()
 
-                    WorkManager.getInstance(this@RikkaHubApp).enqueueUniquePeriodicWork(
+                    WorkManager.getInstance(this@LastChatApp).enqueueUniquePeriodicWork(
                         "memory_consolidation",
                         ExistingPeriodicWorkPolicy.UPDATE,
                         PeriodicWorkRequestBuilder<MemoryConsolidationWorker>(
