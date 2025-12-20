@@ -33,7 +33,7 @@ interface ChatEpisodeDAO {
     @Query("SELECT COUNT(*) FROM ChatEpisodeEntity")
     fun getCountFlow(): Flow<Int>
     @Query("DELETE FROM chatepisodeentity WHERE conversation_id = :conversationId")
-    suspend fun deleteEpisodeByConversationId(conversationId: String)
+    suspend fun deleteEpisodeByConversationId(conversationId: String): Int
 
     @Query("SELECT * FROM chatepisodeentity WHERE conversation_id = :conversationId LIMIT 1")
     suspend fun getEpisodeByConversationId(conversationId: String): ChatEpisodeEntity?
