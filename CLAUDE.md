@@ -1,98 +1,91 @@
-# CLAUDE.md
+# AGENTS.md
 
-## Project Overview
+## 1. Core Principles & Design Philosophy
 
-LastChat is a native Android LLM chat client that supports switching between different AI providers for conversations.
-Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
+**App Name:** LastChat (Repo: RikkaHub)
 
-## Architecture Overview
+**The "Fidget Toy" Philosophy:**
+LastChat is not just a tool; it is designed to be a "fidget toy".
+-   **Feel:** Interactions must be playful, physics-based, and deeply satisfying.
+-   **Tactile Feedback:** High-quality haptics are non-negotiable. Every tap, toggle, and drag must have appropriate feedback.
+-   **Motion:** **Strictly NO Linear (Tween) animations.** All motion must use physics-based interpolators (springs) to convey momentum and weight.
 
-### Module Structure
+**Workflow:**
+-   **Iterative Polish:** We prefer iterative "glow-ups" of specific components over massive, risky refactors.
+-   **Robustness:** The app must be crash-resistant. `NullPointerException` is the enemy.
 
-- **app**: Main application module with UI, ViewModels, and core logic
-- **ai**: AI SDK abstraction layer for different providers (OpenAI, Google, Anthropic)
-- **highlight**: Code syntax highlighting implementation
-- **search**: Search functionality SDK (Exa, Tavily, Zhipu)
-- **tts**: Text-to-speech implementation for different providers
-- **common**: Common utilities and extensions
+## 2. Architecture & Codebase Structure
+
+### Modules
+-   `app/`: Main application module. Contains UI (Compose), Core Logic, DI, Data Layers, and Room Database.
+-   `ai/`: Abstraction layer for AI providers (OpenAI, Google, Anthropic).
+-   `common/`: Shared utilities and extensions.
+-   `highlight/`: Syntax highlighting features.
+-   `search/`: Search functionality (Exa, Tavily, Zhipu).
+-   `tts/`: Text-to-Speech implementation.
 
 ### Key Technologies
+-   **Language:** Kotlin (uses experimental `kotlin.uuid.Uuid`).
+-   **UI:** Jetpack Compose (Material You 3 Expressive / Android 16).
+-   **Dependency Injection:** Koin.
+-   **Database:** Room.
+-   **Network:** OkHttp (with SSE support).
+-   **Serialization:** Kotlinx Serialization.
 
-- **Jetpack Compose**: Modern UI toolkit
-- **Koin**: Dependency injection
-- **Room**: Database ORM
-- **DataStore**: Preferences storage
-- **OkHttp**: HTTP client with SSE support
-- **Navigation Compose**: App navigation
-- **Kotlinx Serialization**: JSON handling
+## 3. Coding Standards & Best Practices
 
-### Core Packages (app module)
+### Performance & Concurrency
+-   **I/O Operations:** MUST be explicitly executed on `Dispatchers.IO`.
+    -   *Crucial:* `AppScope` defaults to `Dispatchers.Default`. Do not block the main thread or the default dispatcher with I/O.
+-   **Compose Optimization:**
+    -   **Lists:** Never pass mutable collections (`SnapshotStateList`) directly to `LazyColumn` items. Use `derivedStateOf` to pass simple, immutable states (e.g., `Boolean`) to prevent unnecessary recompositions.
+-   **AI Context:** Prioritize token economy and vector memory efficiency. Use caching.
 
-- `data/`: Data layer with repositories, database entities, and API clients
-- `ui/pages/`: Screen implementations and ViewModels
-- `ui/components/`: Reusable UI components
-- `di/`: Dependency injection modules
-- `utils/`: Utility functions and extensions
+### Robustness & Safety
+-   **JSON Handling:**
+    -   **STRICTLY PROHIBITED:** Non-null assertions (`!!`) on JSON elements.
+    -   **REQUIRED:** Use safe type checks (`is JsonArray`, `jsonPrimitiveOrNull`).
+-   **State Management:**
+    -   When updating `StateFlow` in services (e.g., `ChatService`), **snapshot** the current value into a local variable before applying complex transformations to avoid race conditions.
 
-## Development Guidelines
+### Serialization
+-   Use `me.rerere.rikkahub.utils.JsonInstant` (or `JsonInstantPretty`).
+    -   *Note:* It ignores unknown keys but **does not** apply snake_case strategies. Field mapping must be manual for external APIs.
 
-### UI Development
+## 4. UI/UX Guidelines
 
-- Follow Material Design 3 principles
-- Use existing UI components from `ui/components/`
-- Reference `SettingProviderPage.kt` for page layout patterns
-- Use `FormItem` for consistent form layouts
-- Implement proper state management with ViewModels
-- Use `Lucide.XXX` for icons, and import `import com.composables.icons.lucide.XXX` for each icon
-- Use `LocalToaster.current` for toast messages
+### Design Language
+-   **Standard:** Material You 3 Expressive / Android 16.
+-   **Shapes:** Adhere strictly to `me.rerere.rikkahub.ui.theme.AppShapes`:
+    -   **Cards:** `AppShapes.CardLarge` (28.dp), `AppShapes.CardMedium` (24.dp).
+    -   **Buttons:** `AppShapes.ButtonPill` (50%).
 
-### Internationalization
+### Haptics (Critical)
+-   **Library:** Use the custom `PremiumHaptics` wrapper.
+    -   `import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics`
+    -   `import me.rerere.rikkahub.ui.hooks.HapticPattern`
+-   **Usage:**
+    -   **Do not** use `LocalHapticFeedback`.
+    -   **Interactive Elements:** Buttons (like `BackButton`) must scale down to `0.85f` on press and trigger `HapticPattern.Pop`.
+    -   **Patterns:**
+        -   Click/Toggle: `HapticPattern.Pop`
+        -   Heavy Action/Drop: `HapticPattern.Thud`
+        -   Success: `HapticPattern.Success`
 
-- String resources located in `app/src/main/res/values-*/strings.xml`
-- Use `stringResource(R.string.key_name)` in Compose
-- Page-specific strings should use page prefix (e.g., `setting_page_`)
-- If the user does not explicitly request localization, prioritize implementing functionality without considering
-  localization. (e.g `Text("Hello world")`)
-- If the user explicitly requests localization, all languages should be supported.
-- English(en) is the default language. Chinese(zh), Japanese(ja), and Traditional Chinese(zh-rTW), Korean(ko-rKR) are supported.
+### Animation
+-   **Standard Spec:** `spring(dampingRatio = 0.5f, stiffness = 400f)`
+-   **Bouncy/Clicky Spec:** `spring(dampingRatio = 0.6f, stiffness = 300f)`
+-   **Prohibited:** `tween` or linear animations.
 
-### Database
+## 5. Specific Feature Guidelines
 
-- Room database with migration support
-- Schema files in `app/schemas/`
-- Use KSP for Room annotation processing
-- Current database version tracked in `AppDatabase.kt`
+### RAG & Embeddings
+-   **Persistence:** Embeddings are stored in source entities (`MemoryEntity`, `ChatEpisodeEntity`) **AND** `EmbeddingCacheDAO`.
+-   **Sync:** Operations (add/update/delete) must synchronize both stores.
+-   **Retrieval:** Always prefer existing entity embeddings over re-computation.
 
-### AI Provider Integration
-
-- New providers go in `ai/src/main/java/me/rerere/ai/provider/providers/`
-- Extend base `Provider` class
-- Implement required API methods following existing patterns
-- Support for streaming responses via SSE
-
-### Prerequisites
-
-- Android Studio with Kotlin support
-- Requires `google-services.json` in `app/` folder for Firebase features
-- Signing keys in `local.properties` for release builds
-
-### Key Files to Reference
-
-- `app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderPage.kt`: UI patterns
-- `app/src/main/java/me/rerere/rikkahub/data/datastore/PreferencesStore.kt`: Data storage
-- `ai/src/main/java/me/rerere/ai/provider/providers/OpenAIProvider.kt`: AI provider implementation
-
-## Build Configuration
-
-### Gradle Configuration
-
-- Multi-module project with version catalogs
-- Supports ABI splits for arm64-v8a and x86_64
-- Uses KSP for annotation processing
-
-### Target SDK
-
-- Compile SDK: 36
-- Target SDK: 36
-- Min SDK: 26
-- JVM Target: 11
+## 6. Testing & Operations
+-   **Unit Tests:** Place in `src/test`. Cover parsing and logic.
+-   **Instrumented Tests:** Place in `src/androidTest`. Cover flows.
+-   **Commit Guidelines:** Use Conventional Commits (`feat:`, `fix:`, `chore:`).
+-   **Language Support:** Do not submit new languages unless explicitly requested.
