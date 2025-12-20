@@ -66,7 +66,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.HistoryToggleOff
 
-import com.dokar.sonner.ToastType
+import me.rerere.rikkahub.ui.components.ui.ToastType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

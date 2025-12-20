@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.context
 
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.dokar.sonner.ToasterState
+import me.rerere.rikkahub.ui.components.ui.AppToasterState
 
-val LocalToaster = staticCompositionLocalOf<ToasterState> { error("Not provided") }
+val LocalToaster = staticCompositionLocalOf<AppToasterState> { error("Not provided") }

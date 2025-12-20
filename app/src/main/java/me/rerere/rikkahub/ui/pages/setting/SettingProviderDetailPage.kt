@@ -102,7 +102,7 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material.icons.rounded.Widgets
-import com.dokar.sonner.ToastType
+import me.rerere.rikkahub.ui.components.ui.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools

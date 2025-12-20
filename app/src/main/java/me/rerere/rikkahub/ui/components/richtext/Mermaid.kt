@@ -53,7 +53,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.dokar.sonner.ToastType
+import me.rerere.rikkahub.ui.components.ui.ToastType
 import com.google.common.cache.CacheBuilder
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.webview.WebView

@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -41,8 +42,8 @@ import coil3.svg.SvgDecoder
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import okio.Path.Companion.toOkioPath
-import com.dokar.sonner.Toaster
-import com.dokar.sonner.rememberToasterState
+import me.rerere.rikkahub.ui.components.ui.AppToasterHost
+import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
 import kotlinx.serialization.Serializable
 import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
@@ -161,7 +162,7 @@ class RouteActivity : ComponentActivity() {
 
     @Composable
     fun AppRoutes(navBackStack: NavHostController) {
-        val toastState = rememberToasterState()
+        val toastState = rememberAppToasterState()
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
         val tts = rememberCustomTtsState()
         SharedTransitionLayout {
@@ -173,14 +174,7 @@ class RouteActivity : ComponentActivity() {
                 LocalToaster provides toastState,
                 LocalTTSState provides tts,
             ) {
-                Toaster(
-                    state = toastState,
-                    darkTheme = LocalDarkMode.current,
-                    richColors = true,
-                    alignment = Alignment.TopCenter,
-                    showCloseButton = false,
-                    shape = { androidx.compose.foundation.shape.RoundedCornerShape(24.dp) },
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
                 TTSController()
                 NavHost(
                     modifier = Modifier
@@ -315,6 +309,9 @@ class RouteActivity : ComponentActivity() {
                         DeveloperPage()
                     }
 
+                }
+                // Toast host must be last so it renders on top of all content
+                AppToasterHost(state = toastState)
                 }
             }
         }

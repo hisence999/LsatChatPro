@@ -108,6 +108,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Warning
 import me.rerere.rikkahub.ui.theme.AppShapes
+import me.rerere.rikkahub.ui.components.ui.ToastType
 
 @Composable
 fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
@@ -192,7 +193,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
             ttsError?.let { errorMessage ->
                 toaster.show(
                     message = "TTS Error: $errorMessage",
-                    type = com.dokar.sonner.ToastType.Error
+                    type = ToastType.Error
                 )
             }
         }
