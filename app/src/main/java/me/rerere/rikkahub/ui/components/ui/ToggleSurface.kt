@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -35,33 +37,44 @@ fun ToggleSurface(
     onLongClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val colors =
-        if (checked) checkedColor else uncheckedColor
     val haptics = rememberPremiumHaptics()
-    
-    // Physics-based press feedback
+
+    // Physics-based Color Animation
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = if (checked) checkedColor else uncheckedColor,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow),
+        label = "toggle_bg_color"
+    )
+
+    val animatedContentColor by animateColorAsState(
+        targetValue = if (checked) contentColor else MaterialTheme.colorScheme.onSurface,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow),
+        label = "toggle_content_color"
+    )
+
+    // Physics-based press feedback (Round/Clicky Standard)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
         animationSpec = spring(
-            dampingRatio = 0.4f,
-            stiffness = 400f
+            dampingRatio = 0.6f, // Round/Clicky Standard
+            stiffness = 300f     // Round/Clicky Standard
         ),
         label = "toggle_scale"
     )
     val alpha by animateFloatAsState(
         targetValue = if (isPressed) 0.8f else 1f,
         animationSpec = spring(
-            dampingRatio = 0.6f,
+            dampingRatio = 0.6f, // Consistent with scale
             stiffness = 300f
         ),
         label = "toggle_alpha"
     )
-    
+
     Surface(
-        color = colors,
-        contentColor = if(checked) contentColor else MaterialTheme.colorScheme.onSurface,
+        color = animatedBackgroundColor,
+        contentColor = animatedContentColor,
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale

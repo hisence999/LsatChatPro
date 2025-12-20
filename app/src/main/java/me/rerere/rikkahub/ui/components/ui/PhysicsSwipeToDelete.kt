@@ -302,8 +302,8 @@ fun PhysicsSwipeToDelete(
                                     offsetX.animateTo(
                                         targetValue = -revealDistancePx,
                                         animationSpec = spring(
-                                            dampingRatio = 0.65f,
-                                            stiffness = Spring.StiffnessMediumLow
+                                            dampingRatio = 0.6f, // Bouncy/Clicky for snap
+                                            stiffness = 300f     // Consistent stiffness
                                         )
                                     )
                                 } else {
@@ -390,8 +390,8 @@ private fun PhysicsSwipeActionButton(
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.85f else 1f,
         animationSpec = spring(
-            dampingRatio = 0.4f,
-            stiffness = 400f
+            dampingRatio = 0.6f, // Round/Clicky Standard
+            stiffness = 300f     // Round/Clicky Standard
         ),
         label = "button_scale"
     )
