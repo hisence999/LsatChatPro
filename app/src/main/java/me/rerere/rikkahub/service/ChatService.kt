@@ -65,6 +65,7 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -368,9 +369,11 @@ class ChatService(
             // reset suggestions
             updateConversation(conversationId, conversation.copy(chatSuggestions = emptyList()))
 
-            // memory tool
+            // Check if model supports tools when external tools are configured
+            val assistant = settings.getCurrentAssistant()
+            val hasExternalTools = (assistant.searchMode !is AssistantSearchMode.Off) || mcpManager.getAllAvailableTools().isNotEmpty()
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (hasExternalTools) {
                     _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
                 }
             }
@@ -431,8 +434,17 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = buildList {
-                    if (settings.enableWebSearch) {
-                        addAll(createSearchTool(settings))
+                    // Use assistant's searchMode instead of global enableWebSearch
+                    when (val searchMode = assistant.searchMode) {
+                        is AssistantSearchMode.Provider -> {
+                            addAll(createSearchTool(settings, searchMode.index))
+                        }
+                        is AssistantSearchMode.BuiltIn -> {
+                            // Built-in search is handled via model.tools, no external tool needed
+                        }
+                        is AssistantSearchMode.Off -> {
+                            // No search tools
+                        }
                     }
                     addAll(localTools.getTools(
                         options = settings.getCurrentAssistant().localTools,
@@ -520,7 +532,9 @@ class ChatService(
     }
 
     // 创建搜索工具
-    private fun createSearchTool(settings: Settings): Set<Tool> {
+    private fun createSearchTool(settings: Settings, providerIndex: Int? = null): Set<Tool> {
+        // Use the provided providerIndex (from assistant's searchMode) or fall back to global selection
+        val effectiveIndex = providerIndex ?: settings.searchServiceSelected
         return buildSet {
             add(
                 Tool(
@@ -528,14 +542,14 @@ class ChatService(
                     description = "search web for latest information",
                     parameters = {
                         val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
+                            index = effectiveIndex,
                             defaultValue = { SearchServiceOptions.DEFAULT })
                         val service = SearchService.getService(options)
                         service.parameters
                     },
                     execute = {
                         val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
+                            index = effectiveIndex,
                             defaultValue = { SearchServiceOptions.DEFAULT })
                         val service = SearchService.getService(options)
                         val result = service.search(
@@ -616,7 +630,7 @@ class ChatService(
             )
 
             val options = settings.searchServices.getOrElse(
-                index = settings.searchServiceSelected,
+                index = effectiveIndex,
                 defaultValue = { SearchServiceOptions.DEFAULT })
             val service = SearchService.getService(options)
             if (service.scrapingParameters != null) {
@@ -626,14 +640,14 @@ class ChatService(
                         description = "scrape web for content",
                         parameters = {
                             val options = settings.searchServices.getOrElse(
-                                index = settings.searchServiceSelected,
+                                index = effectiveIndex,
                                 defaultValue = { SearchServiceOptions.DEFAULT })
                             val service = SearchService.getService(options)
                             service.scrapingParameters
                         },
                         execute = {
                             val options = settings.searchServices.getOrElse(
-                                index = settings.searchServiceSelected,
+                                index = effectiveIndex,
                                 defaultValue = { SearchServiceOptions.DEFAULT })
                             val service = SearchService.getService(options)
                             val result = service.scrape(
