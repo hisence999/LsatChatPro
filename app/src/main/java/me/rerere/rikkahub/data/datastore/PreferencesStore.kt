@@ -526,3 +526,68 @@ private val DEFAULT_TTS_PROVIDERS = listOf(
 )
 
 internal val DEFAULT_ASSISTANTS_IDS = DEFAULT_ASSISTANTS.map { it.id }
+
+/**
+ * Sanitize settings after backup restore.
+ * Cleans up deprecated fields and invalid references.
+ * @return Pair of sanitized settings and cleanup result with statistics
+ */
+fun Settings.sanitize(): Pair<Settings, me.rerere.rikkahub.data.sync.BackupCleanupResult> {
+    var invalidSearchModeCount = 0
+    var orphanedTagReferences = 0
+    var orphanedModelReferences = 0
+
+    // 1. Fix invalid searchMode.Provider indices
+    val sanitizedAssistants = assistants.map { assistant ->
+        when (val mode = assistant.searchMode) {
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> {
+                if (mode.index < 0 || mode.index >= searchServices.size) {
+                    invalidSearchModeCount++
+                    assistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                } else {
+                    assistant
+                }
+            }
+            else -> assistant
+        }
+    }
+
+    // 2. Remove orphaned tag references from assistants
+    val validTagIds = assistantTags.map { it.id }.toSet()
+    val cleanedAssistants = sanitizedAssistants.map { assistant ->
+        val validTags = assistant.tags.filter { it in validTagIds }
+        if (validTags.size != assistant.tags.size) {
+            orphanedTagReferences += assistant.tags.size - validTags.size
+            assistant.copy(tags = validTags)
+        } else {
+            assistant
+        }
+    }
+
+    // 3. Remove orphaned favorite model references
+    val allModelIds = providers.flatMap { it.models.map { m -> m.id } }.toSet()
+    val cleanedFavorites = favoriteModels.filter { it in allModelIds }
+    orphanedModelReferences = favoriteModels.size - cleanedFavorites.size
+
+    // 4. Clamp searchServiceSelected to valid range
+    val clampedSearchSelected = if (searchServices.isNotEmpty()) {
+        searchServiceSelected.coerceIn(0, searchServices.size - 1)
+    } else {
+        0
+    }
+
+    val cleanedSettings = copy(
+        assistants = cleanedAssistants,
+        favoriteModels = cleanedFavorites,
+        searchServiceSelected = clampedSearchSelected,
+    )
+
+    val result = me.rerere.rikkahub.data.sync.BackupCleanupResult(
+        invalidSearchModeCount = invalidSearchModeCount,
+        orphanedTagReferences = orphanedTagReferences,
+        orphanedModelReferences = orphanedModelReferences,
+    )
+
+    return cleanedSettings to result
+}
+

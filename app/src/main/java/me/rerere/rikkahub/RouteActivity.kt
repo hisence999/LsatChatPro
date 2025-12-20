@@ -82,6 +82,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
+import me.rerere.rikkahub.utils.fileSizeToString
 import kotlin.uuid.Uuid
 
 private const val TAG = "RouteActivity"
@@ -174,6 +175,29 @@ class RouteActivity : ComponentActivity() {
                 LocalToaster provides toastState,
                 LocalTTSState provides tts,
             ) {
+                // Check for backup cleanup results and show toast
+                LaunchedEffect(Unit) {
+                    val prefs = this@RouteActivity.getSharedPreferences("backup_cleanup", MODE_PRIVATE)
+                    val unsupportedBytes = prefs.getLong("unsupported_bytes", 0)
+                    val issuesFixed = prefs.getInt("issues_fixed", 0)
+                    
+                    if (unsupportedBytes > 0 || issuesFixed > 0) {
+                        // Clear the stored values
+                        prefs.edit().clear().apply()
+                        
+                        // Build cleanup message
+                        val parts = mutableListOf<String>()
+                        if (unsupportedBytes > 0) {
+                            parts.add("${unsupportedBytes.fileSizeToString()} of unsupported data")
+                        }
+                        if (issuesFixed > 0) {
+                            parts.add("$issuesFixed invalid references")
+                        }
+                        
+                        val message = "Backup cleaned: ${parts.joinToString(", ")}"
+                        toastState.show(message, type = me.rerere.rikkahub.ui.components.ui.ToastType.Info)
+                    }
+                }
                 Box(modifier = Modifier.fillMaxSize()) {
                 TTSController()
                 NavHost(

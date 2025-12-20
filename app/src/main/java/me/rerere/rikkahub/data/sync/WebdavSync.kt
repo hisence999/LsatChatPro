@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.datastore.sanitize
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -91,7 +92,7 @@ class WebdavSync(
             files
         }
 
-    suspend fun restoreFromWebDav(webDavConfig: WebDavConfig, item: WebDavBackupItem) =
+    suspend fun restoreFromWebDav(webDavConfig: WebDavConfig, item: WebDavBackupItem): Nothing =
         withContext(Dispatchers.IO) {
             val collection = DavCollection(
                 httpClient = webDavConfig.requireClient(),
@@ -151,7 +152,7 @@ class WebdavSync(
             }
         }
 
-    suspend fun restoreFromLocalFile(file: File, webDavConfig: WebDavConfig) =
+    suspend fun restoreFromLocalFile(file: File, webDavConfig: WebDavConfig): Nothing =
         withContext(Dispatchers.IO) {
             Log.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
@@ -164,8 +165,7 @@ class WebdavSync(
             }
 
             try {
-                restoreFromBackupFile(file, webDavConfig)
-                Log.i(TAG, "restoreFromLocalFile: Restore completed successfully")
+                restoreFromBackupFile(file, webDavConfig) // Never returns - exits process
             } catch (e: Exception) {
                 Log.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
                 throw Exception("Restore failed: ${e.message}")
@@ -236,9 +236,12 @@ class WebdavSync(
         backupFile
     }
 
-    private suspend fun restoreFromBackupFile(backupFile: File, webDavConfig: WebDavConfig) =
+    private suspend fun restoreFromBackupFile(backupFile: File, webDavConfig: WebDavConfig): Nothing =
         withContext(Dispatchers.IO) {
             Log.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
+            
+            var unsupportedZipEntriesBytes: Long = 0
+            var settingsCleanupResult = BackupCleanupResult()
 
             ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
                 var entry: ZipEntry?
@@ -253,10 +256,13 @@ class WebdavSync(
                                 Log.i(TAG, "restoreFromBackupFile: Restoring settings")
                                 try {
                                     val settings = json.decodeFromString<Settings>(settingsJson)
-                                    settingsStore.update(settings)
+                                    // Sanitize settings to clean up deprecated/invalid data
+                                    val (cleanedSettings, cleanupResult) = settings.sanitize()
+                                    settingsCleanupResult = cleanupResult
+                                    settingsStore.update(cleanedSettings)
                                     Log.i(
                                         TAG,
-                                        "restoreFromBackupFile: Settings restored successfully"
+                                        "restoreFromBackupFile: Settings restored and sanitized (issues fixed: ${cleanupResult.totalIssuesFixed})"
                                     )
                                 } catch (e: Exception) {
                                     Log.e(
@@ -352,8 +358,9 @@ class WebdavSync(
                                 } else {
                                     Log.i(
                                         TAG,
-                                        "restoreFromBackupFile: Skipping entry ${zipEntry.name}"
+                                        "restoreFromBackupFile: Skipping unsupported entry ${zipEntry.name} (${zipEntry.size} bytes)"
                                     )
+                                    unsupportedZipEntriesBytes += zipEntry.size
                                 }
                             }
                         }
@@ -365,13 +372,28 @@ class WebdavSync(
 
             Log.i(TAG, "restoreFromBackupFile: Restore completed successfully")
             
+            // Combine cleanup results
+            val totalResult = settingsCleanupResult.copy(
+                unsupportedZipEntriesBytes = unsupportedZipEntriesBytes
+            )
+            
+            Log.i(TAG, "restoreFromBackupFile: Cleanup summary - skipped ${unsupportedZipEntriesBytes} bytes, fixed ${totalResult.totalIssuesFixed} issues")
+            
             // Restart the app to apply changes and reload database
             val packageManager = context.packageManager
             val intent = packageManager.getLaunchIntentForPackage(context.packageName)
             val componentName = intent?.component
             val mainIntent = android.content.Intent.makeRestartActivityTask(componentName)
+            
+            // Store cleanup result in SharedPreferences so we can show toast after restart
+            context.getSharedPreferences("backup_cleanup", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putLong("unsupported_bytes", totalResult.unsupportedZipEntriesBytes)
+                .putInt("issues_fixed", totalResult.totalIssuesFixed)
+                .apply()
+            
             context.startActivity(mainIntent)
-            Runtime.getRuntime().exit(0)
+            kotlin.system.exitProcess(0)
         }
 }
 
