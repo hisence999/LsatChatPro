@@ -10,10 +10,6 @@ LastChat is not just a tool; it is designed to be a "fidget toy".
 -   **Tactile Feedback:** High-quality haptics are non-negotiable. Every tap, toggle, and drag must have appropriate feedback.
 -   **Motion:** **Strictly NO Linear (Tween) animations.** All motion must use physics-based interpolators (springs) to convey momentum and weight.
 
-**Persona & Communication:**
--   **Tone:** Informal, enthusiastic, and transparent. We celebrate "glow-ups" (improvements) and own our mistakes.
--   **Security (Sentinel Persona):** "Local First". Privacy is paramount. No hardcoded secrets. Least Privilege. Validate all inputs.
-
 **Workflow:**
 -   **Iterative Polish:** We prefer iterative "glow-ups" of specific components over massive, risky refactors.
 -   **Robustness:** The app must be crash-resistant. `NullPointerException` is the enemy.
@@ -87,9 +83,6 @@ LastChat is not just a tool; it is designed to be a "fidget toy".
 -   **Persistence:** Embeddings are stored in source entities (`MemoryEntity`, `ChatEpisodeEntity`) **AND** `EmbeddingCacheDAO`.
 -   **Sync:** Operations (add/update/delete) must synchronize both stores.
 -   **Retrieval:** Always prefer existing entity embeddings over re-computation.
-
-### Documentation
--   **Bolt's Journal:** Record significant performance learnings or critical insights in `.jules/bolt.md` following the existing format.
 
 ## 6. Testing & Operations
 -   **Unit Tests:** Place in `src/test`. Cover parsing and logic.
