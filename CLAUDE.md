@@ -1,4 +1,4 @@
-# AGENTS.md
+# CLAUDE.md
 
 ## 1. Core Principles & Design Philosophy
 
