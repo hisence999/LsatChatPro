@@ -141,14 +141,17 @@ class ConversationRepository(
                 conversationToConversationEntity(updatedConversation)
             )
 
-            // Delete the old episode based on time range matching.
-            // We use a best-effort deletion based on startTime match as we don't strictly link episode ID.
-            // TODO: Add conversationId to ChatEpisodeEntity in a future refactor for precise deletion.
-            chatEpisodeDAO.deleteEpisodeByTimeRange(
-                assistantId = conversation.assistantId.toString(),
-                startTime = conversation.createAt.toEpochMilli(),
-                endTime = Long.MAX_VALUE
-            )
+            // Delete the old episode based on conversation ID if possible.
+            // If deletion by ID returns 0 (e.g. legacy episode without conversationId),
+            // fallback to best-effort deletion based on time range.
+            val deletedCount = chatEpisodeDAO.deleteEpisodeByConversationId(conversation.id.toString())
+            if (deletedCount == 0) {
+                chatEpisodeDAO.deleteEpisodeByTimeRange(
+                    assistantId = conversation.assistantId.toString(),
+                    startTime = conversation.createAt.toEpochMilli(),
+                    endTime = Long.MAX_VALUE
+                )
+            }
         } else {
             conversationDAO.update(
                 conversationToConversationEntity(conversation)
