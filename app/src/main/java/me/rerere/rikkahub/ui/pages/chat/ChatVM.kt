@@ -64,6 +64,7 @@ class ChatVM(
     private val chatService: ChatService,
     val updateChecker: UpdateChecker,
     private val analytics: FirebaseAnalytics,
+    private val appScope: me.rerere.rikkahub.AppScope
 ) : ViewModel() {
     private val _conversationId: Uuid = Uuid.parse(id)
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
@@ -523,10 +524,41 @@ class ChatVM(
         }
     }
 
+    private val conversationDeletionJobs = java.util.concurrent.ConcurrentHashMap<Uuid, Job>()
+    private val recentlyDeletedConversations = java.util.concurrent.ConcurrentHashMap<Uuid, Conversation>()
+
     fun deleteConversation(conversation: Conversation) {
         viewModelScope.launch {
             val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
-            conversationRepo.deleteConversation(conversationFull)
+
+            // Cancel any pending deletion for this conversation
+            conversationDeletionJobs[conversation.id]?.cancel()
+
+            // Soft delete (DB only, preserve files)
+            conversationRepo.deleteConversation(conversationFull, deleteFiles = false)
+            recentlyDeletedConversations[conversation.id] = conversationFull
+
+            // Schedule file deletion
+            val job = appScope.launch {
+                kotlinx.coroutines.delay(4000)
+                context.deleteChatFiles(conversationFull.files)
+                conversationDeletionJobs.remove(conversation.id)
+                recentlyDeletedConversations.remove(conversation.id)
+            }
+            conversationDeletionJobs[conversation.id] = job
+        }
+    }
+
+    fun undoDeleteConversation(conversationId: Uuid) {
+        conversationDeletionJobs[conversationId]?.cancel()
+        conversationDeletionJobs.remove(conversationId)
+
+        val conversation = recentlyDeletedConversations[conversationId]
+        if (conversation != null) {
+            viewModelScope.launch {
+                conversationRepo.insertConversation(conversation)
+                recentlyDeletedConversations.remove(conversationId)
+            }
         }
     }
 

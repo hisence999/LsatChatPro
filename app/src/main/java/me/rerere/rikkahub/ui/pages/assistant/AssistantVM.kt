@@ -16,7 +16,8 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 class AssistantVM(
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
-    private val conversationRepo: ConversationRepository
+    private val conversationRepo: ConversationRepository,
+    private val appScope: me.rerere.rikkahub.AppScope
 ) : ViewModel() {
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
@@ -60,16 +61,47 @@ class AssistantVM(
         }
     }
 
+    private val deletionJobs = java.util.concurrent.ConcurrentHashMap<kotlin.uuid.Uuid, kotlinx.coroutines.Job>()
+
     fun removeAssistant(assistant: Assistant) {
+        // Cancel any existing job for this assistant
+        deletionJobs[assistant.id]?.cancel()
+
         viewModelScope.launch {
-            val settings = settings.value
-            settingsStore.update(
+            // Optimistic update: Remove from settings immediately
+            settingsStore.update { settings ->
                 settings.copy(
                     assistants = settings.assistants.filter { it.id != assistant.id }
                 )
-            )
+            }
+        }
+
+        // Start delayed deletion of data
+        val job = appScope.launch {
+            kotlinx.coroutines.delay(4000) // 4 seconds to undo
             memoryRepository.deleteMemoriesOfAssistant(assistant.id.toString())
             conversationRepo.deleteConversationOfAssistant(assistant.id)
+            deletionJobs.remove(assistant.id)
+        }
+        deletionJobs[assistant.id] = job
+    }
+
+    fun undoRemoveAssistant(assistant: Assistant) {
+        // Cancel deletion job if it exists
+        deletionJobs[assistant.id]?.cancel()
+        deletionJobs.remove(assistant.id)
+
+        viewModelScope.launch {
+            // Restore to settings
+            settingsStore.update { settings ->
+                if (settings.assistants.none { it.id == assistant.id }) {
+                    settings.copy(
+                        assistants = settings.assistants.plus(assistant)
+                    )
+                } else {
+                    settings
+                }
+            }
         }
     }
 
