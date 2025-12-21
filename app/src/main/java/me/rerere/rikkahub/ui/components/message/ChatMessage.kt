@@ -105,7 +105,9 @@ private val EmptyJson = JsonObject(emptyMap())
 @Composable
 fun ChatMessage(
     node: MessageNode,
-    conversation: Conversation,
+    previousRole: MessageRole?,
+    isLast: Boolean,
+    onCitationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     isRecentlyRestored: Boolean = false,
@@ -119,9 +121,6 @@ fun ChatMessage(
     onUpdate: (MessageNode) -> Unit,
 ) {
     val message = node.messages[node.selectIndex]
-    val chatMessages = conversation.currentMessages
-    val messageIndex = chatMessages.indexOf(message)
-    val lastMessage = messageIndex == chatMessages.lastIndex
     val settings = LocalSettings.current.displaySetting
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
@@ -163,8 +162,7 @@ fun ChatMessage(
             ) {
                 ChatMessageAssistantAvatar(
                     message = message,
-                    messages = chatMessages,
-                    messageIndex = messageIndex,
+                    previousRole = previousRole,
                     model = model,
                     assistant = assistant,
                     loading = loading,
@@ -172,8 +170,7 @@ fun ChatMessage(
                 )
                 ChatMessageUserAvatar(
                     message = message,
-                    messages = chatMessages,
-                    messageIndex = messageIndex,
+                    previousRole = previousRole,
                     avatar = settings.userAvatar,
                     nickname = settings.userNickname,
                     modifier = Modifier.weight(1f)
@@ -186,14 +183,14 @@ fun ChatMessage(
                 role = message.role,
                 parts = message.parts,
                 annotations = message.annotations,
-                messages = chatMessages,
-                messageIndex = messageIndex,
+                isLast = isLast,
+                onCitationClick = onCitationClick,
                 loading = loading,
                 model = model,
             )
         }
 
-        val showActions = if (lastMessage) {
+        val showActions = if (isLast) {
             !loading
         } else {
             message.parts.isEmptyUIMessage().not()
@@ -297,29 +294,15 @@ private fun MessagePartsBlock(
     model: Model?,
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
-    messages: List<UIMessage>,
-    messageIndex: Int,
+    isLast: Boolean,
+    onCitationClick: (String) -> Unit,
     loading: Boolean
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
 
     fun handleClickCitation(citationId: String) {
-        messages.forEach { message ->
-            message.parts.forEach { part ->
-                if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
-                    val items = part.content.jsonObject["items"]?.jsonArray ?: return@forEach
-                    items.forEach { item ->
-                        val id = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@forEach
-                        val url = item.jsonObject["url"]?.jsonPrimitive?.content ?: return@forEach
-                        if (citationId == id) {
-                            context.openUrl(url)
-                            return
-                        }
-                    }
-                }
-            }
-        }
+        onCitationClick(citationId)
     }
 
     // 消息输出HapticFeedback
@@ -392,7 +375,7 @@ private fun MessagePartsBlock(
     }
 
     // Tool Calls
-    if (messageIndex == messages.lastIndex) {
+    if (isLast) {
         parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
             key(index) {
                 ToolCallItem(

@@ -100,6 +100,12 @@ import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.utils.plus
 import kotlin.uuid.Uuid
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.utils.openUrl
 
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
@@ -176,6 +182,29 @@ private fun SharedTransitionScope.ChatListNormal(
     val loadingState by rememberUpdatedState(loading)
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
+    val context = LocalContext.current
+
+    val currentConversationState = rememberUpdatedState(conversation)
+    val onCitationClick = remember {
+        { citationId: String ->
+            currentConversationState.value.currentMessages.forEach { message ->
+                message.parts.forEach { part ->
+                    if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
+                        val items = part.content.jsonObject["items"]?.jsonArray ?: return@forEach
+                        items.forEach { item ->
+                            val id = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@forEach
+                            val url = item.jsonObject["url"]?.jsonPrimitive?.content ?: return@forEach
+                            if (citationId == id) {
+                                context.openUrl(url)
+                                return
+                            }
+                        }
+                    }
+                }
+            }
+            Unit
+        }
+    }
 
     fun List<LazyListItemInfo>.isAtBottom(): Boolean {
         val lastItem = lastOrNull() ?: return false
@@ -255,12 +284,16 @@ private fun SharedTransitionScope.ChatListNormal(
                         },
                         enabled = selecting,
                     ) {
+                        val previousRole = if (index > 0) conversation.messageNodes[index - 1].currentMessage.role else null
+                        val isLast = index == conversation.messageNodes.lastIndex
                         ChatMessage(
                             node = node,
-                            conversation = conversation,
+                            previousRole = previousRole,
+                            isLast = isLast,
+                            onCitationClick = onCitationClick,
                             model = node.currentMessage.modelId?.let { settings.findModelById(it) },
                             assistant = settings.getAssistantById(conversation.assistantId),
-                            loading = loading && index == conversation.messageNodes.lastIndex,
+                            loading = loading && isLast,
                             isRecentlyRestored = node.id in recentlyRestoredNodeIds,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
