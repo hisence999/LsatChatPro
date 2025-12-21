@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -72,6 +73,11 @@ enum class ToastType {
     Error
 }
 
+data class ToastAction(
+    val label: String,
+    val onClick: () -> Unit
+)
+
 /**
  * A single toast data class
  */
@@ -79,7 +85,8 @@ data class Toast(
     val id: Any = Uuid.random(),
     val message: String,
     val type: ToastType = ToastType.Normal,
-    val duration: Long = 6000L
+    val duration: Long = 6000L,
+    val action: ToastAction? = null
 )
 
 /**
@@ -90,14 +97,24 @@ class AppToasterState {
     private val _toasts = mutableStateListOf<Toast>()
     val toasts: List<Toast> get() = _toasts
 
-    fun show(message: String, type: ToastType = ToastType.Normal, duration: Long = 6000L): Toast {
-        val toast = Toast(message = message, type = type, duration = duration)
+    fun show(
+        message: String,
+        type: ToastType = ToastType.Normal,
+        duration: Long = 6000L,
+        action: ToastAction? = null
+    ): Toast {
+        val toast = Toast(message = message, type = type, duration = duration, action = action)
         _toasts.add(toast)
         return toast
     }
 
-    fun show(message: String, type: ToastType = ToastType.Normal, duration: kotlin.time.Duration): Toast {
-        return show(message = message, type = type, duration = duration.inWholeMilliseconds)
+    fun show(
+        message: String,
+        type: ToastType = ToastType.Normal,
+        duration: kotlin.time.Duration,
+        action: ToastAction? = null
+    ): Toast {
+        return show(message = message, type = type, duration = duration.inWholeMilliseconds, action = action)
     }
 
     fun show(toast: Toast) {
@@ -336,6 +353,21 @@ private fun ToastContent(
                 maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis
             )
+
+            // Action Button
+            if (toast.action != null) {
+                TextButton(
+                    onClick = toast.action.onClick,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = toast.action.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = contentColor
+                    )
+                }
+            }
             
             // Expand button for long messages
             if (isLongMessage && !isExpanded) {

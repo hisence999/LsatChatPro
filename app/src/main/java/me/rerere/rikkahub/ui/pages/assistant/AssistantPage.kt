@@ -114,7 +114,9 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         vm.addAssistant(it)
     }
     val navController = LocalNavController.current
-    
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     // Search query state
     var searchQuery by remember { mutableStateOf("") }
     
@@ -240,10 +242,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             val ripplePushDp = 10.dp
             val ripplePushPx = with(density) { ripplePushDp.toPx() }
             
-            // Delete confirmation state
-            var showDeleteDialog by remember { mutableStateOf(false) }
-            var assistantToDelete by remember { mutableStateOf<Assistant?>(null) }
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -338,8 +336,16 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                     }
                                 },
                                 onDelete = {
-                                    assistantToDelete = assistant
-                                    showDeleteDialog = true
+                                    vm.removeAssistant(assistant)
+                                    toaster.show(
+                                        message = context.getString(R.string.assistant_deleted, assistant.name),
+                                        action = me.rerere.rikkahub.ui.components.ui.ToastAction(
+                                            label = context.getString(R.string.undo),
+                                            onClick = {
+                                                vm.undoRemoveAssistant(assistant)
+                                            }
+                                        )
+                                    )
                                 },
                                 modifier = Modifier
                                     .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
@@ -386,34 +392,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 }
             }
             
-            // Delete confirmation dialog
-            if (showDeleteDialog && assistantToDelete != null) {
-                AlertDialog(
-                    onDismissRequest = { 
-                        showDeleteDialog = false
-                        assistantToDelete = null
-                    },
-                    title = { Text(stringResource(R.string.assistant_page_delete)) },
-                    text = { Text(stringResource(R.string.assistant_page_delete_dialog_text)) },
-                    dismissButton = {
-                        TextButton(onClick = { 
-                            showDeleteDialog = false
-                            assistantToDelete = null
-                        }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            assistantToDelete?.let { vm.removeAssistant(it) }
-                            showDeleteDialog = false
-                            assistantToDelete = null
-                        }) {
-                            Text(stringResource(R.string.confirm))
-                        }
-                    }
-                )
-            }
         }
     }
 

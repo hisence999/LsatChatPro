@@ -318,7 +318,17 @@ private fun ChatPageContent(
                     },
 
                     onDelete = {
+                        val backup = conversation
                         vm.deleteMessage(it)
+                        toaster.show(
+                            message = context.getString(R.string.message_deleted),
+                            action = me.rerere.rikkahub.ui.components.ui.ToastAction(
+                                label = context.getString(R.string.undo),
+                                onClick = {
+                                    vm.updateConversation(backup)
+                                }
+                            )
+                        )
                     },
                     onUpdateMessage = { newNode ->
                         vm.updateConversation(

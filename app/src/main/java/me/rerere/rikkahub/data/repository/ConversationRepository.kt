@@ -159,12 +159,14 @@ class ConversationRepository(
         }
     }
 
-    suspend fun deleteConversation(conversation: Conversation) {
+    suspend fun deleteConversation(conversation: Conversation, deleteFiles: Boolean = true) {
         conversationDAO.delete(
             conversationToConversationEntity(conversation)
         )
         chatEpisodeDAO.deleteEpisodeByConversationId(conversation.id.toString())
-        context.deleteChatFiles(conversation.files)
+        if (deleteFiles) {
+            context.deleteChatFiles(conversation.files)
+        }
     }
 
     suspend fun deleteConversationOfAssistant(assistantId: Uuid) {

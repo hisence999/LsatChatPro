@@ -89,6 +89,7 @@ fun ChatDrawerContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
 
@@ -195,6 +196,15 @@ fun ChatDrawerContent(
                 },
                 onDelete = {
                     vm.deleteConversation(it)
+                    toaster.show(
+                        message = context.getString(R.string.conversation_deleted),
+                        action = me.rerere.rikkahub.ui.components.ui.ToastAction(
+                            label = context.getString(R.string.undo),
+                            onClick = {
+                                vm.undoDeleteConversation(it.id)
+                            }
+                        )
+                    )
                     if (it.id == current.id) {
                         navigateToChatPage(navController)
                     }
