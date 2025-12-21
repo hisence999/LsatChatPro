@@ -863,7 +863,7 @@ class ChatService(
             NotificationCompat.Builder(context, CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.notification_chat_done_title))
                 .setContentText(conversation.currentMessages.lastOrNull()?.toText()?.take(50) ?: "")
-                .setSmallIcon(R.drawable.small_icon)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)

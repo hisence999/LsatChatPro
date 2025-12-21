@@ -14,9 +14,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -56,7 +57,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.key
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import kotlin.math.absoluteValue
@@ -156,17 +156,26 @@ fun AppToasterHost(
             .padding(top = 8.dp),
         contentAlignment = Alignment.TopCenter
     ) {
-        Column(
+        LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            state.toasts.forEach { toast ->
-                key(toast.id) {
-                    AppToastItem(
-                        toast = toast,
-                        onDismiss = { state.dismiss(toast) }
+            items(
+                items = state.toasts,
+                key = { it.id }
+            ) { toast ->
+                AppToastItem(
+                    toast = toast,
+                    onDismiss = { state.dismiss(toast) },
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        fadeOutSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        placementSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
                     )
-                }
+                )
             }
         }
     }
@@ -175,7 +184,8 @@ fun AppToasterHost(
 @Composable
 private fun AppToastItem(
     toast: Toast,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     val haptics = rememberPremiumHaptics()
@@ -246,7 +256,7 @@ private fun AppToastItem(
 
     if (!isDismissed) {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
                 .graphicsLayer {
                     scaleX = scale.value

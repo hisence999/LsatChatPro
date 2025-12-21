@@ -187,16 +187,18 @@ private fun SharedTransitionScope.ChatListNormal(
     val currentConversationState = rememberUpdatedState(conversation)
     val onCitationClick = remember {
         { citationId: String ->
-            currentConversationState.value.currentMessages.forEach { message ->
-                message.parts.forEach { part ->
-                    if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
-                        val items = part.content.jsonObject["items"]?.jsonArray ?: return@forEach
-                        items.forEach { item ->
-                            val id = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@forEach
-                            val url = item.jsonObject["url"]?.jsonPrimitive?.content ?: return@forEach
-                            if (citationId == id) {
-                                context.openUrl(url)
-                                return
+            run findCitation@{
+                currentConversationState.value.currentMessages.forEach { message ->
+                    message.parts.forEach { part ->
+                        if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
+                            val items = part.content.jsonObject["items"]?.jsonArray ?: return@forEach
+                            items.forEach { item ->
+                                val id = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@forEach
+                                val url = item.jsonObject["url"]?.jsonPrimitive?.content ?: return@forEach
+                                if (citationId == id) {
+                                    context.openUrl(url)
+                                    return@findCitation
+                                }
                             }
                         }
                     }

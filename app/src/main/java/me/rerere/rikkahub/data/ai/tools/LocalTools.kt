@@ -91,7 +91,7 @@ class LocalTools(private val context: Context) {
                     notificationManager.createNotificationChannel(channel)
                     
                     val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
-                        .setSmallIcon(me.rerere.rikkahub.R.drawable.small_icon)
+                        .setSmallIcon(me.rerere.rikkahub.R.drawable.ic_notification)
                         .setContentTitle(title)
                         .setContentText(content)
                         .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)

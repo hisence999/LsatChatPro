@@ -161,7 +161,7 @@ fun AssistantPickerSheet(
             settings.assistants
         } else {
             settings.assistants.filter { assistant ->
-                assistant.tags.any { tagId -> tagId in selectedTagIds }
+                assistant.tags.containsAll(selectedTagIds)
             }
         }
     }

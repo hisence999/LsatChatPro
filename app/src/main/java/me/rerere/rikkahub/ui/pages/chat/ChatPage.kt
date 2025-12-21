@@ -522,6 +522,10 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
+    
+    // State for assistant picker - must be at function level for proper recomposition
+    var showAssistantPicker by remember { mutableStateOf(false) }
+    val currentAssistant = settings.getCurrentAssistant()
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -582,8 +586,6 @@ private fun TopBar(
         actions = {
             // Check if chat is "empty" (no user-sent messages, ignoring preset messages)
             val isEmpty = !conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
-            var showAssistantPicker by remember { mutableStateOf(false) }
-            val currentAssistant = settings.getCurrentAssistant()
             
             // Fluid transition between assistant icon and search/new icons
             androidx.compose.animation.AnimatedContent(
@@ -610,11 +612,15 @@ private fun TopBar(
                             IconButton(onClick = { onToggleTemporaryChat() }) {
                                 Icon(Icons.Rounded.HistoryToggleOff, "Temporary Chat")
                             }
-                            IconButton(onClick = { showAssistantPicker = true }) {
+                            Box(
+                                modifier = Modifier.size(48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
                                     name = currentAssistant.name.ifBlank { "Assistant" },
                                     value = currentAssistant.avatar,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(32.dp),
+                                    onClick = { showAssistantPicker = true }
                                 )
                             }
                         }
@@ -625,11 +631,15 @@ private fun TopBar(
                             IconButton(onClick = { onToggleTemporaryChat() }) {
                                 Icon(Icons.Rounded.History, "Make Normal Chat")
                             }
-                            IconButton(onClick = { showAssistantPicker = true }) {
+                            Box(
+                                modifier = Modifier.size(48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
                                     name = currentAssistant.name.ifBlank { "Assistant" },
                                     value = currentAssistant.avatar,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(32.dp),
+                                    onClick = { showAssistantPicker = true }
                                 )
                             }
                         }
@@ -647,22 +657,22 @@ private fun TopBar(
                     }
                 }
             }
-            
-            // Assistant picker sheet
-            if (showAssistantPicker) {
-                val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(settings, onUpdateSettings)
-                me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
-                    settings = settings,
-                    currentAssistant = currentAssistant,
-                    onAssistantSelected = { selectedAssistant ->
-                        assistantState.setSelectAssistant(selectedAssistant)
-                        showAssistantPicker = false
-                    },
-                    onDismiss = { showAssistantPicker = false }
-                )
-            }
         },
     )
+    
+    // Assistant picker sheet - outside TopAppBar for proper state handling
+    if (showAssistantPicker) {
+        val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(settings, onUpdateSettings)
+        me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
+            settings = settings,
+            currentAssistant = currentAssistant,
+            onAssistantSelected = { selectedAssistant ->
+                assistantState.setSelectAssistant(selectedAssistant)
+                showAssistantPicker = false
+            },
+            onDismiss = { showAssistantPicker = false }
+        )
+    }
     titleState.EditStateContent { title, onUpdate ->
         AlertDialog(
             onDismissRequest = {

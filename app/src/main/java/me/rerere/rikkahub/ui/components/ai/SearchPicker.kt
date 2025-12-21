@@ -476,13 +476,11 @@ private fun BuiltInSearchSetting(
     val isDarkMode = LocalDarkMode.current
     val isAmoled = amoledMode && isDarkMode
     
-    val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
     val contentColor = if (isAmoled) Color.White else MaterialTheme.colorScheme.onSurface
-    val elevation = if (isAmoled) 0.dp else 6.dp
-    val tonalElevation = if (isAmoled) 0.dp else LocalAbsoluteTonalElevation.current
 
-    CompositionLocalProvider(LocalAbsoluteTonalElevation provides tonalElevation) {
-        val cardElevation = CardDefaults.cardElevation(defaultElevation = elevation)
+    CompositionLocalProvider(LocalAbsoluteTonalElevation provides 0.dp) {
+        val cardElevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         val cardColors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor

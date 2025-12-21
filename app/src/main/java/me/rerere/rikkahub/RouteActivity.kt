@@ -113,8 +113,8 @@ class RouteActivity : ComponentActivity() {
                         }
                         .diskCache {
                             DiskCache.Builder()
-                                .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                                .maxSizeBytes(50 * 1024 * 1024) // 50 MB disk cache for icons
+                                .directory(context.filesDir.resolve("icon_cache").toOkioPath())
+                                .maxSizeBytes(50 * 1024 * 1024) // 50 MB persistent disk cache for icons
                                 .build()
                         }
                         .components {

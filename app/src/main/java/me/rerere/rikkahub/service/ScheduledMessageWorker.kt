@@ -128,7 +128,7 @@ class ScheduledMessageWorker(
         )
 
         val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(R.drawable.small_icon)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(content))

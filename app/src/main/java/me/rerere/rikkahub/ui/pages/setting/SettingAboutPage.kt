@@ -83,7 +83,7 @@ fun SettingAboutPage() {
             Image(
                 painter = painterResource(R.mipmap.ic_launcher_lastchat_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(140.dp)
+                modifier = Modifier.size(180.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))

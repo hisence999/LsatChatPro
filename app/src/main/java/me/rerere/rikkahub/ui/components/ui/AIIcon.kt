@@ -52,7 +52,7 @@ private fun AIIcon(
     Surface(
         modifier = modifier.size(24.dp),
         shape = rememberAvatarShape(loading),
-        color = color,
+        color = Color.Transparent,
     ) {
         AsyncImage(
             model = model,
@@ -448,7 +448,7 @@ private fun RemoteIcon(
         Surface(
             modifier = modifier.size(24.dp),
             shape = rememberAvatarShape(loading),
-            color = color,
+            color = Color.Transparent,
         ) {
             AsyncImage(
                 model = fallbackUrl,
@@ -464,7 +464,7 @@ private fun RemoteIcon(
     Surface(
         modifier = modifier.size(24.dp),
         shape = rememberAvatarShape(loading),
-        color = color,
+        color = Color.Transparent,
     ) {
         AsyncImage(
             model = url,
