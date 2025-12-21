@@ -416,19 +416,30 @@ private fun SearchProviderItem(
         bottomStart = bottomCorner, bottomEnd = bottomCorner
     )
     
-    // Use surfaceContainerHigh for Light Mode consistency
-    val containerColor = if (isSelected) {
+    // Animated colors for smooth selection transition
+    val targetContainerColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer
     } else if (isDarkMode) {
         Color.Black
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    val contentColor = if (isSelected) {
+    val targetContentColor = if (isSelected) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
         MaterialTheme.colorScheme.onSurface
     }
+    
+    val containerColor by animateColorAsState(
+        targetValue = targetContainerColor,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+        label = "containerColor"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = targetContentColor,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+        label = "contentColor"
+    )
     
     Row(
         modifier = Modifier

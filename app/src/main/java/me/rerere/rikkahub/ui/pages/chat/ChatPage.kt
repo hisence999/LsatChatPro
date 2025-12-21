@@ -490,13 +490,8 @@ private fun ChatPageContent(
                         )
                     },
                     onUpdateSearchService = { index ->
-                        // Update global searchServiceSelected for backward compatibility
-                        vm.updateSettings(
-                            setting.copy(
-                                searchServiceSelected = index
-                            )
-                        )
-                        // Also persist the selection to the assistant's searchMode
+                        // Only persist the selection to the assistant's searchMode to avoid double-update flicker
+                        // The global setting 'searchServiceSelected' is deprecated in favor of assistant-specific settings
                         vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index))
                     },
                     onClearContext = {
