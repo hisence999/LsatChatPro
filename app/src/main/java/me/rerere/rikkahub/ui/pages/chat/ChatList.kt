@@ -113,6 +113,7 @@ fun ChatList(
     loading: Boolean,
     previewMode: Boolean,
     settings: Settings,
+    recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -143,6 +144,7 @@ fun ChatList(
                     state = state,
                     loading = loading,
                     settings = settings,
+                    recentlyRestoredNodeIds = recentlyRestoredNodeIds,
                     onRegenerate = onRegenerate,
                     onEdit = onEdit,
                     onForkMessage = onForkMessage,
@@ -162,6 +164,7 @@ private fun SharedTransitionScope.ChatListNormal(
     state: LazyListState,
     loading: Boolean,
     settings: Settings,
+    recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
@@ -258,6 +261,7 @@ private fun SharedTransitionScope.ChatListNormal(
                             model = node.currentMessage.modelId?.let { settings.findModelById(it) },
                             assistant = settings.getAssistantById(conversation.assistantId),
                             loading = loading && index == conversation.messageNodes.lastIndex,
+                            isRecentlyRestored = node.id in recentlyRestoredNodeIds,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
                             },

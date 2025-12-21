@@ -493,21 +493,7 @@ private fun ImageGenScreen(
             }
         }
         
-        // Top gradient for peeking old images
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(80.dp)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.3f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
+        // Top gradient removed per user request
 
         // Gradient behind floating toolbar
         Box(

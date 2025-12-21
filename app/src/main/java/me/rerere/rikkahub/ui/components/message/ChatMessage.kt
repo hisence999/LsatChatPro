@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -107,6 +108,7 @@ fun ChatMessage(
     conversation: Conversation,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
+    isRecentlyRestored: Boolean = false,
     model: Model? = null,
     assistant: Assistant? = null,
     onFork: () -> Unit,
@@ -130,8 +132,25 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+
+    // Fade-in animation for recently restored messages
+    var hasAnimated by remember { mutableStateOf(!isRecentlyRestored) }
+    val restoredAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (hasAnimated) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600),
+        label = "restored_message_alpha"
+    )
+    LaunchedEffect(isRecentlyRestored) {
+        if (isRecentlyRestored && !hasAnimated) {
+            kotlinx.coroutines.delay(50)
+            hasAnimated = true
+        }
+    }
+
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer { this.alpha = restoredAlpha },
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

@@ -799,16 +799,62 @@ class ChatService(
 
             saveConversation(
                 conversationId,
-                getConversationFlow(conversationId).value.copy(
-                    chatSuggestions = suggestions.take(
-                        10
-                    )
-                )
+                conversation.copy(chatSuggestions = suggestions)
             )
         }.onFailure {
             it.printStackTrace()
         }
     }
+
+    private val conversationDeletionJobs = java.util.concurrent.ConcurrentHashMap<Uuid, Job>()
+    private val recentlyDeletedConversations = java.util.concurrent.ConcurrentHashMap<Uuid, Conversation>()
+
+    // Track recently restored conversations for fade-in animation
+    private val _recentlyRestoredIds = kotlinx.coroutines.flow.MutableStateFlow<Set<Uuid>>(emptySet())
+    val recentlyRestoredIds: kotlinx.coroutines.flow.StateFlow<Set<Uuid>> = _recentlyRestoredIds
+
+    fun deleteConversation(conversation: Conversation) {
+        appScope.launch {
+            val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
+
+            // Cancel any pending deletion for this conversation
+            conversationDeletionJobs[conversation.id]?.cancel()
+
+            // Soft delete (DB only, preserve files)
+            conversationRepo.deleteConversation(conversationFull, deleteFiles = false)
+            recentlyDeletedConversations[conversation.id] = conversationFull
+
+            // Schedule file deletion
+            val job = appScope.launch {
+                kotlinx.coroutines.delay(4000)
+                context.deleteChatFiles(conversationFull.files)
+                conversationDeletionJobs.remove(conversation.id)
+                recentlyDeletedConversations.remove(conversation.id)
+            }
+            conversationDeletionJobs[conversation.id] = job
+        }
+    }
+
+    fun undoDeleteConversation(conversationId: Uuid) {
+        conversationDeletionJobs[conversationId]?.cancel()
+        conversationDeletionJobs.remove(conversationId)
+
+        val conversation = recentlyDeletedConversations[conversationId]
+        if (conversation != null) {
+            appScope.launch {
+                conversationRepo.insertConversation(conversation)
+                recentlyDeletedConversations.remove(conversationId)
+
+                // Track for fade-in animation
+                _recentlyRestoredIds.value = _recentlyRestoredIds.value + conversationId
+
+                // Remove from tracking after animation completes
+                kotlinx.coroutines.delay(1000)
+                _recentlyRestoredIds.value = _recentlyRestoredIds.value - conversationId
+            }
+        }
+    }
+
 
     // 发送生成完成通知
     private fun sendGenerationDoneNotification(conversationId: Uuid) {

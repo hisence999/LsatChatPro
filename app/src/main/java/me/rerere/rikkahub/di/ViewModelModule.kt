@@ -23,7 +23,8 @@ val viewModelModule = module {
             conversationRepo = get(),
             chatService = get(),
             updateChecker = get(),
-            analytics = get()
+            analytics = get(),
+            appScope = get()
         )
     }
     viewModelOf(::SettingVM)

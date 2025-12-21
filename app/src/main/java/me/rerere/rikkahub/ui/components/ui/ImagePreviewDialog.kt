@@ -68,35 +68,20 @@ fun ImagePreviewDialog(
                 .fillMaxSize()
                 .background(if (isDarkMode) Color.Black else Color.Black.copy(alpha = 0.9f))
         ) {
-            // Image container with rounded frame
+            // Image container - full bleed without rounded corners for proper clipping
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
                     .padding(bottom = if (prompt != null) 120.dp else 80.dp) // Space for prompt and button
             ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(24.dp)),
-                    shape = RoundedCornerShape(24.dp),
-                    color = if (isDarkMode) Color.Black else Color.DarkGray
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(24.dp))
-                    ) {
-                        ImagePager(
-                            modifier = Modifier.fillMaxSize(),
-                            pagerState = state,
-                            imageLoader = { index ->
-                                val painter = rememberAsyncImagePainter(images[index])
-                                return@ImagePager Pair(painter, painter.intrinsicSize)
-                            },
-                        )
-                    }
-                }
+                ImagePager(
+                    modifier = Modifier.fillMaxSize(),
+                    pagerState = state,
+                    imageLoader = { index ->
+                        val painter = rememberAsyncImagePainter(images[index])
+                        return@ImagePager Pair(painter, painter.intrinsicSize)
+                    },
+                )
             }
 
             // Bottom controls: Prompt text and save button

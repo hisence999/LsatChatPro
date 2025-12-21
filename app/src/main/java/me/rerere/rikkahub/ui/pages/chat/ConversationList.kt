@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.ui.unit.IntOffset
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 import androidx.compose.animation.AnimatedVisibility
@@ -96,6 +98,7 @@ fun ColumnScope.ConversationList(
     current: Conversation,
     conversations: LazyPagingItems<ConversationListItem>,
     conversationJobs: Collection<Uuid>,
+    recentlyRestoredIds: Set<Uuid> = emptySet(),
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -195,13 +198,27 @@ fun ColumnScope.ConversationList(
                     is ConversationListItem.DateHeader -> {
                         DateHeaderItem(
                             label = item.label,
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = androidx.compose.animation.core.tween(700),
+                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                placementSpec = androidx.compose.animation.core.spring(
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                                    visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                                )
+                            )
                         )
                     }
 
                     is ConversationListItem.PinnedHeader -> {
                         PinnedHeader(
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = androidx.compose.animation.core.tween(700),
+                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                placementSpec = androidx.compose.animation.core.spring(
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                                    visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                                )
+                            )
                         )
                     }
 
@@ -210,6 +227,7 @@ fun ColumnScope.ConversationList(
                             conversation = item.conversation,
                             selected = item.conversation.id == current.id,
                             loading = item.conversation.id in conversationJobs,
+                            isRecentlyRestored = item.conversation.id in recentlyRestoredIds,
                             onClick = onClick,
                             onDelete = onDelete,
                             onRegenerateTitle = onRegenerateTitle,
@@ -217,7 +235,14 @@ fun ColumnScope.ConversationList(
                             onPin = onPin,
                             showUnconsolidatedDot = showUnconsolidatedDot,
                             showConsolidateOption = showConsolidateOption,
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = androidx.compose.animation.core.tween(700),
+                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                placementSpec = androidx.compose.animation.core.spring(
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                                    visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                                )
+                            )
                         )
                     }
 
@@ -319,6 +344,7 @@ private fun ConversationItem(
     conversation: Conversation,
     selected: Boolean,
     loading: Boolean,
+    isRecentlyRestored: Boolean = false,
     modifier: Modifier = Modifier,
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
@@ -331,6 +357,20 @@ private fun ConversationItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val haptics = rememberPremiumHaptics()
+
+    // Fade-in animation for recently restored items
+    var hasAnimated by remember { mutableStateOf(!isRecentlyRestored) }
+    val restoredAlpha by animateFloatAsState(
+        targetValue = if (hasAnimated) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600),
+        label = "restored_alpha"
+    )
+    LaunchedEffect(isRecentlyRestored) {
+        if (isRecentlyRestored && !hasAnimated) {
+            kotlinx.coroutines.delay(50) // Small delay to ensure item is in layout
+            hasAnimated = true
+        }
+    }
     
     // Physics-based press feedback
     val scale by animateFloatAsState(
@@ -338,11 +378,14 @@ private fun ConversationItem(
         animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
         label = "conversation_scale"
     )
-    val alpha by animateFloatAsState(
+    val pressAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.7f else 1f,
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
         label = "conversation_alpha"
     )
+    
+    // Combine alphas: restored fade-in * press feedback
+    val combinedAlpha = restoredAlpha * pressAlpha
     
     val backgroundColor = if (selected) {
         MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
@@ -357,7 +400,7 @@ private fun ConversationItem(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                this.alpha = alpha
+                this.alpha = combinedAlpha
             }
             .clip(RoundedCornerShape(50f))
             .combinedClickable(

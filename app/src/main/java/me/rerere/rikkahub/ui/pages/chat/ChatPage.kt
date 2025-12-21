@@ -252,6 +252,7 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val context = LocalContext.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
 
@@ -309,6 +310,7 @@ private fun ChatPageContent(
                     loading = loadingJob != null,
                     previewMode = previewMode,
                     settings = setting,
+                    recentlyRestoredNodeIds = vm.recentlyRestoredNodeIds.collectAsStateWithLifecycle().value,
                     onRegenerate = {
                         vm.regenerateAtMessage(it)
                     },
@@ -319,13 +321,18 @@ private fun ChatPageContent(
 
                     onDelete = {
                         val backup = conversation
+                        val deletedNodeIds = conversation.messageNodes.map { it.id }.toSet()
                         vm.deleteMessage(it)
+                        val newNodeIds = vm.conversation.value.messageNodes.map { it.id }.toSet()
+                        val removedIds = deletedNodeIds - newNodeIds
                         toaster.show(
                             message = context.getString(R.string.message_deleted),
                             action = me.rerere.rikkahub.ui.components.ui.ToastAction(
                                 label = context.getString(R.string.undo),
                                 onClick = {
                                     vm.updateConversation(backup)
+                                    // Track restored node IDs for fade animation
+                                    vm.markNodesAsRestored(removedIds)
                                 }
                             )
                         )

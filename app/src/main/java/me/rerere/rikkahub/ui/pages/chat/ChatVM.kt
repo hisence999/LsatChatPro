@@ -80,6 +80,21 @@ class ChatVM(
         .getConversationJobs()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
+    // Track recently restored conversations for fade-in animation
+    val recentlyRestoredIds: StateFlow<Set<Uuid>> = chatService.recentlyRestoredIds
+
+    // Track recently restored message nodes for fade-in animation
+    private val _recentlyRestoredNodeIds = MutableStateFlow<Set<Uuid>>(emptySet())
+    val recentlyRestoredNodeIds: StateFlow<Set<Uuid>> = _recentlyRestoredNodeIds
+
+    fun markNodesAsRestored(nodeIds: Set<Uuid>) {
+        _recentlyRestoredNodeIds.value = _recentlyRestoredNodeIds.value + nodeIds
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(1000)
+            _recentlyRestoredNodeIds.value = _recentlyRestoredNodeIds.value - nodeIds
+        }
+    }
+
     init {
         // 添加对话引用
         chatService.addConversationReference(_conversationId)
@@ -524,42 +539,12 @@ class ChatVM(
         }
     }
 
-    private val conversationDeletionJobs = java.util.concurrent.ConcurrentHashMap<Uuid, Job>()
-    private val recentlyDeletedConversations = java.util.concurrent.ConcurrentHashMap<Uuid, Conversation>()
-
     fun deleteConversation(conversation: Conversation) {
-        viewModelScope.launch {
-            val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
-
-            // Cancel any pending deletion for this conversation
-            conversationDeletionJobs[conversation.id]?.cancel()
-
-            // Soft delete (DB only, preserve files)
-            conversationRepo.deleteConversation(conversationFull, deleteFiles = false)
-            recentlyDeletedConversations[conversation.id] = conversationFull
-
-            // Schedule file deletion
-            val job = appScope.launch {
-                kotlinx.coroutines.delay(4000)
-                context.deleteChatFiles(conversationFull.files)
-                conversationDeletionJobs.remove(conversation.id)
-                recentlyDeletedConversations.remove(conversation.id)
-            }
-            conversationDeletionJobs[conversation.id] = job
-        }
+        chatService.deleteConversation(conversation)
     }
 
     fun undoDeleteConversation(conversationId: Uuid) {
-        conversationDeletionJobs[conversationId]?.cancel()
-        conversationDeletionJobs.remove(conversationId)
-
-        val conversation = recentlyDeletedConversations[conversationId]
-        if (conversation != null) {
-            viewModelScope.launch {
-                conversationRepo.insertConversation(conversation)
-                recentlyDeletedConversations.remove(conversationId)
-            }
-        }
+        chatService.undoDeleteConversation(conversationId)
     }
 
     fun updatePinnedStatus(conversation: Conversation) {

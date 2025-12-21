@@ -100,6 +100,8 @@ fun ChatDrawerContent(
         initialValue = emptyMap(),
     )
 
+    val recentlyRestoredIds by vm.recentlyRestoredIds.collectAsStateWithLifecycle()
+
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
         vm.updateSettings(
@@ -180,6 +182,7 @@ fun ChatDrawerContent(
                 current = current,
                 conversations = conversations,
                 conversationJobs = conversationJobs.keys,
+                recentlyRestoredIds = recentlyRestoredIds,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { vm.updateSearchQuery(it) },
                 modifier = Modifier

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +61,7 @@ import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import kotlin.uuid.Uuid
 
 /**
@@ -200,12 +202,9 @@ private fun AppToastItem(
         launch { alpha.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 300f)) }
     }
     
-    // Auto-dismiss after duration
-    LaunchedEffect(toast) {
-        if (toast.duration > 0) {
-            delay(toast.duration)
-            if (!isFlying && !isDismissed) {
-                // Exit animation - slide up and fade
+    val dismissWithAnimation = {
+        if (!isFlying && !isDismissed) {
+            scope.launch {
                 launch { offsetY.animateTo(-200f, spring(dampingRatio = 1f, stiffness = 500f)) }
                 launch { scale.animateTo(0.8f, spring(dampingRatio = 1f, stiffness = 500f)) }
                 launch { alpha.animateTo(0f, spring(dampingRatio = 1f, stiffness = 500f)) }
@@ -213,6 +212,15 @@ private fun AppToastItem(
                 isDismissed = true
                 onDismiss()
             }
+        }
+        Unit
+    }
+
+    // Auto-dismiss after duration
+    LaunchedEffect(toast) {
+        if (toast.duration > 0) {
+            delay(toast.duration)
+            dismissWithAnimation()
         }
     }
     
@@ -292,14 +300,18 @@ private fun AppToastItem(
                     )
                 }
         ) {
-            ToastContent(toast = toast)
+            ToastContent(
+                toast = toast,
+                onDismiss = dismissWithAnimation
+            )
         }
     }
 }
 
 @Composable
 private fun ToastContent(
-    toast: Toast
+    toast: Toast,
+    onDismiss: () -> Unit
 ) {
     val (containerColor, contentColor, icon) = getToastColors(toast.type)
     var isExpanded by remember { mutableStateOf(false) }
@@ -309,10 +321,10 @@ private fun ToastContent(
         shape = RoundedCornerShape(28.dp),
         color = containerColor,
         contentColor = contentColor,
-        shadowElevation = 6.dp,
+        tonalElevation = 2.dp,
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = contentColor.copy(alpha = 0.2f)
+            color = contentColor.copy(alpha = 0.15f)
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -357,7 +369,10 @@ private fun ToastContent(
             // Action Button
             if (toast.action != null) {
                 TextButton(
-                    onClick = toast.action.onClick,
+                    onClick = {
+                        toast.action.onClick()
+                        onDismiss()
+                    },
                     modifier = Modifier.height(32.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
                 ) {
@@ -394,11 +409,19 @@ private fun ToastContent(
 @Composable
 private fun getToastColors(type: ToastType): Triple<Color, Color, ImageVector?> {
     return when (type) {
-        ToastType.Normal -> Triple(
-            MaterialTheme.colorScheme.inverseSurface,
-            MaterialTheme.colorScheme.inverseOnSurface,
-            null
-        )
+        ToastType.Normal -> if(LocalDarkMode.current) {
+            Triple(
+                MaterialTheme.colorScheme.surfaceContainerLow,
+                MaterialTheme.colorScheme.onSurface,
+                null
+            )
+        } else {
+            Triple(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+                MaterialTheme.colorScheme.onSurface,
+                null
+            )
+        }
         ToastType.Success -> Triple(
             MaterialTheme.colorScheme.primaryContainer,
             MaterialTheme.colorScheme.onPrimaryContainer,
