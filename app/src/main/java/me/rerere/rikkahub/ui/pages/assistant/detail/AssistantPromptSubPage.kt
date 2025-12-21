@@ -370,16 +370,20 @@ fun AssistantPromptSubPage(
                     )
                 }
                 preview.onSuccess {
-                    it.fastForEach { message ->
+                    it.fastForEachIndexed { index, message ->
+                        val previousRole = if (index > 0) it[index - 1].role else null
+                        val isLast = index == it.lastIndex
                         ChatMessage(
                             node = message.toMessageNode(),
+                            previousRole = previousRole,
+                            isLast = isLast,
+                            onCitationClick = {},
                             onFork = {},
                             onRegenerate = {},
                             onEdit = {},
                             onShare = {},
                             onDelete = {},
                             onUpdate = {},
-                            conversation = Conversation.ofId(Uuid.random())
                         )
                     }
                 }
