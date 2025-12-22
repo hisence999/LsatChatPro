@@ -674,12 +674,19 @@ private fun ModelList(
         onUpdateProvider(providerSetting.moveMove(from.index, to.index))
     }
     val density = LocalDensity.current
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
     
     // State for swipe neighbor tracking
     var draggingIndex by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var isUnlocked by remember { mutableStateOf(false) }
     var neighborsUnlocked by remember { mutableStateOf(false) }
+    
+    // State for reorder ripple effect
+    var reorderDropModelId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
+    var reorderDropTrigger by remember { mutableStateOf(0) }
+    val ripplePushDp = 10.dp
+    val ripplePushPx = with(density) { ripplePushDp.toPx() }
     
     val canDelete = providerSetting.models.size > 1
     
@@ -737,6 +744,33 @@ private fun ModelList(
                     state = reorderableLazyListState,
                     key = item.id
                 ) { isDragging ->
+                    // Ripple animation for this item
+                    val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
+                    androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
+                        if (reorderDropTrigger > 0 && reorderDropModelId != null && reorderDropModelId != item.id) {
+                            val dropIndex = providerSetting.models.indexOfFirst { it.id == reorderDropModelId }
+                            if (dropIndex >= 0) {
+                                val distance = kotlin.math.abs(index - dropIndex)
+                                if (distance <= 3) {
+                                    val pushAmount = when (distance) {
+                                        1 -> ripplePushPx
+                                        2 -> ripplePushPx * 0.6f
+                                        3 -> ripplePushPx * 0.3f
+                                        else -> 0f
+                                    }
+                                    val direction = if (index < dropIndex) -1f else 1f
+                                    rippleOffset.animateTo(
+                                        targetValue = pushAmount * direction,
+                                        animationSpec = androidx.compose.animation.core.tween(80)
+                                    )
+                                    rippleOffset.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 400f)
+                                    )
+                                }
+                            }
+                        }
+                    }
                     androidx.compose.runtime.key(canDelete) {
                         ModelCard(
                             model = item,
@@ -764,7 +798,16 @@ private fun ModelList(
                             dragHandle = {
                                 IconButton(
                                     onClick = {},
-                                    modifier = Modifier.longPressDraggableHandle()
+                                    modifier = Modifier.longPressDraggableHandle(
+                                        onDragStarted = {
+                                            haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)
+                                        },
+                                        onDragStopped = {
+                                            haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Thud)
+                                            reorderDropModelId = item.id
+                                            reorderDropTrigger++
+                                        }
+                                    )
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.DragIndicator,
@@ -773,6 +816,7 @@ private fun ModelList(
                                 }
                             },
                             modifier = Modifier
+                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .graphicsLayer {
                                     if (isDragging) {
                                         scaleX = 0.95f
@@ -948,7 +992,7 @@ private fun ModelSettingsForm(
                         OutlinedTextField(
                             value = model.displayName,
                             onValueChange = {
-                                onModelChange(model.copy(displayName = it.trim()))
+                                onModelChange(model.copy(displayName = it))
                             },
                             label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
                             modifier = Modifier.fillMaxWidth(),

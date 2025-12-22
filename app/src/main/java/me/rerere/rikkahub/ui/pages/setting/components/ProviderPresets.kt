@@ -53,6 +53,12 @@ val PROVIDER_PRESETS = listOf(
         )
     ),
     ProviderPreset(
+        name = "Vercel",
+        description = "Unified API for 100+ models with auto-fallbacks",
+        type = ProviderSetting.OpenAI::class,
+        baseUrl = "https://ai-gateway.vercel.sh/v1"
+    ),
+    ProviderPreset(
         name = "Groq",
         description = "Ultra-fast inference for open models",
         type = ProviderSetting.OpenAI::class,
@@ -77,7 +83,7 @@ val PROVIDER_PRESETS = listOf(
         )
     ),
     ProviderPreset(
-        name = "Together",
+        name = "Together AI",
         description = "50+ open-source models, fast inference",
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://api.together.xyz/v1"
@@ -95,7 +101,7 @@ val PROVIDER_PRESETS = listOf(
         baseUrl = "https://api.perplexity.ai"
     ),
     ProviderPreset(
-        name = "Fireworks",
+        name = "Fireworks AI",
         description = "Fast, production-ready AI inference",
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://api.fireworks.ai/inference/v1"

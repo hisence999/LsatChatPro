@@ -99,7 +99,10 @@ private val parser by lazy {
 
 private val INLINE_LATEX_REGEX = Regex("\\\\\\((.+?)\\\\\\)")
 private val BLOCK_LATEX_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MATCHES_ALL)
-val THINKING_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+// Matches <think>...</think> or <thinking>...</thinking> with optional closing tag
+val THINKING_REGEX = Regex("<think(?:ing)?>([\\s\\S]*?)(?:</think(?:ing)?>|$)", RegexOption.DOT_MATCHES_ALL)
+// Matches orphaned closing tags: content followed by </think> or </thinking> without opening tag
+private val ORPHAN_CLOSE_TAG_REGEX = Regex("^([\\s\\S]*?)</think(?:ing)?>", RegexOption.DOT_MATCHES_ALL)
 private val CODE_BLOCK_REGEX = Regex("```[\\s\\S]*?```|`[^`\n]*`", RegexOption.DOT_MATCHES_ALL)
 private val BREAK_LINE_REGEX = Regex("(?i)<br\\s*/?>")
 
@@ -134,13 +137,19 @@ private fun preProcess(content: String): String {
         }
     }
 
-    // 替换思考
+    // 替换思考 - handles both <think> and <thinking> tags
     result = result.replace(THINKING_REGEX) { matchResult ->
+        matchResult.groupValues[1].lines().filter { it.isNotBlank() }.joinToString("\n") { ">$it" }
+    }
+
+    // Handle orphaned closing tags (missing opening tag) - common with some models
+    result = result.replace(ORPHAN_CLOSE_TAG_REGEX) { matchResult ->
         matchResult.groupValues[1].lines().filter { it.isNotBlank() }.joinToString("\n") { ">$it" }
     }
 
     return result
 }
+
 
 @Preview(showBackground = true)
 @Composable

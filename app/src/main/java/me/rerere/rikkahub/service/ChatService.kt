@@ -522,7 +522,16 @@ class ChatService(
             addConversationReference(conversationId) // 添加引用
             appScope.launch {
                 coroutineScope {
-                    launch { generateTitle(conversationId, finalConversation) }
+                    launch {
+                        // Fetch fresh conversation from DB to ensure we have the latest state
+                        // This matches the manual regeneration pattern which works correctly
+                        val freshConversation = conversationRepo.getConversationById(conversationId)
+                        if (freshConversation != null) {
+                            generateTitle(conversationId, freshConversation)
+                        } else {
+                            Log.w(TAG, "generateTitle: conversation not found in DB for $conversationId")
+                        }
+                    }
                     launch { generateSuggestion(conversationId, finalConversation) }
                 }
             }.invokeOnCompletion {
@@ -727,24 +736,44 @@ class ChatService(
             conversation.title.isBlank() -> true
             else -> false
         }
-        if (!shouldGenerate) return
+        if (!shouldGenerate) {
+            Log.d(TAG, "generateTitle: skipped (title='${conversation.title.take(20)}', force=$force)")
+            return
+        }
+        Log.d(TAG, "generateTitle: starting for conversation ${conversation.id}, messages=${conversation.messageNodes.size}")
 
         runCatching {
             val settings = settingsStore.settingsFlow.first()
             val model =
                 settings.findModelById(settings.titleModelId) ?: settings.getCurrentChatModel()
-                ?: return
-            val provider = model.findProvider(settings.providers) ?: return
+            if (model == null) {
+                Log.w(TAG, "generateTitle: No model found for titleModelId=${settings.titleModelId} and no current chat model")
+                return
+            }
+            val provider = model.findProvider(settings.providers)
+            if (provider == null) {
+                Log.w(TAG, "generateTitle: No provider found for model ${model.displayName}")
+                return
+            }
 
             val providerHandler = providerManager.getProviderByType(provider)
+            
+            // Check if we have content to generate a title from
+            val contentForTitle = conversation.currentMessages.truncate(conversation.truncateIndex)
+                .joinToString("\n\n") { it.summaryAsText() }
+            
+            if (contentForTitle.isBlank()) {
+                Log.w(TAG, "generateTitle: No content available for title generation (messages=${conversation.messageNodes.size}, truncateIndex=${conversation.truncateIndex})")
+                return
+            }
+            
             val result = providerHandler.generateText(
                 providerSetting = provider,
                 messages = listOf(
                     UIMessage.user(
                         prompt = settings.titlePrompt.applyPlaceholders(
                             "locale" to Locale.getDefault().displayName,
-                            "content" to conversation.currentMessages.truncate(conversation.truncateIndex)
-                                .joinToString("\n\n") { it.summaryAsText() })
+                            "content" to contentForTitle)
                     ),
                 ),
                 params = TextGenerationParams(
@@ -760,7 +789,7 @@ class ChatService(
                 )
             }
         }.onFailure {
-            it.printStackTrace()
+            Log.e(TAG, "generateTitle failed: ${it.message}", it)
         }
     }
 

@@ -398,7 +398,7 @@ data class DisplaySetting(
     val showTokenUsage: Boolean = false,
     val autoCloseThinking: Boolean = true,
     val showUpdates: Boolean = false,
-    val checkForUpdates: Boolean = false, // Check GitHub for app updates
+    val checkForUpdates: Boolean = true, // Check GitHub for app updates
     val showMessageJumper: Boolean = false,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,

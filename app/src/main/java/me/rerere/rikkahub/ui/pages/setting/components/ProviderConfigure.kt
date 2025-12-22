@@ -101,9 +101,9 @@ fun ProviderConfigure(
             value = provider.name,
             onValueChange = { newName ->
                 val updated = when (provider) {
-                    is ProviderSetting.OpenAI -> provider.copy(name = newName.trim())
-                    is ProviderSetting.Google -> provider.copy(name = newName.trim())
-                    is ProviderSetting.Claude -> provider.copy(name = newName.trim())
+                    is ProviderSetting.OpenAI -> provider.copy(name = newName)
+                    is ProviderSetting.Google -> provider.copy(name = newName)
+                    is ProviderSetting.Claude -> provider.copy(name = newName)
                 }
                 onEdit(updated)
             },
