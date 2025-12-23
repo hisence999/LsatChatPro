@@ -104,14 +104,22 @@ fun AssistantDetailPage(id: String) {
     data class TabItem(val title: String, val content: @Composable () -> Unit)
 
     val tabItems = buildList {
-        // Basic
-        add(TabItem(stringResource(R.string.assistant_page_tab_basic)) {
-            AssistantBasicSettings(
+        // Profile - Identity and appearance
+        add(TabItem("Profile") {
+            AssistantProfileSubPage(
                 assistant = assistant,
-                providers = providers,
                 tags = tags,
                 onUpdate = { onUpdate(it) },
                 vm = vm
+            )
+        })
+
+        // Model - All generation settings
+        add(TabItem("Model") {
+            AssistantModelSubPage(
+                assistant = assistant,
+                providers = providers,
+                onUpdate = { onUpdate(it) }
             )
         })
 
@@ -147,39 +155,23 @@ fun AssistantDetailPage(id: String) {
             )
         })
 
-        // Notifications
-        add(TabItem("Notifications") {
-            AssistantNotificationSubPage(
+        // Tools - Search, Local Tools, MCP combined
+        add(TabItem("Tools") {
+            AssistantToolsSubPage(
                 assistant = assistant,
-                onUpdateAssistant = { onUpdate(it) }
+                onUpdate = { onUpdate(it) },
+                vm = vm,
+                mcpServerConfigs = mcpServerConfigs
             )
         })
-
-        // Local Tools
-        add(TabItem(stringResource(R.string.assistant_page_tab_local_tools)) {
-            AssistantLocalToolSubPage(
+        
+        // Advanced - Notifications and custom request headers
+        add(TabItem("Advanced") {
+            AssistantAdvancedSubPage(
                 assistant = assistant,
                 onUpdate = { onUpdate(it) }
             )
         })
-
-        // Request
-        add(TabItem(stringResource(R.string.assistant_page_tab_request)) {
-            AssistantCustomRequestSettings(assistant = assistant) {
-                onUpdate(it)
-            }
-        })
-
-        // MCP - only show if MCP servers are configured
-        if (mcpServerConfigs.isNotEmpty()) {
-            add(TabItem(stringResource(R.string.assistant_page_tab_mcp)) {
-                AssistantMcpSettings(
-                    assistant = assistant,
-                    onUpdate = { onUpdate(it) },
-                    mcpServerConfigs = mcpServerConfigs
-                )
-            })
-        }
     }
 
     val pagerState = rememberPagerState { tabItems.size }

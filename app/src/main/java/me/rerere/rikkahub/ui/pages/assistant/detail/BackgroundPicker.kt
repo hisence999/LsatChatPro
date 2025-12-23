@@ -55,21 +55,30 @@ fun BackgroundPicker(
         }
     }
 
-    Card(
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+    // Use Surface with 10dp corners to match SettingsGroup pattern
+    androidx.compose.material3.Surface(
+        color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) 
+            MaterialTheme.colorScheme.surfaceContainerLow 
+        else 
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(10.dp)
     ) {
-        FormItem(
+        Column(
             modifier = Modifier.padding(16.dp),
-            label = {
-                Text(stringResource(R.string.assistant_page_chat_background))
-            },
-            description = {
-                Text(stringResource(R.string.assistant_page_chat_background_desc))
-            }
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Header matching SettingsGroup pattern
+            Text(
+                text = stringResource(R.string.assistant_page_chat_background),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.assistant_page_chat_background_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
             Button(
                 onClick = {
                     showPickOption = true
@@ -112,7 +121,7 @@ fun BackgroundPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(9f / 16f)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(RoundedCornerShape(10.dp)),
                     contentScale = ContentScale.Crop
                 )
             }

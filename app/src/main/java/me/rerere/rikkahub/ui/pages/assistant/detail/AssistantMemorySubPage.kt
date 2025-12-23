@@ -249,9 +249,9 @@ fun AssistantMemorySettings(
                     // RAG toggle is always visible below when memory is on, so this is always MIDDLE
                     position = "MIDDLE",
                     trailing = {
-                        // Use 0.6f alpha for disabled state - visible but clearly disabled
+                        // Use 0.75f alpha for disabled state - subtle but visible
                         val toggleAlpha by animateFloatAsState(
-                            targetValue = if (isLockedByConsolidation) 0.6f else 1f,
+                            targetValue = if (isLockedByConsolidation) 0.75f else 1f,
                             animationSpec = spring(stiffness = 300f),
                             label = "toggle_alpha"
                         )
