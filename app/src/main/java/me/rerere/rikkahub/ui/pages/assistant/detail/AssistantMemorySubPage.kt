@@ -243,22 +243,22 @@ fun AssistantMemorySettings(
             ) {
                 val isLockedByConsolidation = assistant.enableMemoryConsolidation
                 
-                // Smoothly animate the locked state
-                val lockedAlpha by animateFloatAsState(
-                    targetValue = if (isLockedByConsolidation) 0.5f else 1f,
-                    animationSpec = spring(stiffness = 300f),
-                    label = "locked_alpha"
-                )
-                
                 MemorySettingsItem(
                     title = stringResource(R.string.assistant_page_recent_chats),
                     subtitle = if (isLockedByConsolidation) 
                         "Required by Advanced Memory" 
                     else 
                         stringResource(R.string.assistant_page_recent_chats_desc),
-                    position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
+                    // RAG toggle is always visible below when memory is on, so this is always MIDDLE
+                    position = "MIDDLE",
                     trailing = {
-                        Box(modifier = Modifier.graphicsLayer { alpha = if (isLockedByConsolidation) 0.38f else 1f }) {
+                        // Use 0.6f alpha for disabled state - visible but clearly disabled
+                        val toggleAlpha by animateFloatAsState(
+                            targetValue = if (isLockedByConsolidation) 0.6f else 1f,
+                            animationSpec = spring(stiffness = 300f),
+                            label = "toggle_alpha"
+                        )
+                        Box(modifier = Modifier.graphicsLayer { alpha = toggleAlpha }) {
                             Switch(
                                 checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
                                 onCheckedChange = { 
