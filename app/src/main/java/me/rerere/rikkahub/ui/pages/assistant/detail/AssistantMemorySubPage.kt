@@ -245,10 +245,7 @@ fun AssistantMemorySettings(
                 
                 MemorySettingsItem(
                     title = stringResource(R.string.assistant_page_recent_chats),
-                    subtitle = if (isLockedByConsolidation) 
-                        "Required by Advanced Memory" 
-                    else 
-                        stringResource(R.string.assistant_page_recent_chats_desc),
+                    subtitle = stringResource(R.string.assistant_page_recent_chats_desc),
                     // RAG toggle is always visible below when memory is on, so this is always MIDDLE
                     position = "MIDDLE",
                     trailing = {
