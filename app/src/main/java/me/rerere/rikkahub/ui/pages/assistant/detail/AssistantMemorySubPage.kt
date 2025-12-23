@@ -1055,7 +1055,7 @@ private fun ManageMemoriesSection(
             value = memorySearchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.assistant_page_search_placeholder)) },
+            placeholder = { Text(stringResource(R.string.assistant_page_memory_search_placeholder)) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),

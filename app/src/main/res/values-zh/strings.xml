@@ -740,7 +740,7 @@
     <string name="assistant_page_sort_content_desc">排序</string>
     <string name="assistant_page_regenerate_embeddings_content_desc">重新生成嵌入</string>
     <string name="assistant_page_add_memory_content_desc">添加记忆</string>
-    <string name="assistant_page_search_placeholder">搜索记忆...</string>
+    <string name="assistant_page_memory_search_placeholder">搜索记忆...</string>
     <string name="assistant_page_no_memories">暂无记忆</string>
     <string name="assistant_page_no_matching_memories">无匹配记忆</string>
     <string name="assistant_page_badge_core">核心</string>
@@ -757,7 +757,7 @@
     <string name="assistant_page_activity_result">结果: %s</string>
     <string name="assistant_page_episodes_title">近期记忆片段</string>
     <string name="assistant_page_episodes_count">共记录 %d 个片段</string>
-    <string name="assistant_page_consolidation_summarizer_model_desc">用于记忆整合任务的模型</string>
+
     <string name="assistant_page_unit_minutes">分钟</string>
     <string name="assistant_page_unit_hours">小时</string>
     <string name="assistant_page_model_default">默认 (后台模型)</string>

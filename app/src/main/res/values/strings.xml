@@ -740,7 +740,7 @@
     <string name="assistant_page_sort_content_desc">Sort</string>
     <string name="assistant_page_regenerate_embeddings_content_desc">Regenerate Embeddings</string>
     <string name="assistant_page_add_memory_content_desc">Add Memory</string>
-    <string name="assistant_page_search_placeholder">Search memories...</string>
+    <string name="assistant_page_memory_search_placeholder">Search memories...</string>
     <string name="assistant_page_no_memories">No memories yet</string>
     <string name="assistant_page_no_matching_memories">No matching memories</string>
     <string name="assistant_page_badge_core">CORE</string>
@@ -757,7 +757,7 @@
     <string name="assistant_page_activity_result">Result: %s</string>
     <string name="assistant_page_episodes_title">Recent Memory Episodes</string>
     <string name="assistant_page_episodes_count">%d total episodes recorded</string>
-    <string name="assistant_page_consolidation_summarizer_model_desc">Model used for memory consolidation tasks</string>
+
     <string name="assistant_page_unit_minutes">minutes</string>
     <string name="assistant_page_unit_hours">hours</string>
     <string name="assistant_page_model_default">Default (Background Model)</string>
