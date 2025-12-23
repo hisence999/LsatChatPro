@@ -35,20 +35,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          # google-services.json（如果项目需要）
-          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
-            echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
+          # 写入 google-services.json（无论 debug/release 都可能需要）
+          mkdir -p app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
+
+          # 确认文件真的存在且非空（不泄露内容）
+          test -s app/google-services.json
+          echo "google-services.json OK, size=$(wc -c < app/google-services.json) bytes"
+
+          # 如果你只在 release 需要签名文件，可以保留条件
+          if [ -n "${{ secrets.KEY_BASE64 }}" ]; then
+            echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
           fi
 
-          # 只有构建 release 或 both 时才准备签名文件
-          if [ "${{ inputs.build }}" = "release" ] || [ "${{ inputs.build }}" = "both" ]; then
-            # 解码 base64 keystore
-            echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
-
-            # 写入签名配置到 local.properties（按你项目当前的读取方式保留）
+          if [ -n "${{ secrets.SIGNING_CONFIG }}" ]; then
             echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
           fi
-
+      
+      
       - name: Gradle Build
         shell: bash
         run: |
