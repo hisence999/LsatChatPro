@@ -26,6 +26,24 @@ class MemoryRepository(
                 entities.map { AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.embeddingModelId, it.createdAt) }
             }
 
+    /**
+     * Get combined memories (core) and episodes (episodic) as AssistantMemory objects.
+     * This includes significance scores for episodic memories.
+     */
+    fun getCombinedMemoriesFlow(assistantId: String): Flow<List<AssistantMemory>> =
+        kotlinx.coroutines.flow.combine(
+            memoryDAO.getMemoriesOfAssistantFlow(assistantId),
+            chatEpisodeDAO.getEpisodesOfAssistantFlow(assistantId)
+        ) { memories, episodes ->
+            val coreMemories = memories.map { 
+                AssistantMemory(it.id, it.content, it.type, it.embedding != null, it.embeddingModelId, it.createdAt)
+            }
+            val episodicMemories = episodes.map { 
+                AssistantMemory(-it.id, it.content, MemoryType.EPISODIC, it.embedding != null, it.embeddingModelId, it.startTime, it.significance)
+            }
+            coreMemories + episodicMemories
+        }
+
     fun getAverageMemoryLength(assistantId: String): Flow<Int> =
         memoryDAO.getMemoriesOfAssistantFlow(assistantId)
             .map { entities ->
@@ -153,7 +171,8 @@ class MemoryRepository(
             content = newEpisode.content,
             type = MemoryType.EPISODIC,
             hasEmbedding = false,
-            timestamp = newEpisode.startTime
+            timestamp = newEpisode.startTime,
+            significance = newEpisode.significance
         )
     }
 
@@ -323,7 +342,7 @@ class MemoryRepository(
             } else {
                 val episode = item as ChatEpisodeEntity
                 // Convert episode to AssistantMemory with a negative ID to distinguish
-                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime), score)
+                Pair<AssistantMemory, Float>(AssistantMemory(-episode.id, episode.content, MemoryType.EPISODIC, true, episode.embeddingModelId, episode.startTime, episode.significance), score)
             }
         }
     }

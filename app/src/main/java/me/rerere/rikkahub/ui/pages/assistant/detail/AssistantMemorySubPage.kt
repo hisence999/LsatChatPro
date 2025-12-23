@@ -1,65 +1,126 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
-import androidx.compose.material3.Slider
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
-import me.rerere.rikkahub.ui.pages.assistant.detail.EmbeddingProgress
-import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.theme.AppShapes
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.utils.toLocalString
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+
+/**
+ * Memory mode based on current settings
+ */
+private fun getMemoryMode(assistant: Assistant): MemoryMode {
+    return when {
+        !assistant.enableMemory -> MemoryMode.OFF
+        assistant.enableHumanMemory -> MemoryMode.ADVANCED_REFLECTION
+        assistant.enableMemoryConsolidation -> MemoryMode.ADVANCED
+        assistant.useRagMemoryRetrieval -> MemoryMode.BASIC_RAG
+        assistant.enableRecentChatsReference -> MemoryMode.BASIC_RECENT
+        else -> MemoryMode.BASIC
+    }
+}
+
+private enum class MemoryMode(val displayName: String, val description: String) {
+    OFF("Off", "Memory is disabled"),
+    BASIC("Basic", "All memories sent to model in every conversation"),
+    BASIC_RECENT("Basic + Recent Chats", "Adds titles and timestamps of recent conversations"),
+    BASIC_RAG("Basic + RAG", "Smart memory retrieval based on conversation context"),
+    ADVANCED("Advanced", "Forms episodic memories with automatic consolidation"),
+    ADVANCED_REFLECTION("Advanced + Reflection", "Includes significance scoring and core memory formation")
+}
+
+private enum class MemorySortOrder(val displayName: String, val episodicOnly: Boolean = false) {
+    NEWEST_FIRST("Newest First"),
+    OLDEST_FIRST("Oldest First"),
+    ALPHABETICAL("Alphabetical"),
+    MOST_SIGNIFICANT("Most Significant", episodicOnly = true) // Only for episodic memories with reflection enabled
+}
 
 @Composable
 fun AssistantMemorySettings(
@@ -89,9 +150,7 @@ fun AssistantMemorySettings(
     if (embeddingProgress != null && embeddingProgress.isRunning) {
         AlertDialog(
             onDismissRequest = { },
-            title = {
-                Text("Generating Embeddings")
-            },
+            title = { Text("Generating Embeddings") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Processing ${embeddingProgress.current} of ${embeddingProgress.total} items...")
@@ -105,43 +164,27 @@ fun AssistantMemorySettings(
         )
     }
 
-    // 记忆对话框
+    // Memory edit dialog
     memoryDialogState.EditStateContent { memory, update ->
         AlertDialog(
-            onDismissRequest = {
-                memoryDialogState.dismiss()
-            },
-            title = {
-                Text(stringResource(R.string.assistant_page_manage_memory_title))
-            },
+            onDismissRequest = { memoryDialogState.dismiss() },
+            title = { Text(stringResource(R.string.assistant_page_manage_memory_title)) },
             text = {
                 TextField(
                     value = memory.content,
-                    onValueChange = {
-                        update(memory.copy(content = it))
-                    },
-                    label = {
-                        Text(stringResource(R.string.assistant_page_manage_memory_title))
-                    },
+                    onValueChange = { update(memory.copy(content = it)) },
+                    label = { Text(stringResource(R.string.assistant_page_manage_memory_title)) },
                     minLines = 1,
                     maxLines = 8
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        memoryDialogState.confirm()
-                    }
-                ) {
+                TextButton(onClick = { memoryDialogState.confirm() }) {
                     Text(stringResource(R.string.assistant_page_save))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        memoryDialogState.dismiss()
-                    }
-                ) {
+                TextButton(onClick = { memoryDialogState.dismiss() }) {
                     Text(stringResource(R.string.assistant_page_cancel))
                 }
             }
@@ -150,6 +193,14 @@ fun AssistantMemorySettings(
 
     val memorySearchQuery by assistantDetailVM.memorySearchQuery.collectAsState()
     val currentEmbeddingModelId by assistantDetailVM.currentEmbeddingModelId.collectAsState()
+    val currentMode = getMemoryMode(assistant)
+    
+    // Get all models for summarizer picker
+    val providers by assistantDetailVM.providers.collectAsStateWithLifecycle()
+    val allModels = remember(providers) { providers.flatMap { it.models } }
+    val defaultModel = Model("default", "Default (Background Model)")
+    val modelOptions = listOf(defaultModel) + allModels
+    val selectedModel = allModels.find { it.id == assistant.summarizerModelId } ?: defaultModel
 
     Column(
         modifier = Modifier
@@ -157,149 +208,894 @@ fun AssistantMemorySettings(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ... (existing cards for memory switch and recent chats switch) ...
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-            colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+        // Mode Indicator
+        MemoryModeIndicator(mode = currentMode)
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // SETTINGS GROUP
+        // ═══════════════════════════════════════════════════════════════════
+        SettingsGroupHeader(title = "Memory Settings")
+        
+        Column(
+            modifier = Modifier.clip(RoundedCornerShape(24.dp)),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_memory))
-                },
-                description = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_memory_desc),
-                    )
-                },
-                tail = {
+            // Master Toggle - Enable Memory (always visible)
+            MemorySettingsItem(
+                title = stringResource(R.string.assistant_page_memory),
+                subtitle = stringResource(R.string.assistant_page_memory_desc),
+                position = if (!assistant.enableMemory) "ONLY" else "FIRST",
+                trailing = {
                     Switch(
                         checked = assistant.enableMemory,
-                        onCheckedChange = {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    enableMemory = it
-                                )
-                            )
-                        }
+                        onCheckedChange = { onUpdateAssistant(assistant.copy(enableMemory = it)) }
                     )
                 }
             )
-        }
 
-        if (assistant.enableMemory) {
-            Card(
-                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-                colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+            // Recent Chats Toggle (when memory enabled)
+            AnimatedVisibility(
+                visible = assistant.enableMemory,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                FormItem(
-                    modifier = Modifier.padding(8.dp),
-                    label = {
-                        Text(stringResource(R.string.assistant_page_recent_chats))
-                    },
-                    description = {
-                        Text(
-                            text = stringResource(R.string.assistant_page_recent_chats_desc),
-                        )
-                    },
-                    tail = {
+                val isLockedByConsolidation = assistant.enableMemoryConsolidation
+                MemorySettingsItem(
+                    title = stringResource(R.string.assistant_page_recent_chats),
+                    subtitle = if (isLockedByConsolidation) 
+                        "Required by Advanced Memory" 
+                    else 
+                        stringResource(R.string.assistant_page_recent_chats_desc),
+                    position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
+                    trailing = {
                         Switch(
-                            checked = assistant.enableRecentChatsReference,
-                            onCheckedChange = {
-                                onUpdateAssistant(
-                                    assistant.copy(
-                                        enableRecentChatsReference = it
-                                    )
-                                )
+                            checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
+                            onCheckedChange = { 
+                                if (!isLockedByConsolidation) {
+                                    onUpdateAssistant(assistant.copy(enableRecentChatsReference = it))
+                                }
+                            },
+                            enabled = !isLockedByConsolidation
+                        )
+                    }
+                )
+            }
+
+            // RAG Toggle (when memory enabled)
+            AnimatedVisibility(
+                visible = assistant.enableMemory,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                MemorySettingsItem(
+                    title = "RAG Memory Retrieval",
+                    subtitle = "Smart context-based memory retrieval",
+                    position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
+                    trailing = {
+                        Switch(
+                            checked = assistant.useRagMemoryRetrieval,
+                            onCheckedChange = { enabled ->
+                                if (!enabled) {
+                                    onUpdateAssistant(assistant.copy(
+                                        useRagMemoryRetrieval = false,
+                                        enableMemoryConsolidation = false,
+                                        enableHumanMemory = false
+                                    ))
+                                } else {
+                                    onUpdateAssistant(assistant.copy(useRagMemoryRetrieval = true))
+                                }
                             }
                         )
                     }
                 )
             }
-        }
 
-        AdvancedMemorySettings(
-            assistant = assistant,
-            memories = memories,
-            onUpdateAssistant = onUpdateAssistant,
-            onRegenerateEmbeddings = onRegenerateEmbeddings,
-            estimatedMemoryCapacity = estimatedMemoryCapacity
-        )
-
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(R.string.assistant_page_manage_memory_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .padding(bottom = 8.dp)
-                    .align(Alignment.CenterStart)
-            )
-
-            Row(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Memory Consolidation Toggle (requires RAG)
+            AnimatedVisibility(
+                visible = assistant.enableMemory && assistant.useRagMemoryRetrieval,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                // Only show regenerate button when RAG is enabled AND there are memories needing embedding
-                if (onRegenerateEmbeddings != null && assistant.useRagMemoryRetrieval && needsEmbeddingRegeneration) {
-                    IconButton(
-                        onClick = onRegenerateEmbeddings
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Regenerate Embeddings"
+                MemorySettingsItem(
+                    title = "Advanced Memory",
+                    subtitle = "Form episodic memories from conversations",
+                    position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
+                    trailing = {
+                        Switch(
+                            checked = assistant.enableMemoryConsolidation,
+                            onCheckedChange = { enabled ->
+                                if (!enabled) {
+                                    onUpdateAssistant(assistant.copy(
+                                        enableMemoryConsolidation = false,
+                                        enableHumanMemory = false
+                                    ))
+                                } else {
+                                    onUpdateAssistant(assistant.copy(
+                                        enableMemoryConsolidation = true,
+                                        enableRecentChatsReference = true
+                                    ))
+                                }
+                            }
                         )
                     }
-                }
-                IconButton(
-                    onClick = {
-                        memoryDialogState.open(AssistantMemory(0, ""))
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Add,
-                        contentDescription = null
-                    )
-                }
+                )
             }
-        }
 
-        TextField(
-            value = memorySearchQuery,
-            onValueChange = { assistantDetailVM.updateMemorySearchQuery(it) },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search memories...") },
-            leadingIcon = { Icon(Icons.Rounded.Search, null) },
-            singleLine = true,
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-            colors = androidx.compose.material3.TextFieldDefaults.colors(
-                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
-            )
-        )
-
-        memories.fastForEach { memory ->
-            key(memory.id) {
-                MemoryItem(
-                    memory = memory,
-                    onEditMemory = {
-                        memoryDialogState.open(it)
-                    },
-                    onDeleteMemory = onDeleteMemory,
-                    useRagMemoryRetrieval = assistant.useRagMemoryRetrieval,
-                    currentEmbeddingModelId = currentEmbeddingModelId
+            // Human-like Memory Toggle (requires Consolidation)
+            AnimatedVisibility(
+                visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                MemorySettingsItem(
+                    title = "Reflection",
+                    subtitle = "Significance scoring and core memory formation",
+                    position = "LAST",
+                    trailing = {
+                        Switch(
+                            checked = assistant.enableHumanMemory,
+                            onCheckedChange = { onUpdateAssistant(assistant.copy(enableHumanMemory = it)) }
+                        )
+                    }
                 )
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // RAG SETTINGS (when RAG is enabled)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory && assistant.useRagMemoryRetrieval,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SettingsGroupHeader(title = "RAG Settings")
+                RagSettingsCard(assistant = assistant, onUpdateAssistant = onUpdateAssistant)
+            }
+        }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // CONSOLIDATION SETTINGS (when consolidation is enabled)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SettingsGroupHeader(title = "Advanced Memory Settings")
+                ConsolidationSettingsCard(
+                    assistant = assistant,
+                    onUpdateAssistant = onUpdateAssistant,
+                    modelOptions = modelOptions,
+                    selectedModel = selectedModel,
+                    onConsolidate = { assistantDetailVM.consolidateMemories(true) }
+                )
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // REFLECTION SETTINGS (when human memory is enabled)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory && assistant.enableHumanMemory,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SettingsGroupHeader(title = "Reflection Settings")
+                ReflectionSettingsCard(
+                    assistant = assistant,
+                    onUpdateAssistant = onUpdateAssistant
+                )
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MEMORY STATISTICS (when memory is enabled)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            MemoryStatisticsCard(
+                assistant = assistant,
+                memories = memories,
+                estimatedMemoryCapacity = estimatedMemoryCapacity
+            )
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MANAGE MEMORIES (when memory is enabled)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            ManageMemoriesSection(
+                memories = memories,
+                assistant = assistant,
+                onAddMemory = { memoryDialogState.open(AssistantMemory(0, "")) },
+                onEditMemory = { memoryDialogState.open(it) },
+                onDeleteMemory = onDeleteMemory,
+                onRegenerateEmbeddings = onRegenerateEmbeddings,
+                needsEmbeddingRegeneration = needsEmbeddingRegeneration,
+                memorySearchQuery = memorySearchQuery,
+                onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
+                currentEmbeddingModelId = currentEmbeddingModelId,
+                showMemoryTypes = assistant.enableMemoryConsolidation,
+                showSignificanceSort = assistant.enableHumanMemory
+            )
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MEMORY DEBUGGER (RAG only)
+        // ═══════════════════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = assistant.enableMemory && assistant.useRagMemoryRetrieval && onTestRetrieval != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            if (onTestRetrieval != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SettingsGroupHeader(title = "Memory Debugger")
+                    MemoryDebugger(
+                        onTestRetrieval = onTestRetrieval,
+                        retrievalResults = retrievalResults
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsGroupHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun MemorySettingsItem(
+    title: String,
+    subtitle: String? = null,
+    position: String = "MIDDLE", // ONLY, FIRST, MIDDLE, LAST
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+) {
+    val haptics = rememberPremiumHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        label = "scale"
+    )
+    
+    val topCorner by animateDpAsState(
+        targetValue = when (position) {
+            "ONLY", "FIRST" -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "topCorner"
+    )
+    val bottomCorner by animateDpAsState(
+        targetValue = when (position) {
+            "ONLY", "LAST" -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "bottomCorner"
+    )
+    
+    Surface(
+        onClick = {
+            if (onClick != null) {
+                haptics.perform(HapticPattern.Pop)
+                onClick()
+            }
+        },
+        enabled = onClick != null,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner
+        ),
+        interactionSource = interactionSource,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (trailing != null) {
+                trailing()
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryModeIndicator(mode: MemoryMode) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (mode == MemoryMode.OFF)
+            if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+        else
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+        animationSpec = spring(),
+        label = "modeColor"
+    )
+    
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = backgroundColor,
+        modifier = Modifier.animateContentSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Psychology,
+                contentDescription = null,
+                tint = if (mode == MemoryMode.OFF)
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                else
+                    MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Column {
+                AnimatedContent(
+                    targetState = mode.displayName,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "modeName"
+                ) { name ->
+                    Text(
+                        text = "Memory Mode: $name",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                AnimatedContent(
+                    targetState = mode.description,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "modeDesc"
+                ) { desc ->
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RagSettingsCard(
+    assistant: Assistant,
+    onUpdateAssistant: (Assistant) -> Unit
+) {
+    Column(
+        modifier = Modifier.clip(RoundedCornerShape(24.dp)),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Similarity Threshold
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                var threshold by remember(assistant.ragSimilarityThreshold) {
+                    mutableFloatStateOf(assistant.ragSimilarityThreshold)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Similarity Threshold", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = String.format("%.2f", threshold),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = threshold,
+                    onValueChange = { newValue ->
+                        threshold = newValue
+                        onUpdateAssistant(assistant.copy(ragSimilarityThreshold = newValue))
+                    },
+                    valueRange = 0f..1f,
+                    steps = 19,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("0.0 (All)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("1.0 (Exact)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConsolidationSettingsCard(
+    assistant: Assistant,
+    onUpdateAssistant: (Assistant) -> Unit,
+    modelOptions: List<Model>,
+    selectedModel: Model,
+    onConsolidate: () -> Unit
+) {
+    Column(
+        modifier = Modifier.clip(RoundedCornerShape(24.dp)),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Summarizer Model
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Summarizer Model", style = MaterialTheme.typography.titleMedium)
+                Select(
+                    options = modelOptions,
+                    selectedOption = selectedModel,
+                    onOptionSelected = { model ->
+                        if (model.id.toString() == "default") {
+                            onUpdateAssistant(assistant.copy(summarizerModelId = null))
+                        } else {
+                            onUpdateAssistant(assistant.copy(summarizerModelId = model.id))
+                        }
+                    },
+                    optionToString = { it.displayName },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // Consolidation Delay
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Consolidation Delay", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "${assistant.consolidationDelayMinutes} min",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    text = "Wait time after a chat ends before forming memories",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = assistant.consolidationDelayMinutes.toFloat(),
+                    onValueChange = { onUpdateAssistant(assistant.copy(consolidationDelayMinutes = it.toInt())) },
+                    valueRange = 0f..240f,
+                    steps = 23,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+
+        // Manual consolidation
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp, topStart = 10.dp, topEnd = 10.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onConsolidate,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Rounded.Psychology, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Consolidate All Memories Now")
+                }
+                
+                if (assistant.lastConsolidationTime > 0) {
+                    val time = java.time.Instant.ofEpochMilli(assistant.lastConsolidationTime)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDateTime()
+                        .toLocalString()
+                    Text(
+                        text = "Last run: $time",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReflectionSettingsCard(
+    assistant: Assistant,
+    onUpdateAssistant: (Assistant) -> Unit
+) {
+    Surface(
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Reflection Interval", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "${assistant.humanMemoryUpdateIntervalHours} hours",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = "How often to reflect on episodes to form core memories",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Slider(
+                value = assistant.humanMemoryUpdateIntervalHours.toFloat(),
+                onValueChange = { onUpdateAssistant(assistant.copy(humanMemoryUpdateIntervalHours = it.toInt())) },
+                valueRange = 1f..72f,
+                steps = 70,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            if (assistant.lastHumanMemoryUpdateTime > 0) {
+                val time = java.time.Instant.ofEpochMilli(assistant.lastHumanMemoryUpdateTime)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDateTime()
+                    .toLocalString()
+                Text(
+                    text = "Last reflection: $time",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryStatisticsCard(
+    assistant: Assistant,
+    memories: List<AssistantMemory>,
+    estimatedMemoryCapacity: Int
+) {
+    val coreMemories = memories.count { it.type == 0 }
+    val episodicMemories = memories.count { it.type == 1 }
+    val withEmbeddings = memories.count { it.hasEmbedding }
+
+    Surface(
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Memory Statistics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Only show Core/Episodic split when consolidation is enabled
+                if (assistant.enableMemoryConsolidation) {
+                    StatItem(
+                        value = coreMemories.toString(),
+                        label = "Core",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    StatItem(
+                        value = episodicMemories.toString(),
+                        label = "Episodic",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                } else {
+                    StatItem(
+                        value = memories.size.toString(),
+                        label = "Total",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                
+                // Show embeddings when RAG is enabled
+                AnimatedVisibility(visible = assistant.useRagMemoryRetrieval) {
+                    StatItem(
+                        value = withEmbeddings.toString(),
+                        label = "Embedded",
+                        color = if (withEmbeddings < memories.size) 
+                            MaterialTheme.colorScheme.error 
+                        else 
+                            MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = assistant.useRagMemoryRetrieval) {
+                Text(
+                    text = "Estimated capacity: ~$estimatedMemoryCapacity memories",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(
+    value: String,
+    label: String,
+    color: Color
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ManageMemoriesSection(
+    memories: List<AssistantMemory>,
+    assistant: Assistant,
+    onAddMemory: () -> Unit,
+    onEditMemory: (AssistantMemory) -> Unit,
+    onDeleteMemory: (AssistantMemory) -> Unit,
+    onRegenerateEmbeddings: (() -> Unit)?,
+    needsEmbeddingRegeneration: Boolean,
+    memorySearchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    currentEmbeddingModelId: String,
+    showMemoryTypes: Boolean,
+    showSignificanceSort: Boolean = false // Only show when reflection is enabled
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var sortOrder by remember { mutableStateOf(MemorySortOrder.NEWEST_FIRST) }
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    val coreMemories = memories.filter { it.type == 0 }
+    val episodicMemories = memories.filter { it.type == 1 }
+    
+    // Filter and sort based on current settings
+    val displayMemories = if (showMemoryTypes) {
+        when (selectedTab) {
+            0 -> coreMemories
+            else -> episodicMemories
+        }
+    } else {
+        memories
+    }.filter { memory ->
+        memorySearchQuery.isBlank() || memory.content.contains(memorySearchQuery, ignoreCase = true)
+    }.let { list ->
+        when (sortOrder) {
+            MemorySortOrder.NEWEST_FIRST -> list.sortedByDescending { it.timestamp }
+            MemorySortOrder.OLDEST_FIRST -> list.sortedBy { it.timestamp }
+            MemorySortOrder.ALPHABETICAL -> list.sortedBy { it.content.lowercase() }
+            MemorySortOrder.MOST_SIGNIFICANT -> list.sortedByDescending { it.significance ?: 0 }
+        }
+    }
+    
+    // Filter sort options based on current context
+    val availableSortOptions = MemorySortOrder.entries.filter { order ->
+        if (order.episodicOnly) {
+            // Only show significance sort on episodic tab when reflection is enabled
+            showSignificanceSort && showMemoryTypes && selectedTab == 1
+        } else {
+            true
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.assistant_page_manage_memory_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Sort button
+                Box {
+                    IconButton(onClick = { showSortMenu = true }) {
+                        Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                    }
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false }
+                    ) {
+                        availableSortOptions.forEach { order ->
+                            DropdownMenuItem(
+                                text = { Text(order.displayName) },
+                                onClick = {
+                                    sortOrder = order
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (sortOrder == order) {
+                                        Icon(Icons.Rounded.Checklist, null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                if (onRegenerateEmbeddings != null && assistant.useRagMemoryRetrieval && needsEmbeddingRegeneration) {
+                    IconButton(onClick = onRegenerateEmbeddings) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "Regenerate Embeddings")
+                    }
+                }
+                IconButton(onClick = onAddMemory) {
+                    Icon(Icons.Rounded.Add, contentDescription = "Add Memory")
+                }
+            }
+        }
+
+        // Category Tabs (only when consolidation is enabled)
+        AnimatedVisibility(
+            visible = showMemoryTypes,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                modifier = Modifier.clip(RoundedCornerShape(12.dp))
+            ) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Core (${coreMemories.size})") },
+                    icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(18.dp)) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Episodic (${episodicMemories.size})") },
+                    icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(18.dp)) }
+                )
+            }
+        }
+
+        // Search
+        TextField(
+            value = memorySearchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search memories...") },
+            leadingIcon = { Icon(Icons.Rounded.Search, null) },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            )
+        )
+
+        // Memory list with animation
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            displayMemories.forEachIndexed { index, memory ->
+                key(memory.id) {
+                    val position = when {
+                        displayMemories.size == 1 -> "ONLY"
+                        index == 0 -> "FIRST"
+                        index == displayMemories.size - 1 -> "LAST"
+                        else -> "MIDDLE"
+                    }
+                    MemoryItem(
+                        memory = memory,
+                        onEditMemory = onEditMemory,
+                        onDeleteMemory = onDeleteMemory,
+                        useRagMemoryRetrieval = assistant.useRagMemoryRetrieval,
+                        currentEmbeddingModelId = currentEmbeddingModelId,
+                        showType = showMemoryTypes,
+                        position = position
+                    )
+                }
+            }
+            
+            if (displayMemories.isEmpty()) {
+                Surface(
+                    color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (memorySearchQuery.isBlank()) "No memories yet" else "No matching memories",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -309,12 +1105,38 @@ private fun MemoryItem(
     onEditMemory: (AssistantMemory) -> Unit,
     onDeleteMemory: (AssistantMemory) -> Unit,
     useRagMemoryRetrieval: Boolean = false,
-    currentEmbeddingModelId: String = ""
+    currentEmbeddingModelId: String = "",
+    showType: Boolean = false,
+    position: String = "MIDDLE"
 ) {
-    // Delete confirmation dialog state
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val haptics = rememberPremiumHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     
-    // Delete confirmation dialog
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        label = "scale"
+    )
+    
+    val topCorner by animateDpAsState(
+        targetValue = when (position) {
+            "ONLY", "FIRST" -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "topCorner"
+    )
+    val bottomCorner by animateDpAsState(
+        targetValue = when (position) {
+            "ONLY", "LAST" -> 24.dp
+            else -> 10.dp
+        },
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+        label = "bottomCorner"
+    )
+    
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
@@ -342,24 +1164,27 @@ private fun MemoryItem(
         )
     }
     
-    // Determine embedding status - simplified since cache handles model switching
-    val embeddingStatus = if (memory.hasEmbedding) {
-        EmbeddingStatus.EMBEDDED
-    } else {
-        EmbeddingStatus.NO_EMBEDDING
-    }
-    
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+    Surface(
+        onClick = { onEditMemory(memory) },
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner
+        ),
+        interactionSource = interactionSource,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -367,74 +1192,66 @@ private fun MemoryItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Pills row - CORE/EPISODIC + embedding status
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Show type and embedding badges only when needed
+                val showBadges = showType || (useRagMemoryRetrieval && !memory.hasEmbedding)
+                AnimatedVisibility(
+                    visible = showBadges,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    // Type pill (CORE/EPISODIC)
-                    Surface(
-                        color = if (memory.type == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                        shape = MaterialTheme.shapes.extraSmall
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (memory.type == 0) "CORE" else "EPISODIC",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            color = if (memory.type == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                    
-                    // Embedding status pill (only shown when RAG is enabled)
-                    if (useRagMemoryRetrieval) {
-                        Surface(
-                            color = when (embeddingStatus) {
-                                EmbeddingStatus.EMBEDDED -> androidx.compose.ui.graphics.Color(0xFF388E3C) // Darker green
-                                EmbeddingStatus.NO_EMBEDDING -> androidx.compose.ui.graphics.Color(0xFFC62828) // Darker red
-                            },
-                            shape = MaterialTheme.shapes.extraSmall
-                        ) {
-                            Text(
-                                text = when (embeddingStatus) {
-                                    EmbeddingStatus.EMBEDDED -> "EMBEDDED"
-                                    EmbeddingStatus.NO_EMBEDDING -> "NO EMBEDDING"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                color = androidx.compose.ui.graphics.Color.White
-                            )
+                        if (showType) {
+                            Surface(
+                                color = if (memory.type == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Text(
+                                    text = if (memory.type == 0) "CORE" else "EPISODIC",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                    color = if (memory.type == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        
+                        if (useRagMemoryRetrieval && !memory.hasEmbedding) {
+                            Surface(
+                                color = Color(0xFFC62828),
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Text(
+                                    text = "NO EMBEDDING",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
+                
                 Text(
                     text = memory.content,
-                    maxLines = 5,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            IconButton(
-                onClick = { onEditMemory(memory) }
-            ) {
-                Icon(Icons.Rounded.Edit, null)
-            }
-            if (memory.type == 0) { // Only show delete for CORE memories
-                IconButton(
-                    onClick = { showDeleteConfirmation = true }
-                ) {
-                    Icon(
-                        Icons.Rounded.Delete,
-                        stringResource(R.string.assistant_page_delete)
-                    )
+            
+            // Only show delete for core memories (user-created)
+            if (memory.type == 0) {
+                IconButton(onClick = { 
+                    haptics.perform(HapticPattern.Pop)
+                    showDeleteConfirmation = true 
+                }) {
+                    Icon(Icons.Rounded.Delete, stringResource(R.string.assistant_page_delete))
                 }
             }
         }
     }
-}
-
-private enum class EmbeddingStatus {
-    NO_EMBEDDING,
-    EMBEDDED
 }
 
 @Composable
@@ -442,24 +1259,18 @@ private fun MemoryDebugger(
     onTestRetrieval: (String) -> Unit,
     retrievalResults: List<Pair<AssistantMemory, Float>>
 ) {
-    val (query, setQuery) = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    val (query, setQuery) = remember { mutableStateOf("") }
 
-    Card(
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+    Surface(
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(24.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Memory Retrieval Debugger",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "Test RAG retrieval with a query to see which memories are retrieved and their similarity scores.",
+                text = "Test RAG retrieval to see which memories are returned",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -472,11 +1283,16 @@ private fun MemoryDebugger(
                 TextField(
                     value = query,
                     onValueChange = setQuery,
-                    label = { Text("Test Query") },
+                    placeholder = { Text("Enter test query...") },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
-                androidx.compose.material3.Button(
+                Button(
                     onClick = { onTestRetrieval(query) },
                     enabled = query.isNotBlank()
                 ) {
@@ -484,271 +1300,41 @@ private fun MemoryDebugger(
                 }
             }
 
-            if (retrievalResults.isNotEmpty()) {
-                Text(
-                    text = "Results (${retrievalResults.size}):",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                retrievalResults.forEachIndexed { index, (memory, score) ->
-                    Card(
-                        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "#${index + 1}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Score: ${String.format("%.4f", score)}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (score >= 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = memory.content,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Type: ${if(memory.type == 0) "CORE" else "EPISODIC"}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "ID: ${memory.id}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            } else if (query.isNotBlank()) {
-                Text(
-                    text = "No memories retrieved. Try lowering the similarity threshold or check if embeddings are generated.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdvancedMemorySettings(
-    assistant: Assistant,
-    memories: List<AssistantMemory>,
-    onUpdateAssistant: (Assistant) -> Unit,
-    onRegenerateEmbeddings: (() -> Unit)?,
-    estimatedMemoryCapacity: Int
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-    
-    Card(
-        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Header - clickable to expand/collapse
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            AnimatedVisibility(
+                visible = retrievalResults.isNotEmpty(),
+                enter = fadeIn() + expandVertically()
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "More about memories",
-                        style = MaterialTheme.typography.titleMedium
+                        text = "Results (${retrievalResults.size}):",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                }
-                Icon(
-                    imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            AnimatedVisibility(visible = isExpanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-
-                    
-                    // Memory Statistics
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Memory Statistics",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        val coreMemories = memories.count { it.type == 0 }
-                        val episodicMemories = memories.count { it.type == 1 }
-                        val withEmbeddings = memories.count { it.hasEmbedding }
-                        val withoutEmbeddings = memories.size - withEmbeddings
-                        
-                        Text(
-                            text = "Total Memories: ${memories.size}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "  • Core Memories: $coreMemories",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "  • Episodic Memories: $episodicMemories",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "  • With Embeddings: $withEmbeddings",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (withoutEmbeddings > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (withoutEmbeddings > 0) {
-                            Text(
-                                text = "  • Without Embeddings: $withoutEmbeddings (use Regenerate Embeddings)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    
-
-                    
-                    // RAG Configuration Details
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "RAG Configuration",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "RAG Enabled: ${if (assistant.useRagMemoryRetrieval) "Yes" else "No"}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        if (assistant.useRagMemoryRetrieval) {
-                            Text(
-                                text = "Similarity Threshold: ${String.format("%.2f", assistant.ragSimilarityThreshold)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Recent Chats Reference: ${if (assistant.enableRecentChatsReference) "Enabled" else "Disabled"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            Text(
-                                text = "Max capacity based on your token limit and avg memory size: ~$estimatedMemoryCapacity",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        } else {
-                            Text(
-                                text = "All memories are included in every request (no filtering)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    
-
-                    
-                    // Memory Type Information
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Memory Types",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "CORE: Permanent facts about the user (name, preferences, etc.). These don't decay over time.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "EPISODIC: Summaries of past conversations. These decay over time (7-day half-life) and are weighted by recency.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    
-
-
-                    // How it works
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "How it works",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "The memory system consists of two tracks: Episodic and Core.\n\n" +
-                                    "1. Episodic Memory: The AI automatically summarizes conversations into 'episodes'. These help the AI recall recent context but fade over time to keep the context window clean.\n\n" +
-                                    "2. Core Memory: The AI reflects on these episodes to extract permanent facts (Core Memories). These are deduplicated and never expire, forming the AI's long-term knowledge about you.\n\n" +
-                                    "When you chat, the AI retrieves the most relevant memories based on your current message using vector similarity (RAG).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    
-
-                    
-                    // Actions
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Actions",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        if (onRegenerateEmbeddings != null) {
-                            Text(
-                                text = "Regenerate Embeddings: Click the refresh icon above to regenerate embeddings for all memories. This is useful if the embedding model changed or embeddings are missing.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    retrievalResults.forEachIndexed { index, (memory, score) ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("#${index + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        "Score: ${String.format("%.4f", score)}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (score >= 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = memory.content,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
                         }
                     }
                 }

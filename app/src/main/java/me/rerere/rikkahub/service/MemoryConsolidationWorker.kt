@@ -66,25 +66,27 @@ class MemoryConsolidationWorker(
 
         // =========================================================================================
         // TRACK A: Episodic Memory Creation (Stream of Consciousness)
+        // Only runs if enableMemoryConsolidation is true
         // =========================================================================================
-        // Convert recent conversations into "Episodes"
         val isFullScan = inputData.getBoolean("FULL_SCAN", false)
         val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
-        
-        val conversationsToProcess = if (forceConversationId != null) {
-            // Manual consolidation: only process the specific conversation
-            val targetConversation = conversationRepository.getConversationById(kotlin.uuid.Uuid.parse(forceConversationId))
-            if (targetConversation != null) listOf(targetConversation) else emptyList()
-        } else if (isFullScan) {
-            conversationRepository.getConversationsOfAssistant(settings.assistantId).first()
-        } else {
-            conversationRepository.getRecentConversations(settings.assistantId, 10)
-        }
         
         var trackACount = 0
         val now = System.currentTimeMillis()
         
-        for (conversation in conversationsToProcess) {
+        // Only process conversations if consolidation is enabled
+        if (assistant.enableMemoryConsolidation || forceConversationId != null) {
+            val conversationsToProcess = if (forceConversationId != null) {
+                // Manual consolidation: only process the specific conversation
+                val targetConversation = conversationRepository.getConversationById(kotlin.uuid.Uuid.parse(forceConversationId))
+                if (targetConversation != null) listOf(targetConversation) else emptyList()
+            } else if (isFullScan) {
+                conversationRepository.getConversationsOfAssistant(settings.assistantId).first()
+            } else {
+                conversationRepository.getRecentConversations(settings.assistantId, 10)
+            }
+            
+            for (conversation in conversationsToProcess) {
             // Skip short conversations
             if (conversation.messageNodes.size < 4) continue
             
@@ -217,7 +219,8 @@ class MemoryConsolidationWorker(
                     }
                 )
             }
-        }
+            }
+        } // End of enableMemoryConsolidation check
 
         // =========================================================================================
         // TRACK B: Core Memory Extraction & Reflection
@@ -228,6 +231,49 @@ class MemoryConsolidationWorker(
         
         if (assistant.enableHumanMemory && (timeSinceLastHumanUpdate > humanMemoryIntervalMs || isFullScan)) {
             var newFactsCount = 0
+            
+            // =====================================================================================
+            // BACKFILL: Re-score episodes with default significance (5)
+            // This handles episodes created before reflection was enabled
+            // =====================================================================================
+            val allEpisodesForBackfill = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
+            val episodesNeedingScoring = allEpisodesForBackfill.filter { it.significance == 5 }
+            
+            if (episodesNeedingScoring.isNotEmpty()) {
+                Log.i("MemoryConsolidation", "Backfilling significance for ${episodesNeedingScoring.size} episodes")
+                
+                for (episode in episodesNeedingScoring.take(10)) { // Limit to 10 per run to avoid API spam
+                    try {
+                        val scorePrompt = """
+                            Rate the significance of this memory episode from 1-10:
+                            - 10: Life-changing event (marriage, major life decision, tragedy)
+                            - 7-9: Important emotional moment or revelation
+                            - 4-6: Interesting conversation worth remembering
+                            - 1-3: Trivial, mundane, or forgettable
+                            
+                            Episode: ${episode.content}
+                            
+                            Return ONLY a number from 1-10.
+                        """.trimIndent()
+                        
+                        val scoreResponse = providerHandler.generateText(
+                            providerSetting = provider,
+                            messages = listOf(UIMessage.user(scorePrompt)),
+                            params = TextGenerationParams(model = model, temperature = 0.3f)
+                        )
+                        val scoreText = scoreResponse.choices.firstOrNull()?.message?.toContentText() ?: continue
+                        val newSignificance = scoreText.trim().filter { it.isDigit() }.take(2).toIntOrNull()?.coerceIn(1, 10) ?: 5
+                        
+                        if (newSignificance != 5) {
+                            chatEpisodeDAO.insertEpisode(episode.copy(significance = newSignificance))
+                            Log.i("MemoryConsolidation", "Backfilled episode ${episode.id}: significance $newSignificance")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("MemoryConsolidation", "Failed to backfill significance for episode ${episode.id}", e)
+                    }
+                }
+            }
+            
             // Review recent episodes and extract permanent facts OR high-level insights
             val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId).take(20) // Look at more episodes for reflection
             if (episodes.isNotEmpty()) {

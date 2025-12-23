@@ -129,6 +129,7 @@ fun AssistantDetailPage(id: String) {
             val embeddingProgress by vm.embeddingProgress.collectAsStateWithLifecycle()
             val estimatedMemoryCapacity by vm.estimatedMemoryCapacity.collectAsStateWithLifecycle()
             val needsEmbeddingRegeneration by vm.needsEmbeddingRegeneration.collectAsStateWithLifecycle()
+            val retrievalResults by vm.retrievalResults.collectAsStateWithLifecycle()
             AssistantMemorySettings(
                 assistant = assistant,
                 memories = memories,
@@ -138,37 +139,13 @@ fun AssistantDetailPage(id: String) {
                 onUpdateMemory = { vm.updateMemory(it) },
                 onRegenerateEmbeddings = { vm.regenerateEmbeddings() },
                 embeddingProgress = embeddingProgress,
+                onTestRetrieval = { vm.testRetrieval(it) },
+                retrievalResults = retrievalResults,
                 assistantDetailVM = vm,
                 estimatedMemoryCapacity = estimatedMemoryCapacity,
                 needsEmbeddingRegeneration = needsEmbeddingRegeneration
             )
         })
-
-        // RAG Memory & Consolidation (Conditional)
-        if (assistant.enableMemory) {
-            add(TabItem("RAG Memory") {
-                val retrievalResults by vm.retrievalResults.collectAsStateWithLifecycle()
-                AssistantRagMemorySubPage(
-                    assistant = assistant,
-                    onUpdateAssistant = { onUpdate(it) },
-                    onTestRetrieval = { vm.testRetrieval(it) },
-                    retrievalResults = retrievalResults
-                )
-            })
-
-            add(TabItem("Consolidation") {
-                val allModels = remember(providers) {
-                    providers.flatMap { it.models }
-                }
-                AssistantMemoryConsolidationSubPage(
-                    vm = vm,
-                    assistant = assistant,
-                    onUpdate = { onUpdate(it) },
-                    allModels = allModels,
-                    onConsolidate = { vm.consolidateMemories(it) }
-                )
-            })
-        }
 
         // Notifications
         add(TabItem("Notifications") {

@@ -29,13 +29,14 @@ data class Assistant(
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useRagMemoryRetrieval: Boolean = true, // If true, use vector-based RAG. If false, inject all memories
-    val ragSimilarityThreshold: Float = 0.0f, // Similarity threshold for RAG (0.0 = include all, 1.0 = only perfect matches). Default 0.0 to include all memories
+    val ragSimilarityThreshold: Float = 0.45f, // Similarity threshold for RAG (0.0 = include all, 1.0 = only perfect matches)
     val ragLimit: Int = 5, // Maximum number of memories to retrieve via RAG
     val enableRecentChatsReference: Boolean = false, // Use chat episodes in memory
     val ragIncludeEpisodes: Boolean = true, // Include episodic memories in RAG
     val ragIncludeCore: Boolean = true, // Include core memories in RAG
     val enableRagLogging: Boolean = false, // Enable detailed RAG logging
-    val enableHumanMemory: Boolean = false, // Enable human-like memory features (significance, reflection)
+    val enableMemoryConsolidation: Boolean = false, // Enable episodic memory creation from chats (requires RAG)
+    val enableHumanMemory: Boolean = false, // Enable reflection features (significance scoring, core memory extraction)
 
     // Spontaneous Notification Settings
     val notificationStartHour: Int = 7, // Hour when notifications can start (0-23)
@@ -59,7 +60,7 @@ data class Assistant(
     val spontaneousPrompt: String = "", // 自发消息的Prompt
 
     // Memory System Configuration & Stats
-    val consolidationDelayMinutes: Int = 60, // Wait time before consolidating a chat
+    val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat
     val lastConsolidationTime: Long = 0L,
     val lastConsolidationResult: String = "",
     val humanMemoryUpdateIntervalHours: Int = 24, // Interval for core memory reflection
@@ -80,7 +81,8 @@ data class AssistantMemory(
     val type: Int = 0, // 0: CORE, 1: EPISODIC
     val hasEmbedding: Boolean = false,
     val embeddingModelId: String? = null, // UUID of the embedding model used (for model mismatch detection)
-    val timestamp: Long = 0L // Timestamp of the memory (e.g. creation time or episode start time)
+    val timestamp: Long = 0L, // Timestamp of the memory (e.g. creation time or episode start time)
+    val significance: Int? = null // Significance score (1-10) for episodic memories, null for core memories
 )
 
 @Serializable

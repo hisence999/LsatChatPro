@@ -76,7 +76,8 @@ class AssistantDetailVM(
                 type = 1, // EPISODIC
                 hasEmbedding = it.embedding != null,
                 embeddingModelId = it.embeddingModelId,
-                timestamp = it.startTime
+                timestamp = it.startTime,
+                significance = it.significance
             ) 
         }
         val allMemories = core + episodic
