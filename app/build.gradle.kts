@@ -20,11 +20,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "lastchat.rikkafork.cocolal"
+        applicationId = "lastchat.rikkafork.cocolal.zh"
         minSdk = 31
         targetSdk = 36
         versionCode = 17
-        versionName = "1.2.4"
+        versionName = "1.2.4-zh"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
