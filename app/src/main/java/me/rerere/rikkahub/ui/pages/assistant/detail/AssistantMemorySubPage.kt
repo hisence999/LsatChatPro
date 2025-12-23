@@ -242,6 +242,14 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 val isLockedByConsolidation = assistant.enableMemoryConsolidation
+                
+                // Smoothly animate the locked state
+                val lockedAlpha by animateFloatAsState(
+                    targetValue = if (isLockedByConsolidation) 0.5f else 1f,
+                    animationSpec = spring(stiffness = 300f),
+                    label = "locked_alpha"
+                )
+                
                 MemorySettingsItem(
                     title = stringResource(R.string.assistant_page_recent_chats),
                     subtitle = if (isLockedByConsolidation) 
@@ -250,15 +258,17 @@ fun AssistantMemorySettings(
                         stringResource(R.string.assistant_page_recent_chats_desc),
                     position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
                     trailing = {
-                        Switch(
-                            checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
-                            onCheckedChange = { 
-                                if (!isLockedByConsolidation) {
-                                    onUpdateAssistant(assistant.copy(enableRecentChatsReference = it))
-                                }
-                            },
-                            enabled = !isLockedByConsolidation
-                        )
+                        Box(modifier = Modifier.graphicsLayer { alpha = if (isLockedByConsolidation) 0.38f else 1f }) {
+                            Switch(
+                                checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
+                                onCheckedChange = { 
+                                    if (!isLockedByConsolidation) {
+                                        onUpdateAssistant(assistant.copy(enableRecentChatsReference = it))
+                                    }
+                                },
+                                enabled = !isLockedByConsolidation
+                            )
+                        }
                     }
                 )
             }

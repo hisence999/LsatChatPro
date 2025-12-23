@@ -78,26 +78,25 @@ fun <T> Select(
     ExposedDropdownMenuBox(
         modifier = modifier,
         expanded = expanded,
-        onExpandedChange = { expanded = it }
+        onExpandedChange = { 
+            haptics.perform(HapticPattern.Pop)
+            expanded = it 
+        }
     ) {
         Surface(
+            onClick = {
+                haptics.perform(HapticPattern.Pop)
+                expanded = !expanded
+            },
             tonalElevation = 4.dp,
             shape = AppShapes.ButtonPill,
+            interactionSource = interactionSource,
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 }
-                .clip(AppShapes.ButtonPill)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null, // Custom scale provided
-                    onClick = {
-                        haptics.perform(HapticPattern.Pop)
-                        expanded = !expanded
-                    }
-                )
         ) {
             Row(
                 modifier = Modifier
