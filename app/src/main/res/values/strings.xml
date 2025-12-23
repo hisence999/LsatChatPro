@@ -761,5 +761,9 @@
     <string name="assistant_page_unit_minutes">minutes</string>
     <string name="assistant_page_unit_hours">hours</string>
     <string name="assistant_page_model_default">Default (Background Model)</string>
+    <string name="assistant_page_sort_newest">Newest First</string>
+    <string name="assistant_page_sort_oldest">Oldest First</string>
+    <string name="assistant_page_sort_alphabetical">Alphabetical</string>
+    <string name="assistant_page_sort_most_significant">Most Significant</string>
 </resources>
 

@@ -761,5 +761,9 @@
     <string name="assistant_page_unit_minutes">分钟</string>
     <string name="assistant_page_unit_hours">小时</string>
     <string name="assistant_page_model_default">默认 (后台模型)</string>
+    <string name="assistant_page_sort_newest">最新优先</string>
+    <string name="assistant_page_sort_oldest">最早优先</string>
+    <string name="assistant_page_sort_alphabetical">字母顺序</string>
+    <string name="assistant_page_sort_most_significant">最重要优先</string>
 </resources>
 
