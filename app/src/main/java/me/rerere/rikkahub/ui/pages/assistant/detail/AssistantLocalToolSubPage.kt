@@ -59,8 +59,8 @@ fun AssistantLocalToolSubPage(
 
         // Device Control
         LocalToolCard(
-            title = "Device Control",
-            description = "Allow assistant to interact with device (Send Notifications, Read Notifications, Launch Apps, Set Alarms, Set Reminders).",
+            title = stringResource(R.string.assistant_page_local_tools_device_control_title),
+            description = stringResource(R.string.assistant_page_local_tools_device_control_desc),
             isEnabled = assistant.localTools.contains(LocalToolOption.DeviceControl),
             onToggle = { enabled ->
                 if (enabled) {

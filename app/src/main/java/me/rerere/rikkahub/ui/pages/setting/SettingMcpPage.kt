@@ -274,7 +274,7 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                 Text(stringResource(R.string.confirm_delete))
             },
             text = {
-                Text("Are you sure you want to delete this MCP server?")
+                Text(stringResource(R.string.setting_mcp_page_delete_confirm))
             },
             dismissButton = {
                 TextButton(onClick = { 
@@ -384,8 +384,8 @@ private fun McpServerItem(
                     ) {
                         Tag(type = TagType.SUCCESS) {
                             when (item) {
-                                is McpServerConfig.SseTransportServer -> Text("SSE")
-                                is McpServerConfig.StreamableHTTPServer -> Text("Streamable HTTP")
+                                is McpServerConfig.SseTransportServer -> Text(stringResource(R.string.setting_mcp_page_transport_sse))
+                                is McpServerConfig.StreamableHTTPServer -> Text(stringResource(R.string.setting_mcp_page_transport_streamable_http))
                             }
                         }
                     }

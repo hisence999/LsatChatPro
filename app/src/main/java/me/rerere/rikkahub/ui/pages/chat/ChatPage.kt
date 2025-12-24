@@ -536,7 +536,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(Icons.Rounded.Menu, "Messages")
+                    Icon(Icons.Rounded.Menu, contentDescription = stringResource(R.string.a11y_messages))
                 }
             }
         },
@@ -610,14 +610,17 @@ private fun TopBar(
                     isEmptyState && !isTempChat -> {
                         Row {
                             IconButton(onClick = { onToggleTemporaryChat() }) {
-                                Icon(Icons.Rounded.HistoryToggleOff, "Temporary Chat")
+                                Icon(
+                                    Icons.Rounded.HistoryToggleOff,
+                                    contentDescription = stringResource(R.string.temporary_chat_title)
+                                )
                             }
                             Box(
                                 modifier = Modifier.size(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { "Assistant" },
+                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
                                     value = currentAssistant.avatar,
                                     modifier = Modifier.size(32.dp),
                                     onClick = { showAssistantPicker = true }
@@ -629,14 +632,17 @@ private fun TopBar(
                     isEmptyState && isTempChat -> {
                         Row {
                             IconButton(onClick = { onToggleTemporaryChat() }) {
-                                Icon(Icons.Rounded.History, "Make Normal Chat")
+                                Icon(
+                                    Icons.Rounded.History,
+                                    contentDescription = stringResource(R.string.a11y_make_normal_chat)
+                                )
                             }
                             Box(
                                 modifier = Modifier.size(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { "Assistant" },
+                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
                                     value = currentAssistant.avatar,
                                     modifier = Modifier.size(32.dp),
                                     onClick = { showAssistantPicker = true }
@@ -648,10 +654,16 @@ private fun TopBar(
                     else -> {
                         Row {
                             IconButton(onClick = { onClickMenu() }) {
-                                Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
+                                Icon(
+                                    if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search,
+                                    contentDescription = stringResource(R.string.a11y_chat_options)
+                                )
                             }
                             IconButton(onClick = { onNewChat() }) {
-                                Icon(Icons.Rounded.AddCircle, "New Message")
+                                Icon(
+                                    Icons.Rounded.AddCircle,
+                                    contentDescription = stringResource(R.string.chat_page_new_message)
+                                )
                             }
                         }
                     }

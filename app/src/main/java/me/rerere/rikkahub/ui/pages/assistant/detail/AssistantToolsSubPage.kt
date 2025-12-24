@@ -68,22 +68,29 @@ fun AssistantToolsSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // SEARCH GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Search") {
+        SettingsGroup(title = stringResource(R.string.search_ability_search)) {
             // Search Mode dropdown
             var searchExpanded by remember { mutableStateOf(false) }
             val currentSearchMode = assistant.searchMode
             val displayText = when (currentSearchMode) {
-                is AssistantSearchMode.Off -> "Off"
-                is AssistantSearchMode.BuiltIn -> "Off"
+                is AssistantSearchMode.Off -> stringResource(R.string.off)
+                is AssistantSearchMode.BuiltIn -> stringResource(R.string.built_in_search_title)
                 is AssistantSearchMode.Provider -> {
                     settings.searchServices.getOrNull(currentSearchMode.index)?.let {
-                        SearchServiceOptions.TYPES[it::class] ?: "Provider ${currentSearchMode.index + 1}"
-                    } ?: "Provider ${currentSearchMode.index + 1}"
+                        SearchServiceOptions.TYPES[it::class]
+                            ?: stringResource(
+                                R.string.assistant_page_search_provider_fallback,
+                                currentSearchMode.index + 1
+                            )
+                    } ?: stringResource(
+                        R.string.assistant_page_search_provider_fallback,
+                        currentSearchMode.index + 1
+                    )
                 }
             }
             
             SettingGroupItem(
-                title = "Search Provider",
+                title = stringResource(R.string.assistant_page_search_provider_title),
                 subtitle = displayText,
                 trailing = {
                     Box {
@@ -110,14 +117,15 @@ fun AssistantToolsSubPage(
                             onDismissRequest = { searchExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Off") },
+                                text = { Text(stringResource(R.string.off)) },
                                 onClick = {
                                     onUpdate(assistant.copy(searchMode = AssistantSearchMode.Off))
                                     searchExpanded = false
                                 }
                             )
                             settings.searchServices.forEachIndexed { index, service ->
-                                val name = SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
+                                val name = SearchServiceOptions.TYPES[service::class]
+                                    ?: stringResource(R.string.assistant_page_search_provider_fallback, index + 1)
                                 DropdownMenuItem(
                                     text = { Text(name) },
                                     onClick = {
@@ -133,8 +141,8 @@ fun AssistantToolsSubPage(
             
             // Prefer Built-in Search
             SettingGroupItem(
-                title = "Prefer Built-in Search",
-                subtitle = "Use model's native search when available",
+                title = stringResource(R.string.assistant_page_prefer_built_in_search),
+                subtitle = stringResource(R.string.assistant_page_prefer_built_in_search_desc),
                 trailing = {
                     Switch(
                         checked = assistant.preferBuiltInSearch,
@@ -176,8 +184,8 @@ fun AssistantToolsSubPage(
             
             // Device Control
             SettingGroupItem(
-                title = "Device Control",
-                subtitle = "Notifications, apps, alarms, reminders",
+                title = stringResource(R.string.assistant_page_local_tools_device_control_title),
+                subtitle = stringResource(R.string.assistant_page_local_tools_device_control_subtitle),
                 trailing = {
                     Switch(
                         checked = assistant.localTools.contains(LocalToolOption.DeviceControl),
@@ -211,8 +219,8 @@ fun AssistantToolsSubPage(
         if (mcpServerConfigs.isNotEmpty()) {
             SettingsGroup(title = stringResource(R.string.assistant_page_tab_mcp)) {
             SettingGroupItem(
-                    title = "MCP Servers",
-                    subtitle = "Enable external tool servers",
+                    title = stringResource(R.string.mcp_picker_title),
+                    subtitle = stringResource(R.string.assistant_page_mcp_servers_desc),
                     trailing = {
                         McpPickerButton(
                             assistant = assistant,

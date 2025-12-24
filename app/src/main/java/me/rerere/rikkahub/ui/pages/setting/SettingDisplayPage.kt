@@ -114,8 +114,12 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "Font Style",
-                        subtitle = if (useExpressiveFont) "M3 Expressive (Rounded)" else "Normal",
+                        title = stringResource(R.string.setting_display_page_font_style_title),
+                        subtitle = if (useExpressiveFont) {
+                            stringResource(R.string.setting_display_page_font_style_expressive)
+                        } else {
+                            stringResource(R.string.setting_display_page_font_style_normal)
+                        },
                         trailing = {
                             Switch(
                                 checked = useExpressiveFont,
@@ -176,8 +180,8 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "Check for Updates",
-                        subtitle = "Automatically check GitHub for new app versions",
+                        title = stringResource(R.string.setting_display_page_check_updates_title),
+                        subtitle = stringResource(R.string.setting_display_page_check_updates_desc),
                         trailing = {
                             Switch(
                                 checked = displaySetting.checkForUpdates,
@@ -269,7 +273,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             // Message Jumper Settings
             item {
                 SettingsGroup(
-                    title = "Message Jumper"
+                    title = stringResource(R.string.setting_display_page_section_message_jumper)
                 ) {
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_show_message_jumper_title),
@@ -303,7 +307,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             // Haptics Settings
             item {
                 SettingsGroup(
-                    title = "Haptics"
+                    title = stringResource(R.string.setting_display_page_section_haptics)
                 ) {
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title),
@@ -318,8 +322,8 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "UI Haptic Feedback",
-                        subtitle = "Enable tactile feedback when tapping buttons and controls",
+                        title = stringResource(R.string.setting_display_page_ui_haptics_title),
+                        subtitle = stringResource(R.string.setting_display_page_ui_haptics_desc),
                         trailing = {
                             Switch(
                                 checked = displaySetting.enableUIHaptics,
@@ -335,7 +339,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             // Media Settings
             item {
                 SettingsGroup(
-                    title = "Media"
+                    title = stringResource(R.string.setting_display_page_section_media)
                 ) {
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_skip_crop_image_title),
@@ -355,7 +359,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             // Code Blocks Settings
             item {
                 SettingsGroup(
-                    title = "Code Blocks"
+                    title = stringResource(R.string.setting_display_page_section_code_blocks)
                 ) {
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
@@ -388,11 +392,11 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             item {
                 val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
                 SettingsGroup(
-                    title = "Advanced"
+                    title = stringResource(R.string.setting_display_page_section_advanced)
                 ) {
                     SettingGroupItem(
-                        title = "RP Optimizations",
-                        subtitle = "Custom text styling for roleplay patterns",
+                        title = stringResource(R.string.setting_display_page_rp_optimizations_title),
+                        subtitle = stringResource(R.string.setting_display_page_rp_optimizations_desc),
                         onClick = { navController.navigate(me.rerere.rikkahub.Screen.SettingRpOptimizations) }
                     )
                 }

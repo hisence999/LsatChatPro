@@ -272,7 +272,7 @@ fun ChatDrawerContent(
 
                 DrawerAction(
                     icon = {
-                        Icon(Icons.Rounded.Home, "Menu")
+                        Icon(Icons.Rounded.Home, contentDescription = stringResource(R.string.menu))
                     },
                     label = {
                         Text(stringResource(R.string.menu))

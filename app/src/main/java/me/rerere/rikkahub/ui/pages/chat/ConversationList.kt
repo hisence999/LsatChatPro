@@ -445,11 +445,12 @@ private fun ConversationItem(
             AnimatedVisibility(conversation.isPinned) {
                 Icon(
                     imageVector = Icons.Rounded.PushPin,
-                    contentDescription = "Pinned",
+                    contentDescription = stringResource(R.string.a11y_pinned),
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+            val loadingDesc = stringResource(R.string.a11y_loading)
             AnimatedVisibility(loading) {
                 Box(
                     modifier = Modifier
@@ -457,7 +458,7 @@ private fun ConversationItem(
                         .background(MaterialTheme.extendColors.green6)
                         .size(4.dp)
                         .semantics {
-                            contentDescription = "Loading"
+                            contentDescription = loadingDesc
                         }
                 )
             }

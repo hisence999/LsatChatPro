@@ -65,7 +65,7 @@ fun AssistantProfileSubPage(
             )
             
             Text(
-                text = "Tap to change avatar",
+                text = stringResource(R.string.assistant_page_tap_to_change_avatar),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -74,11 +74,11 @@ fun AssistantProfileSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // IDENTITY GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Identity") {
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_identity)) {
             // Name
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_name),
-                subtitle = "Display name for this assistant",
+                subtitle = stringResource(R.string.assistant_page_name_desc),
                 trailing = {
                     DebouncedTextField(
                         value = assistant.name,
@@ -109,7 +109,7 @@ fun AssistantProfileSubPage(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Organize with custom tags",
+                        text = stringResource(R.string.assistant_page_tags_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -127,7 +127,7 @@ fun AssistantProfileSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // APPEARANCE GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Appearance") {
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_appearance)) {
             // Use Assistant Avatar
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_use_assistant_avatar),

@@ -248,7 +248,7 @@ fun HighlightCodeBlock(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "$languageDisplayName Snippet",
+                    text = stringResource(R.string.code_block_snippet_format, languageDisplayName),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary

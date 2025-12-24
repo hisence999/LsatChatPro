@@ -108,15 +108,15 @@ fun MenuPage() {
 private fun StatsSection(stats: MenuStats) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "Overview",
+            text = stringResource(R.string.menu_page_overview),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
         // Daily Chat Streak (Full Width)
         StatCard(
-            title = "Daily Chat Streak",
-            value = "${stats.dailyChatStreak} Days",
+            title = stringResource(R.string.menu_page_daily_chat_streak),
+            value = stringResource(R.string.menu_page_days_format, stats.dailyChatStreak),
             icon = Icons.Rounded.LocalFireDepartment,
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -133,7 +133,7 @@ private fun StatsSection(stats: MenuStats) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatCard(
-                title = "Total chats",
+                title = stringResource(R.string.menu_page_total_chats),
                 value = stats.totalChats.shortenNumber(decimals = 0),
                 icon = Icons.Rounded.ChatBubble,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -143,7 +143,7 @@ private fun StatsSection(stats: MenuStats) {
                     .fillMaxHeight()
             )
             StatCard(
-                title = "Avg. Messages/day",
+                title = stringResource(R.string.menu_page_avg_messages_per_day),
                 value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
                 icon = Icons.AutoMirrored.Rounded.Chat,
                 containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -179,16 +179,16 @@ private fun StatsSection(stats: MenuStats) {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Most Active Assistant",
+                        text = stringResource(R.string.menu_page_most_active_assistant),
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = stats.mostActiveAssistantName.ifBlank { "None" },
+                        text = stats.mostActiveAssistantName.ifBlank { stringResource(R.string.none) },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${stats.totalAssistants} assistants available",
+                        text = stringResource(R.string.menu_page_assistants_available_format, stats.totalAssistants),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                     )
@@ -253,7 +253,7 @@ private fun ToolsSection() {
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "Tools",
+            text = stringResource(R.string.menu_page_tools_section_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )

@@ -78,8 +78,8 @@ import me.rerere.ai.ui.toSortedMessageParts
 import me.rerere.ai.util.encodeBase64
 import me.rerere.common.android.appTempFolder
 import me.rerere.highlight.Highlighter
-import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.R
+import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.model.Conversation
@@ -317,7 +317,7 @@ private suspend fun exportToImage(
     val activity = context.getActivity()
     if (activity == null) {
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Failed to get activity", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_failed_to_get_activity), Toast.LENGTH_SHORT).show()
         }
         return
     }
@@ -364,7 +364,11 @@ private suspend fun exportToImage(
     } catch (e: Exception) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Failed to export image: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_failed_to_export_image, e.message ?: ""),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     } finally {
         bitmap.recycle()
@@ -417,7 +421,7 @@ private fun ExportedChatImage(
                         val painter = painterResource(id = R.mipmap.ic_launcher_lastchat_foreground)
                         Image(
                             painter = painter,
-                            contentDescription = "Logo",
+                            contentDescription = stringResource(R.string.a11y_logo),
                             modifier = Modifier.size(60.dp)
                         )
                     }
@@ -500,7 +504,7 @@ private fun ExportedChatMessage(
                                 .allowHardware(false)
                                 .crossfade(false)
                                 .build(),
-                            contentDescription = "Image",
+                            contentDescription = stringResource(R.string.a11y_image),
                             modifier = Modifier
                                 .sizeIn(maxHeight = 300.dp)
                                 .clip(RoundedCornerShape(12.dp)),

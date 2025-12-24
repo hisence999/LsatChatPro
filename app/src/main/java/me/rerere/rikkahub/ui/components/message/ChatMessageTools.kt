@@ -394,7 +394,7 @@ private fun ToolCallPreviewSheet(
                                 ) {
                                     Icon(
                                         Icons.Rounded.Delete,
-                                        contentDescription = "Delete memory"
+                                        contentDescription = stringResource(R.string.a11y_delete_memory)
                                     )
                                 }
                             }

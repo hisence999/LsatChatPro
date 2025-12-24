@@ -340,7 +340,7 @@ fun Mermaid(
                     ) {
                         Icon(
                             Icons.Rounded.Close,
-                            contentDescription = "Close"
+                            contentDescription = stringResource(R.string.a11y_close)
                         )
                     }
                 }

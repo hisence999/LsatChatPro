@@ -204,7 +204,7 @@ fun ChatMessageReasoning(
                     tint = MaterialTheme.colorScheme.secondary
                 )
                 Text(
-                    text = "Reasoning",
+                    text = stringResource(R.string.chat_message_reasoning),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.shimmer(

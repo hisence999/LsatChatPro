@@ -112,7 +112,7 @@ object DefaultPlaceholderProvider : PlaceholderProvider {
 
 
 
-        placeholder("location", { Text("Location") }) {
+        placeholder("location", { Text(stringResource(R.string.placeholder_location)) }) {
             if (androidx.core.app.ActivityCompat.checkSelfPermission(
                     it.context,
                     android.Manifest.permission.ACCESS_COARSE_LOCATION

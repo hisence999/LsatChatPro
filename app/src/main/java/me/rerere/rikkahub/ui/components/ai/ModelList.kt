@@ -162,7 +162,7 @@ fun ModelSelector(
                 ) {
                     Icon(
                         Icons.Rounded.Close,
-                        contentDescription = "Clear"
+                        contentDescription = stringResource(R.string.a11y_clear)
                     )
                 }
             }

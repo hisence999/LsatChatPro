@@ -595,7 +595,7 @@ private fun FloatingInputBar(
                                 ) {
                                     AsyncImage(
                                         model = selectedImage,
-                                        contentDescription = "Selected image",
+                                        contentDescription = stringResource(R.string.a11y_selected_image),
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -612,7 +612,7 @@ private fun FloatingInputBar(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
-                                            contentDescription = "Remove image",
+                                            contentDescription = stringResource(R.string.a11y_remove_image),
                                             modifier = Modifier.padding(2.dp),
                                             tint = MaterialTheme.colorScheme.onSurface
                                         )
@@ -630,7 +630,7 @@ private fun FloatingInputBar(
                                 ) {
                                     Icon(
                                         Icons.Rounded.Photo,
-                                        contentDescription = "Add image",
+                                        contentDescription = stringResource(R.string.a11y_add_image),
                                         tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
@@ -836,7 +836,7 @@ private fun ImageGalleryScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.ContentCopy,
-                                                contentDescription = "Copy prompt",
+                                                contentDescription = stringResource(R.string.a11y_copy_prompt),
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }

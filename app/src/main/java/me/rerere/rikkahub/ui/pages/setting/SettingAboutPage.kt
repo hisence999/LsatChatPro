@@ -105,7 +105,7 @@ fun SettingAboutPage() {
                 modifier = Modifier.padding(vertical = 4.dp)
             ) {
                 Text(
-                    text = "v${BuildConfig.VERSION_NAME}",
+                    text = stringResource(R.string.setting_about_page_version_format, BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -117,7 +117,7 @@ fun SettingAboutPage() {
 
             // Links Section
             Text(
-                text = "Links",
+                text = stringResource(R.string.setting_about_page_links_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -134,8 +134,8 @@ fun SettingAboutPage() {
             ) {
                 AboutItem(
                     icon = Icons.Rounded.Code,
-                    title = "Source Code",
-                    subtitle = "GitHub Repository",
+                    title = stringResource(R.string.setting_about_page_source_code_title),
+                    subtitle = stringResource(R.string.setting_about_page_github_repo_subtitle),
                     trailing = Icons.AutoMirrored.Rounded.OpenInNew,
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Cocolalilal/LastChat"))
@@ -148,7 +148,7 @@ fun SettingAboutPage() {
 
             // System Information Section
             Text(
-                text = "System Information",
+                text = stringResource(R.string.setting_about_page_system_info_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -165,20 +165,20 @@ fun SettingAboutPage() {
             ) {
                 AboutItem(
                     icon = Icons.Rounded.Android,
-                    title = "Android Version",
+                    title = stringResource(R.string.setting_about_page_android_version_title),
                     subtitle = "${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})",
                     onClick = null
                 )
                 AboutItem(
                     icon = Icons.Rounded.PhoneAndroid,
-                    title = "Device",
+                    title = stringResource(R.string.setting_about_page_device_title),
                     subtitle = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
                     onClick = null
                 )
                 AboutItem(
                     icon = Icons.Rounded.Memory,
-                    title = "Architecture",
-                    subtitle = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "Unknown",
+                    title = stringResource(R.string.setting_about_page_architecture_title),
+                    subtitle = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: stringResource(R.string.unknown),
                     onClick = null
                 )
             }
@@ -187,7 +187,7 @@ fun SettingAboutPage() {
 
             // Credits
             Text(
-                text = "Based on RikkaHub by rerere",
+                text = stringResource(R.string.setting_about_page_credits),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center

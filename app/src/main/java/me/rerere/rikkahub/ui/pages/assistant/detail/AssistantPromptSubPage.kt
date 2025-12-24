@@ -151,7 +151,7 @@ fun AssistantPromptSubPage(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "$systemPromptTokenCount tokens",
+                            text = stringResource(R.string.tokens_format, systemPromptTokenCount.toString()),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.secondary
                         )

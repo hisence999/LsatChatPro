@@ -391,10 +391,10 @@ private fun AssistantBasicSettings(
                 Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
-                        Text("Background Model")
+                        Text(stringResource(R.string.assistant_page_background_model))
                     },
                     description = {
-                        Text("Model used for background tasks like spontaneous notifications.")
+                        Text(stringResource(R.string.assistant_page_background_model_desc))
                     },
                     content = {
                         ModelSelector(
@@ -423,22 +423,23 @@ private fun AssistantBasicSettings(
                 
                 FormItem(
                     label = {
-                        Text("Search Mode")
+                        Text(stringResource(R.string.assistant_page_search_mode))
                     },
                     description = {
-                        Text("Configure web search for this assistant.")
+                        Text(stringResource(R.string.assistant_page_search_mode_desc))
                     }
                 ) {
                     var expanded by remember { mutableStateOf(false) }
                     val currentSearchMode = assistant.searchMode
                     
                     val displayText = when (currentSearchMode) {
-                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Off -> "Off"
-                        is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn -> "Off" // Legacy: treat as Off
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Off -> stringResource(R.string.off)
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn -> stringResource(R.string.off) // Legacy: treat as Off
                         is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> {
                             settings.searchServices.getOrNull(currentSearchMode.index)?.let {
-                                me.rerere.search.SearchServiceOptions.TYPES[it::class] ?: "Provider ${currentSearchMode.index + 1}"
-                            } ?: "Provider ${currentSearchMode.index + 1}"
+                                me.rerere.search.SearchServiceOptions.TYPES[it::class]
+                                    ?: stringResource(R.string.assistant_page_search_provider_fallback, currentSearchMode.index + 1)
+                            } ?: stringResource(R.string.assistant_page_search_provider_fallback, currentSearchMode.index + 1)
                         }
                     }
                     
@@ -462,7 +463,7 @@ private fun AssistantBasicSettings(
                         ) {
                             // Off option
                             DropdownMenuItem(
-                                text = { Text("Off") },
+                                text = { Text(stringResource(R.string.off)) },
                                 onClick = {
                                     onUpdate(assistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Off))
                                     expanded = false
@@ -477,7 +478,8 @@ private fun AssistantBasicSettings(
                             
                             // Configured search providers
                             settings.searchServices.forEachIndexed { index, service ->
-                                val serviceName = me.rerere.search.SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
+                                val serviceName = me.rerere.search.SearchServiceOptions.TYPES[service::class]
+                                    ?: stringResource(R.string.assistant_page_search_provider_fallback, index + 1)
                                 DropdownMenuItem(
                                     text = { Text(serviceName) },
                                     onClick = {
@@ -499,10 +501,10 @@ private fun AssistantBasicSettings(
                 // Prefer Built-in Search Toggle
                 FormItem(
                     label = {
-                        Text("Prefer Built-in Search")
+                        Text(stringResource(R.string.assistant_page_prefer_built_in_search))
                     },
                     description = {
-                        Text("Falls back to selected provider above if not supported.")
+                        Text(stringResource(R.string.assistant_page_prefer_built_in_search_desc))
                     }
                 ) {
                     Switch(
@@ -635,10 +637,10 @@ private fun AssistantBasicSettings(
                 Spacer(modifier = Modifier.height(8.dp))
                 FormItem(
                     label = {
-                        Text("Token Limit")
+                        Text(stringResource(R.string.assistant_page_token_limit))
                     },
                     description = {
-                        Text("Maximum tokens for context (System + Chat + Memories).")
+                        Text(stringResource(R.string.assistant_page_token_limit_desc))
                     }
                 ) {
                     val smartMinTokenUsage by vm.smartMinTokenUsage.collectAsStateWithLifecycle()
@@ -667,7 +669,7 @@ private fun AssistantBasicSettings(
                                     commitValue()
                                 }
                             },
-                        label = { Text("Tokens (Min: $smartMinTokenUsage)") },
+                        label = { Text(stringResource(R.string.assistant_page_token_limit_tokens_label, smartMinTokenUsage)) },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                             imeAction = androidx.compose.ui.text.input.ImeAction.Done
@@ -681,7 +683,7 @@ private fun AssistantBasicSettings(
                                 val currentValue = localValue.toIntOrNull() ?: 0
                                 if (currentValue < smartMinTokenUsage) {
                                     Text(
-                                        text = "Warning: Below recommended minimum ($smartMinTokenUsage)",
+                                        text = stringResource(R.string.assistant_page_token_limit_warning_below_min, smartMinTokenUsage),
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }

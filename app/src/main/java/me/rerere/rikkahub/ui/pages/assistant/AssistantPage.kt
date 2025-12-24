@@ -200,7 +200,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 trailingIcon = if (searchQuery.isNotEmpty()) {
                     {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_clear))
                         }
                     }
                 } else null

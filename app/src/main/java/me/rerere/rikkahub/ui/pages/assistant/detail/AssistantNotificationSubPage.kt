@@ -23,7 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
@@ -53,15 +55,15 @@ fun AssistantNotificationSubPage(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Spontaneous Messaging",
+                    text = stringResource(R.string.assistant_page_group_spontaneous_messaging),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
 
 
                 FormItem(
-                    label = { Text("Enable Spontaneous Messages") },
-                    description = { Text("Allow assistant to send messages without user prompt.") },
+                    label = { Text(stringResource(R.string.assistant_page_enable_spontaneous_messages_title)) },
+                    description = { Text(stringResource(R.string.assistant_page_enable_spontaneous_messages_subtitle)) },
                     tail = {
                         val permissionLauncher = rememberLauncherForActivityResult(
                             ActivityResultContracts.RequestPermission()
@@ -94,8 +96,8 @@ fun AssistantNotificationSubPage(
 
                 if (assistant.enableSpontaneous) {
                     FormItem(
-                        label = { Text("Active Hours") },
-                        description = { Text("Time window when messages can be sent.") }
+                        label = { Text(stringResource(R.string.assistant_page_active_hours_title)) },
+                        description = { Text(stringResource(R.string.assistant_page_active_hours_subtitle)) }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -107,7 +109,7 @@ fun AssistantNotificationSubPage(
                                     val hour = it.toIntOrNull()?.coerceIn(0, 23) ?: 7
                                     onUpdateAssistant(assistant.copy(notificationStartHour = hour))
                                 },
-                                label = { Text("Start Hour") },
+                                label = { Text(stringResource(R.string.assistant_page_start_hour)) },
                                 modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
@@ -116,15 +118,15 @@ fun AssistantNotificationSubPage(
                                     val hour = it.toIntOrNull()?.coerceIn(0, 23) ?: 22
                                     onUpdateAssistant(assistant.copy(notificationEndHour = hour))
                                 },
-                                label = { Text("End Hour") },
+                                label = { Text(stringResource(R.string.assistant_page_end_hour)) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
                     FormItem(
-                        label = { Text("Frequency (Hours)") },
-                        description = { Text("Minimum time between messages.") }
+                        label = { Text(stringResource(R.string.assistant_page_frequency_hours_title)) },
+                        description = { Text(stringResource(R.string.assistant_page_frequency_subtitle)) }
                     ) {
                         OutlinedTextField(
                             value = assistant.notificationFrequencyHours.toString(),
@@ -137,8 +139,8 @@ fun AssistantNotificationSubPage(
                     }
 
                     FormItem(
-                        label = { Text("Custom Prompt") },
-                        description = { Text("Instructions for spontaneous messages. Use {{history}} and {{memories}}.") }
+                        label = { Text(stringResource(R.string.assistant_page_custom_prompt_title)) },
+                        description = { Text(stringResource(R.string.assistant_page_custom_prompt_desc)) }
                     ) {
                         DebouncedTextField(
                             value = assistant.spontaneousPrompt,

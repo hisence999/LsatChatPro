@@ -155,7 +155,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                     }
                 ) {
                     Icon(Icons.Rounded.ContentPaste, null)
-                    Text("Paste Text", modifier = Modifier.padding(start = 4.dp))
+                    Text(stringResource(R.string.translator_page_paste_text), modifier = Modifier.padding(start = 4.dp))
                 }
             }
 
@@ -200,7 +200,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                     }
                 ) {
                     Icon(Icons.Rounded.ContentCopy, null)
-                    Text("Copy translation", modifier = Modifier.padding(start = 4.dp))
+                    Text(stringResource(R.string.translator_page_copy_translation), modifier = Modifier.padding(start = 4.dp))
                 }
             }
         }

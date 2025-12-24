@@ -378,7 +378,7 @@ private fun SharedTransitionScope.ChatListNormal(
                 ) {
                     Tooltip(
                         tooltip = {
-                            Text("Clear selection")
+                            Text(stringResource(R.string.chat_list_tooltip_clear_selection))
                         }
                     ) {
                         IconButton(
@@ -392,7 +392,7 @@ private fun SharedTransitionScope.ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text("Select all")
+                            Text(stringResource(R.string.chat_list_tooltip_select_all))
                         }
                     ) {
                         IconButton(
@@ -409,7 +409,7 @@ private fun SharedTransitionScope.ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text("Confirm")
+                            Text(stringResource(R.string.chat_list_tooltip_confirm))
                         }
                     ) {
                         FilledIconButton(
@@ -563,7 +563,7 @@ private fun SharedTransitionScope.ChatListPreview(
                     IconButton(onClick = { searchQuery = "" }) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.a11y_clear),
                             modifier = Modifier.size(20.dp)
                         )
                     }

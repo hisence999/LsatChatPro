@@ -82,7 +82,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             OneUITopAppBar(
-                title = "RP Optimizations",
+                title = stringResource(R.string.setting_display_page_rp_optimizations_title),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
@@ -94,7 +94,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                 onClick = { showAddDialog = true },
                 shape = AppShapes.CardLarge
             ) {
-                Icon(Icons.Rounded.Add, "Add Rule")
+                Icon(Icons.Rounded.Add, stringResource(R.string.a11y_add_rule))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -120,12 +120,12 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Custom Text Styling",
+                            text = stringResource(R.string.rp_optimizations_page_heading),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Define custom styling rules for text wrapped in specific patterns. For example, make *text* appear gray for actions, or %text% yellow for emphasis.",
+                            text = stringResource(R.string.rp_optimizations_page_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -149,7 +149,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No rules yet. Tap + to add one.",
+                                text = stringResource(R.string.rp_optimizations_page_empty),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -182,7 +182,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                 item {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Preview",
+                        text = stringResource(R.string.rp_optimizations_page_preview),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 16.dp)
@@ -216,7 +216,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                                             .background(color)
                                     )
                                     Text(
-                                        text = "${rule.pattern}example text${rule.pattern}",
+                                        text = stringResource(R.string.rp_optimizations_page_example_text, rule.pattern),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = color
                                     )
@@ -289,7 +289,7 @@ private fun RpStyleRuleItem(
                             .clip(CircleShape)
                             .background(previewColor)
                     )
-                    Text("${rule.pattern}text${rule.pattern}")
+                    Text(stringResource(R.string.rp_optimizations_page_example_text, rule.pattern))
                 }
             },
             supportingContent = {
@@ -306,7 +306,7 @@ private fun RpStyleRuleItem(
                     IconButton(onClick = onDelete) {
                         Icon(
                             Icons.Rounded.Delete,
-                            "Delete",
+                            stringResource(R.string.assistant_page_delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -332,7 +332,13 @@ private fun RpStyleRuleDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(if (rule != null) "Edit Rule" else "Add Rule")
+            Text(
+                if (rule != null) {
+                    stringResource(R.string.rp_optimizations_dialog_edit_rule_title)
+                } else {
+                    stringResource(R.string.rp_optimizations_dialog_add_rule_title)
+                }
+            )
         },
         text = {
             Column(
@@ -341,19 +347,19 @@ private fun RpStyleRuleDialog(
                 OutlinedTextField(
                     value = pattern,
                     onValueChange = { pattern = it },
-                    label = { Text("Pattern") },
-                    placeholder = { Text("e.g., * or %") },
+                    label = { Text(stringResource(R.string.pattern)) },
+                    placeholder = { Text(stringResource(R.string.pattern_placeholder_wildcards)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
-                        Text("Text wrapped like ${pattern}text${pattern} will be styled")
+                        Text(stringResource(R.string.rp_optimizations_pattern_help_text, pattern))
                     }
                 )
                 OutlinedTextField(
                     value = colorHex,
                     onValueChange = { colorHex = it },
-                    label = { Text("Color (Hex)") },
-                    placeholder = { Text("#808080") },
+                    label = { Text(stringResource(R.string.color_hex)) },
+                    placeholder = { Text(stringResource(R.string.color_hex_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
@@ -372,7 +378,7 @@ private fun RpStyleRuleDialog(
                 )
                 // Common color presets
                 Text(
-                    text = "Presets",
+                    text = stringResource(R.string.rp_optimizations_presets),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -413,12 +419,12 @@ private fun RpStyleRuleDialog(
                     }
                 }
             ) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

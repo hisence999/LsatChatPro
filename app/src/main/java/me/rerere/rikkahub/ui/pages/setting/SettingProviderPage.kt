@@ -247,7 +247,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 trailingIcon = if (searchQuery.isNotEmpty()) {
                     {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_clear))
                         }
                     }
                 } else null
@@ -360,7 +360,7 @@ private fun SearchBarWithToggle(
             trailingIcon = if (searchQuery.isNotEmpty()) {
                 {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_clear))
                     }
                 }
             } else null
@@ -368,7 +368,7 @@ private fun SearchBarWithToggle(
         IconButton(onClick = onToggleViewMode) {
             Icon(
                 imageVector = if (viewMode == ProviderViewMode.LIST) Icons.Rounded.GridView else Icons.AutoMirrored.Rounded.ViewList,
-                contentDescription = "Toggle view mode"
+                contentDescription = stringResource(R.string.a11y_toggle_view_mode)
             )
         }
     }
@@ -834,7 +834,7 @@ private fun AddButton(
             showBottomSheet = true
         }
     ) {
-        Icon(Icons.Rounded.Add, "Add")
+        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
     }
 
     val haptics = rememberPremiumHaptics(enabled = enableHaptics)
@@ -881,7 +881,7 @@ private fun AddButton(
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_clear))
                             }
                         }
                     } else null
@@ -1147,7 +1147,7 @@ private fun ProviderItemContent(
                     }
                     if (provider.name == "AiHubMix") {
                         Tag(type = TagType.INFO) {
-                            Text("10% off")
+                            Text(stringResource(R.string.setting_provider_page_discount_10_off))
                         }
                     }
                     // Show provider's assigned tags

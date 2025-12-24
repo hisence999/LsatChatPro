@@ -1957,7 +1957,10 @@ private fun ProviderOverrideSettings(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "${providerOverride.name} (Override)",
+                            text = stringResource(
+                                R.string.setting_provider_page_override_name_format,
+                                providerOverride.name
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f)
                         )
@@ -1967,14 +1970,14 @@ private fun ProviderOverrideSettings(
                                 showProviderConfig = true
                             }
                         ) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Edit override")
+                            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.a11y_edit_override))
                         }
                         IconButton(
                             onClick = {
                                 onUpdateProviderOverride(null)
                             }
                         ) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Remove override")
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_remove_override))
                         }
                     }
                 }

@@ -61,7 +61,7 @@ fun AssistantModelSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // MODELS GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Models") {
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_models)) {
             // Chat Model (Primary)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -108,12 +108,12 @@ fun AssistantModelSubPage(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Background Model",
+                        text = stringResource(R.string.assistant_page_background_model),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "For notifications and background tasks",
+                        text = stringResource(R.string.assistant_page_background_model_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -130,17 +130,24 @@ fun AssistantModelSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // GENERATION GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Generation") {
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_generation)) {
             // Temperature
             val tempLabel = if (assistant.temperature != null) {
                 val temp = assistant.temperature
-                when (temp) {
-                    in 0.0f..0.3f -> "Strict ($temp)"
-                    in 0.3f..1.0f -> "Balanced ($temp)"
-                    in 1.0f..1.5f -> "Creative ($temp)"
-                    else -> "Chaotic ($temp)"
+                val levelRes = when (temp) {
+                    in 0.0f..0.3f -> R.string.assistant_page_strict
+                    in 0.3f..1.0f -> R.string.assistant_page_balanced
+                    in 1.0f..1.5f -> R.string.assistant_page_creative
+                    else -> R.string.assistant_page_chaotic
                 }
-            } else "Default"
+                stringResource(
+                    R.string.assistant_page_temperature_level_value_format,
+                    stringResource(levelRes),
+                    temp.toFixed(2)
+                )
+            } else {
+                stringResource(R.string.assistant_page_thinking_budget_default)
+            }
             
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_temperature),
@@ -243,7 +250,7 @@ fun AssistantModelSubPage(
         // ═══════════════════════════════════════════════════════════════════
         // OUTPUT GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = "Output") {
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_output)) {
             // Stream Output
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_stream_output),
@@ -259,10 +266,10 @@ fun AssistantModelSubPage(
             // Thinking Budget
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_thinking_budget),
-                subtitle = if (assistant.thinkingBudget != null && assistant.thinkingBudget > 0) 
-                    "${assistant.thinkingBudget} tokens" 
-                else 
-                    "Disabled",
+                subtitle = assistant.thinkingBudget
+                    ?.takeIf { it > 0 }
+                    ?.let { stringResource(R.string.tokens_format, it) }
+                    ?: stringResource(R.string.off),
                 trailing = {
                     ReasoningButton(
                         reasoningTokens = assistant.thinkingBudget ?: 0,
@@ -288,7 +295,7 @@ fun AssistantModelSubPage(
                             onUpdate(assistant.copy(maxTokens = tokens))
                         },
                         modifier = Modifier.width(100.dp),
-                        placeholder = { Text("Auto") },
+                        placeholder = { Text(stringResource(R.string.auto)) },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodySmall
                     )

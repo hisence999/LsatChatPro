@@ -473,7 +473,7 @@ private fun ElevenLabsTTSConfiguration(
     var apiKeyVisible by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text("Your ElevenLabs API key from your account settings") }
+        description = { Text(stringResource(R.string.setting_tts_page_elevenlabs_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -489,7 +489,7 @@ private fun ElevenLabsTTSConfiguration(
                 IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
                     Icon(
                         imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                        contentDescription = if (apiKeyVisible) "Hide" else "Show"
+                        contentDescription = stringResource(if (apiKeyVisible) R.string.a11y_hide else R.string.a11y_show)
                     )
                 }
             }
@@ -498,8 +498,8 @@ private fun ElevenLabsTTSConfiguration(
 
     // Voice ID
     FormItem(
-        label = { Text("Voice ID") },
-        description = { Text("The ID of the voice to use. Find voice IDs in ElevenLabs Voice Library.") }
+        label = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
+        description = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.voiceId,
@@ -521,8 +521,8 @@ private fun ElevenLabsTTSConfiguration(
     )
 
     FormItem(
-        label = { Text("Model") },
-        description = { Text("The TTS model to use. Multilingual v2 supports 29 languages.") }
+        label = { Text(stringResource(R.string.setting_tts_page_model)) },
+        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         ExposedDropdownMenuBox(
             expanded = modelExpanded,

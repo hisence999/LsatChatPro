@@ -22,10 +22,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Share
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.JsonInstant
 import kotlin.io.encoding.Base64
 
@@ -52,7 +54,7 @@ fun ShareSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Share your LLM configuration", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.share_sheet_title), style = MaterialTheme.typography.titleLarge)
 
                     IconButton(
                         onClick = {

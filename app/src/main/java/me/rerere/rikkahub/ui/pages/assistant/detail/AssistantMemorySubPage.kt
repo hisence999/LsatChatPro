@@ -256,7 +256,7 @@ private fun MemoryModeIndicator(mode: MemoryMode) {
                     label = "modeName"
                 ) { titleRes ->
                     Text(
-                        text = "Memory Mode: ${stringResource(titleRes)}",
+                        text = stringResource(R.string.assistant_page_memory_mode_format, stringResource(titleRes)),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -312,10 +312,16 @@ fun AssistantMemorySettings(
     if (embeddingProgress != null && embeddingProgress.isRunning) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Generating Embeddings") },
+            title = { Text(stringResource(R.string.assistant_page_embedding_generating_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Processing ${embeddingProgress.current} of ${embeddingProgress.total} items...")
+                    Text(
+                        stringResource(
+                            R.string.assistant_page_embedding_processing,
+                            embeddingProgress.current,
+                            embeddingProgress.total
+                        )
+                    )
                     androidx.compose.material3.LinearProgressIndicator(
                         progress = { embeddingProgress.current.toFloat() / embeddingProgress.total.coerceAtLeast(1) },
                         modifier = Modifier.fillMaxWidth(),
@@ -378,7 +384,7 @@ fun AssistantMemorySettings(
         // ═══════════════════════════════════════════════════════════════════
         // SETTINGS GROUP
         // ═══════════════════════════════════════════════════════════════════
-        SettingsGroupHeader(title = "Memory Settings")
+        SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_settings_title))
         
         Column(
             modifier = Modifier.clip(RoundedCornerShape(24.dp)),
@@ -439,8 +445,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "RAG Memory Retrieval",
-                    subtitle = "Smart context-based memory retrieval",
+                    title = stringResource(R.string.assistant_page_rag_retrieval_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_retrieval_desc),
                     position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
                     trailing = {
                         Switch(
@@ -468,8 +474,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "Advanced Memory",
-                    subtitle = "Form episodic memories from conversations",
+                    title = stringResource(R.string.assistant_page_rag_advanced_memory_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_advanced_memory_desc),
                     position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
                     trailing = {
                         Switch(
@@ -499,8 +505,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "Reflection",
-                    subtitle = "Significance scoring and core memory formation",
+                    title = stringResource(R.string.assistant_page_rag_reflection_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_reflection_desc),
                     position = "LAST",
                     trailing = {
                         Switch(
@@ -521,7 +527,7 @@ fun AssistantMemorySettings(
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "RAG Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_rag_settings_title))
                 RagSettingsCard(assistant = assistant, onUpdateAssistant = onUpdateAssistant)
             }
         }
@@ -535,7 +541,7 @@ fun AssistantMemorySettings(
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "Advanced Memory Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_advanced_memory_settings_title))
                 ConsolidationSettingsCard(
                     assistant = assistant,
                     onUpdateAssistant = onUpdateAssistant,
@@ -555,7 +561,7 @@ fun AssistantMemorySettings(
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "Reflection Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_reflexion_settings_title))
                 ReflectionSettingsCard(
                     assistant = assistant,
                     onUpdateAssistant = onUpdateAssistant
@@ -612,7 +618,7 @@ fun AssistantMemorySettings(
         ) {
             if (onTestRetrieval != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SettingsGroupHeader(title = "Memory Debugger")
+                    SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_debugger_title))
                     MemoryDebugger(
                         onTestRetrieval = onTestRetrieval,
                         retrievalResults = retrievalResults
@@ -723,7 +729,7 @@ private fun ConsolidationSettingsCard(
                 ) {
                     Text(stringResource(R.string.assistant_page_consolidation_delay), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "${assistant.consolidationDelayMinutes} min",
+                        text = stringResource(R.string.assistant_page_minutes_format, assistant.consolidationDelayMinutes),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -790,7 +796,7 @@ private fun ReflectionSettingsCard(
             ) {
                 Text(stringResource(R.string.assistant_page_consolidation_reflection_interval), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "${assistant.humanMemoryUpdateIntervalHours} hours",
+                    text = stringResource(R.string.assistant_page_hours_format, assistant.humanMemoryUpdateIntervalHours),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )

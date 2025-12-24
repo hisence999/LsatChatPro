@@ -450,7 +450,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                     serviceToDelete = null
                 },
                 title = { Text(stringResource(R.string.confirm_delete)) },
-                text = { Text("Are you sure you want to delete this search service?") },
+                text = { Text(stringResource(R.string.setting_search_page_delete_confirm)) },
                 dismissButton = {
                     TextButton(onClick = { 
                         showDeleteDialog = false
@@ -502,7 +502,11 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             ) {
                 // Header
                 Text(
-                    text = "Edit ${SearchServiceOptions.TYPES[service::class] ?: "Search Service"}",
+                    text = stringResource(
+                        R.string.setting_search_page_edit_service_title,
+                        SearchServiceOptions.TYPES[service::class]
+                            ?: stringResource(R.string.setting_search_page_service_fallback_name)
+                    ),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 
@@ -563,7 +567,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                             is SearchServiceOptions.BingLocalOptions -> {
                                 // No configuration needed for Bing
                                 Text(
-                                    text = "Bing search doesn't require any configuration.",
+                                    text = stringResource(R.string.setting_search_page_bing_no_config),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -691,7 +695,7 @@ private fun AddSearchServiceButton(
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.a11y_clear))
                             }
                         }
                     } else null
@@ -790,7 +794,7 @@ private fun AddSearchServiceButton(
                                     ) {
                                         if (preset.hasScraping) {
                                             Tag(type = TagType.INFO) {
-                                                Text("Scrape")
+                                                Text(stringResource(R.string.setting_search_page_tag_scrape))
                                             }
                                         }
                                     }
@@ -921,7 +925,7 @@ private fun TavilyOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -939,7 +943,7 @@ private fun TavilyOptions(
 
     FormItem(
         label = {
-            Text("Depth")
+            Text(stringResource(R.string.setting_search_page_depth))
         }
     ) {
         val depthOptions = listOf("basic", "advanced")
@@ -958,7 +962,13 @@ private fun TavilyOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(
+                        when (depth) {
+                            "basic" -> stringResource(R.string.setting_search_page_depth_basic)
+                            "advanced" -> stringResource(R.string.setting_search_page_depth_advanced)
+                            else -> depth.replaceFirstChar { it.uppercase() }
+                        }
+                    )
                 }
             }
         }
@@ -972,7 +982,7 @@ private fun ExaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -997,7 +1007,7 @@ fun ZhipuOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1068,7 +1078,7 @@ private fun SearXNGOptions(
 ) {
     FormItem(
         label = {
-            Text("API URL")
+            Text(stringResource(R.string.setting_search_page_api_url))
         }
     ) {
         OutlinedTextField(
@@ -1086,7 +1096,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Engines")
+            Text(stringResource(R.string.setting_search_page_engines))
         }
     ) {
         OutlinedTextField(
@@ -1104,7 +1114,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Language")
+            Text(stringResource(R.string.setting_search_page_language))
         }
     ) {
         OutlinedTextField(
@@ -1122,7 +1132,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Username")
+            Text(stringResource(R.string.setting_search_page_username))
         }
     ) {
         OutlinedTextField(
@@ -1140,7 +1150,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Password")
+            Text(stringResource(R.string.setting_search_page_password))
         }
     ) {
         OutlinedTextField(
@@ -1164,7 +1174,7 @@ private fun SearchLinkUpOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1182,7 +1192,7 @@ private fun SearchLinkUpOptions(
 
     FormItem(
         label = {
-            Text("Depth")
+            Text(stringResource(R.string.setting_search_page_depth))
         }
     ) {
         val depthOptions = listOf("standard", "deep")
@@ -1201,7 +1211,13 @@ private fun SearchLinkUpOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(
+                        when (depth) {
+                            "standard" -> stringResource(R.string.setting_search_page_depth_standard)
+                            "deep" -> stringResource(R.string.setting_search_page_depth_deep)
+                            else -> depth.replaceFirstChar { it.uppercase() }
+                        }
+                    )
                 }
             }
         }
@@ -1215,7 +1231,7 @@ private fun BraveOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1240,7 +1256,7 @@ private fun MetasoOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1264,7 +1280,7 @@ private fun OllamaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1288,7 +1304,7 @@ private fun PerplexityOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1306,7 +1322,7 @@ private fun PerplexityOptions(
 
     FormItem(
         label = {
-            Text("Max Tokens / Page")
+            Text(stringResource(R.string.setting_search_page_max_tokens_per_page))
         }
     ) {
         OutlinedTextField(
@@ -1331,7 +1347,7 @@ private fun FirecrawlOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1355,7 +1371,7 @@ private fun JinaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1379,7 +1395,7 @@ private fun BochaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1397,10 +1413,10 @@ private fun BochaOptions(
 
     FormItem(
         label = {
-            Text("Summary")
+            Text(stringResource(R.string.setting_search_page_summary))
         },
         description = {
-            Text("Enable summary generation")
+            Text(stringResource(R.string.setting_search_page_summary_desc))
         },
         tail = {
             Switch(
@@ -1424,7 +1440,7 @@ private fun NanoGPTOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_search_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1442,10 +1458,10 @@ private fun NanoGPTOptions(
 
     FormItem(
         label = {
-            Text("Search Depth")
+            Text(stringResource(R.string.setting_search_page_search_depth))
         },
         description = {
-            Text("Standard is faster/cheaper, Deep is more comprehensive")
+            Text(stringResource(R.string.setting_search_page_search_depth_desc))
         }
     ) {
         val depthOptions = listOf("standard", "deep")
@@ -1464,7 +1480,13 @@ private fun NanoGPTOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(
+                        when (depth) {
+                            "standard" -> stringResource(R.string.setting_search_page_depth_standard)
+                            "deep" -> stringResource(R.string.setting_search_page_depth_deep)
+                            else -> depth.replaceFirstChar { it.uppercase() }
+                        }
+                    )
                 }
             }
         }
@@ -1472,10 +1494,10 @@ private fun NanoGPTOptions(
 
     FormItem(
         label = {
-            Text("Output Type")
+            Text(stringResource(R.string.setting_search_page_output_type))
         },
         description = {
-            Text("searchResults: multiple sources, sourcedAnswer: synthesized answer")
+            Text(stringResource(R.string.setting_search_page_output_type_desc))
         }
     ) {
         val outputOptions = listOf("searchResults", "sourcedAnswer")
@@ -1494,7 +1516,13 @@ private fun NanoGPTOptions(
                     },
                     selected = options.outputType == output
                 ) {
-                    Text(if (output == "searchResults") "Results" else "Answer")
+                    Text(
+                        when (output) {
+                            "searchResults" -> stringResource(R.string.setting_search_page_output_results)
+                            "sourcedAnswer" -> stringResource(R.string.setting_search_page_output_answer)
+                            else -> output
+                        }
+                    )
                 }
             }
         }
@@ -1502,10 +1530,10 @@ private fun NanoGPTOptions(
 
     FormItem(
         label = {
-            Text("Include Images")
+            Text(stringResource(R.string.setting_search_page_include_images))
         },
         description = {
-            Text("Include images in search results")
+            Text(stringResource(R.string.setting_search_page_include_images_desc))
         },
         tail = {
             Switch(
@@ -1523,10 +1551,10 @@ private fun NanoGPTOptions(
 
     FormItem(
         label = {
-            Text("Stealth Mode")
+            Text(stringResource(R.string.setting_search_page_stealth_mode))
         },
         description = {
-            Text("Use stealth mode for web scraping")
+            Text(stringResource(R.string.setting_search_page_stealth_mode_desc))
         },
         tail = {
             Switch(

@@ -198,7 +198,7 @@ fun BackgroundPicker(
                     onValueChange = { urlInput = it },
                     label = { Text(stringResource(R.string.assistant_page_image_url)) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("https://example.com/image.jpg") },
+                    placeholder = { Text(stringResource(R.string.assistant_page_image_url_placeholder)) },
                     singleLine = true
                 )
             },

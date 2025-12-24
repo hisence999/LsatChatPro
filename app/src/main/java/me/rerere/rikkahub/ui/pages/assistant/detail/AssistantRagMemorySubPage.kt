@@ -25,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -55,11 +57,11 @@ fun AssistantRagMemorySubPage(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
-                    Text("Use RAG Memory Retrieval")
+                    Text(stringResource(R.string.assistant_page_rag_retrieval_title))
                 },
                 description = {
                     Text(
-                        text = "When enabled, only relevant memories are retrieved based on context. When disabled, all memories are included.",
+                        text = stringResource(R.string.assistant_page_rag_retrieval_desc),
                     )
                 },
                 tail = {
@@ -90,11 +92,12 @@ fun AssistantRagMemorySubPage(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "RAG Similarity Threshold",
+                        text = stringResource(R.string.assistant_page_rag_similarity_threshold),
                         style = MaterialTheme.typography.titleSmall
                     )
+                    val currentThreshold = String.format("%.2f", assistant.ragSimilarityThreshold)
                     Text(
-                        text = "Minimum similarity score (0.0 = include all, 1.0 = only perfect matches). Lower values include more memories. Current: ${String.format("%.2f", assistant.ragSimilarityThreshold)}",
+                        text = stringResource(R.string.assistant_page_rag_similarity_threshold_desc, currentThreshold),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -116,8 +119,8 @@ fun AssistantRagMemorySubPage(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("0.0 (All)", style = MaterialTheme.typography.labelSmall)
-                        Text("1.0 (Perfect)", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.assistant_page_rag_similarity_all), style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.assistant_page_rag_similarity_exact), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -136,15 +139,15 @@ fun AssistantRagMemorySubPage(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Advanced RAG Settings",
+                        text = stringResource(R.string.assistant_page_rag_settings_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
 
 
                     FormItem(
-                        label = { Text("Include Core Memories") },
-                        description = { Text("Include permanent facts in retrieval.") },
+                        label = { Text(stringResource(R.string.assistant_page_rag_include_core)) },
+                        description = { Text(stringResource(R.string.assistant_page_rag_include_core_desc)) },
                         tail = {
                             Switch(
                                 checked = assistant.ragIncludeCore,
@@ -156,8 +159,8 @@ fun AssistantRagMemorySubPage(
                     )
 
                     FormItem(
-                        label = { Text("Include Episodic Memories") },
-                        description = { Text("Include conversation history in retrieval.") },
+                        label = { Text(stringResource(R.string.assistant_page_rag_include_episodic)) },
+                        description = { Text(stringResource(R.string.assistant_page_rag_include_episodic_desc)) },
                         tail = {
                             Switch(
                                 checked = assistant.ragIncludeEpisodes,
@@ -182,11 +185,11 @@ fun AssistantRagMemorySubPage(
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
-                        Text("Recent Chats Reference")
+                        Text(stringResource(R.string.assistant_page_recent_chats))
                     },
                     description = {
                         Text(
-                            text = "Include recent chat history in the context window.",
+                            text = stringResource(R.string.assistant_page_recent_chats_desc),
                         )
                     },
                     tail = {
@@ -233,11 +236,11 @@ private fun MemoryDebugger(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Memory Retrieval Debugger",
+                text = stringResource(R.string.assistant_page_memory_debugger_title),
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "Test RAG retrieval with a query to see which memories are retrieved and their similarity scores.",
+                text = stringResource(R.string.assistant_page_debugger_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -250,7 +253,7 @@ private fun MemoryDebugger(
                 androidx.compose.material3.OutlinedTextField(
                     value = query,
                     onValueChange = setQuery,
-                    label = { Text("Test Query") },
+                    label = { Text(stringResource(R.string.assistant_page_debugger_query_label)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
@@ -259,13 +262,13 @@ private fun MemoryDebugger(
                     onClick = { onTestRetrieval(query) },
                     enabled = query.isNotBlank()
                 ) {
-                    Text("Test")
+                    Text(stringResource(R.string.assistant_page_debugger_test_button))
                 }
             }
 
             if (retrievalResults.isNotEmpty()) {
                 Text(
-                    text = "Results (${retrievalResults.size}):",
+                    text = stringResource(R.string.assistant_page_debugger_results_format, retrievalResults.size),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -289,7 +292,10 @@ private fun MemoryDebugger(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "Score: ${String.format("%.4f", score)}",
+                                    text = stringResource(
+                                        R.string.assistant_page_debugger_score_format,
+                                        String.format("%.4f", score)
+                                    ),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (score >= 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -304,12 +310,19 @@ private fun MemoryDebugger(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Type: ${if(memory.type == 0) "CORE" else "EPISODIC"}",
+                                    text = stringResource(
+                                        R.string.assistant_page_debugger_type_format,
+                                        if (memory.type == 0) {
+                                            stringResource(R.string.assistant_page_badge_core)
+                                        } else {
+                                            stringResource(R.string.assistant_page_badge_episodic)
+                                        }
+                                    ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "ID: ${memory.id}",
+                                    text = stringResource(R.string.assistant_page_debugger_id_format, memory.id),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -319,7 +332,7 @@ private fun MemoryDebugger(
                 }
             } else if (query.isNotBlank()) {
                 Text(
-                    text = "No memories retrieved. Try lowering the similarity threshold or check if embeddings are generated.",
+                    text = stringResource(R.string.assistant_page_debugger_no_results),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 8.dp)

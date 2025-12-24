@@ -649,12 +649,12 @@ private fun TokenStatisticsRow(
         ) {
             Icon(
                 imageVector = Icons.Rounded.ArrowUpward,
-                contentDescription = "Sent",
+                contentDescription = stringResource(R.string.a11y_sent),
                 modifier = Modifier.size(14.dp),
                 tint = grayColor
             )
             Text(
-                text = "${usage.promptTokens.formatNumber()} tokens",
+                text = stringResource(R.string.tokens_format, usage.promptTokens.formatNumber()),
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -667,12 +667,12 @@ private fun TokenStatisticsRow(
         ) {
             Icon(
                 imageVector = Icons.Rounded.ArrowDownward,
-                contentDescription = "Received",
+                contentDescription = stringResource(R.string.a11y_received),
                 modifier = Modifier.size(14.dp),
                 tint = grayColor
             )
             Text(
-                text = "${usage.completionTokens.formatNumber()} tokens",
+                text = stringResource(R.string.tokens_format, usage.completionTokens.formatNumber()),
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -686,7 +686,7 @@ private fun TokenStatisticsRow(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Bolt,
-                    contentDescription = "Speed",
+                    contentDescription = stringResource(R.string.a11y_speed),
                     modifier = Modifier.size(14.dp),
                     tint = grayColor
                 )

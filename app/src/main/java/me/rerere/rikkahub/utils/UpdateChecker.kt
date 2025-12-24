@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.rerere.common.http.await
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -103,8 +104,8 @@ class UpdateChecker(private val client: OkHttpClient) {
     fun downloadUpdate(context: Context, download: UpdateDownload) {
         runCatching {
             val request = DownloadManager.Request(download.url.toUri()).apply {
-                setTitle("LastChat Update")
-                setDescription("Downloading ${download.name}...")
+                setTitle(context.getString(R.string.update_download_notification_title))
+                setDescription(context.getString(R.string.update_download_notification_desc, download.name))
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, download.name)
@@ -113,7 +114,7 @@ class UpdateChecker(private val client: OkHttpClient) {
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             dm.enqueue(request)
         }.onFailure {
-            Toast.makeText(context, "Failed to download update", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_failed_to_download_update), Toast.LENGTH_SHORT).show()
             context.openUrl(download.url)
         }
     }
