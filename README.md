@@ -17,7 +17,7 @@ This project aims to provide a privacy-focused and highly personalized AI chat e
     &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/1.1.7_providers_use.gif" alt="providers page" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.2_memory.jpg" alt="Memory Settings" width="200" />
+  <img src="docs/1.2.4_memory.jpg" alt="Memory Settings" width="200" />
 </div>
 
 ## ✨ Key Features
