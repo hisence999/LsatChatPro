@@ -20,7 +20,7 @@
     &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/1.1.7_providers_use.gif" alt="服务商页面" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.2_memory.jpg" alt="记忆设置" width="200" />
+  <img src="docs/1.2.4_memory.jpg" alt="记忆设置" width="200" />
 </div>
 
 ## ✨ 核心特性
