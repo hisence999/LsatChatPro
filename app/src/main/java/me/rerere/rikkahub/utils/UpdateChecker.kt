@@ -19,7 +19,7 @@ import me.rerere.rikkahub.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-private const val GITHUB_API_URL = "https://api.github.com/repos/Cocolalilal/LastChat/releases/latest"
+private const val GITHUB_API_URL = "https://api.github.com/repos/54xzh/LastChat/releases/latest"
 
 class UpdateChecker(private val client: OkHttpClient) {
     private val json = Json { ignoreUnknownKeys = true }

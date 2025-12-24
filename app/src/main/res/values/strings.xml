@@ -1004,6 +1004,5 @@
     <string name="assistant_page_group_configuration">Configuration</string>
     <string name="assistant_page_group_capabilities">Capabilities</string>
     <string name="assistant_page_group_other">Other</string>
-    <string name="a11y_expand">Expand</string>
 </resources>
 

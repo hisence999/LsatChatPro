@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.pages.assistant.detail
+﻿package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -206,10 +206,10 @@ fun AssistantMemorySettings(
         // Mode Indicator
         MemoryModeIndicator(mode = currentMode)
         
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // SETTINGS GROUP
-        // ═══════════════════════════════════════════════════════════════════
-        SettingsGroupHeader(title = "Memory Settings")
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+        SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_settings_title))
         
         Column(
             modifier = Modifier.clip(RoundedCornerShape(24.dp)),
@@ -270,8 +270,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "RAG Memory Retrieval",
-                    subtitle = "Smart context-based memory retrieval",
+                    title = stringResource(R.string.assistant_page_rag_retrieval_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_retrieval_desc),
                     position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
                     trailing = {
                         HapticSwitch(
@@ -299,8 +299,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "Advanced Memory",
-                    subtitle = "Form episodic memories from conversations",
+                    title = stringResource(R.string.assistant_page_rag_advanced_memory_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_advanced_memory_desc),
                     position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
                     trailing = {
                         HapticSwitch(
@@ -330,8 +330,8 @@ fun AssistantMemorySettings(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 MemorySettingsItem(
-                    title = "Reflection",
-                    subtitle = "Significance scoring and core memory formation",
+                    title = stringResource(R.string.assistant_page_rag_reflection_title),
+                    subtitle = stringResource(R.string.assistant_page_rag_reflection_desc),
                     position = "LAST",
                     trailing = {
                         HapticSwitch(
@@ -343,30 +343,30 @@ fun AssistantMemorySettings(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // RAG SETTINGS (when RAG is enabled)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory && assistant.useRagMemoryRetrieval,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "RAG Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_rag_settings_title))
                 RagSettingsCard(assistant = assistant, onUpdateAssistant = onUpdateAssistant)
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // CONSOLIDATION SETTINGS (when consolidation is enabled)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "Advanced Memory Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_advanced_memory_settings_title))
                 ConsolidationSettingsCard(
                     assistant = assistant,
                     onUpdateAssistant = onUpdateAssistant,
@@ -377,16 +377,16 @@ fun AssistantMemorySettings(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // REFLECTION SETTINGS (when human memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory && assistant.enableHumanMemory,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "Reflection Settings")
+                SettingsGroupHeader(title = stringResource(R.string.assistant_page_reflexion_settings_title))
                 ReflectionSettingsCard(
                     assistant = assistant,
                     onUpdateAssistant = onUpdateAssistant
@@ -394,9 +394,9 @@ fun AssistantMemorySettings(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // MEMORY STATISTICS (when memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory,
             enter = fadeIn() + expandVertically(),
@@ -409,9 +409,9 @@ fun AssistantMemorySettings(
             )
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // MANAGE MEMORIES (when memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory,
             enter = fadeIn() + expandVertically(),
@@ -433,9 +433,9 @@ fun AssistantMemorySettings(
             )
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // MEMORY DEBUGGER (RAG only)
-        // ═══════════════════════════════════════════════════════════════════
+        // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         AnimatedVisibility(
             visible = assistant.enableMemory && assistant.useRagMemoryRetrieval && onTestRetrieval != null,
             enter = fadeIn() + expandVertically(),
@@ -443,7 +443,7 @@ fun AssistantMemorySettings(
         ) {
             if (onTestRetrieval != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SettingsGroupHeader(title = "Memory Debugger")
+                    SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_debugger_title))
                     MemoryDebugger(
                         onTestRetrieval = onTestRetrieval,
                         retrievalResults = retrievalResults
@@ -620,353 +620,6 @@ private enum class MemorySortOrder(@androidx.annotation.StringRes val displayNam
     ALPHABETICAL(R.string.assistant_page_sort_alphabetical),
     MOST_SIGNIFICANT(R.string.assistant_page_sort_most_significant, episodicOnly = true) // Only for episodic memories with reflection enabled
 }
-
-@Composable
-fun AssistantMemorySettings(
-    assistant: Assistant,
-    memories: List<AssistantMemory>,
-    onUpdateAssistant: (Assistant) -> Unit,
-    onAddMemory: (AssistantMemory) -> Unit,
-    onUpdateMemory: (AssistantMemory) -> Unit,
-    onDeleteMemory: (AssistantMemory) -> Unit,
-    onRegenerateEmbeddings: (() -> Unit)? = null,
-    embeddingProgress: EmbeddingProgress? = null,
-    onTestRetrieval: ((String) -> Unit)? = null,
-    retrievalResults: List<Pair<AssistantMemory, Float>> = emptyList(),
-    assistantDetailVM: AssistantDetailVM,
-    estimatedMemoryCapacity: Int,
-    needsEmbeddingRegeneration: Boolean = false
-) {
-    val memoryDialogState = useEditState<AssistantMemory> {
-        if (it.id == 0) {
-            onAddMemory(it)
-        } else {
-            onUpdateMemory(it)
-        }
-    }
-    
-    // Embedding progress dialog
-    if (embeddingProgress != null && embeddingProgress.isRunning) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text(stringResource(R.string.assistant_page_embedding_generating_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        stringResource(
-                            R.string.assistant_page_embedding_processing,
-                            embeddingProgress.current,
-                            embeddingProgress.total
-                        )
-                    )
-                    androidx.compose.material3.LinearProgressIndicator(
-                        progress = { embeddingProgress.current.toFloat() / embeddingProgress.total.coerceAtLeast(1) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = { }
-        )
-    }
-
-    // Memory edit dialog
-    memoryDialogState.EditStateContent { memory, update ->
-        AlertDialog(
-            onDismissRequest = { memoryDialogState.dismiss() },
-            title = { Text(stringResource(R.string.assistant_page_manage_memory_title)) },
-            text = {
-                TextField(
-                    value = memory.content,
-                    onValueChange = { update(memory.copy(content = it)) },
-                    label = { Text(stringResource(R.string.assistant_page_manage_memory_title)) },
-                    minLines = 1,
-                    maxLines = 8
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { memoryDialogState.confirm() }) {
-                    Text(stringResource(R.string.assistant_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { memoryDialogState.dismiss() }) {
-                    Text(stringResource(R.string.assistant_page_cancel))
-                }
-            }
-        )
-    }
-
-    val memorySearchQuery by assistantDetailVM.memorySearchQuery.collectAsState()
-    val currentEmbeddingModelId by assistantDetailVM.currentEmbeddingModelId.collectAsState()
-    val currentMode = getMemoryMode(assistant)
-    
-    // Get all models for summarizer picker
-    val providers by assistantDetailVM.providers.collectAsStateWithLifecycle()
-    val allModels = remember(providers) { providers.flatMap { it.models } }
-    val defaultModel = Model("default", stringResource(R.string.assistant_page_model_default))
-    val modelOptions = listOf(defaultModel) + allModels
-    val selectedModel = allModels.find { it.id == assistant.summarizerModelId } ?: defaultModel
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-            .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Mode Indicator
-        MemoryModeIndicator(mode = currentMode)
-        
-        // ═══════════════════════════════════════════════════════════════════
-        // SETTINGS GROUP
-        // ═══════════════════════════════════════════════════════════════════
-        SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_settings_title))
-        
-        Column(
-            modifier = Modifier.clip(RoundedCornerShape(24.dp)),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // Master Toggle - Enable Memory (always visible)
-            MemorySettingsItem(
-                title = stringResource(R.string.assistant_page_memory),
-                subtitle = stringResource(R.string.assistant_page_memory_desc),
-                position = if (!assistant.enableMemory) "ONLY" else "FIRST",
-                trailing = {
-                    Switch(
-                        checked = assistant.enableMemory,
-                        onCheckedChange = { onUpdateAssistant(assistant.copy(enableMemory = it)) }
-                    )
-                }
-            )
-
-            // Recent Chats Toggle (when memory enabled)
-            AnimatedVisibility(
-                visible = assistant.enableMemory,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                val isLockedByConsolidation = assistant.enableMemoryConsolidation
-                
-                MemorySettingsItem(
-                    title = stringResource(R.string.assistant_page_recent_chats),
-                    subtitle = stringResource(R.string.assistant_page_recent_chats_desc),
-                    // RAG toggle is always visible below when memory is on, so this is always MIDDLE
-                    position = "MIDDLE",
-                    trailing = {
-                        // Use 0.75f alpha for disabled state - subtle but visible
-                        val toggleAlpha by animateFloatAsState(
-                            targetValue = if (isLockedByConsolidation) 0.75f else 1f,
-                            animationSpec = spring(stiffness = 300f),
-                            label = "toggle_alpha"
-                        )
-                        Box(modifier = Modifier.graphicsLayer { alpha = toggleAlpha }) {
-                            Switch(
-                                checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
-                                onCheckedChange = { 
-                                    if (!isLockedByConsolidation) {
-                                        onUpdateAssistant(assistant.copy(enableRecentChatsReference = it))
-                                    }
-                                },
-                                enabled = !isLockedByConsolidation
-                            )
-                        }
-                    }
-                )
-            }
-
-            // RAG Toggle (when memory enabled)
-            AnimatedVisibility(
-                visible = assistant.enableMemory,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                MemorySettingsItem(
-                    title = stringResource(R.string.assistant_page_rag_retrieval_title),
-                    subtitle = stringResource(R.string.assistant_page_rag_retrieval_desc),
-                    position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
-                    trailing = {
-                        Switch(
-                            checked = assistant.useRagMemoryRetrieval,
-                            onCheckedChange = { enabled ->
-                                if (!enabled) {
-                                    onUpdateAssistant(assistant.copy(
-                                        useRagMemoryRetrieval = false,
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
-                                    ))
-                                } else {
-                                    onUpdateAssistant(assistant.copy(useRagMemoryRetrieval = true))
-                                }
-                            }
-                        )
-                    }
-                )
-            }
-
-            // Memory Consolidation Toggle (requires RAG)
-            AnimatedVisibility(
-                visible = assistant.enableMemory && assistant.useRagMemoryRetrieval,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                MemorySettingsItem(
-                    title = stringResource(R.string.assistant_page_rag_advanced_memory_title),
-                    subtitle = stringResource(R.string.assistant_page_rag_advanced_memory_desc),
-                    position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
-                    trailing = {
-                        Switch(
-                            checked = assistant.enableMemoryConsolidation,
-                            onCheckedChange = { enabled ->
-                                if (!enabled) {
-                                    onUpdateAssistant(assistant.copy(
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
-                                    ))
-                                } else {
-                                    onUpdateAssistant(assistant.copy(
-                                        enableMemoryConsolidation = true,
-                                        enableRecentChatsReference = true
-                                    ))
-                                }
-                            }
-                        )
-                    }
-                )
-            }
-
-            // Human-like Memory Toggle (requires Consolidation)
-            AnimatedVisibility(
-                visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                MemorySettingsItem(
-                    title = stringResource(R.string.assistant_page_rag_reflection_title),
-                    subtitle = stringResource(R.string.assistant_page_rag_reflection_desc),
-                    position = "LAST",
-                    trailing = {
-                        Switch(
-                            checked = assistant.enableHumanMemory,
-                            onCheckedChange = { onUpdateAssistant(assistant.copy(enableHumanMemory = it)) }
-                        )
-                    }
-                )
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // RAG SETTINGS (when RAG is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.useRagMemoryRetrieval,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = stringResource(R.string.assistant_page_rag_settings_title))
-                RagSettingsCard(assistant = assistant, onUpdateAssistant = onUpdateAssistant)
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // CONSOLIDATION SETTINGS (when consolidation is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = stringResource(R.string.assistant_page_advanced_memory_settings_title))
-                ConsolidationSettingsCard(
-                    assistant = assistant,
-                    onUpdateAssistant = onUpdateAssistant,
-                    modelOptions = modelOptions,
-                    selectedModel = selectedModel,
-                    onConsolidate = { assistantDetailVM.consolidateMemories(true) }
-                )
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // REFLECTION SETTINGS (when human memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.enableHumanMemory,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = stringResource(R.string.assistant_page_reflexion_settings_title))
-                ReflectionSettingsCard(
-                    assistant = assistant,
-                    onUpdateAssistant = onUpdateAssistant
-                )
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // MEMORY STATISTICS (when memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            MemoryStatisticsCard(
-                assistant = assistant,
-                memories = memories,
-                estimatedMemoryCapacity = estimatedMemoryCapacity
-            )
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // MANAGE MEMORIES (when memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            ManageMemoriesSection(
-                memories = memories,
-                assistant = assistant,
-                onAddMemory = { memoryDialogState.open(AssistantMemory(0, "")) },
-                onEditMemory = { memoryDialogState.open(it) },
-                onDeleteMemory = onDeleteMemory,
-                onRegenerateEmbeddings = onRegenerateEmbeddings,
-                needsEmbeddingRegeneration = needsEmbeddingRegeneration,
-                memorySearchQuery = memorySearchQuery,
-                onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
-                currentEmbeddingModelId = currentEmbeddingModelId,
-                showMemoryTypes = assistant.enableMemoryConsolidation,
-                showSignificanceSort = assistant.enableHumanMemory
-            )
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // MEMORY DEBUGGER (RAG only)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.useRagMemoryRetrieval && onTestRetrieval != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            if (onTestRetrieval != null) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SettingsGroupHeader(title = stringResource(R.string.assistant_page_memory_debugger_title))
-                    MemoryDebugger(
-                        onTestRetrieval = onTestRetrieval,
-                        retrievalResults = retrievalResults
-                    )
-                }
-            }
-        }
-    }
-}
-
-
 
 @Composable
 private fun RagSettingsCard(
