@@ -52,6 +52,25 @@ jobs:
             echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
           fi
       
+            - name: Prepare signing (Release)
+        if: ${{ inputs.build == 'release' || inputs.build == 'both' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Decode keystore
+          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/lastchat-release.jks
+          test -s app/lastchat-release.jks
+
+          # Write signing props for Gradle
+          cat > keystore.properties <<EOF
+          storeFile=app/lastchat-release.jks
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+          test -s keystore.properties
+
       
       - name: Gradle Build
         shell: bash
