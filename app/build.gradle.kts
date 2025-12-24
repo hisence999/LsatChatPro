@@ -285,6 +285,10 @@ dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
     implementation(kotlin("reflect"))
 
+    // Glance (Widgets)
+    implementation(libs.androidx.glance)
+    implementation(libs.androidx.glance.material3)
+
     // Leak Canary
     // debugImplementation(libs.leakcanary.android)
 

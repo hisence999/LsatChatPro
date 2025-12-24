@@ -628,6 +628,10 @@
     <string name="share">Share</string>
     <string name="share_handler_page_title">Share to LastChat</string>
     <string name="shortcut_take_picture">Take Picture</string>
+    <string name="shortcut_chat_with">Chat with %s</string>
+    <string name="widget_assistant_name">Assistant Shortcut</string>
+    <string name="widget_assistant_description">Quick access to chat with an assistant</string>
+    <string name="widget_config_title">Select Assistant</string>
     <string name="silicon_flow_built_in_models">* SiliconFlow free models built-in. No API Key needed. For more powerful models, please use your own API Key.</string>
     <string name="silicon_flow_description">**Leading AI Provider, Accelerating AGI.**</string>
     <string name="silicon_flow_website">Website: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>

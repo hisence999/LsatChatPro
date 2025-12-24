@@ -91,6 +91,7 @@ class SettingsStore(
         val ASSISTANTS = stringPreferencesKey("assistants")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
         val PROVIDER_TAGS = stringPreferencesKey("provider_tags")
+        val RECENTLY_USED_ASSISTANTS = stringPreferencesKey("recently_used_assistants")
 
         // 搜索
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
@@ -153,6 +154,9 @@ class SettingsStore(
                 } ?: emptyList(),
                 providers = JsonInstant.decodeFromString(preferences[PROVIDERS] ?: "[]"),
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
+                recentlyUsedAssistants = preferences[RECENTLY_USED_ASSISTANTS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 developerMode = preferences[DEVELOPER_MODE] == true,
@@ -257,49 +261,67 @@ class SettingsStore(
             Log.w(TAG, "Cannot update dummy settings")
             return
         }
-        settingsFlow.value = settings
+        
+        // Auto-update recently used assistants when assistant changes
+        val settingsToSave = if (settings.assistantId != settingsFlow.value.assistantId && 
+            !settingsFlow.value.init &&
+            settings.assistants.any { it.id == settings.assistantId }) {
+            val updatedList = buildList {
+                add(settings.assistantId)
+                settings.recentlyUsedAssistants
+                    .filter { it != settings.assistantId }
+                    .take(2)
+                    .forEach { add(it) }
+            }
+            settings.copy(recentlyUsedAssistants = updatedList)
+        } else {
+            settings
+        }
+        
+        settingsFlow.value = settingsToSave
         dataStore.edit { preferences ->
-            preferences[DYNAMIC_COLOR] = settings.dynamicColor
-            preferences[THEME_ID] = settings.themeId
-            preferences[DEVELOPER_MODE] = settings.developerMode
-            preferences[ENABLE_RAG_LOGGING] = settings.enableRagLogging
-            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
+            preferences[DYNAMIC_COLOR] = settingsToSave.dynamicColor
+            preferences[THEME_ID] = settingsToSave.themeId
+            preferences[DEVELOPER_MODE] = settingsToSave.developerMode
+            preferences[ENABLE_RAG_LOGGING] = settingsToSave.enableRagLogging
+            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settingsToSave.displaySetting)
 
-            preferences[ENABLE_WEB_SEARCH] = settings.enableWebSearch
-            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
-            preferences[SELECT_MODEL] = settings.chatModelId.toString()
-            preferences[TITLE_MODEL] = settings.titleModelId.toString()
-            preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
-            preferences[SUGGESTION_MODEL] = settings.suggestionModelId.toString()
-            preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
-            preferences[TITLE_PROMPT] = settings.titlePrompt
-            preferences[TRANSLATION_PROMPT] = settings.translatePrompt
-            preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
-            preferences[LEARNING_MODE_PROMPT] = settings.learningModePrompt
-            preferences[OCR_MODEL] = settings.ocrModelId.toString()
-            preferences[OCR_PROMPT] = settings.ocrPrompt
-            preferences[EMBEDDING_MODEL] = settings.embeddingModelId.toString()
+            preferences[ENABLE_WEB_SEARCH] = settingsToSave.enableWebSearch
+            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settingsToSave.favoriteModels)
+            preferences[SELECT_MODEL] = settingsToSave.chatModelId.toString()
+            preferences[TITLE_MODEL] = settingsToSave.titleModelId.toString()
+            preferences[TRANSLATE_MODEL] = settingsToSave.translateModeId.toString()
+            preferences[SUGGESTION_MODEL] = settingsToSave.suggestionModelId.toString()
+            preferences[IMAGE_GENERATION_MODEL] = settingsToSave.imageGenerationModelId.toString()
+            preferences[TITLE_PROMPT] = settingsToSave.titlePrompt
+            preferences[TRANSLATION_PROMPT] = settingsToSave.translatePrompt
+            preferences[SUGGESTION_PROMPT] = settingsToSave.suggestionPrompt
+            preferences[LEARNING_MODE_PROMPT] = settingsToSave.learningModePrompt
+            preferences[OCR_MODEL] = settingsToSave.ocrModelId.toString()
+            preferences[OCR_PROMPT] = settingsToSave.ocrPrompt
+            preferences[EMBEDDING_MODEL] = settingsToSave.embeddingModelId.toString()
 
-            preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
+            preferences[PROVIDERS] = JsonInstant.encodeToString(settingsToSave.providers)
 
-            preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
-            preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
-            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
-            preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(settings.providerTags)
+            preferences[ASSISTANTS] = JsonInstant.encodeToString(settingsToSave.assistants)
+            preferences[SELECT_ASSISTANT] = settingsToSave.assistantId.toString()
+            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settingsToSave.assistantTags)
+            preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(settingsToSave.providerTags)
+            preferences[RECENTLY_USED_ASSISTANTS] = JsonInstant.encodeToString(settingsToSave.recentlyUsedAssistants)
 
-            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
-            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
-            preferences[SEARCH_SELECTED] = settings.searchServiceSelected.coerceIn(0, settings.searchServices.size - 1)
+            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settingsToSave.searchServices)
+            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settingsToSave.searchCommonOptions)
+            preferences[SEARCH_SELECTED] = settingsToSave.searchServiceSelected.coerceIn(0, settingsToSave.searchServices.size - 1)
 
-            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
-            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
-            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
-            settings.selectedTTSProviderId?.let {
+            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settingsToSave.mcpServers)
+            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settingsToSave.webDavConfig)
+            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settingsToSave.ttsProviders)
+            settingsToSave.selectedTTSProviderId?.let {
                 preferences[SELECTED_TTS_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_TTS_PROVIDER)
 
-            preferences[CONSOLIDATION_WORKER_INTERVAL] = settings.consolidationWorkerIntervalMinutes
-            preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] = settings.consolidationRequiresDeviceIdle
+            preferences[CONSOLIDATION_WORKER_INTERVAL] = settingsToSave.consolidationWorkerIntervalMinutes
+            preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] = settingsToSave.consolidationRequiresDeviceIdle
         }
     }
 
@@ -310,6 +332,28 @@ class SettingsStore(
     suspend fun updateAssistant(assistantId: Uuid) {
         dataStore.edit { preferences ->
             preferences[SELECT_ASSISTANT] = assistantId.toString()
+        }
+    }
+
+    /**
+     * Mark an assistant as recently used for app shortcuts.
+     * Moves it to the front of the list and keeps only the 3 most recent.
+     */
+    suspend fun markAssistantUsed(assistantId: Uuid) {
+        val current = settingsFlow.value
+        // Only add if the assistant exists
+        if (current.assistants.none { it.id == assistantId }) return
+        
+        val updatedList = buildList {
+            add(assistantId)
+            current.recentlyUsedAssistants
+                .filter { it != assistantId }
+                .take(2)
+                .forEach { add(it) }
+        }
+        
+        if (updatedList != current.recentlyUsedAssistants) {
+            update(current.copy(recentlyUsedAssistants = updatedList))
         }
     }
 }
@@ -342,6 +386,7 @@ data class Settings(
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val providerTags: List<Tag> = emptyList(),
+    val recentlyUsedAssistants: List<Uuid> = emptyList(), // For app shortcuts, max 3 items
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
