@@ -2,13 +2,18 @@ package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,7 +133,14 @@ fun ChatMessage(
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
+    // Track if user clicked to expand action bar on previous messages
+    var actionsExpanded by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
+    
+    // Action buttons show inline for:
+    // - Last messages (always visible when not loading)
+    // - Previous messages (when user clicks to expand)
+    val showInlineActions = !loading && (isLast || actionsExpanded)
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
 
@@ -187,61 +199,64 @@ fun ChatMessage(
                 onCitationClick = onCitationClick,
                 loading = loading,
                 model = model,
+                onBubbleClick = {
+                    // For previous messages, toggle action bar visibility
+                    // For last messages (already showing), open the action sheet
+                    if (isLast) {
+                        showActionsSheet = true
+                    } else {
+                        actionsExpanded = !actionsExpanded
+                    }
+                },
+                usage = message.usage,
+                generationDurationMs = message.generationDurationMs,
+                showTokenUsage = settings.showTokenUsage,
             )
         }
 
-        // Action buttons only show on the final message in the conversation
-        val showActions = isLast && !loading
 
-        // Token Statistics Row (only for final assistant messages with actual text content)
-        // This ensures token stats only show at the end of the full response, not on intermediate tool-calling messages
-        val hasTextContent = message.parts.any { it is UIMessagePart.Text && (it as UIMessagePart.Text).text.isNotBlank() }
-        if (message.role == MessageRole.ASSISTANT && settings.showTokenUsage && !loading && hasTextContent && isLast) {
-            message.usage?.let { usage ->
-                TokenStatisticsRow(usage = usage, message = message)
-            }
-        }
+        // Action buttons show inline based on role and position
+        val showActions = showInlineActions
 
         AnimatedVisibility(
             visible = showActions,
-            enter = slideInVertically(
+            enter = expandVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.7f,
+                    stiffness = 300f
+                )
+            ) + slideInVertically(
                 animationSpec = spring(
                     dampingRatio = 0.6f,
                     stiffness = 300f
                 )
-            ) { it / 2 } + fadeIn(
+            ) { -it } + fadeIn(
                 animationSpec = spring(
                     dampingRatio = 0.8f,
                     stiffness = 400f
                 )
             ),
-            exit = slideOutVertically(
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = 400f
+                )
+            ) + slideOutVertically(
                 animationSpec = spring(
                     dampingRatio = 0.8f,
                     stiffness = 500f
                 )
-            ) { it / 2 } + fadeOut()
+            ) { -it } + fadeOut()
         ) {
-            Column(
-                modifier = Modifier
-                    .clipToBounds()
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = 0.7f,
-                            stiffness = 300f
-                        )
-                    )
-            ) {
-                ChatMessageActionButtons(
-                    message = message,
-                    onRegenerate = onRegenerate,
-                    node = node,
-                    onUpdate = onUpdate,
-                    onOpenActionSheet = {
-                        showActionsSheet = true
-                    },
-                )
-            }
+            ChatMessageActionButtons(
+                message = message,
+                onRegenerate = onRegenerate,
+                node = node,
+                onUpdate = onUpdate,
+                onOpenActionSheet = {
+                    showActionsSheet = true
+                },
+            )
         }
     }
     if (showActionsSheet) {
@@ -295,7 +310,11 @@ private fun MessagePartsBlock(
     annotations: List<UIMessageAnnotation>,
     isLast: Boolean,
     onCitationClick: (String) -> Unit,
-    loading: Boolean
+    loading: Boolean,
+    onBubbleClick: () -> Unit = {},
+    usage: me.rerere.ai.core.TokenUsage? = null,
+    generationDurationMs: Long? = null,
+    showTokenUsage: Boolean = false,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -331,6 +350,7 @@ private fun MessagePartsBlock(
     parts.filterIsInstance<UIMessagePart.Text>().fastForEach { part ->
         if (role == MessageRole.USER) {
             Card(
+                onClick = onBubbleClick,
                 modifier = Modifier
                     .animateContentSize(
                         animationSpec = spring(
@@ -363,13 +383,34 @@ private fun MessagePartsBlock(
                 onClickCitation = { id ->
                     handleClickCitation(id)
                 },
-                modifier = Modifier.animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = 0.7f,
-                        stiffness = 300f
+                modifier = Modifier
+                    .clickable(onClick = onBubbleClick)
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.7f,
+                            stiffness = 300f
+                        )
                     )
-                )
             )
+        }
+    }
+
+    // Token Statistics (shown after all text parts, for assistant messages only)
+    // Just shows immediately when conditions are met - no special delay or animation
+    val textParts = parts.filterIsInstance<UIMessagePart.Text>()
+    val hasTextContent = textParts.any { it.text.isNotBlank() }
+    val shouldShowTokenStats = role == MessageRole.ASSISTANT && showTokenUsage && !loading && hasTextContent && usage != null
+    
+    if (shouldShowTokenStats) {
+        usage?.let { tokenUsage ->
+            // Calculate tokens per second from generation duration
+            val tokensPerSecond: Float? = generationDurationMs?.let { durationMs ->
+                if (durationMs > 0) {
+                    val durationSeconds = durationMs / 1000.0
+                    (tokenUsage.completionTokens / durationSeconds).toFloat()
+                } else null
+            }
+            TokenStatisticsRowInline(usage = tokenUsage, tokensPerSecond = tokensPerSecond)
         }
     }
 
@@ -635,6 +676,80 @@ private fun TokenStatisticsRow(
             (usage.completionTokens / durationSeconds).toFloat()
         } else null
     }
+    
+    Row(
+        modifier = Modifier.padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Sent tokens (prompt tokens)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowUpward,
+                contentDescription = "Sent",
+                modifier = Modifier.size(14.dp),
+                tint = grayColor
+            )
+            Text(
+                text = "${usage.promptTokens.formatNumber()} tokens",
+                style = MaterialTheme.typography.labelSmall,
+                color = grayColor
+            )
+        }
+        
+        // Received tokens (completion tokens)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowDownward,
+                contentDescription = "Received",
+                modifier = Modifier.size(14.dp),
+                tint = grayColor
+            )
+            Text(
+                text = "${usage.completionTokens.formatNumber()} tokens",
+                style = MaterialTheme.typography.labelSmall,
+                color = grayColor
+            )
+        }
+        
+        // Tokens per second (only shown if calculable)
+        tokensPerSecond?.let { tps ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Bolt,
+                    contentDescription = "Speed",
+                    modifier = Modifier.size(14.dp),
+                    tint = grayColor
+                )
+                Text(
+                    text = String.format("%.1f tok/s", tps),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = grayColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Token statistics row (inline version that takes pre-computed values).
+ * Used when the full UIMessage is not available.
+ */
+@Composable
+private fun TokenStatisticsRowInline(
+    usage: me.rerere.ai.core.TokenUsage,
+    tokensPerSecond: Float?
+) {
+    val grayColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
     
     Row(
         modifier = Modifier.padding(top = 4.dp),
