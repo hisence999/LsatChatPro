@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build:
-        description: "Choose what to build"
+        description: Choose what to build
         required: true
         type: choice
         default: both
@@ -35,15 +35,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 写入 google-services.json（无论 debug/release 都可能需要）
           mkdir -p app
           echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
 
-          # 确认文件真的存在且非空（不泄露内容）
           test -s app/google-services.json
           echo "google-services.json OK, size=$(wc -c < app/google-services.json) bytes"
 
-          # 如果你只在 release 需要签名文件，可以保留条件
           if [ -n "${{ secrets.KEY_BASE64 }}" ]; then
             echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
           fi
@@ -51,27 +48,7 @@ jobs:
           if [ -n "${{ secrets.SIGNING_CONFIG }}" ]; then
             echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
           fi
-      
-            - name: Prepare signing (Release)
-        if: ${{ inputs.build == 'release' || inputs.build == 'both' }}
-        shell: bash
-        run: |
-          set -euo pipefail
 
-          # Decode keystore
-          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/lastchat-release.jks
-          test -s app/lastchat-release.jks
-
-          # Write signing props for Gradle
-          cat > keystore.properties <<EOF
-          storeFile=app/lastchat-release.jks
-          storePassword=${{ secrets.STORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          EOF
-          test -s keystore.properties
-
-      
       - name: Gradle Build
         shell: bash
         run: |
