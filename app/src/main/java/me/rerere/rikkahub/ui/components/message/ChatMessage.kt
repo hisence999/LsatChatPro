@@ -136,7 +136,7 @@ fun ChatMessage(
     var hasAnimated by remember { mutableStateOf(!isRecentlyRestored) }
     val restoredAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (hasAnimated) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "restored_message_alpha"
     )
     LaunchedEffect(isRecentlyRestored) {
@@ -190,14 +190,13 @@ fun ChatMessage(
             )
         }
 
-        val showActions = if (isLast) {
-            !loading
-        } else {
-            message.parts.isEmptyUIMessage().not()
-        }
+        // Action buttons only show on the final message in the conversation
+        val showActions = isLast && !loading
 
-        // Token Statistics Row (only for assistant messages when setting is enabled)
-        if (message.role == MessageRole.ASSISTANT && settings.showTokenUsage && !loading) {
+        // Token Statistics Row (only for final assistant messages with actual text content)
+        // This ensures token stats only show at the end of the full response, not on intermediate tool-calling messages
+        val hasTextContent = message.parts.any { it is UIMessagePart.Text && (it as UIMessagePart.Text).text.isNotBlank() }
+        if (message.role == MessageRole.ASSISTANT && settings.showTokenUsage && !loading && hasTextContent && isLast) {
             message.usage?.let { usage ->
                 TokenStatisticsRow(usage = usage, message = message)
             }

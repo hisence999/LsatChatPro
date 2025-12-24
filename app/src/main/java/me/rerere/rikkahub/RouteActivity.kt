@@ -49,6 +49,7 @@ import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.ui.TTSController
+import me.rerere.rikkahub.ui.context.LocalAnimatedVisibilityScope
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
@@ -257,13 +258,20 @@ class RouteActivity : ComponentActivity() {
                     }
 
 
+
+                    // All assistant-related routes share the same AnimatedVisibilityScope
+                    // for seamless hero animations across all screens
                     composable<Screen.Assistant> {
-                        AssistantPage()
+                        CompositionLocalProvider(LocalAnimatedVisibilityScope provides this@composable) {
+                            AssistantPage()
+                        }
                     }
 
                     composable<Screen.AssistantDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.AssistantDetail>()
-                        AssistantDetailPage(route.id)
+                        CompositionLocalProvider(LocalAnimatedVisibilityScope provides this@composable) {
+                            AssistantDetailPage(route.id)
+                        }
                     }
 
                     composable<Screen.Menu> {

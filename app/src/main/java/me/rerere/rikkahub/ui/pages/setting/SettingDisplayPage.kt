@@ -20,7 +20,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -105,7 +105,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_page_dynamic_color),
                         subtitle = stringResource(R.string.setting_page_dynamic_color_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = settings.dynamicColor,
                                 onCheckedChange = {
                                     vm.updateSettings(settings.copy(dynamicColor = it))
@@ -117,7 +117,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = "Font Style",
                         subtitle = if (useExpressiveFont) "M3 Expressive (Rounded)" else "Normal",
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = useExpressiveFont,
                                 onCheckedChange = { useExpressiveFont = it }
                             )
@@ -152,7 +152,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_create_new_conversation_on_start_title),
                         subtitle = stringResource(R.string.setting_display_page_create_new_conversation_on_start_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = createNewConversationOnStart,
                                 onCheckedChange = {
                                     createNewConversationOnStart = it
@@ -164,7 +164,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_notification_message_generated),
                         subtitle = stringResource(R.string.setting_display_page_notification_message_generated_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.enableNotificationOnMessageGeneration,
                                 onCheckedChange = {
                                     if (it && !permissionState.allPermissionsGranted) {
@@ -179,7 +179,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = "Check for Updates",
                         subtitle = "Automatically check GitHub for new app versions",
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.checkForUpdates,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(checkForUpdates = it))
@@ -200,7 +200,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 //                        Text(stringResource(R.string.setting_display_page_developer_mode_desc))
 //                    },
 //                    trailingContent = {
-//                        Switch(
+//                        HapticSwitch(
 //                            checked = settings.developerMode,
 //                            onCheckedChange = {
 //                                vm.updateSettings(settings.copy(developerMode = it))
@@ -219,7 +219,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_show_user_avatar_title),
                         subtitle = stringResource(R.string.setting_display_page_show_user_avatar_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.showUserAvatar,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
@@ -231,7 +231,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
                         subtitle = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.showModelIcon,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showModelIcon = it))
@@ -243,7 +243,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_show_token_usage_title),
                         subtitle = stringResource(R.string.setting_display_page_show_token_usage_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.showTokenUsage,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
@@ -255,7 +255,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
                         subtitle = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.autoCloseThinking,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
@@ -275,7 +275,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_show_message_jumper_title),
                         subtitle = stringResource(R.string.setting_display_page_show_message_jumper_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.showMessageJumper,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showMessageJumper = it))
@@ -288,7 +288,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             title = stringResource(R.string.setting_display_page_message_jumper_position_title),
                             subtitle = stringResource(R.string.setting_display_page_message_jumper_position_desc),
                             trailing = {
-                                Switch(
+                                HapticSwitch(
                                     checked = displaySetting.messageJumperOnLeft,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it))
@@ -309,7 +309,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title),
                         subtitle = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.enableMessageGenerationHapticEffect,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
@@ -321,7 +321,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = "UI Haptic Feedback",
                         subtitle = "Enable tactile feedback when tapping buttons and controls",
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.enableUIHaptics,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(enableUIHaptics = it))
@@ -341,7 +341,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_skip_crop_image_title),
                         subtitle = stringResource(R.string.setting_display_page_skip_crop_image_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.skipCropImage,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(skipCropImage = it))
@@ -361,7 +361,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
                         subtitle = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.codeBlockAutoWrap,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
@@ -373,7 +373,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
                         subtitle = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
                         trailing = {
-                            Switch(
+                            HapticSwitch(
                                 checked = displaySetting.codeBlockAutoCollapse,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))

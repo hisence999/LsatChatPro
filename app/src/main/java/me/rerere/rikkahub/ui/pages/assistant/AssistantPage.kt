@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 
 import androidx.compose.ui.res.stringResource
@@ -98,12 +99,13 @@ import kotlin.uuid.Uuid
 import androidx.compose.foundation.lazy.items as lazyItems
 
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.lazy.itemsIndexed
 import me.rerere.rikkahub.ui.components.ui.ItemPosition
 import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 
 
@@ -224,9 +226,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             var isUnlocked by remember { mutableStateOf(false) }
             var neighborsUnlocked by remember { mutableStateOf(false) }
             
-            // State for reorder ripple effect - use assistant ID to track position after reorder
-            var reorderDropAssistantId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
-            var reorderDropTrigger by remember { mutableStateOf(0) }
+            
             val density = androidx.compose.ui.platform.LocalDensity.current
             val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
             
@@ -238,9 +238,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 neighborsUnlocked = false
             }
             
-            // Ripple animation config
-            val ripplePushDp = 10.dp
-            val ripplePushPx = with(density) { ripplePushDp.toPx() }
+
             
             LazyColumn(
                 modifier = Modifier
@@ -280,37 +278,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                         0f
                     }
                     
-                    // Ripple animation for this item
-                    val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
-                    androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
-                        if (reorderDropTrigger > 0 && reorderDropAssistantId != null && reorderDropAssistantId != assistant.id) {
-                            val dropIndex = filteredAssistants.indexOfFirst { it.id == reorderDropAssistantId }
-                            if (dropIndex >= 0) {
-                                val distance = kotlin.math.abs(index - dropIndex)
-                                if (distance <= 3) {
-                                    val pushAmount = when (distance) {
-                                        1 -> ripplePushPx
-                                        2 -> ripplePushPx * 0.6f
-                                        3 -> ripplePushPx * 0.3f
-                                        else -> 0f
-                                    }
-                                    val direction = if (index < dropIndex) -1f else 1f
-                                    rippleOffset.animateTo(
-                                        targetValue = pushAmount * direction,
-                                        animationSpec = androidx.compose.animation.core.tween(80)
-                                    )
-                                    rippleOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = androidx.compose.animation.core.spring(
-                                            dampingRatio = 0.5f,
-                                            stiffness = 400f
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
+
                     ReorderableItem(
                         state = reorderableState, 
                         key = assistant.id
@@ -348,7 +316,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                     )
                                 },
                                 modifier = Modifier
-                                    .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                     .scale(if (isDragging) 0.95f else 1f)
                                     .fillMaxWidth()
                         ) {
@@ -373,8 +340,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                                 },
                                                 onDragStopped = {
                                                     haptics.perform(HapticPattern.Thud)
-                                                    reorderDropAssistantId = assistant.id
-                                                    reorderDropTrigger++
                                                 }
                                             )
                                         ) {
@@ -481,6 +446,7 @@ private fun AssistantItemContent(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(0.dp))
             .background(if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable {
                 haptics.perform(HapticPattern.Pop)
@@ -493,7 +459,9 @@ private fun AssistantItemContent(
         UIAvatar(
             name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
             value = assistant.avatar,
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier
+                .size(40.dp)
+                .heroAnimation(key = "assistant_avatar_${assistant.id}")
         )
         Column(
             modifier = Modifier.weight(1f),

@@ -52,7 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -228,7 +228,7 @@ fun AssistantMemorySettings(
                 subtitle = stringResource(R.string.assistant_page_memory_desc),
                 position = if (!assistant.enableMemory) "ONLY" else "FIRST",
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.enableMemory,
                         onCheckedChange = { onUpdateAssistant(assistant.copy(enableMemory = it)) }
                     )
@@ -256,7 +256,7 @@ fun AssistantMemorySettings(
                             label = "toggle_alpha"
                         )
                         Box(modifier = Modifier.graphicsLayer { alpha = toggleAlpha }) {
-                            Switch(
+                            HapticSwitch(
                                 checked = assistant.enableRecentChatsReference || isLockedByConsolidation,
                                 onCheckedChange = { 
                                     if (!isLockedByConsolidation) {
@@ -281,7 +281,7 @@ fun AssistantMemorySettings(
                     subtitle = "Smart context-based memory retrieval",
                     position = if (!assistant.useRagMemoryRetrieval) "LAST" else "MIDDLE",
                     trailing = {
-                        Switch(
+                        HapticSwitch(
                             checked = assistant.useRagMemoryRetrieval,
                             onCheckedChange = { enabled ->
                                 if (!enabled) {
@@ -310,7 +310,7 @@ fun AssistantMemorySettings(
                     subtitle = "Form episodic memories from conversations",
                     position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
                     trailing = {
-                        Switch(
+                        HapticSwitch(
                             checked = assistant.enableMemoryConsolidation,
                             onCheckedChange = { enabled ->
                                 if (!enabled) {
@@ -341,7 +341,7 @@ fun AssistantMemorySettings(
                     subtitle = "Significance scoring and core memory formation",
                     position = "LAST",
                     trailing = {
-                        Switch(
+                        HapticSwitch(
                             checked = assistant.enableHumanMemory,
                             onCheckedChange = { onUpdateAssistant(assistant.copy(enableHumanMemory = it)) }
                         )
@@ -710,7 +710,7 @@ private fun ConsolidationSettingsCard(
         // Consolidation Delay
         Surface(
             color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(

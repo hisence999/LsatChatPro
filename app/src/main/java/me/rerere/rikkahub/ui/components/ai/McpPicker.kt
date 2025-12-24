@@ -24,7 +24,7 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -225,7 +225,7 @@ fun McpPicker(
                             }
                         }
                     }
-                    Switch(
+                    HapticSwitch(
                         checked = server.id in assistant.mcpServers,
                         onCheckedChange = {
                             if (it) {

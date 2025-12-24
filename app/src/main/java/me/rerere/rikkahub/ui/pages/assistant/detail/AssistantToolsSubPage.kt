@@ -6,30 +6,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -40,9 +25,9 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.ui.components.ai.McpPickerButton
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
-import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.search.SearchServiceOptions
 
 /**
@@ -69,65 +54,41 @@ fun AssistantToolsSubPage(
         // SEARCH GROUP
         // ═══════════════════════════════════════════════════════════════════
         SettingsGroup(title = "Search") {
-            // Search Mode dropdown
-            var searchExpanded by remember { mutableStateOf(false) }
+            // Build options list for Select
             val currentSearchMode = assistant.searchMode
-            val displayText = when (currentSearchMode) {
-                is AssistantSearchMode.Off -> "Off"
-                is AssistantSearchMode.BuiltIn -> "Off"
-                is AssistantSearchMode.Provider -> {
-                    settings.searchServices.getOrNull(currentSearchMode.index)?.let {
-                        SearchServiceOptions.TYPES[it::class] ?: "Provider ${currentSearchMode.index + 1}"
-                    } ?: "Provider ${currentSearchMode.index + 1}"
+            
+            // Create sealed class options for the selector
+            data class SearchOption(val mode: AssistantSearchMode, val displayName: String)
+            
+            val searchOptions = buildList {
+                add(SearchOption(AssistantSearchMode.Off, "Off"))
+                settings.searchServices.forEachIndexed { index, service ->
+                    val name = SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
+                    add(SearchOption(AssistantSearchMode.Provider(index), name))
                 }
             }
             
+            val selectedOption = searchOptions.find { option ->
+                when (val mode = option.mode) {
+                    is AssistantSearchMode.Off -> currentSearchMode is AssistantSearchMode.Off || currentSearchMode is AssistantSearchMode.BuiltIn
+                    is AssistantSearchMode.BuiltIn -> currentSearchMode is AssistantSearchMode.BuiltIn
+                    is AssistantSearchMode.Provider -> currentSearchMode is AssistantSearchMode.Provider && currentSearchMode.index == mode.index
+                }
+            } ?: searchOptions.first()
+            
             SettingGroupItem(
                 title = "Search Provider",
-                subtitle = displayText,
+                subtitle = selectedOption.displayName,
                 trailing = {
-                    Box {
-                        Surface(
-                            onClick = { searchExpanded = !searchExpanded },
-                            tonalElevation = 4.dp,
-                            shape = AppShapes.ButtonPill
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(displayText, style = MaterialTheme.typography.labelMedium)
-                                Icon(
-                                    imageVector = if (searchExpanded) Icons.Rounded.Close else Icons.Rounded.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                        DropdownMenu(
-                            expanded = searchExpanded,
-                            onDismissRequest = { searchExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Off") },
-                                onClick = {
-                                    onUpdate(assistant.copy(searchMode = AssistantSearchMode.Off))
-                                    searchExpanded = false
-                                }
-                            )
-                            settings.searchServices.forEachIndexed { index, service ->
-                                val name = SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
-                                DropdownMenuItem(
-                                    text = { Text(name) },
-                                    onClick = {
-                                        onUpdate(assistant.copy(searchMode = AssistantSearchMode.Provider(index)))
-                                        searchExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    Select(
+                        options = searchOptions,
+                        selectedOption = selectedOption,
+                        onOptionSelected = { option ->
+                            onUpdate(assistant.copy(searchMode = option.mode))
+                        },
+                        optionToString = { it.displayName },
+                        modifier = Modifier.width(150.dp)
+                    )
                 }
             )
             
@@ -136,7 +97,7 @@ fun AssistantToolsSubPage(
                 title = "Prefer Built-in Search",
                 subtitle = "Use model's native search when available",
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.preferBuiltInSearch,
                         onCheckedChange = { onUpdate(assistant.copy(preferBuiltInSearch = it)) }
                     )
@@ -160,7 +121,7 @@ fun AssistantToolsSubPage(
                 title = stringResource(R.string.assistant_page_local_tools_javascript_engine_title),
                 subtitle = stringResource(R.string.assistant_page_local_tools_javascript_engine_desc),
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.localTools.contains(LocalToolOption.JavascriptEngine),
                         onCheckedChange = { enabled ->
                             val newLocalTools = if (enabled) {
@@ -179,7 +140,7 @@ fun AssistantToolsSubPage(
                 title = "Device Control",
                 subtitle = "Notifications, apps, alarms, reminders",
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.localTools.contains(LocalToolOption.DeviceControl),
                         onCheckedChange = { enabled ->
                             if (enabled) {

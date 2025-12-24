@@ -399,13 +399,8 @@ private fun ProviderListView(
     var isUnlocked by remember { mutableStateOf(false) }
     var neighborsUnlocked by remember { mutableStateOf(false) }
     
-    // State for reorder ripple effect
-    var reorderDropProviderId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
-    var reorderDropTrigger by remember { mutableStateOf(0) }
     
     val canDelete = allProviders.size > 1
-    val ripplePushDp = 10.dp
-    val ripplePushPx = with(density) { ripplePushDp.toPx() }
     
     // Reset neighborsUnlocked when offset returns to 0
     if (dragOffset == 0f && neighborsUnlocked) {
@@ -518,34 +513,7 @@ private fun ProviderListView(
                     0f
                 }
                 
-                // Ripple animation for this item
-                val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
-                androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
-                    if (reorderDropTrigger > 0 && reorderDropProviderId != null && reorderDropProviderId != provider.id) {
-                        val dropIndex = providers.indexOfFirst { it.id == reorderDropProviderId }
-                        if (dropIndex >= 0) {
-                            val distance = kotlin.math.abs(index - dropIndex)
-                            if (distance <= 3) {
-                                val pushAmount = when (distance) {
-                                    1 -> ripplePushPx
-                                    2 -> ripplePushPx * 0.6f
-                                    3 -> ripplePushPx * 0.3f
-                                    else -> 0f
-                                }
-                                val direction = if (index < dropIndex) -1f else 1f
-                                rippleOffset.animateTo(
-                                    targetValue = pushAmount * direction,
-                                    animationSpec = androidx.compose.animation.core.tween(80)
-                                )
-                                rippleOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f)
-                                )
-                            }
-                        }
-                    }
-                }
-                
+
                 ReorderableItem(
                     state = reorderableState,
                     key = provider.id
@@ -570,7 +538,6 @@ private fun ProviderListView(
                                 onDeleteRequest(provider)
                             },
                             modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .scale(if (isDragging) 0.95f else 1f)
                                 .fillMaxWidth()
                         ) {
@@ -588,8 +555,6 @@ private fun ProviderListView(
                                                 },
                                                 onDragStopped = {
                                                     haptics.perform(HapticPattern.Thud)
-                                                    reorderDropProviderId = provider.id
-                                                    reorderDropTrigger++
                                                 }
                                             )
                                     ) {
@@ -982,7 +947,7 @@ private fun AddButton(
                         val shape = when (position) {
                             ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
                             ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+                            ItemPosition.MIDDLE -> RoundedCornerShape(12.dp)
                             ItemPosition.ONLY -> RoundedCornerShape(24.dp)
                         }
                         
@@ -1085,6 +1050,7 @@ private fun ProviderItemContent(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(0.dp))
             .background(
                 if (provider.enabled) {
                     if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh

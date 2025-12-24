@@ -89,7 +89,7 @@ fun ToolCallItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
-                .padding(vertical = 8.dp, horizontal = 16.dp)
+                .padding(vertical = 4.dp, horizontal = 12.dp)
                 .height(IntrinsicSize.Min)
         ) {
             if (loading) {

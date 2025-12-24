@@ -16,7 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,7 +60,7 @@ fun ProviderConfigure(
                 },
                 modifier = Modifier.weight(1f)
             )
-            Switch(
+            HapticSwitch(
                 checked = provider.enabled,
                 onCheckedChange = { enabled ->
                     val updated = when (provider) {

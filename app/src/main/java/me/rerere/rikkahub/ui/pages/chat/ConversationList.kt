@@ -199,8 +199,8 @@ fun ColumnScope.ConversationList(
                         DateHeaderItem(
                             label = item.label,
                             modifier = Modifier.animateItem(
-                                fadeInSpec = androidx.compose.animation.core.tween(700),
-                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                fadeInSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
+                                fadeOutSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
                                 placementSpec = androidx.compose.animation.core.spring(
                                     stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
                                     visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
@@ -212,8 +212,8 @@ fun ColumnScope.ConversationList(
                     is ConversationListItem.PinnedHeader -> {
                         PinnedHeader(
                             modifier = Modifier.animateItem(
-                                fadeInSpec = androidx.compose.animation.core.tween(700),
-                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                fadeInSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
+                                fadeOutSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
                                 placementSpec = androidx.compose.animation.core.spring(
                                     stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
                                     visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
@@ -236,8 +236,8 @@ fun ColumnScope.ConversationList(
                             showUnconsolidatedDot = showUnconsolidatedDot,
                             showConsolidateOption = showConsolidateOption,
                             modifier = Modifier.animateItem(
-                                fadeInSpec = androidx.compose.animation.core.tween(700),
-                                fadeOutSpec = androidx.compose.animation.core.tween(700),
+                                fadeInSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
+                                fadeOutSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
                                 placementSpec = androidx.compose.animation.core.spring(
                                     stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
                                     visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
@@ -362,7 +362,7 @@ private fun ConversationItem(
     var hasAnimated by remember { mutableStateOf(!isRecentlyRestored) }
     val restoredAlpha by animateFloatAsState(
         targetValue = if (hasAnimated) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600),
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "restored_alpha"
     )
     LaunchedEffect(isRecentlyRestored) {

@@ -14,7 +14,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,7 +63,7 @@ fun AssistantRagMemorySubPage(
                     )
                 },
                 tail = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.useRagMemoryRetrieval,
                         onCheckedChange = {
                             onUpdateAssistant(
@@ -146,7 +146,7 @@ fun AssistantRagMemorySubPage(
                         label = { Text("Include Core Memories") },
                         description = { Text("Include permanent facts in retrieval.") },
                         tail = {
-                            Switch(
+                            HapticSwitch(
                                 checked = assistant.ragIncludeCore,
                                 onCheckedChange = {
                                     onUpdateAssistant(assistant.copy(ragIncludeCore = it))
@@ -159,7 +159,7 @@ fun AssistantRagMemorySubPage(
                         label = { Text("Include Episodic Memories") },
                         description = { Text("Include conversation history in retrieval.") },
                         tail = {
-                            Switch(
+                            HapticSwitch(
                                 checked = assistant.ragIncludeEpisodes,
                                 onCheckedChange = {
                                     onUpdateAssistant(assistant.copy(ragIncludeEpisodes = it))
@@ -190,7 +190,7 @@ fun AssistantRagMemorySubPage(
                         )
                     },
                     tail = {
-                        Switch(
+                        HapticSwitch(
                             checked = assistant.enableRecentChatsReference,
                             onCheckedChange = {
                                 onUpdateAssistant(

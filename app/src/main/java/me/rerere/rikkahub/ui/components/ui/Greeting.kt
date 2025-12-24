@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -37,7 +37,7 @@ fun Greeting(
     AnimatedContent(
         targetState = getGreetingMessage(),
         transitionSpec = {
-            fadeIn(tween(250)) togetherWith fadeOut(tween(250))
+            fadeIn(spring(dampingRatio = 0.6f, stiffness = 400f)) togetherWith fadeOut(spring(dampingRatio = 0.6f, stiffness = 400f))
         },
         label = "greeting_animation",
         modifier = modifier

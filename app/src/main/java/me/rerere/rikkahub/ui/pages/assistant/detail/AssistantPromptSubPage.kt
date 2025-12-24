@@ -32,7 +32,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -546,121 +546,6 @@ fun AssistantPromptSubPage(
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // QUICK MESSAGES
-        // ═══════════════════════════════════════════════════════════════════
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) 
-                    MaterialTheme.colorScheme.surfaceContainerLow 
-                else 
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.assistant_page_quick_messages),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.assistant_page_quick_messages_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    assistant.quickMessages.fastForEachIndexed { index, quickMessage ->
-                        // Each quick message in its own card
-                        Surface(
-                            color = MaterialTheme.colorScheme.background,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    DebouncedTextField(
-                                        value = quickMessage.title,
-                                        onValueChange = { title ->
-                                            onUpdate(
-                                                assistant.copy(
-                                                    quickMessages = assistant.quickMessages.mapIndexed { i, msg ->
-                                                        if (i == index) {
-                                                            msg.copy(title = title)
-                                                        } else {
-                                                            msg
-                                                        }
-                                                    }
-                                                )
-                                            )
-                                        },
-                                        stateKey = "quick_title_$index",
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            onUpdate(
-                                                assistant.copy(
-                                                    quickMessages = assistant.quickMessages.filterIndexed { i, _ ->
-                                                        i != index
-                                                    }
-                                                )
-                                            )
-                                        }
-                                    ) {
-                                        Icon(Icons.Rounded.Close, null)
-                                    }
-                                }
-                                DebouncedTextField(
-                                    value = quickMessage.content,
-                                    onValueChange = { text ->
-                                        onUpdate(
-                                            assistant.copy(
-                                                quickMessages = assistant.quickMessages.mapIndexed { i, msg ->
-                                                    if (i == index) {
-                                                        msg.copy(content = text)
-                                                    } else {
-                                                        msg
-                                                    }
-                                                }
-                                            )
-                                        )
-                                    },
-                                    stateKey = "quick_content_$index",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 6
-                                )
-                            }
-                        }
-                    }
-                    Button(
-                        onClick = {
-                            onUpdate(
-                                assistant.copy(
-                                    quickMessages = assistant.quickMessages + QuickMessage()
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Rounded.Add, null)
-                    }
-                }
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
         // REGEX RULES
         // ═══════════════════════════════════════════════════════════════════
         Column(
@@ -751,7 +636,7 @@ private fun AssistantRegexCard(
                         .weight(1f)
                         .widthIn(max = 200.dp)
                 )
-                Switch(
+                HapticSwitch(
                     checked = regex.enabled,
                     onCheckedChange = { enabled ->
                         onUpdate(

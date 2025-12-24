@@ -1,0 +1,194 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :ai:clean
+> Task :app:clean
+> Task :common:clean
+> Task :document:clean
+> Task :highlight:clean
+> Task :search:clean
+> Task :tts:clean
+> Task :app:baselineprofile:clean UP-TO-DATE
+> Task :ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :ai:preBuild UP-TO-DATE
+> Task :ai:preDebugBuild UP-TO-DATE
+> Task :ai:generateDebugResValues
+> Task :ai:generateDebugResources
+> Task :ai:packageDebugResources
+> Task :ai:processDebugNavigationResources
+> Task :common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :common:preBuild UP-TO-DATE
+> Task :common:preDebugBuild UP-TO-DATE
+> Task :common:generateDebugResValues
+> Task :common:generateDebugResources
+> Task :common:packageDebugResources
+> Task :common:processDebugNavigationResources
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :ai:javaPreCompileDebug
+> Task :common:javaPreCompileDebug
+> Task :app:generateDebugBuildConfig
+> Task :common:parseDebugLocalResources
+> Task :ai:parseDebugLocalResources
+> Task :ai:compileDebugLibraryResources
+> Task :document:preBuild UP-TO-DATE
+> Task :document:preDebugBuild UP-TO-DATE
+> Task :common:writeDebugAarMetadata
+> Task :ai:writeDebugAarMetadata
+> Task :highlight:preBuild UP-TO-DATE
+> Task :highlight:preDebugBuild UP-TO-DATE
+> Task :document:writeDebugAarMetadata
+> Task :search:preBuild UP-TO-DATE
+> Task :search:preDebugBuild UP-TO-DATE
+> Task :highlight:writeDebugAarMetadata
+> Task :tts:preBuild UP-TO-DATE
+> Task :tts:preDebugBuild UP-TO-DATE
+> Task :search:writeDebugAarMetadata
+> Task :tts:writeDebugAarMetadata
+> Task :document:processDebugNavigationResources
+> Task :common:generateDebugRFile
+> Task :ai:generateDebugRFile
+> Task :app:checkDebugAarMetadata
+> Task :highlight:processDebugNavigationResources
+> Task :search:processDebugNavigationResources
+> Task :tts:processDebugNavigationResources
+> Task :app:processDebugNavigationResources
+> Task :app:generateDebugResValues
+> Task :app:compileDebugNavigationResources
+> Task :app:injectCrashlyticsMappingFileIdDebug
+> Task :app:injectCrashlyticsVersionControlInfoDebug
+> Task :app:processDebugGoogleServices
+> Task :document:generateDebugResValues
+> Task :document:generateDebugResources
+> Task :document:packageDebugResources
+> Task :highlight:generateDebugResValues
+> Task :highlight:generateDebugResources
+> Task :highlight:packageDebugResources
+> Task :search:generateDebugResValues
+> Task :search:generateDebugResources
+> Task :search:packageDebugResources
+> Task :tts:generateDebugResValues
+> Task :tts:generateDebugResources
+> Task :tts:packageDebugResources
+> Task :app:mapDebugSourceSetPaths
+> Task :ai:extractDebugSupportedLocales
+> Task :app:extractDebugSupportedLocales
+> Task :common:extractDebugSupportedLocales
+> Task :document:extractDebugSupportedLocales
+> Task :highlight:extractDebugSupportedLocales
+> Task :search:extractDebugSupportedLocales
+> Task :tts:extractDebugSupportedLocales
+> Task :app:generateDebugResources
+> Task :app:generateDebugLocaleConfig
+> Task :app:createDebugCompatibleScreenManifests
+> Task :common:compileDebugKotlin
+> Task :common:compileDebugJavaWithJavac NO-SOURCE
+> Task :common:bundleLibCompileToJarDebug
+> Task :app:packageDebugResources
+> Task :app:mergeDebugResources
+> Task :ai:extractDeepLinksDebug
+> Task :app:extractDeepLinksDebug
+> Task :common:extractDeepLinksDebug
+> Task :document:extractDeepLinksDebug
+> Task :highlight:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :search:extractDeepLinksDebug
+> Task :tts:extractDeepLinksDebug
+> Task :common:compileDebugLibraryResources
+> Task :document:compileDebugLibraryResources
+> Task :document:parseDebugLocalResources
+> Task :document:processDebugManifest
+> Task :search:processDebugManifest
+> Task :tts:processDebugManifest
+> Task :ai:processDebugManifest
+> Task :highlight:processDebugManifest
+> Task :common:processDebugManifest
+> Task :highlight:compileDebugLibraryResources
+> Task :highlight:parseDebugLocalResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :document:generateDebugRFile
+> Task :search:compileDebugLibraryResources
+> Task :highlight:generateDebugRFile
+> Task :tts:compileDebugLibraryResources
+> Task :search:parseDebugLocalResources
+> Task :tts:parseDebugLocalResources
+> Task :search:generateDebugRFile
+> Task :document:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :tts:generateDebugRFile
+> Task :app:processDebugManifestForPackage
+> Task :highlight:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :document:javaPreCompileDebug
+> Task :search:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :highlight:javaPreCompileDebug
+> Task :tts:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :search:javaPreCompileDebug
+> Task :tts:javaPreCompileDebug
+> Task :document:compileDebugKotlin
+> Task :highlight:compileDebugKotlin
+
+> Task :tts:compileDebugKotlin
+w: file:///C:/Users/julia/Documents/GitHub/LastChat/tts/src/main/java/me/rerere/tts/provider/providers/SystemTTSProvider.kt:80:34 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+
+> Task :document:compileDebugJavaWithJavac
+> Task :highlight:compileDebugJavaWithJavac NO-SOURCE
+> Task :tts:compileDebugJavaWithJavac NO-SOURCE
+> Task :highlight:bundleLibCompileToJarDebug
+> Task :document:bundleLibCompileToJarDebug
+> Task :tts:bundleLibCompileToJarDebug
+> Task :ai:compileDebugKotlin
+> Task :ai:compileDebugJavaWithJavac NO-SOURCE
+> Task :ai:bundleLibCompileToJarDebug
+> Task :app:processDebugResources
+> Task :search:compileDebugKotlin
+> Task :search:compileDebugJavaWithJavac NO-SOURCE
+> Task :search:bundleLibCompileToJarDebug
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin FAILED
+.\gradlew.bat : e: file:///C:/Users/julia/Documents/G
+itHub/LastChat/app/src/main/java/me/rerere/rikkahub/u
+i/components/message/ChatMessageActions.kt:144:9 
+Unresolved reference 'ChatMessageBranchSelector'.
+At line:1 char:1
++ .\gradlew.bat clean compileDebugKotlin --no-daemon 
+--console=plain 2> ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file 
+   :///C:/U...ranchSelector'.:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/julia/Documents/GitHub/LastChat/a
+pp/src/main/java/me/rerere/rikkahub/ui/pages/setting/
+SettingDisplayPage.kt:48:55 Unresolved reference 
+'PresetThemeButtonGroup'.
+e: file:///C:/Users/julia/Documents/GitHub/LastChat/a
+pp/src/main/java/me/rerere/rikkahub/ui/pages/setting/
+SettingDisplayPage.kt:131:21 Unresolved reference 
+'PresetThemeButtonGroup'.
+e: file:///C:/Users/julia/Documents/GitHub/LastChat/a
+pp/src/main/java/me/rerere/rikkahub/ui/pages/setting/
+SettingDisplayPage.kt:135:71 Unresolved reference 
+'it'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.ko
+tlin.compilerRunner.GradleCompilerRunnerWithWorkers$G
+radleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack 
+trace.
+> Run with --info or --debug option to get more log 
+output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 52s
+116 actionable tasks: 115 executed, 1 up-to-date

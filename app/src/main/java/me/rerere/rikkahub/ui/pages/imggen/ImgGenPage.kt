@@ -179,8 +179,8 @@ fun ImageGenPage(
         AnimatedContent(
             targetState = showGallery,
             transitionSpec = {
-                fadeIn(animationSpec = tween(300)) togetherWith
-                        fadeOut(animationSpec = tween(300))
+                fadeIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)) togetherWith
+                        fadeOut(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f))
             },
             modifier = modifier.padding(innerPadding),
             label = "view_crossfade"
@@ -217,8 +217,8 @@ private fun TopBar(
             AnimatedContent(
                 targetState = showGallery,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(200)) togetherWith
-                            fadeOut(animationSpec = tween(200))
+                    fadeIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)) togetherWith
+                            fadeOut(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f))
                 },
                 label = "title_crossfade"
             ) { isGallery ->
@@ -246,8 +246,8 @@ private fun TopBar(
                 AnimatedContent(
                     targetState = showGallery,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith
-                                fadeOut(animationSpec = tween(200))
+                        fadeIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)) togetherWith
+                                fadeOut(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f))
                     },
                     label = "action_crossfade"
                 ) { isGallery ->
@@ -388,7 +388,7 @@ private fun ImageGenScreen(
     
     val imageAlpha by animateFloatAsState(
         targetValue = if (animationPhase >= 3) 1f else 0f,
-        animationSpec = tween(200),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "image_alpha"
     )
     

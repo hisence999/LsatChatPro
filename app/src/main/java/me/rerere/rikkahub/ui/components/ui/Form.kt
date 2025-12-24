@@ -11,7 +11,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -73,7 +73,7 @@ private fun FormItemPreview() {
             Text("Description")
         },
         tail = {
-            Switch(
+            HapticSwitch(
                 checked = true,
                 onCheckedChange = {}
             )
