@@ -1,17 +1,12 @@
-name: Build APK (Debug/Release)
+name: Android Release Build
 
 on:
-  workflow_dispatch:
-    inputs:
-      build:
-        description: Choose what to build
-        required: true
-        type: choice
-        default: both
-        options:
-          - debug
-          - release
-          - both
+  push:
+    tags:
+      - "[0-9]*"     
+
+permissions:
+  contents: write     
 
 jobs:
   build:
@@ -31,15 +26,12 @@ jobs:
           cache: gradle
 
       - name: Prepare build files
-        shell: bash
         run: |
           set -euo pipefail
 
           mkdir -p app
           echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
-
           test -s app/google-services.json
-          echo "google-services.json OK, size=$(wc -c < app/google-services.json) bytes"
 
           if [ -n "${{ secrets.KEY_BASE64 }}" ]; then
             echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
@@ -49,30 +41,27 @@ jobs:
             echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
           fi
 
-      - name: Gradle Build
-        shell: bash
+      - name: Gradle Build Release
         run: |
           set -euo pipefail
           chmod +x gradlew
 
-          if [ "${{ inputs.build }}" = "debug" ]; then
-            ./gradlew :app:assembleDebug --no-daemon --stacktrace
-          elif [ "${{ inputs.build }}" = "release" ]; then
-            ./gradlew :app:assembleRelease --no-daemon --stacktrace
-          else
-            ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
-          fi
+          echo "Building release APK..."
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Upload Debug APK
+      - name: Upload build output (artifact)
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.build == 'debug' || inputs.build == 'both' }}
         with:
-          name: apk-debug
-          path: app/build/outputs/apk/debug/*.apk
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.build == 'release' || inputs.build == 'both' }}
-        with:
-          name: apk-release
+          name: release-apk
           path: app/build/outputs/apk/release/*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
