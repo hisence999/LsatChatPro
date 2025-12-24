@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.pager.HorizontalPager
@@ -60,11 +61,12 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -682,11 +684,6 @@ private fun ModelList(
     var isUnlocked by remember { mutableStateOf(false) }
     var neighborsUnlocked by remember { mutableStateOf(false) }
     
-    // State for reorder ripple effect
-    var reorderDropModelId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
-    var reorderDropTrigger by remember { mutableStateOf(0) }
-    val ripplePushDp = 10.dp
-    val ripplePushPx = with(density) { ripplePushDp.toPx() }
     
     val canDelete = providerSetting.models.size > 1
     
@@ -744,33 +741,7 @@ private fun ModelList(
                     state = reorderableLazyListState,
                     key = item.id
                 ) { isDragging ->
-                    // Ripple animation for this item
-                    val rippleOffset = remember { androidx.compose.animation.core.Animatable(0f) }
-                    androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
-                        if (reorderDropTrigger > 0 && reorderDropModelId != null && reorderDropModelId != item.id) {
-                            val dropIndex = providerSetting.models.indexOfFirst { it.id == reorderDropModelId }
-                            if (dropIndex >= 0) {
-                                val distance = kotlin.math.abs(index - dropIndex)
-                                if (distance <= 3) {
-                                    val pushAmount = when (distance) {
-                                        1 -> ripplePushPx
-                                        2 -> ripplePushPx * 0.6f
-                                        3 -> ripplePushPx * 0.3f
-                                        else -> 0f
-                                    }
-                                    val direction = if (index < dropIndex) -1f else 1f
-                                    rippleOffset.animateTo(
-                                        targetValue = pushAmount * direction,
-                                        animationSpec = androidx.compose.animation.core.tween(80)
-                                    )
-                                    rippleOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 400f)
-                                    )
-                                }
-                            }
-                        }
-                    }
+
                     androidx.compose.runtime.key(canDelete) {
                         ModelCard(
                             model = item,
@@ -804,8 +775,6 @@ private fun ModelList(
                                         },
                                         onDragStopped = {
                                             haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Thud)
-                                            reorderDropModelId = item.id
-                                            reorderDropTrigger++
                                         }
                                     )
                                 ) {
@@ -816,7 +785,6 @@ private fun ModelList(
                                 }
                             },
                             modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .graphicsLayer {
                                     if (isDragging) {
                                         scaleX = 0.95f
@@ -1548,7 +1516,7 @@ private fun ImageGenerationMethodSelector(
             stringResource(R.string.setting_provider_page_image_input),
             style = MaterialTheme.typography.bodyMedium
         )
-        Switch(
+        HapticSwitch(
             checked = supportsImageInput,
             onCheckedChange = onImageInputChanged
         )
@@ -1777,6 +1745,7 @@ private fun ModelCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(0.dp))
                 .background(
                     color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) 
                         MaterialTheme.colorScheme.surfaceContainerLow 
@@ -1898,7 +1867,7 @@ private fun BuiltInToolsSettings(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
+                    HapticSwitch(
                         checked = tool in tools,
                         onCheckedChange = { checked ->
                             if (checked) {

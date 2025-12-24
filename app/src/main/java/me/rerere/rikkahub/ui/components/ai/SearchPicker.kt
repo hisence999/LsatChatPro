@@ -24,7 +24,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalAbsoluteTonalElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -244,7 +244,7 @@ private fun AppSearchSettings(
             totalCount == 1 -> RoundedCornerShape(24.dp) // Single item
             index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
             index == totalCount - 1 -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-            else -> RoundedCornerShape(10.dp)
+            else -> RoundedCornerShape(12.dp)
         }
     }
     
@@ -371,7 +371,7 @@ private fun SearchToggleItem(
         ) {
             Icon(Icons.Rounded.Settings, null, tint = contentColor)
         }
-        Switch(
+        HapticSwitch(
             checked = enableSearch,
             onCheckedChange = onToggleSearch
         )
@@ -432,12 +432,12 @@ private fun SearchProviderItem(
     
     val containerColor by animateColorAsState(
         targetValue = targetContainerColor,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "containerColor"
     )
     val contentColor by animateColorAsState(
         targetValue = targetContentColor,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "contentColor"
     )
     
@@ -513,7 +513,7 @@ private fun BuiltInSearchSetting(
                     )
                 }
 
-                Switch(
+                HapticSwitch(
                     checked = preferBuiltInSearch,
                     onCheckedChange = { checked ->
                         onTogglePreferBuiltInSearch(checked)

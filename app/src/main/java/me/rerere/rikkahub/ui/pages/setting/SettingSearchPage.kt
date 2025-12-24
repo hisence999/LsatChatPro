@@ -50,7 +50,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
@@ -290,9 +291,6 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
         var isUnlocked by remember { mutableStateOf(false) }
         var neighborsUnlocked by remember { mutableStateOf(false) }
         
-        // State for reorder ripple effect
-        var reorderDropServiceId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
-        var reorderDropTrigger by remember { mutableStateOf(0) }
         
         // Check if delete is allowed (more than 1 service)
         val canDelete = settings.searchServices.size > 1
@@ -302,9 +300,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             neighborsUnlocked = false
         }
         
-        // Ripple animation config
-        val ripplePushDp = 10.dp
-        val ripplePushPx = with(density) { ripplePushDp.toPx() }
+
         
         // Delete confirmation state
         var showDeleteDialog by remember { mutableStateOf(false) }
@@ -348,37 +344,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                     0f
                 }
                 
-                // Ripple animation
-                val rippleOffset = remember { Animatable(0f) }
-                LaunchedEffect(reorderDropTrigger) {
-                    if (reorderDropTrigger > 0 && reorderDropServiceId != null && reorderDropServiceId != service.id) {
-                        val dropIndex = settings.searchServices.indexOfFirst { it.id == reorderDropServiceId }
-                        if (dropIndex >= 0) {
-                            val distance = kotlin.math.abs(index - dropIndex)
-                            if (distance <= 3) {
-                                val pushAmount = when (distance) {
-                                    1 -> ripplePushPx
-                                    2 -> ripplePushPx * 0.6f
-                                    3 -> ripplePushPx * 0.3f
-                                    else -> 0f
-                                }
-                                val direction = if (index < dropIndex) -1f else 1f
-                                rippleOffset.animateTo(
-                                    targetValue = pushAmount * direction,
-                                    animationSpec = tween(80)
-                                )
-                                rippleOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = 0.5f,
-                                        stiffness = 400f
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-                
+
                 ReorderableItem(
                     state = reorderableState,
                     key = service.id
@@ -405,7 +371,6 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                                 showDeleteDialog = true
                             },
                             modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .scale(if (isDragging) 0.95f else 1f)
                                 .fillMaxWidth()
                         ) {
@@ -424,8 +389,6 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                                             },
                                             onDragStopped = {
                                                 haptics.perform(HapticPattern.Thud)
-                                                reorderDropServiceId = service.id
-                                                reorderDropTrigger++
                                             }
                                         )
                                     ) {
@@ -749,7 +712,7 @@ private fun AddSearchServiceButton(
                             val shape = when (position) {
                                 ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
                                 ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                                ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+                                ItemPosition.MIDDLE -> RoundedCornerShape(12.dp)
                                 ItemPosition.ONLY -> RoundedCornerShape(24.dp)
                             }
                             
@@ -826,6 +789,7 @@ private fun SearchServiceItemContent(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(0.dp))
             .background(if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable {
                 haptics.perform(HapticPattern.Pop)
@@ -1419,7 +1383,7 @@ private fun BochaOptions(
             Text(stringResource(R.string.setting_search_page_summary_desc))
         },
         tail = {
-            Switch(
+            HapticSwitch(
                 checked = options.summary,
                 onCheckedChange = { checked ->
                     onUpdateOptions(
@@ -1536,7 +1500,7 @@ private fun NanoGPTOptions(
             Text(stringResource(R.string.setting_search_page_include_images_desc))
         },
         tail = {
-            Switch(
+            HapticSwitch(
                 checked = options.includeImages,
                 onCheckedChange = { checked ->
                     onUpdateOptions(
@@ -1557,7 +1521,7 @@ private fun NanoGPTOptions(
             Text(stringResource(R.string.setting_search_page_stealth_mode_desc))
         },
         tail = {
-            Switch(
+            HapticSwitch(
                 checked = options.stealthMode,
                 onCheckedChange = { checked ->
                     onUpdateOptions(

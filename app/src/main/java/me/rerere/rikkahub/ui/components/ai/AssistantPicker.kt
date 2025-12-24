@@ -4,7 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -321,7 +321,7 @@ fun AssistantPickerSheet(
                         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                             Crossfade(
                                 targetState = showSpinner,
-                                animationSpec = tween(200),
+                                animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
                                 label = "edit_spinner"
                             ) { transitioning ->
                                 if (transitioning) {

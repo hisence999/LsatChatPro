@@ -37,7 +37,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -310,7 +310,7 @@ private fun RpStyleRuleItem(
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
-                    Switch(
+                    HapticSwitch(
                         checked = rule.enabled,
                         onCheckedChange = onToggle
                     )

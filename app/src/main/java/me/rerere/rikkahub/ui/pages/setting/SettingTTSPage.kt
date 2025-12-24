@@ -30,7 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -97,6 +97,7 @@ import me.rerere.rikkahub.ui.components.ui.ItemPosition
 import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.text.style.TextOverflow
@@ -162,9 +163,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
         var isUnlocked by remember { mutableStateOf(false) }
         var neighborsUnlocked by remember { mutableStateOf(false) }
         
-        // State for reorder ripple effect
-        var reorderDropProviderId by remember { mutableStateOf<kotlin.uuid.Uuid?>(null) }
-        var reorderDropTrigger by remember { mutableStateOf(0) }
+        
         val density = androidx.compose.ui.platform.LocalDensity.current
         
         // Check if delete is allowed (more than 1 provider)
@@ -175,9 +174,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
             neighborsUnlocked = false
         }
         
-        // Ripple animation config
-        val ripplePushDp = 10.dp
-        val ripplePushPx = with(density) { ripplePushDp.toPx() }
+
         
         // Delete confirmation state
         var showDeleteDialog by remember { mutableStateOf(false) }
@@ -237,34 +234,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                     0f
                 }
                 
-                // Ripple animation
-                val rippleOffset = remember { Animatable(0f) }
-                androidx.compose.runtime.LaunchedEffect(reorderDropTrigger) {
-                    if (reorderDropTrigger > 0 && reorderDropProviderId != null && reorderDropProviderId != provider.id) {
-                        val dropIndex = settings.ttsProviders.indexOfFirst { it.id == reorderDropProviderId }
-                        if (dropIndex >= 0) {
-                            val distance = kotlin.math.abs(index - dropIndex)
-                            if (distance <= 3) {
-                                val pushAmount = when (distance) {
-                                    1 -> ripplePushPx
-                                    2 -> ripplePushPx * 0.6f
-                                    3 -> ripplePushPx * 0.3f
-                                    else -> 0f
-                                }
-                                val direction = if (index < dropIndex) -1f else 1f
-                                rippleOffset.animateTo(
-                                    targetValue = pushAmount * direction,
-                                    animationSpec = tween(80)
-                                )
-                                rippleOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f)
-                                )
-                            }
-                        }
-                    }
-                }
-                
+
                 ReorderableItem(
                     state = reorderableState,
                     key = provider.id,
@@ -293,7 +263,6 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                                 showDeleteDialog = true
                             },
                             modifier = Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset(0, rippleOffset.value.toInt()) }
                                 .scale(if (isDragging) 0.95f else 1f)
                                 .fillMaxWidth()
                         ) {
@@ -319,8 +288,6 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                                         },
                                         onDragStopped = {
                                             haptics.perform(HapticPattern.Thud)
-                                            reorderDropProviderId = provider.id
-                                            reorderDropTrigger++
                                         }
                                     )
                                 ) {
@@ -660,7 +627,7 @@ private fun TtsFilterRuleItem(
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
-                    Switch(
+                    HapticSwitch(
                         checked = rule.enabled,
                         onCheckedChange = onToggle
                     )
@@ -883,7 +850,7 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
                         val shape = when (position) {
                             ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
                             ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                            ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
+                            ItemPosition.MIDDLE -> RoundedCornerShape(12.dp)
                             ItemPosition.ONLY -> RoundedCornerShape(24.dp)
                         }
                         
@@ -1004,7 +971,7 @@ private fun TTSProviderItemContent(
         } else {
             if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = tween(300),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "selectionBackground"
     )
     val textColor by androidx.compose.animation.animateColorAsState(
@@ -1013,13 +980,14 @@ private fun TTSProviderItemContent(
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = tween(300),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "textColor"
     )
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(0.dp))
             .background(backgroundColor)
             .clickable {
                 haptics.perform(HapticPattern.Pop)

@@ -1,11 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,9 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -53,20 +47,6 @@ fun <T> Select(
     var expanded by remember { mutableStateOf(false) }
     val haptics = rememberPremiumHaptics()
 
-    // Interaction & Animation
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Physics: Round/Clicky Standard for button
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.6f,
-            stiffness = 300f
-        ),
-        label = "select_scale"
-    )
-
     // Physics: Standard spring for rotation
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -80,25 +60,16 @@ fun <T> Select(
     ExposedDropdownMenuBox(
         modifier = modifier,
         expanded = expanded,
-        onExpandedChange = { 
+        onExpandedChange = { newExpanded ->
             haptics.perform(HapticPattern.Pop)
-            expanded = it 
+            expanded = newExpanded 
         }
     ) {
         Surface(
-            onClick = {
-                haptics.perform(HapticPattern.Pop)
-                expanded = !expanded
-            },
             tonalElevation = 4.dp,
             shape = AppShapes.ButtonPill,
-            interactionSource = interactionSource,
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
         ) {
             Row(
                 modifier = Modifier

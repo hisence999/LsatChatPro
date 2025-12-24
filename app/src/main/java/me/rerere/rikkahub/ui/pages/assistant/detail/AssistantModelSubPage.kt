@@ -21,7 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -69,7 +69,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -101,7 +101,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -153,7 +153,7 @@ fun AssistantModelSubPage(
                 title = stringResource(R.string.assistant_page_temperature),
                 subtitle = tempLabel,
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.temperature != null,
                         onCheckedChange = { enabled ->
                             onUpdate(assistant.copy(temperature = if (enabled) 1.0f else null))
@@ -173,7 +173,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(
@@ -212,7 +212,7 @@ fun AssistantModelSubPage(
                 title = stringResource(R.string.assistant_page_top_p),
                 subtitle = if (assistant.topP != null) "Enabled (${assistant.topP})" else "Default",
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.topP != null,
                         onCheckedChange = { enabled ->
                             onUpdate(assistant.copy(topP = if (enabled) 0.9f else null))
@@ -232,7 +232,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(
@@ -256,7 +256,7 @@ fun AssistantModelSubPage(
                 title = stringResource(R.string.assistant_page_stream_output),
                 subtitle = stringResource(R.string.assistant_page_stream_output_desc),
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.streamOutput,
                         onCheckedChange = { onUpdate(assistant.copy(streamOutput = it)) }
                     )

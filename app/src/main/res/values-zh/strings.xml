@@ -992,5 +992,18 @@
   <string name="a11y_messages">消息</string>
   <string name="a11y_chat_options">对话选项</string>
   <string name="a11y_make_normal_chat">转为普通对话</string>
+    <string name="assistant_page_tab_profile">个人资料</string>
+    <string name="assistant_page_tab_profile_desc">名称、头像、标签、外观</string>
+    <string name="assistant_page_tab_prompt_desc">系统提示词、模板、正则</string>
+    <string name="assistant_page_tab_model_desc">聊天模型、参数、推理</string>
+    <string name="assistant_page_tab_memory_desc">记忆设置、最近聊天、RAG</string>
+    <string name="assistant_page_tab_tools_search">工具与搜索</string>
+    <string name="assistant_page_tab_tools_search_desc">搜索提供商、本地工具、MCP</string>
+    <string name="assistant_page_tab_advanced">高级设置</string>
+    <string name="assistant_page_tab_advanced_desc">通知、自定义Header</string>
+    <string name="assistant_page_group_configuration">配置</string>
+    <string name="assistant_page_group_capabilities">功能与能力</string>
+    <string name="assistant_page_group_other">其他</string>
+    <string name="a11y_expand">展开</string>
 </resources>
 

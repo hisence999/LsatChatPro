@@ -15,7 +15,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,7 +99,7 @@ fun AssistantMemoryConsolidationSubPage(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        HapticSwitch(
                             checked = assistant.enableMemory,
                             onCheckedChange = { onUpdate(assistant.copy(enableMemory = it)) }
                         )
@@ -124,7 +124,7 @@ fun AssistantMemoryConsolidationSubPage(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Switch(
+                            HapticSwitch(
                                 checked = assistant.enableHumanMemory,
                                 onCheckedChange = { onUpdate(assistant.copy(enableHumanMemory = it)) }
                             )

@@ -86,7 +86,7 @@ fun SettingGroupItem(
         },
         enabled = onClick != null,
         color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()

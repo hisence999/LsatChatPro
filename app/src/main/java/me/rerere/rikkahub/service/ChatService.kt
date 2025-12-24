@@ -434,10 +434,21 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = buildList {
-                    // Use assistant's searchMode instead of global enableWebSearch
+                    // Check if we should use built-in search instead of external tools
+                    // Built-in search is used when:
+                    // 1. preferBuiltInSearch is enabled on assistant
+                    // 2. Model supports built-in search (Gemini series with search grounding)
+                    val modelSupportsBuiltIn = model.tools.isNotEmpty() || 
+                        me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
+                    val useBuiltInSearch = assistant.preferBuiltInSearch && modelSupportsBuiltIn
+                    
+                    // Use assistant's searchMode for external tools (only if NOT using built-in)
                     when (val searchMode = assistant.searchMode) {
                         is AssistantSearchMode.Provider -> {
-                            addAll(createSearchTool(settings, searchMode.index))
+                            // Only add external search tools if NOT using built-in search
+                            if (!useBuiltInSearch) {
+                                addAll(createSearchTool(settings, searchMode.index))
+                            }
                         }
                         is AssistantSearchMode.BuiltIn -> {
                             // Built-in search is handled via model.tools, no external tool needed
@@ -826,10 +837,13 @@ class ChatService(
                 result.choices[0].message?.toContentText()?.split("\n")?.map { it.trim() }
                     ?.filter { it.isNotBlank() } ?: emptyList()
 
-            saveConversation(
-                conversationId,
-                conversation.copy(chatSuggestions = suggestions)
-            )
+            // Fetch fresh conversation from DB to avoid overwriting concurrent updates (e.g., title generation)
+            conversationRepo.getConversationById(conversationId)?.let { freshConversation ->
+                saveConversation(
+                    conversationId,
+                    freshConversation.copy(chatSuggestions = suggestions)
+                )
+            }
         }.onFailure {
             it.printStackTrace()
         }

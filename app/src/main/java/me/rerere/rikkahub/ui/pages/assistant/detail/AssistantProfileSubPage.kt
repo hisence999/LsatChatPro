@@ -11,7 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -97,7 +97,7 @@ fun AssistantProfileSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -133,7 +133,7 @@ fun AssistantProfileSubPage(
                 title = stringResource(R.string.assistant_page_use_assistant_avatar),
                 subtitle = stringResource(R.string.assistant_page_use_assistant_avatar_desc),
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.useAssistantAvatar,
                         onCheckedChange = { onUpdate(assistant.copy(useAssistantAvatar = it)) }
                     )

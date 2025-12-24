@@ -23,7 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -67,7 +67,7 @@ fun AssistantAdvancedSubPage(
                 title = stringResource(R.string.assistant_page_enable_spontaneous_messages_title),
                 subtitle = stringResource(R.string.assistant_page_enable_spontaneous_messages_subtitle),
                 trailing = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.enableSpontaneous,
                         onCheckedChange = { enabled ->
                             if (enabled) {
@@ -156,7 +156,7 @@ fun AssistantAdvancedSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     CustomHeaders(
@@ -173,7 +173,7 @@ fun AssistantAdvancedSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     CustomBodies(

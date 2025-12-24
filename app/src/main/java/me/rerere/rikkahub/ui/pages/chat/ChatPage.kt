@@ -548,9 +548,9 @@ private fun TopBar(
                 targetState = isTemporaryChat,
                 transitionSpec = {
                     androidx.compose.animation.fadeIn(
-                        animationSpec = androidx.compose.animation.core.tween(200)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     ) togetherWith androidx.compose.animation.fadeOut(
-                        animationSpec = androidx.compose.animation.core.tween(200)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     )
                 },
                 label = "title_crossfade"
@@ -592,15 +592,15 @@ private fun TopBar(
                 targetState = isEmpty to isTemporaryChat,
                 transitionSpec = {
                     (androidx.compose.animation.fadeIn(
-                        animationSpec = androidx.compose.animation.core.tween(300)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     ) + androidx.compose.animation.scaleIn(
                         initialScale = 0.85f,
-                        animationSpec = androidx.compose.animation.core.tween(300)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     )) togetherWith (androidx.compose.animation.fadeOut(
-                        animationSpec = androidx.compose.animation.core.tween(300)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     ) + androidx.compose.animation.scaleOut(
                         targetScale = 0.85f,
-                        animationSpec = androidx.compose.animation.core.tween(300)
+                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                     ))
                 },
                 label = "topbar_actions"

@@ -66,7 +66,7 @@ import androidx.compose.material3.LocalAbsoluteTonalElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -440,9 +440,9 @@ fun ChatInput(
                                                 targetState = !state.isEmpty() || state.loading,
                                                 transitionSpec = {
                                                     androidx.compose.animation.fadeIn(
-                                                        animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)
+                                                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                                                     ) togetherWith androidx.compose.animation.fadeOut(
-                                                        animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)
+                                                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
                                                     )
                                                 },
                                                 label = "button_crossfade"
@@ -662,65 +662,11 @@ private fun TextInputRow(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                 ),
-                leadingIcon = if (assistant.quickMessages.isNotEmpty()) {
-                    {
-                        QuickMessageButton(assistant = assistant, state = state)
-                    }
-                } else null,
                 trailingIcon = trailingIcon
             )
             if (isFullScreen) {
                 FullScreenEditor(state = state) {
                     isFullScreen = false
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickMessageButton(
-    assistant: Assistant,
-    state: ChatInputState,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    IconButton(
-        onClick = {
-            expanded = !expanded
-        }
-    ) {
-        Icon(Icons.Rounded.FlashOn, null)
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .widthIn(min = 200.dp)
-                .width(IntrinsicSize.Min)
-        ) {
-            assistant.quickMessages.forEach { quickMessage ->
-                Surface(
-                    onClick = {
-                        state.appendText(quickMessage.content)
-                    },
-                    color = Color.Transparent,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Text(
-                            text = quickMessage.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = quickMessage.content,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
             }
         }
@@ -1129,7 +1075,7 @@ private fun FilesPicker(
                     Text(stringResource(R.string.chat_page_learning_mode_desc))
                 },
                 trailingContent = {
-                    Switch(
+                    HapticSwitch(
                         checked = assistant.learningMode,
                         onCheckedChange = {
                             onUpdateAssistant(assistant.copy(learningMode = it))

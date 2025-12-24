@@ -173,12 +173,12 @@ fun PhysicsSwipeToDelete(
     
     val animatedTopRadius by androidx.compose.animation.core.animateFloatAsState(
         targetValue = targetTopRadius,
-        animationSpec = androidx.compose.animation.core.tween(200),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "topRadius"
     )
     val animatedBottomRadius by androidx.compose.animation.core.animateFloatAsState(
         targetValue = targetBottomRadius,
-        animationSpec = androidx.compose.animation.core.tween(200),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "bottomRadius"
     )
     

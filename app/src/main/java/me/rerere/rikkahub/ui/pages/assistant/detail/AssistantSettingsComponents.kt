@@ -104,7 +104,7 @@ fun AssistantSettingsItem(
                 scaleX = scale
                 scaleY = scale
             }
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .then(
                 if (onClick != null) {
                     Modifier.clickable(

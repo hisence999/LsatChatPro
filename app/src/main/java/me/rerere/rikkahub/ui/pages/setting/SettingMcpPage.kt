@@ -42,7 +42,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -518,7 +518,7 @@ private fun McpCommonOptionsConfigure(
             ) {
                 Text(stringResource(R.string.setting_mcp_page_enable))
                 Spacer(Modifier.weight(1f))
-                Switch(
+                HapticSwitch(
                     checked = config.commonOptions.enable,
                     onCheckedChange = { enabled ->
                         update(
@@ -856,7 +856,7 @@ private fun McpToolsConfigure(
                             }
                         }
                     }
-                    Switch(
+                    HapticSwitch(
                         checked = tool.enable,
                         onCheckedChange = { newVal ->
                             update(

@@ -27,7 +27,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -178,7 +178,7 @@ fun ChatExportSheet(
                         ListItem(
                             headlineContent = { Text(stringResource(R.string.chat_page_export_image_expand_reasoning)) },
                             trailingContent = {
-                                Switch(
+                                HapticSwitch(
                                     checked = imageExportOptions.expandReasoning,
                                     onCheckedChange = {
                                         imageExportOptions = imageExportOptions.copy(expandReasoning = it)

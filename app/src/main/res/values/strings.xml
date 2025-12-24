@@ -992,5 +992,18 @@
     <string name="setting_tts_page_text_filter_rules_desc_title">Configure text patterns for TTS</string>
     <string name="setting_tts_page_text_filter_rules_empty">No rules yet. Tap + to add one.</string>
     <string name="setting_tts_page_text_filter_rules_title">Text Filter Rules</string>
+    <string name="assistant_page_tab_profile">Profile</string>
+    <string name="assistant_page_tab_profile_desc">Name, avatar, tags, appearance</string>
+    <string name="assistant_page_tab_prompt_desc">System prompts, templates, regex</string>
+    <string name="assistant_page_tab_model_desc">Chat model, parameters, reasoning</string>
+    <string name="assistant_page_tab_memory_desc">Memory settings, recent chats, RAG</string>
+    <string name="assistant_page_tab_tools_search">Tools &amp; Search</string>
+    <string name="assistant_page_tab_tools_search_desc">Search providers, local tools, MCP</string>
+    <string name="assistant_page_tab_advanced">Advanced</string>
+    <string name="assistant_page_tab_advanced_desc">Notifications, custom headers</string>
+    <string name="assistant_page_group_configuration">Configuration</string>
+    <string name="assistant_page_group_capabilities">Capabilities</string>
+    <string name="assistant_page_group_other">Other</string>
+    <string name="a11y_expand">Expand</string>
 </resources>
 

@@ -86,7 +86,8 @@ fun ChatMessageAssistantAvatar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (assistant?.useAssistantAvatar == true) {
+            // Always use assistant avatar when available
+            if (assistant != null) {
                 if (showIcon) {
                     UIAvatar(
                         name = assistant.name,

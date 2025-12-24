@@ -2,7 +2,7 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
@@ -50,16 +50,16 @@ fun TabAnimation(
     val scale = remember { Animatable(1f) }
     val offsetX = remember { Animatable(0f) }
 
-    val animationSpec = tween<Float>(durationMillis = 250, easing = FastOutSlowInEasing)
+    val animationSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) selectedColor else unselectedColor,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "Tab Background Color"
     )
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) onSelectedColor else onUnselectedColor,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
         label = "Tab Content Color"
     )
 

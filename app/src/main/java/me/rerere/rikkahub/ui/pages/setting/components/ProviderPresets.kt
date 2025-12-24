@@ -53,6 +53,12 @@ val PROVIDER_PRESETS = listOf(
         )
     ),
     ProviderPreset(
+        name = "Ollama",
+        description = "Cloud LLMs hosted by Ollama",
+        type = ProviderSetting.OpenAI::class,
+        baseUrl = "https://ollama.com/v1"
+    ),
+    ProviderPreset(
         name = "Vercel",
         description = "Unified API for 100+ models with auto-fallbacks",
         type = ProviderSetting.OpenAI::class,
@@ -64,12 +70,6 @@ val PROVIDER_PRESETS = listOf(
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://api.groq.com/openai/v1",
         useResponseApi = true // Groq supports OpenAI Responses API
-    ),
-    ProviderPreset(
-        name = "Ollama",
-        description = "Cloud LLMs hosted by Ollama",
-        type = ProviderSetting.OpenAI::class,
-        baseUrl = "https://ollama.com/v1"
     ),
     ProviderPreset(
         name = "DeepSeek",
@@ -289,12 +289,7 @@ val PROVIDER_PRESETS = listOf(
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://api.baseten.co/v1"
     ),
-    ProviderPreset(
-        name = "Modal",
-        description = "Serverless GPU compute",
-        type = ProviderSetting.OpenAI::class,
-        baseUrl = "https://api.modal.com/v1"
-    ),
+
     ProviderPreset(
         name = "01.AI Yi",
         description = "Yi open models",
