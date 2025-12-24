@@ -4,70 +4,73 @@
   <img src="docs/app_icon.png" alt="LastChat Icon" width="128" height="128" />
 </div>
 
-**LastChat** is a feature-rich AI assistant application for Android. It is a fork of [RikkaHub](https://github.com/re-ovo/RikkaHub), modified using **Claude 4.5 Opus** and **Gemini 3 Pro**
+**LastChat** 是一款功能丰富的 Android AI 助手应用。它是 [RikkaHub](https://github.com/re-ovo/RikkaHub) 的分支版本，通过 **Claude 4.5 Opus** 和 **Gemini 3 Pro** 进行修改和优化。
 
-This project aims to provide a privacy-focused and highly personalized AI chat experience on Android
+> [!NOTE]
+> 本项目是 LastChat 的中文翻译补充，更新进度可能较慢。
 
-## Gallery
+本项目旨在为 Android 平台提供一个注重隐私且高度个性化的 AI 聊天体验。
+
+## 图赏
 
 <div align="center">
-  <img src="docs/1.1.3_chat.jpg" alt="Chat Interface" width="200" />
+  <img src="docs/1.1.3_chat.jpg" alt="聊天界面" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.3_menu.jpg" alt="Home Screen" width="200" />
+  <img src="docs/1.1.3_menu.jpg" alt="主屏幕" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.7_providers_use.gif" alt="providers page" width="200" />
+  <img src="docs/1.1.7_providers_use.gif" alt="服务商页面" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.2_memory.jpg" alt="Memory Settings" width="200" />
+  <img src="docs/1.1.2_memory.jpg" alt="记忆设置" width="200" />
 </div>
 
-## ✨ Key Features
+## ✨ 核心特性
 
-### Advanced AI Capabilities
-*   **Multi-Provider Support**: Works with **OpenAI**, **Google** and **OpenRouter** out of the box. There's support for custom providers too!
-*   **Local RAG Memory**: Features a sophisticated **Vector-Based Long-Term Memory** system. Assistants can "remember" details from past conversations using embeddings.
-*   **Multi-Modal Inputs**: Interact using Text, Images, Video, and Audio.
+### 先进的 AI 能力
+*   **多服务商支持**: 原生支持 **OpenAI**、**Google** 和 **OpenRouter**。同时也支持自定义服务商！
+*   **本地 RAG 记忆**: 拥有先进的**基于向量的长期记忆**系统。助手可以通过嵌入（embeddings）“记住”过去对话的细节。
+*   **多模态输入**: 支持通过文字、图片、视频和音频进行交互。
 
-### Tools & Integrations
-*   **Local Device Control**: The AI can interact with your device if you want:
-    *   Send notifications
-    *   Launch apps
-    *   Read notifications
-    *   Set alarms/reminders
-*   **Code Execution**: Built-in **JavaScript Engine** (QuickJS) for performing calculations and logic.
-*   **Web Search**: Integrated web search capabilities to fetch real-time information.
+### 工具与集成
+*   **本地设备控制**: AI 可以根据你的需要与设备交互：
+    *   发送通知
+    *   启动应用
+    *   读取通知
+    *   设置闹钟/提醒
+*   **代码执行**: 内置 **JavaScript 引擎** (QuickJS) 用于执行计算和逻辑。
+*   **网络搜索**: 集成网络搜索功能，获取实时信息。
 
-### Assistant Management
-*   **Multiple Personas**: Create, manage, and switch between unlimited custom assistants.
-*   **Tagging System**: Organize assistants with custom tags.
-*   **Import/Export**: Easily share or backup your assistant configurations.
-*   **Global Settings**: Centralized management for memory consolidation and background behaviors.
+### 助手管理
+*   **多重人格**: 创建、管理并无限制切换自定义助手。
+*   **标签系统**: 使用自定义标签组织助手。
+*   **导入/导出**: 轻松分享或备份助手配置。
+*   **全局设置**: 集中管理记忆整合和后台行为。
 
-### Modern & Fluid UI
-*   **Material You**: Fully embraces Material Design 3 with **Dynamic Color** support that adapts to your wallpaper.
-*   **Rich Rendering**: Markdown support with LaTeX for math, code highlighting, and tables.
+### 现代且流畅的 UI
+*   **Material You**: 全面采用 Material Design 3，支持随壁纸改变的**动态色彩**。
+*   **丰富渲染**: 支持带有 LaTeX 数学公式、代码高亮和表格的 Markdown 渲染。
 
-### Additional Modules
-*   **Image Generation**: Dedicated interface for generating images using supported models.
-*   **Translator**: A specialized mode for text translation.
-*   **Text-to-Speech (TTS)**: Supports system TTS or other providers.
+### 附加模块
+*   **图像生成**: 专用于使用支持模型生成图像的界面。
+*   **翻译器**: 专门的文本翻译模式。
+*   **文本转语音 (TTS)**: 支持系统 TTS 或其他服务商。
 
-### Privacy & Data
-*   **Local-First**: Chat history and vector memory are stored locally on your device.
-*   **WebDAV Backup**: Securely sync and backup your data to any WebDAV-compatible server.
+### 隐私与数据
+*   **本地优先**: 聊天记录和向量记忆均本地存储在你的设备上。
+*   **WebDAV 备份**: 安全地同步和备份数据到任何兼容 WebDAV 的服务器。
 
-## Built With
+## 技术栈
 *   **Kotlin** & **Jetpack Compose**
-*   **Koin** for Dependency Injection
-*   **Room** & **DataStore** for persistence
-*   **WorkManager** & **AlarmManager** for reliable background tasks
+*   **Koin** 依赖注入
+*   **Room** & **DataStore** 持久化
+*   **WorkManager** & **AlarmManager** 可靠的后台任务
 
-## Credits
-*   Original Project: [RikkaHub](https://github.com/re-ovo/RikkaHub)
-*   Assistant settings menu layout comes in part from [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
-*   Image cropper is an edited version from the image editor found in [LavenderPhotos](https://github.com/kaii-lb/LavenderPhotos)
-*   Made with **AI Agents** based on:
+## 致谢
+*   原项目: [RikkaHub](https://github.com/re-ovo/RikkaHub)
+*   助手设置菜单布局部分参考自 [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
+*   图片裁剪工具修改自 [LavenderPhotos](https://github.com/kaii-lb/LavenderPhotos) 的图像编辑器
+*   由以下 **AI Agent** 驱动开发:
     *   **Claude 4.5 Opus**
     *   **Gemini 3 Pro**
 
 ---
-*Note: This project is a fork and may contain modifications or features not present in the original RikkaHub repository.*
+*注意：本项目是一个分支版本，可能包含原 RikkaHub 仓库中不存在的修改或功能。*
