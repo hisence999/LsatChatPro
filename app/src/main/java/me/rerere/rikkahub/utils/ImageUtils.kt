@@ -199,6 +199,39 @@ object ImageUtils {
     }
 
     /**
+     * Copy an image to app's internal storage for persistence
+     * 
+     * @param context Android context
+     * @param sourceUri Source image URI
+     * @param fileName Name for the copied file
+     * @return URI of the copied file, or null if failed
+     */
+    fun copyImageToInternalStorage(
+        context: Context,
+        sourceUri: Uri,
+        fileName: String
+    ): Uri? {
+        return runCatching {
+            val iconDir = java.io.File(context.filesDir, "custom_icons")
+            if (!iconDir.exists()) {
+                iconDir.mkdirs()
+            }
+            
+            val destFile = java.io.File(iconDir, fileName)
+            
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            Uri.fromFile(destFile)
+        }.onFailure {
+            it.printStackTrace()
+        }.getOrNull()
+    }
+
+    /**
      * 获取图片的基本信息（不加载到内存）
      *
      * @param context Android上下文

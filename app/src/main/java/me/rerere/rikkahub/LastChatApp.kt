@@ -103,6 +103,19 @@ class LastChatApp : Application() {
                     )
                 }
         }
+        
+        // Update app shortcuts when recently used assistants change
+        val appShortcutManager = me.rerere.rikkahub.utils.AppShortcutManager(this)
+        get<AppScope>().launch {
+            get<SettingsStore>().settingsFlow
+                .map { Triple(it.recentlyUsedAssistants, it.assistants, it.init) }
+                .distinctUntilChanged()
+                .collect { (recentlyUsed, assistants, isInit) ->
+                    if (!isInit) {
+                        appShortcutManager.updateAssistantShortcuts(recentlyUsed, assistants)
+                    }
+                }
+        }
     }
 
     private fun deleteTempFiles() {

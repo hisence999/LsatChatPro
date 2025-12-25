@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.InvertColors
 import androidx.compose.material.icons.rounded.Public
@@ -275,6 +276,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         subtitle = stringResource(R.string.setting_page_about_desc),
                         icon = { Icon(Icons.Rounded.Info, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingAbout) }
+                    )
+                    
+                    val context = LocalContext.current
+                    SettingGroupItem(
+                        title = "Buy Me a Coffee",
+                        subtitle = "Support the development",
+                        icon = { Icon(Icons.Rounded.Favorite, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error) },
+                        onClick = { 
+                            context.openUrl("https://buymeacoffee.com/cocolalilal")
+                        }
                     )
                 }
             }

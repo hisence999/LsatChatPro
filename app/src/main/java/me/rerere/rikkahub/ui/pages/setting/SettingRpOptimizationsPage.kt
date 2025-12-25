@@ -4,6 +4,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -117,7 +119,7 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.rp_optimizations_page_heading),
@@ -129,6 +131,53 @@ fun SettingRpOptimizationsPage(vm: SettingVM = koinViewModel()) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        
+                        // Supported patterns section
+                        Text(
+                            text = "Supported Patterns",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf(
+                                "*" to "Italic text (*text*)",
+                                "**" to "Bold text (**text**)",
+                                "~~" to "Strikethrough (~~text~~)",
+                                "`" to "Inline code (`text`)",
+                                "#" to "Heading 1",
+                                "##" to "Heading 2",
+                                "###" to "Heading 3",
+                                "####" to "Heading 4",
+                                "#####" to "Heading 5",
+                                "######" to "Heading 6",
+                                ">" to "Blockquotes"
+                            ).forEach { (pattern, desc) ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = pattern,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        modifier = Modifier
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                                RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = desc,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -326,8 +375,22 @@ private fun RpStyleRuleDialog(
     onDismiss: () -> Unit,
     onSave: (RpStyleRule) -> Unit
 ) {
-    var pattern by remember { mutableStateOf(rule?.pattern ?: "*") }
-    var colorHex by remember { mutableStateOf(rule?.colorHex ?: "#808080") }
+    var pattern by remember { mutableStateOf(rule?.pattern ?: "") }
+    var colorHex by remember { mutableStateOf(rule?.colorHex ?: "#808080") }    
+    // Parse current color for sliders
+    val currentColor = try {
+        Color(android.graphics.Color.parseColor(colorHex))
+    } catch (e: Exception) {
+        Color.Gray
+    }
+    var red by remember { mutableStateOf((currentColor.red * 255).toInt()) }
+    var green by remember { mutableStateOf((currentColor.green * 255).toInt()) }
+    var blue by remember { mutableStateOf((currentColor.blue * 255).toInt()) }
+    
+    // Update colorHex when RGB sliders change
+    fun updateColorFromRgb() {
+        colorHex = String.format("#%02X%02X%02X", red, green, blue)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -355,9 +418,19 @@ private fun RpStyleRuleDialog(
                         Text(stringResource(R.string.rp_optimizations_pattern_help_text, pattern))
                     }
                 )
+                
                 OutlinedTextField(
                     value = colorHex,
-                    onValueChange = { colorHex = it },
+                    onValueChange = { 
+                        colorHex = it
+                        // Try to update RGB sliders from hex
+                        try {
+                            val c = Color(android.graphics.Color.parseColor(it))
+                            red = (c.red * 255).toInt()
+                            green = (c.green * 255).toInt()
+                            blue = (c.blue * 255).toInt()
+                        } catch (e: Exception) { }
+                    },
                     label = { Text(stringResource(R.string.color_hex)) },
                     placeholder = { Text(stringResource(R.string.color_hex_placeholder)) },
                     singleLine = true,
@@ -376,30 +449,80 @@ private fun RpStyleRuleDialog(
                         )
                     }
                 )
-                // Common color presets
+                
+                // Color presets row
                 Text(
                     text = stringResource(R.string.rp_optimizations_presets),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(
-                        "#808080" to "Gray",
-                        "#FFD700" to "Yellow",
-                        "#87CEEB" to "Blue",
-                        "#90EE90" to "Green",
-                        "#FFB6C1" to "Pink"
-                    ).forEach { (hex, _) ->
+                        "#808080", // Gray
+                        "#FFD700", // Yellow
+                        "#87CEEB", // Light Blue
+                        "#90EE90", // Light Green
+                        "#FFB6C1", // Pink
+                        "#FF6B6B"  // Red
+                    ).forEach { hex ->
                         val color = Color(android.graphics.Color.parseColor(hex))
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(color)
-                                .clickable { colorHex = hex }
+                                .clickable { 
+                                    colorHex = hex
+                                    val c = Color(android.graphics.Color.parseColor(hex))
+                                    red = (c.red * 255).toInt()
+                                    green = (c.green * 255).toInt()
+                                    blue = (c.blue * 255).toInt()
+                                }
                         )
+                    }
+                }
+                
+                // RGB sliders - always visible for custom color selection
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    // Red slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("R", modifier = Modifier.width(20.dp), color = Color.Red)
+                        androidx.compose.material3.Slider(
+                            value = red.toFloat(),
+                            onValueChange = { red = it.toInt(); updateColorFromRgb() },
+                            valueRange = 0f..255f,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("$red", modifier = Modifier.width(36.dp))
+                    }
+                    // Green slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("G", modifier = Modifier.width(20.dp), color = Color.Green)
+                        androidx.compose.material3.Slider(
+                            value = green.toFloat(),
+                            onValueChange = { green = it.toInt(); updateColorFromRgb() },
+                            valueRange = 0f..255f,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("$green", modifier = Modifier.width(36.dp))
+                    }
+                    // Blue slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("B", modifier = Modifier.width(20.dp), color = Color.Blue)
+                        androidx.compose.material3.Slider(
+                            value = blue.toFloat(),
+                            onValueChange = { blue = it.toInt(); updateColorFromRgb() },
+                            valueRange = 0f..255f,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("$blue", modifier = Modifier.width(36.dp))
                     }
                 }
             }
@@ -429,3 +552,4 @@ private fun RpStyleRuleDialog(
         }
     )
 }
+

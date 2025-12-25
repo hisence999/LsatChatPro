@@ -93,6 +93,8 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.AutoAIIconWithUrl
+import me.rerere.rikkahub.ui.components.ui.ProviderIcon
+import me.rerere.rikkahub.ui.components.ui.ModelIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.icons.HeartIcon
@@ -131,17 +133,9 @@ fun ModelSelector(
             ) {
                 model?.let { m ->
                     val provider = m.findProvider(providers = providers)
-                    AutoAIIconWithUrl(
-                        name = m.modelId,
-                        iconUrl = m.iconUrl,
-                        providerSlug = m.providerSlug,
-                        providerBaseUrl = when (provider) {
-                            is ProviderSetting.OpenAI -> provider.baseUrl
-                            is ProviderSetting.Google -> provider.baseUrl
-                            is ProviderSetting.Claude -> provider.baseUrl
-                            null -> null
-                        },
-                        isGoogleProvider = provider is ProviderSetting.Google,
+                    ModelIcon(
+                        model = m,
+                        provider = provider,
                         modifier = Modifier
                             .padding(end = 4.dp)
                             .size(36.dp)
@@ -175,17 +169,9 @@ fun ModelSelector(
         ) {
             if (model != null) {
                 val provider = model.findProvider(providers = providers)
-                AutoAIIconWithUrl(
-                    name = model.modelId,
-                    iconUrl = model.iconUrl,
-                    providerSlug = model.providerSlug,
-                    providerBaseUrl = when (provider) {
-                        is ProviderSetting.OpenAI -> provider.baseUrl
-                        is ProviderSetting.Google -> provider.baseUrl
-                        is ProviderSetting.Claude -> provider.baseUrl
-                        null -> null
-                    },
-                    isGoogleProvider = provider is ProviderSetting.Google,
+                ModelIcon(
+                    model = model,
+                    provider = provider,
                     modifier = Modifier.size(36.dp),
                     color = Color.Transparent,
                 )
@@ -625,7 +611,10 @@ private fun ColumnScope.ModelList(
                         Text(provider.name)
                     },
                     leadingIcon = {
-                        AutoAIIcon(name = provider.name, modifier = Modifier.size(16.dp))
+                        ProviderIcon(
+                            provider = provider,
+                            modifier = Modifier.size(16.dp)
+                        )
                     },
                 )
             }
@@ -706,18 +695,10 @@ private fun ModelItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                AutoAIIconWithUrl(
-                    name = model.modelId,
-                    iconUrl = model.iconUrl,
-                    providerSlug = model.providerSlug,
-                    providerBaseUrl = when (providerSetting) {
-                        is ProviderSetting.OpenAI -> providerSetting.baseUrl
-                        is ProviderSetting.Google -> providerSetting.baseUrl
-                        is ProviderSetting.Claude -> providerSetting.baseUrl
-                    },
-                    isGoogleProvider = providerSetting is ProviderSetting.Google,
-                    modifier = Modifier
-                        .size(32.dp),
+                ModelIcon(
+                    model = model,
+                    provider = providerSetting,
+                    modifier = Modifier.size(32.dp),
                     color = Color.Transparent,
                     contentColor = if (select) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 )
@@ -786,18 +767,10 @@ private fun ModelItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AutoAIIconWithUrl(
-                        name = model.modelId,
-                        iconUrl = model.iconUrl,
-                        providerSlug = model.providerSlug,
-                        providerBaseUrl = when (providerSetting) {
-                            is ProviderSetting.OpenAI -> providerSetting.baseUrl
-                            is ProviderSetting.Google -> providerSetting.baseUrl
-                            is ProviderSetting.Claude -> providerSetting.baseUrl
-                        },
-                        isGoogleProvider = providerSetting is ProviderSetting.Google,
-                        modifier = Modifier
-                            .size(32.dp),
+                    ModelIcon(
+                        model = model,
+                        provider = providerSetting,
+                        modifier = Modifier.size(32.dp),
                         color = Color.Transparent,
                         contentColor = Color.White
                     )

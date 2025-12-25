@@ -24,7 +24,97 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toCssHex
+import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ProviderSetting
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
+/**
+ * UNIFIED Provider Icon - Use this everywhere a provider icon is needed.
+ * Takes the whole ProviderSetting object to ensure consistent display.
+ * 
+ * Priority:
+ * 1. Custom icon (user-selected)
+ * 2. Local pattern matching
+ * 3. LobeHub CDN
+ * 4. Text avatar fallback
+ */
+@Composable
+fun ProviderIcon(
+    provider: ProviderSetting,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = LocalContentColor.current,
+    padding: Dp = 4.dp,
+) {
+    // Get base URL for provider type detection
+    val baseUrl = when (provider) {
+        is ProviderSetting.OpenAI -> provider.baseUrl
+        is ProviderSetting.Google -> provider.baseUrl
+        is ProviderSetting.Claude -> provider.baseUrl
+    }
+    
+    // Derive provider slug from name for LobeHub lookup
+    val providerSlug = remember(provider.name) {
+        getProviderSlugFromName(provider.name) ?: provider.name.lowercase().replace(" ", "-").replace("_", "-")
+    }
+    
+    AutoAIIconWithUrl(
+        name = provider.name,
+        customIconUri = provider.customIconUri,
+        providerSlug = providerSlug,
+        providerBaseUrl = baseUrl,
+        isGoogleProvider = provider is ProviderSetting.Google,
+        modifier = modifier,
+        loading = loading,
+        color = color,
+        contentColor = contentColor,
+        padding = padding
+    )
+}
+
+/**
+ * UNIFIED Model Icon - Use this everywhere a model icon is needed.
+ * Takes the whole Model object and its parent provider to ensure consistent display.
+ * 
+ * Priority:
+ * 1. Custom icon (user-selected)
+ * 2. Direct icon URL from API
+ * 3. LobeHub CDN via provider slug
+ * 4. Local pattern matching
+ * 5. Provider-specific fallback or text avatar
+ */
+@Composable
+fun ModelIcon(
+    model: Model,
+    provider: ProviderSetting?,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = LocalContentColor.current,
+    padding: Dp = 4.dp,
+) {
+    val baseUrl = when (provider) {
+        is ProviderSetting.OpenAI -> provider.baseUrl
+        is ProviderSetting.Google -> provider.baseUrl
+        is ProviderSetting.Claude -> provider.baseUrl
+        null -> null
+    }
+    
+    AutoAIIconWithUrl(
+        name = model.displayName.ifBlank { model.modelId },
+        iconUrl = model.iconUrl,
+        providerSlug = model.providerSlug,
+        providerBaseUrl = baseUrl,
+        isGoogleProvider = provider is ProviderSetting.Google,
+        customIconUri = model.customIconUri,
+        modifier = modifier,
+        loading = loading,
+        color = color,
+        contentColor = contentColor,
+        padding = padding
+    )
+}
 
 @Composable
 private fun AIIcon(
@@ -257,6 +347,7 @@ fun AutoAIIconWithUrl(
     providerSlug: String? = null,
     providerBaseUrl: String? = null,
     isGoogleProvider: Boolean = false,
+    customIconUri: String? = null,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
@@ -264,6 +355,23 @@ fun AutoAIIconWithUrl(
     padding: Dp = 4.dp,
 ) {
     val darkMode = LocalDarkMode.current
+    
+    // Priority 0: User-selected custom icon (highest priority)
+    if (!customIconUri.isNullOrBlank()) {
+        Surface(
+            modifier = modifier,
+            shape = rememberAvatarShape(loading),
+            color = Color.Transparent,
+        ) {
+            AsyncImage(
+                model = android.net.Uri.parse(customIconUri),
+                contentDescription = name,
+                modifier = Modifier.padding(padding),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+            )
+        }
+        return
+    }
     
     // Determine provider type based on base URL
     val isOpenRouterProvider = providerBaseUrl?.contains("openrouter.ai") == true
@@ -282,9 +390,9 @@ fun AutoAIIconWithUrl(
         return
     }
     
-    // Priority 2: LobeHub CDN via provider slug (ONLY for OpenRouter providers)
+    // Priority 2: LobeHub CDN via provider slug (for any provider with a slug)
     // Skip CDN for models that already have good local icons
-    if (isOpenRouterProvider && !providerSlug.isNullOrBlank() && !hasGoodLocalIcon(name)) {
+    if (!providerSlug.isNullOrBlank() && !hasGoodLocalIcon(name)) {
         val lobeHubUrls = getLobeHubIconUrls(providerSlug, darkMode)
         RemoteIcon(
             url = lobeHubUrls.coloredUrl,
@@ -295,7 +403,7 @@ fun AutoAIIconWithUrl(
             color = color,
             padding = padding,
             fallback = {
-                // If both colored and monochrome LobeHub icons fail, try local pattern matching
+                // If LobeHub icons fail, try local pattern matching
                 AutoAIIcon(
                     name = name,
                     modifier = modifier,
@@ -390,32 +498,36 @@ private data class IconUrlPair(
 
 /**
  * Get LobeHub CDN icon URLs from provider slug
- * Returns both colored and monochrome versions for fallback
+ * Returns primary theme-appropriate URL and fallback to opposite theme
+ * 
+ * LobeHub structure:
+ * - /dark/{slug}.png - dark icons (for dark backgrounds)
+ * - /light/{slug}.png - light icons (for light backgrounds)
  */
 private fun getLobeHubIconUrls(providerSlug: String, darkMode: Boolean): IconUrlPair {
-    // Normalize the slug: lowercase and remove special characters like hyphens
+    // Normalize the slug: lowercase and replace spaces/underscores with hyphens
     val normalizedSlug = providerSlug.lowercase()
-        .replace("-", "")  // z-ai -> zai
-        .replace("_", "")  // some_provider -> someprovider
-        .replace(".", "")  // a.b -> ab
+        .replace(" ", "-")
+        .replace("_", "-")
     
     // Map some common provider slugs to their LobeHub equivalents
-    val slug = when (normalizedSlug) {
+    val slug = when (normalizedSlug.replace("-", "")) {
         "metallama" -> "meta"
         "mistralai" -> "mistral"
-        "xai" -> "xai"
         "01ai" -> "yi"  // 01-ai is Yi
         "moonshotai" -> "moonshot"
-        "nousresearch" -> "nousresearch"
         else -> normalizedSlug
     }
     
-    // Return both colored and monochrome URLs for fallback chain
-    // Format: https://unpkg.com/@lobehub/icons-static-png@latest/[light|dark]/[slug]-color.png
-    val theme = if (darkMode) "dark" else "light"
+    // For dark mode: use dark icons (light colored icons visible on dark bg)
+    // For light mode: use light icons (dark colored icons visible on light bg)
+    val primaryTheme = if (darkMode) "dark" else "light"
+    val fallbackTheme = if (darkMode) "light" else "dark"
+    
+    // npmmirror CDN with correct path format
     return IconUrlPair(
-        coloredUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/$theme/$slug-color.png",
-        monochromeUrl = "https://unpkg.com/@lobehub/icons-static-png@latest/$theme/$slug.png"
+        coloredUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$primaryTheme/$slug.png",
+        monochromeUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$fallbackTheme/$slug.png"
     )
 }
 

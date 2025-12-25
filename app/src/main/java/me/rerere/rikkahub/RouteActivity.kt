@@ -93,16 +93,22 @@ class RouteActivity : ComponentActivity() {
     private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
     private var navStack by mutableStateOf<NavHostController?>(null)
+    private var pendingAssistantId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
+        
+        // Check for assistant shortcut intent
+        pendingAssistantId = intent?.getStringExtra("assistantId")
+        
         setContent {
             val navStack = rememberNavController()
             this.navStack = navStack
             ShareHandler(navStack)
+            AssistantShortcutHandler(navStack)
             RikkahubTheme {
                 setSingletonImageLoaderFactory { context ->
                     ImageLoader.Builder(context)
@@ -134,6 +140,29 @@ class RouteActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
     }
+    
+    @Composable
+    private fun AssistantShortcutHandler(navBackStack: NavHostController) {
+        val assistantIdStr = pendingAssistantId
+        LaunchedEffect(assistantIdStr) {
+            if (assistantIdStr != null) {
+                pendingAssistantId = null
+                try {
+                    val assistantId = Uuid.parse(assistantIdStr)
+                    // Update the selected assistant
+                    settingsStore.updateAssistant(assistantId)
+                    // Mark as recently used
+                    settingsStore.markAssistantUsed(assistantId)
+                    // Navigate to a new chat
+                    navBackStack.navigate(Screen.Chat(Uuid.random().toString())) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
 
     @Composable
     private fun ShareHandler(navBackStack: NavHostController) {
@@ -159,6 +188,10 @@ class RouteActivity : ComponentActivity() {
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.navigate(Screen.Chat(text))
+        }
+        // Handle assistant shortcut
+        intent.getStringExtra("assistantId")?.let { assistantIdStr ->
+            pendingAssistantId = assistantIdStr
         }
     }
 

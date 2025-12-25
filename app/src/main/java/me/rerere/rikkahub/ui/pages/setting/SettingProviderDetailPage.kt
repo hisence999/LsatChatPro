@@ -128,6 +128,8 @@ import me.rerere.rikkahub.ui.components.ai.ProviderBalanceText
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.AutoAIIconWithUrl
+import me.rerere.rikkahub.ui.components.ui.ProviderIcon
+import me.rerere.rikkahub.ui.components.ui.ModelIcon
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -195,7 +197,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        AutoAIIcon(provider.name, modifier = Modifier.size(22.dp))
+                        ProviderIcon(provider = provider, modifier = Modifier.size(22.dp))
                         Text(text = provider.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
@@ -957,19 +959,43 @@ private fun ModelSettingsForm(
                             enabled = !isEdit
                         )
 
-                        OutlinedTextField(
-                            value = model.displayName,
-                            onValueChange = {
-                                onModelChange(model.copy(displayName = it))
-                            },
-                            label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                if (!isEdit) {
-                                    Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
+                        // Display name with icon picker
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            me.rerere.rikkahub.ui.components.ui.ClickableIconPicker(
+                                currentIconUri = model.customIconUri,
+                                defaultContent = {
+                                    ModelIcon(
+                                        model = model,
+                                        provider = parentProvider,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                },
+                                onIconSelected = { uri ->
+                                    onModelChange(model.copy(customIconUri = uri.toString()))
+                                },
+                                onIconCleared = {
+                                    onModelChange(model.copy(customIconUri = null))
+                                },
+                                iconSize = 48.dp
+                            )
+                            OutlinedTextField(
+                                value = model.displayName,
+                                onValueChange = {
+                                    onModelChange(model.copy(displayName = it))
+                                },
+                                label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
+                                modifier = Modifier.weight(1f),
+                                placeholder = {
+                                    if (!isEdit) {
+                                        Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         ModelTypeSelector(
                             selectedType = model.type,
@@ -1343,16 +1369,9 @@ private fun ModelPicker(
                                     .fillMaxWidth()
                                     .padding(8.dp),
                             ) {
-                                AutoAIIconWithUrl(
-                                    name = it.modelId,
-                                    iconUrl = it.iconUrl,
-                                    providerSlug = it.providerSlug,
-                                    providerBaseUrl = when (parentProvider) {
-                                        is ProviderSetting.OpenAI -> parentProvider.baseUrl
-                                        is ProviderSetting.Google -> parentProvider.baseUrl
-                                        is ProviderSetting.Claude -> parentProvider.baseUrl
-                                    },
-                                    isGoogleProvider = parentProvider is ProviderSetting.Google,
+                                ModelIcon(
+                                    model = it,
+                                    provider = parentProvider,
                                     modifier = Modifier.size(32.dp)
                                 )
                                 Column(
@@ -1759,16 +1778,9 @@ private fun ModelCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AutoAIIconWithUrl(
-                name = model.modelId,
-                iconUrl = model.iconUrl,
-                providerSlug = model.providerSlug,
-                providerBaseUrl = when (parentProvider) {
-                    is ProviderSetting.OpenAI -> parentProvider.baseUrl
-                    is ProviderSetting.Google -> parentProvider.baseUrl
-                    is ProviderSetting.Claude -> parentProvider.baseUrl
-                },
-                isGoogleProvider = parentProvider is ProviderSetting.Google,
+            ModelIcon(
+                model = model,
+                provider = parentProvider,
                 modifier = Modifier.size(32.dp),
             )
             Column(
@@ -1921,8 +1933,8 @@ private fun ProviderOverrideSettings(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AutoAIIcon(
-                            providerOverride.name,
+                        ProviderIcon(
+                            provider = providerOverride,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(

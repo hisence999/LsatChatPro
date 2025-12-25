@@ -682,6 +682,7 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
+                    label = stringResource(R.string.assistant_page_regex_name),
                     stateKey = "regex_name_${regex.id}",
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -701,6 +702,7 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
+                    label = stringResource(R.string.assistant_page_regex_find_regex),
                     stateKey = "regex_find_${regex.id}",
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -720,6 +722,7 @@ private fun AssistantRegexCard(
                             )
                         )
                     },
+                    label = stringResource(R.string.assistant_page_regex_replace_string),
                     stateKey = "regex_replace_${regex.id}",
                     modifier = Modifier.fillMaxWidth()
                 )

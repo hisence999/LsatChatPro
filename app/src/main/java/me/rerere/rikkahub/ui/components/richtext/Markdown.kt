@@ -34,6 +34,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -105,6 +107,104 @@ val THINKING_REGEX = Regex("<think(?:ing)?>([\\s\\S]*?)(?:</think(?:ing)?>|$)", 
 private val ORPHAN_CLOSE_TAG_REGEX = Regex("^([\\s\\S]*?)</think(?:ing)?>", RegexOption.DOT_MATCHES_ALL)
 private val CODE_BLOCK_REGEX = Regex("```[\\s\\S]*?```|`[^`\n]*`", RegexOption.DOT_MATCHES_ALL)
 private val BREAK_LINE_REGEX = Regex("(?i)<br\\s*/?>")
+
+/**
+ * CompositionLocal for RP style rules - enables color customization throughout the markdown tree
+ */
+val LocalRpStyleRules = compositionLocalOf<List<RpStyleRule>> { emptyList() }
+
+/**
+ * Safely get color from RP style rule for a given pattern.
+ * Returns null if pattern not found, not enabled, or color parsing fails.
+ */
+@Composable
+private fun getRpColor(pattern: String): Color? {
+    val rules = LocalRpStyleRules.current
+    val rule = rules.find { it.pattern == pattern && it.enabled } ?: return null
+    return runCatching { Color(android.graphics.Color.parseColor(rule.colorHex)) }.getOrNull()
+}
+
+// Standard markdown patterns that are handled by the AST parser
+private val STANDARD_PATTERNS = setOf("*", "**", "~~", "`", "#", "##", "###", "####", "#####", "######", ">")
+
+/**
+ * Append text to AnnotatedString.Builder, scanning for custom RP patterns.
+ * Custom patterns are those NOT in STANDARD_PATTERNS (which are handled by the markdown AST).
+ * For each custom pattern, builds a regex like `pattern(.+?)pattern` and applies the color.
+ */
+private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
+    text: String,
+    rpStyleRules: List<RpStyleRule>
+) {
+    // Get custom patterns only (exclude standard markdown patterns)
+    val customRules = rpStyleRules.filter { it.enabled && it.pattern !in STANDARD_PATTERNS }
+    
+    if (customRules.isEmpty()) {
+        append(text)
+        return
+    }
+    
+    // Build a combined regex for all custom patterns
+    // Each pattern matches: pattern + content + pattern (non-greedy)
+    val patternRegexes = customRules.mapNotNull { rule ->
+        val escaped = Regex.escape(rule.pattern)
+        runCatching {
+            val color = Color(android.graphics.Color.parseColor(rule.colorHex))
+            Regex("$escaped(.+?)$escaped") to color
+        }.getOrNull()
+    }
+    
+    if (patternRegexes.isEmpty()) {
+        append(text)
+        return
+    }
+    
+    // Find all matches from all patterns
+    data class Match(val range: IntRange, val content: String, val color: Color)
+    val allMatches = mutableListOf<Match>()
+    
+    patternRegexes.forEach { (regex, color) ->
+        regex.findAll(text).forEach { matchResult ->
+            allMatches.add(Match(
+                range = matchResult.range,
+                content = matchResult.groupValues[1],
+                color = color
+            ))
+        }
+    }
+    
+    // Sort by start position
+    allMatches.sortBy { it.range.first }
+    
+    // Remove overlapping matches (keep earlier ones)
+    val nonOverlapping = mutableListOf<Match>()
+    var lastEnd = -1
+    allMatches.forEach { match ->
+        if (match.range.first > lastEnd) {
+            nonOverlapping.add(match)
+            lastEnd = match.range.last
+        }
+    }
+    
+    // Build the annotated string
+    var currentIndex = 0
+    nonOverlapping.forEach { match ->
+        // Append text before this match
+        if (match.range.first > currentIndex) {
+            append(text.substring(currentIndex, match.range.first))
+        }
+        // Append the styled content (without the pattern delimiters)
+        withStyle(SpanStyle(color = match.color)) {
+            append(match.content)
+        }
+        currentIndex = match.range.last + 1
+    }
+    
+    // Append remaining text
+    if (currentIndex < text.length) {
+        append(text.substring(currentIndex))
+    }
+}
 
 // 预处理markdown内容
 private fun preProcess(content: String): String {
@@ -205,6 +305,10 @@ fun MarkdownBlock(
     style: TextStyle = LocalTextStyle.current,
     onClickCitation: (String) -> Unit = {}
 ) {
+    // Read rpStyleRules from settings
+    val settings = LocalSettings.current
+    val rpStyleRules = settings.displaySetting.rpStyleRules
+    
     var (data, setData) = remember {
         val preprocessed = preProcess(content)
         val astTree = parser.buildMarkdownTreeFromString(preprocessed)
@@ -229,14 +333,17 @@ fun MarkdownBlock(
     }
 
     val (preprocessed, astTree) = data
-    ProvideTextStyle(style) {
-        Column(
-            modifier = modifier.padding(start = 4.dp)
-        ) {
-            astTree.children.fastForEach { child ->
-                MarkdownNode(
-                    node = child, content = preprocessed, onClickCitation = onClickCitation
-                )
+    // Provide rpStyleRules to entire tree via CompositionLocal
+    CompositionLocalProvider(LocalRpStyleRules provides rpStyleRules) {
+        ProvideTextStyle(style) {
+            Column(
+                modifier = modifier.padding(start = 4.dp)
+            ) {
+                astTree.children.fastForEach { child ->
+                    MarkdownNode(
+                        node = child, content = preprocessed, onClickCitation = onClickCitation
+                    )
+                }
             }
         }
     }
@@ -303,15 +410,18 @@ private fun MarkdownNode(
 
         // 标题
         MarkdownElementTypes.ATX_1, MarkdownElementTypes.ATX_2, MarkdownElementTypes.ATX_3, MarkdownElementTypes.ATX_4, MarkdownElementTypes.ATX_5, MarkdownElementTypes.ATX_6 -> {
-            val style = when (node.type) {
-                MarkdownElementTypes.ATX_1 -> HeaderStyle.H1
-                MarkdownElementTypes.ATX_2 -> HeaderStyle.H2
-                MarkdownElementTypes.ATX_3 -> HeaderStyle.H3
-                MarkdownElementTypes.ATX_4 -> HeaderStyle.H4
-                MarkdownElementTypes.ATX_5 -> HeaderStyle.H5
-                MarkdownElementTypes.ATX_6 -> HeaderStyle.H6
+            val (baseStyle, pattern) = when (node.type) {
+                MarkdownElementTypes.ATX_1 -> HeaderStyle.H1 to "#"
+                MarkdownElementTypes.ATX_2 -> HeaderStyle.H2 to "##"
+                MarkdownElementTypes.ATX_3 -> HeaderStyle.H3 to "###"
+                MarkdownElementTypes.ATX_4 -> HeaderStyle.H4 to "####"
+                MarkdownElementTypes.ATX_5 -> HeaderStyle.H5 to "#####"
+                MarkdownElementTypes.ATX_6 -> HeaderStyle.H6 to "######"
                 else -> throw IllegalArgumentException("Unknown header type")
             }
+            // Get RP color for this heading level
+            val rpColor = getRpColor(pattern)
+            val style = if (rpColor != null) baseStyle.copy(color = rpColor) else baseStyle
             ProvideTextStyle(value = style) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     node.children.fastForEach { node ->
@@ -377,7 +487,13 @@ private fun MarkdownNode(
 
         // 引用块
         MarkdownElementTypes.BLOCK_QUOTE -> {
-            ProvideTextStyle(LocalTextStyle.current.copy(fontStyle = FontStyle.Italic)) {
+            // Get RP color for blockquotes
+            val rpColor = getRpColor(">")
+            val textStyle = LocalTextStyle.current.copy(
+                fontStyle = FontStyle.Italic,
+                color = rpColor ?: Color.Unspecified
+            )
+            ProvideTextStyle(textStyle) {
                 val borderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                 Column(
@@ -843,9 +959,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                     it
                 }.replace(BREAK_LINE_REGEX, "\n")
             }
-            append(
-                text = text,
-            )
+            // Use custom pattern scanning for plain text
+            appendTextWithCustomPatterns(text, rpStyleRules)
         }
 
         node.type == MarkdownElementTypes.EMPH -> {
@@ -889,7 +1004,10 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
         }
 
         node.type == GFMElementTypes.STRIKETHROUGH -> {
-            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
+            // Check for RP color rule for pattern "~~" (strikethrough)
+            val strikeRule = rpStyleRules.find { it.pattern == "~~" && it.enabled }
+            val strikeColor = strikeRule?.let { runCatching { Color(android.graphics.Color.parseColor(it.colorHex)) }.getOrNull() }
+            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = strikeColor ?: Color.Unspecified)) {
                 node.children.trim(GFMTokenTypes.TILDE, 2).fastForEach {
                     appendMarkdownNodeContent(
                         node = it,
@@ -973,11 +1091,15 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
 
         node.type == MarkdownElementTypes.CODE_SPAN -> {
             val code = node.getTextInNode(content).trim('`')
+            // Check for RP color rule for pattern "`" (inline code)
+            val codeRule = rpStyleRules.find { it.pattern == "`" && it.enabled }
+            val codeColor = codeRule?.let { runCatching { Color(android.graphics.Color.parseColor(it.colorHex)) }.getOrNull() }
             withStyle(
                 SpanStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 0.95.em,
                     background = colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                    color = codeColor ?: Color.Unspecified,
                 )
             ) {
                 append(code)

@@ -613,6 +613,9 @@
     <string name="setting_provider_page_add_custom_provider">Add Custom Provider</string>
     <string name="setting_provider_page_add_custom_provider_desc">Configure a custom API endpoint</string>
     <string name="setting_provider_page_no_providers_but_preset">It looks like you don\'t have this provider in your list. Don\'t worry, we have a preset ready for you!</string>
+    <string name="setting_provider_page_select_icon">Select Icon</string>
+    <string name="setting_provider_page_pick_from_gallery">Pick from Gallery</string>
+    <string name="setting_provider_page_search_lobehub">Search LobeHub Icons</string>
     <string name="setting_tts_page_add">Add</string>
     <string name="setting_tts_page_add_provider">Add TTS Provider</string>
     <string name="setting_tts_page_add_provider_content_description">Add TTS Provider</string>
@@ -669,6 +672,10 @@
     <string name="share">Share</string>
     <string name="share_handler_page_title">Share to LastChat</string>
     <string name="shortcut_take_picture">Take Picture</string>
+    <string name="shortcut_chat_with">Chat with %s</string>
+    <string name="widget_assistant_name">Assistant Shortcut</string>
+    <string name="widget_assistant_description">Quick access to chat with an assistant</string>
+    <string name="widget_config_title">Select Assistant</string>
     <string name="silicon_flow_built_in_models">* SiliconFlow free models built-in. No API Key needed. For more powerful models, please use your own API Key.</string>
     <string name="silicon_flow_description">**Leading AI Provider, Accelerating AGI.**</string>
     <string name="silicon_flow_website">Website: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>

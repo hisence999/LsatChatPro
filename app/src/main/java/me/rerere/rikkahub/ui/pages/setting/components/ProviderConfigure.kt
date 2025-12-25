@@ -35,6 +35,11 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalToaster
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.layout.size
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoAIIconWithUrl
+import me.rerere.rikkahub.ui.components.ui.ClickableIconPicker
+import me.rerere.rikkahub.ui.components.ui.ProviderIcon
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlin.reflect.KClass
 
@@ -96,22 +101,54 @@ fun ProviderConfigure(
             }
         }
 
-        // 3. Name field (shared)
-        OutlinedTextField(
-            value = provider.name,
-            onValueChange = { newName ->
-                val updated = when (provider) {
-                    is ProviderSetting.OpenAI -> provider.copy(name = newName)
-                    is ProviderSetting.Google -> provider.copy(name = newName)
-                    is ProviderSetting.Claude -> provider.copy(name = newName)
-                }
-                onEdit(updated)
-            },
-            label = {
-                Text(stringResource(id = R.string.setting_provider_page_name))
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // 3. Name field with icon picker
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            ClickableIconPicker(
+                currentIconUri = provider.customIconUri,
+                defaultContent = {
+                    ProviderIcon(
+                        provider = provider,
+                        modifier = Modifier.size(40.dp)
+                    )
+                },
+                onIconSelected = { uri ->
+                    val updated = when (provider) {
+                        is ProviderSetting.OpenAI -> provider.copy(customIconUri = uri.toString())
+                        is ProviderSetting.Google -> provider.copy(customIconUri = uri.toString())
+                        is ProviderSetting.Claude -> provider.copy(customIconUri = uri.toString())
+                    }
+                    onEdit(updated)
+                },
+                onIconCleared = {
+                    val updated = when (provider) {
+                        is ProviderSetting.OpenAI -> provider.copy(customIconUri = null)
+                        is ProviderSetting.Google -> provider.copy(customIconUri = null)
+                        is ProviderSetting.Claude -> provider.copy(customIconUri = null)
+                    }
+                    onEdit(updated)
+                },
+                iconSize = 48.dp
+            )
+            OutlinedTextField(
+                value = provider.name,
+                onValueChange = { newName ->
+                    val updated = when (provider) {
+                        is ProviderSetting.OpenAI -> provider.copy(name = newName)
+                        is ProviderSetting.Google -> provider.copy(name = newName)
+                        is ProviderSetting.Claude -> provider.copy(name = newName)
+                    }
+                    onEdit(updated)
+                },
+                label = {
+                    Text(stringResource(id = R.string.setting_provider_page_name))
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
 
         // 4. Provider-specific configuration
         when (provider) {
@@ -153,6 +190,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             models = this.models,
             proxy = this.proxy,
             balanceOption = this.balanceOption,
+            tags = this.tags,
+            customIconUri = this.customIconUri,
             apiKey = apiKey,
             baseUrl = if (this is ProviderSetting.OpenAI) this.baseUrl else "https://api.openai.com/v1"
         )
@@ -163,6 +202,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             models = this.models,
             proxy = this.proxy,
             balanceOption = this.balanceOption,
+            tags = this.tags,
+            customIconUri = this.customIconUri,
             apiKey = apiKey,
             baseUrl = if (this is ProviderSetting.Google) this.baseUrl else "https://generativelanguage.googleapis.com/v1beta"
         )
@@ -173,6 +214,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             models = this.models,
             proxy = this.proxy,
             balanceOption = this.balanceOption,
+            tags = this.tags,
+            customIconUri = this.customIconUri,
             apiKey = apiKey,
             baseUrl = if (this is ProviderSetting.Claude) this.baseUrl else "https://api.anthropic.com/v1"
         )

@@ -133,6 +133,7 @@ import me.rerere.rikkahub.data.datastore.ProviderViewMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.AutoProviderIcon
+import me.rerere.rikkahub.ui.components.ui.ProviderIcon
 import me.rerere.rikkahub.ui.components.ui.ItemPosition
 import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -1066,13 +1067,8 @@ private fun ProviderItemContent(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AutoProviderIcon(
-            name = provider.name,
-            baseUrl = when (provider) {
-                is ProviderSetting.OpenAI -> provider.baseUrl
-                is ProviderSetting.Google -> provider.baseUrl
-                is ProviderSetting.Claude -> provider.baseUrl
-            },
+        ProviderIcon(
+            provider = provider,
             modifier = Modifier.size(40.dp)
         )
         Column(
