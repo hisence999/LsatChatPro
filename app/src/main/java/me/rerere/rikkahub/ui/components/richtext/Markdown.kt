@@ -123,6 +123,89 @@ private fun getRpColor(pattern: String): Color? {
     val rule = rules.find { it.pattern == pattern && it.enabled } ?: return null
     return runCatching { Color(android.graphics.Color.parseColor(rule.colorHex)) }.getOrNull()
 }
+
+// Standard markdown patterns that are handled by the AST parser
+private val STANDARD_PATTERNS = setOf("*", "**", "~~", "`", "#", "##", "###", "####", "#####", "######", ">")
+
+/**
+ * Append text to AnnotatedString.Builder, scanning for custom RP patterns.
+ * Custom patterns are those NOT in STANDARD_PATTERNS (which are handled by the markdown AST).
+ * For each custom pattern, builds a regex like `pattern(.+?)pattern` and applies the color.
+ */
+private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
+    text: String,
+    rpStyleRules: List<RpStyleRule>
+) {
+    // Get custom patterns only (exclude standard markdown patterns)
+    val customRules = rpStyleRules.filter { it.enabled && it.pattern !in STANDARD_PATTERNS }
+    
+    if (customRules.isEmpty()) {
+        append(text)
+        return
+    }
+    
+    // Build a combined regex for all custom patterns
+    // Each pattern matches: pattern + content + pattern (non-greedy)
+    val patternRegexes = customRules.mapNotNull { rule ->
+        val escaped = Regex.escape(rule.pattern)
+        runCatching {
+            val color = Color(android.graphics.Color.parseColor(rule.colorHex))
+            Regex("$escaped(.+?)$escaped") to color
+        }.getOrNull()
+    }
+    
+    if (patternRegexes.isEmpty()) {
+        append(text)
+        return
+    }
+    
+    // Find all matches from all patterns
+    data class Match(val range: IntRange, val content: String, val color: Color)
+    val allMatches = mutableListOf<Match>()
+    
+    patternRegexes.forEach { (regex, color) ->
+        regex.findAll(text).forEach { matchResult ->
+            allMatches.add(Match(
+                range = matchResult.range,
+                content = matchResult.groupValues[1],
+                color = color
+            ))
+        }
+    }
+    
+    // Sort by start position
+    allMatches.sortBy { it.range.first }
+    
+    // Remove overlapping matches (keep earlier ones)
+    val nonOverlapping = mutableListOf<Match>()
+    var lastEnd = -1
+    allMatches.forEach { match ->
+        if (match.range.first > lastEnd) {
+            nonOverlapping.add(match)
+            lastEnd = match.range.last
+        }
+    }
+    
+    // Build the annotated string
+    var currentIndex = 0
+    nonOverlapping.forEach { match ->
+        // Append text before this match
+        if (match.range.first > currentIndex) {
+            append(text.substring(currentIndex, match.range.first))
+        }
+        // Append the styled content (without the pattern delimiters)
+        withStyle(SpanStyle(color = match.color)) {
+            append(match.content)
+        }
+        currentIndex = match.range.last + 1
+    }
+    
+    // Append remaining text
+    if (currentIndex < text.length) {
+        append(text.substring(currentIndex))
+    }
+}
+
 // 预处理markdown内容
 private fun preProcess(content: String): String {
     // 先找出所有代码块的位置
@@ -876,9 +959,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                     it
                 }.replace(BREAK_LINE_REGEX, "\n")
             }
-            append(
-                text = text,
-            )
+            // Use custom pattern scanning for plain text
+            appendTextWithCustomPatterns(text, rpStyleRules)
         }
 
         node.type == MarkdownElementTypes.EMPH -> {
