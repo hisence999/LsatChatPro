@@ -56,6 +56,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,10 +70,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -94,12 +100,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.BuiltInTools
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.DialogProperties
@@ -124,6 +132,7 @@ import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.ui.draw.rotate
 import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.components.crop.CropImageScreen
@@ -135,6 +144,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -557,6 +567,7 @@ fun ChatInput(
                             conversation = conversation,
                             state = state,
                             assistant = assistant,
+                            mcpManager = mcpManager,
                             onClearContext = onClearContext,
                             onUpdateAssistant = onUpdateAssistant,
                             onDismiss = { dismissExpand() }
@@ -958,6 +969,7 @@ private fun FilesPicker(
     conversation: Conversation,
     assistant: Assistant,
     state: ChatInputState,
+    mcpManager: McpManager,
     onClearContext: () -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onDismiss: () -> Unit
@@ -965,7 +977,16 @@ private fun FilesPicker(
     val settings = LocalSettings.current
     val amoledMode by rememberAmoledDarkMode()
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
-    
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+
+    val mcpServers = settings.mcpServers
+    val enabledMcpServersCount = remember(mcpServers, assistant.mcpServers) {
+        mcpServers.count { it.commonOptions.enable && it.id in assistant.mcpServers }
+    }
+    val mcpSyncStatus by mcpManager.syncingStatus.collectAsStateWithLifecycle()
+    val mcpLoading = mcpSyncStatus.values.any { it == McpStatus.Connecting }
+    var showMcpPicker by remember { mutableStateOf(false) }
+     
     // Position-based corner shapes for 2x2 grid
     val topLeftShape = RoundedCornerShape(topStart = 24.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
     val topRightShape = RoundedCornerShape(topStart = 10.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
@@ -1083,8 +1104,125 @@ private fun FilesPicker(
                     )
                 },
             )
+
+            if (mcpServers.isNotEmpty()) {
+                val mcpInteractionSource = remember { MutableInteractionSource() }
+                val isMcpPressed by mcpInteractionSource.collectIsPressedAsState()
+                val mcpScale by animateFloatAsState(
+                    targetValue = if (isMcpPressed) 0.98f else 1f,
+                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+                    label = "mcp_item_scale"
+                )
+                ListItem(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = mcpScale
+                            scaleY = mcpScale
+                        }
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable(
+                            interactionSource = mcpInteractionSource,
+                            indication = LocalIndication.current,
+                        ) {
+                            haptics.perform(HapticPattern.Pop)
+                            showMcpPicker = true
+                        },
+                    colors = ListItemDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    leadingContent = {
+                        Box(
+                            modifier = Modifier.size(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (mcpLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                BadgedBox(
+                                    badge = {
+                                        if (enabledMcpServersCount > 0) {
+                                            Badge(
+                                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                            ) {
+                                                Text(text = enabledMcpServersCount.toString())
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Terminal,
+                                        contentDescription = stringResource(R.string.mcp_picker_title),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.mcp_picker_title))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.assistant_page_mcp_servers_desc))
+                    },
+                    trailingContent = {
+                        Text(
+                            text = "${enabledMcpServersCount}/${mcpServers.size}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            maxLines = 1,
+                        )
+                    },
+                )
+            }
         }
 
+    }
+
+    if (showMcpPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showMcpPicker = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.mcp_picker_title),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                AnimatedVisibility(mcpLoading) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        LinearWavyProgressIndicator()
+                        Text(
+                            text = stringResource(id = R.string.mcp_picker_syncing),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                McpPicker(
+                    assistant = assistant,
+                    servers = mcpServers,
+                    onUpdateAssistant = onUpdateAssistant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+            }
+        }
     }
 }
 
