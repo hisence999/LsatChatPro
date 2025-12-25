@@ -128,7 +128,7 @@ fun ChatList(
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
-    onJumpToMessage: (Int) -> Unit = {},
+    onJumpToMessage: (Uuid) -> Unit = {},
 ) {
     SharedTransitionLayout {
         AnimatedContent(
@@ -526,7 +526,7 @@ private fun SharedTransitionScope.ChatListPreview(
     conversation: Conversation,
     settings: Settings,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onJumpToMessage: (Int) -> Unit
+    onJumpToMessage: (Uuid) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -538,7 +538,7 @@ private fun SharedTransitionScope.ChatListPreview(
             conversation.messageNodes
         } else {
             conversation.messageNodes.filterIndexed { index, node ->
-                node.currentMessage.toText().contains(searchQuery, ignoreCase = true)
+                node.currentMessage.toContentText().contains(searchQuery, ignoreCase = true)
             }
         }
     }
@@ -597,7 +597,6 @@ private fun SharedTransitionScope.ChatListPreview(
             ) { _, node ->
                 val message = node.currentMessage
                 val isUser = message.role == me.rerere.ai.core.MessageRole.USER
-                val originalIndex = conversation.messageNodes.indexOf(node)
                 Column(
                     modifier = Modifier.fillMaxWidth()
                         .then(
@@ -612,11 +611,9 @@ private fun SharedTransitionScope.ChatListPreview(
                         Row(
                             modifier = Modifier
                                 .clickable {
-                                    if (originalIndex >= 0) {
-                                        haptics.perform(HapticPattern.Pop)
-                                        keyboardController?.hide()
-                                        onJumpToMessage(originalIndex)
-                                    }
+                                    haptics.perform(HapticPattern.Pop)
+                                    keyboardController?.hide()
+                                    onJumpToMessage(node.id)
                                 }
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -624,7 +621,7 @@ private fun SharedTransitionScope.ChatListPreview(
                         ) {
                             val highlightColor = MaterialTheme.colorScheme.tertiaryContainer
                             val highlightedText = remember(searchQuery, message) {
-                                val fullText = message.toText().trim().ifBlank { "[...]" }
+                                val fullText = message.toContentText().ifBlank { "[...]" }
                                 val messageText = extractMatchingSnippet(
                                     text = fullText,
                                     query = searchQuery

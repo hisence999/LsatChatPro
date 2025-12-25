@@ -42,8 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -255,20 +257,32 @@ private fun ChatPageContent(
     val context = LocalContext.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
-    var pendingJumpIndex by remember { mutableStateOf<Int?>(null) }
+    var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
+    val currentConversationState = rememberUpdatedState(conversation)
 
-    LaunchedEffect(previewMode, pendingJumpIndex, conversation.messageNodes.size) {
-        val requestedIndex = pendingJumpIndex ?: return@LaunchedEffect
+    LaunchedEffect(previewMode, pendingJumpNodeId) {
+        val requestedNodeId = pendingJumpNodeId ?: return@LaunchedEffect
         if (previewMode) return@LaunchedEffect
 
-        val lastIndex = conversation.messageNodes.lastIndex
-        if (lastIndex < 0) {
-            pendingJumpIndex = null
-            return@LaunchedEffect
-        }
+        try {
+            // Wait a couple of frames for AnimatedContent to swap and LazyColumn to attach.
+            repeat(3) { withFrameNanos { } }
 
-        pendingJumpIndex = null
-        chatListState.animateScrollToItem(requestedIndex.coerceIn(0, lastIndex))
+            val nodes = currentConversationState.value.messageNodes
+            val targetIndex = nodes.indexOfFirst { it.id == requestedNodeId }
+            if (targetIndex < 0) return@LaunchedEffect
+
+            // Retry a few frames in case list layout isn't ready yet.
+            repeat(15) {
+                if (chatListState.layoutInfo.totalItemsCount > targetIndex) {
+                    runCatching { chatListState.scrollToItem(targetIndex) }
+                    if (chatListState.firstVisibleItemIndex == targetIndex) return@LaunchedEffect
+                }
+                withFrameNanos { }
+            }
+        } finally {
+            pendingJumpNodeId = null
+        }
     }
 
 
@@ -371,8 +385,8 @@ private fun ChatPageContent(
                             vm.forkMessage(it)
                         }
                     },
-                    onJumpToMessage = { index ->
-                        pendingJumpIndex = index
+                    onJumpToMessage = { nodeId ->
+                        pendingJumpNodeId = nodeId
                         previewMode = false
                     },
                 )
