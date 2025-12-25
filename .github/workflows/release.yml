@@ -29,9 +29,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p app
-          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
-          test -s app/google-services.json
+          mkdir -p app/src/plus app/src/zh
+
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64_PLUS }}" | base64 -d > app/src/plus/google-services.json
+          test -s app/src/plus/google-services.json
+
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64_ZH }}" | base64 -d > app/src/zh/google-services.json
+          test -s app/src/zh/google-services.json
 
           if [ -n "${{ secrets.KEY_BASE64 }}" ]; then
             echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
@@ -53,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/**/release/*.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -62,6 +66,6 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/**/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

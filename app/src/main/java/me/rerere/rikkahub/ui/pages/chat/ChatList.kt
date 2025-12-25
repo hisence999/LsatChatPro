@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -105,6 +106,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.openUrl
 
 private const val TAG = "ChatList"
@@ -526,6 +529,8 @@ private fun SharedTransitionScope.ChatListPreview(
     onJumpToMessage: (Int) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val haptics = rememberPremiumHaptics()
 
     // 过滤消息
     val filteredMessages = remember(conversation.messageNodes, searchQuery) {
@@ -607,7 +612,11 @@ private fun SharedTransitionScope.ChatListPreview(
                         Row(
                             modifier = Modifier
                                 .clickable {
-                                    onJumpToMessage(originalIndex)
+                                    if (originalIndex >= 0) {
+                                        haptics.perform(HapticPattern.Pop)
+                                        keyboardController?.hide()
+                                        onJumpToMessage(originalIndex)
+                                    }
                                 }
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -255,6 +255,21 @@ private fun ChatPageContent(
     val context = LocalContext.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
+    var pendingJumpIndex by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(previewMode, pendingJumpIndex, conversation.messageNodes.size) {
+        val requestedIndex = pendingJumpIndex ?: return@LaunchedEffect
+        if (previewMode) return@LaunchedEffect
+
+        val lastIndex = conversation.messageNodes.lastIndex
+        if (lastIndex < 0) {
+            pendingJumpIndex = null
+            return@LaunchedEffect
+        }
+
+        pendingJumpIndex = null
+        chatListState.animateScrollToItem(requestedIndex.coerceIn(0, lastIndex))
+    }
 
 
 
@@ -355,6 +370,10 @@ private fun ChatPageContent(
                         scope.launch {
                             vm.forkMessage(it)
                         }
+                    },
+                    onJumpToMessage = { index ->
+                        pendingJumpIndex = index
+                        previewMode = false
                     },
                 )
 

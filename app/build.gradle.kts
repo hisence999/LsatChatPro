@@ -20,16 +20,28 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "lastchat.rikkafork.cocolal.zh"
+        applicationId = "lastchat.rikkafork.cocolal"
         minSdk = 31
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.2.5-zh"
+        versionCode = 19
+        versionName = "1.2.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    flavorDimensions += "channel"
+    productFlavors {
+        create("plus") {
+            dimension = "channel"
+            applicationIdSuffix = ".plus"
+        }
+        create("zh") {
+            dimension = "channel"
+            applicationIdSuffix = ".zh"
         }
     }
 
