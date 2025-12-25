@@ -60,7 +60,7 @@
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
-            <data android:scheme="lastchat" android:host="shortcut" />
+            <data android:scheme="lastchat" android:host="assistant" />
         </intent-filter>
     </activity>
 

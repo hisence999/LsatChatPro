@@ -38,6 +38,7 @@ sealed class ProviderSetting {
     abstract val proxy: ProviderProxy
     abstract val balanceOption: BalanceOption
     abstract val tags: List<Uuid>
+    abstract val customIconUri: String?
 
     abstract val builtIn: Boolean
     abstract val description: @Composable() () -> Unit
@@ -55,6 +56,7 @@ sealed class ProviderSetting {
         proxy: ProviderProxy = this.proxy,
         balanceOption: BalanceOption = this.balanceOption,
         tags: List<Uuid> = this.tags,
+        customIconUri: String? = this.customIconUri,
         builtIn: Boolean = this.builtIn,
         description: @Composable (() -> Unit) = this.description,
         shortDescription: @Composable (() -> Unit) = this.shortDescription,
@@ -70,6 +72,7 @@ sealed class ProviderSetting {
         override var proxy: ProviderProxy = ProviderProxy.None,
         override val balanceOption: BalanceOption = BalanceOption(),
         override var tags: List<Uuid> = emptyList(),
+        override val customIconUri: String? = null,
         @Transient override val builtIn: Boolean = false,
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
@@ -108,6 +111,7 @@ sealed class ProviderSetting {
             proxy: ProviderProxy,
             balanceOption: BalanceOption,
             tags: List<Uuid>,
+            customIconUri: String?,
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
@@ -117,6 +121,7 @@ sealed class ProviderSetting {
                 enabled = enabled,
                 name = name,
                 models = models,
+                customIconUri = customIconUri,
                 builtIn = builtIn,
                 description = description,
                 proxy = proxy,
@@ -137,6 +142,7 @@ sealed class ProviderSetting {
         override var proxy: ProviderProxy = ProviderProxy.None,
         override val balanceOption: BalanceOption = BalanceOption(),
         override var tags: List<Uuid> = emptyList(),
+        override val customIconUri: String? = null,
         @Transient override val builtIn: Boolean = false,
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
@@ -178,6 +184,7 @@ sealed class ProviderSetting {
             proxy: ProviderProxy,
             balanceOption: BalanceOption,
             tags: List<Uuid>,
+            customIconUri: String?,
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
@@ -187,6 +194,7 @@ sealed class ProviderSetting {
                 enabled = enabled,
                 name = name,
                 models = models,
+                customIconUri = customIconUri,
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
@@ -207,6 +215,7 @@ sealed class ProviderSetting {
         override var proxy: ProviderProxy = ProviderProxy.None,
         override val balanceOption: BalanceOption = BalanceOption(),
         override var tags: List<Uuid> = emptyList(),
+        override val customIconUri: String? = null,
         @Transient override val builtIn: Boolean = false,
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
@@ -243,6 +252,7 @@ sealed class ProviderSetting {
             proxy: ProviderProxy,
             balanceOption: BalanceOption,
             tags: List<Uuid>,
+            customIconUri: String?,
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
@@ -252,6 +262,7 @@ sealed class ProviderSetting {
                 enabled = enabled,
                 name = name,
                 models = models,
+                customIconUri = customIconUri,
                 proxy = proxy,
                 balanceOption = balanceOption,
                 tags = tags,

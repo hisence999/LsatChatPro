@@ -19,6 +19,7 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     val iconUrl: String? = null, // Remote icon URL
     val providerSlug: String? = null, // Provider slug for LobeHub CDN icons (e.g., "anthropic")
+    val customIconUri: String? = null, // User-selected custom icon URI
     val imageGenerationMethod: ImageGenerationMethod? = null, // Only for IMAGE type models
 )
 
