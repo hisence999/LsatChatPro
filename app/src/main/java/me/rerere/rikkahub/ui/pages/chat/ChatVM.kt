@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
@@ -68,6 +69,9 @@ class ChatVM(
 ) : ViewModel() {
     private val _conversationId: Uuid = Uuid.parse(id)
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
+
+    private val _conversationInitialized = MutableStateFlow(false)
+    val conversationInitialized: StateFlow<Boolean> = _conversationInitialized.asStateFlow()
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
     // 异步任务 (从ChatService获取，响应式)
@@ -101,7 +105,11 @@ class ChatVM(
 
         // 初始化对话
         viewModelScope.launch {
-            chatService.initializeConversation(_conversationId)
+            try {
+                chatService.initializeConversation(_conversationId)
+            } finally {
+                _conversationInitialized.value = true
+            }
         }
 
         // 记住对话ID, 方便下次启动恢复
@@ -115,8 +123,7 @@ class ChatVM(
     }
 
     // 用户设置
-    val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
+    val settings: StateFlow<Settings> = settingsStore.settingsFlow
 
     // 网络搜索 - 从当前助手的searchMode派生
     val enableWebSearch = settings.map { settings ->

@@ -50,9 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,6 +82,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Conversation
@@ -96,6 +101,17 @@ import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.snap
+
+private enum class EmptyChatOverlay {
+    None,
+    Welcome,
+    Temporary,
+}
+
+private val EmptyChatOverlayBottomPaddingFallback = 140.dp
+private val EmptyChatOverlayContentYOffset = (-16).dp
 
 @Composable
 fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
@@ -259,6 +275,23 @@ private fun ChatPageContent(
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
     var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
     val currentConversationState = rememberUpdatedState(conversation)
+    val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
+
+    val density = LocalDensity.current
+    var chatInputHeightPx by remember { mutableStateOf(0) }
+    val imeBottomPx = WindowInsets.ime.getBottom(density)
+    val chatInputChromeHeightDp = remember(chatInputHeightPx, imeBottomPx, density) {
+        with(density) {
+            (chatInputHeightPx - imeBottomPx).coerceAtLeast(0).toDp()
+        }
+    }
+    val chatListBottomPadding = remember(chatInputChromeHeightDp) {
+        if (chatInputChromeHeightDp > 0.dp) {
+            maxOf(140.dp, chatInputChromeHeightDp + 32.dp)
+        } else {
+            140.dp
+        }
+    }
 
     LaunchedEffect(previewMode, pendingJumpNodeId) {
         val requestedNodeId = pendingJumpNodeId ?: return@LaunchedEffect
@@ -333,7 +366,7 @@ private fun ChatPageContent(
                     .padding(innerPadding)
             ) {
                 ChatList(
-                    innerPadding = PaddingValues(bottom = 140.dp),
+                    innerPadding = PaddingValues(bottom = chatListBottomPadding),
                     conversation = conversation,
                     state = chatListState,
                     loading = loadingJob != null,
@@ -391,76 +424,132 @@ private fun ChatPageContent(
                     },
                 )
 
-                val hasUserSentMessages = conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
-                val currentAssistant = setting.getCurrentAssistant()
-                val hasAnyPresetMessages = currentAssistant.presetMessages.isNotEmpty()
+                val hasUserSentMessages =
+                    conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
+                val assistantForConversation = setting.getAssistantById(conversation.assistantId)
+                    ?: setting.getCurrentAssistant()
+                val hasAnyPresetMessages = assistantForConversation.presetMessages.isNotEmpty()
 
-                val welcomeText = remember(currentAssistant.id, currentAssistant.welcomePhrases) {
-                    currentAssistant.welcomePhrases.takeIf { it.isNotEmpty() }?.random()
+                val welcomeText = remember(assistantForConversation.id, assistantForConversation.welcomePhrases) {
+                    assistantForConversation.welcomePhrases.takeIf { it.isNotEmpty() }?.random()
                 } ?: stringResource(R.string.welcome_phrases_fallback)
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = currentAssistant.enableWelcomePhrases && !isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages,
-                    enter = androidx.compose.animation.fadeIn(
-                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f)
-                    ) + androidx.compose.animation.scaleIn(
-                        initialScale = 0.9f,
-                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f)
-                    ),
-                    exit = androidx.compose.animation.fadeOut(
-                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f)
-                    ) + androidx.compose.animation.scaleOut(
-                        targetScale = 0.9f,
-                        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f)
-                    ),
-                    modifier = Modifier.align(Alignment.Center)
+
+                val overlayState = remember(
+                    conversationInitialized,
+                    isTemporaryChat,
+                    hasUserSentMessages,
+                    hasAnyPresetMessages,
+                    assistantForConversation.enableWelcomePhrases,
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
-                        modifier = Modifier
-                            .padding(horizontal = 32.dp)
-                            .offset(y = (-56).dp),
-                    ) {
-                        me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                            name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                            value = currentAssistant.avatar,
-                            modifier = Modifier.size(64.dp),
-                        )
-                        Text(
-                            text = welcomeText,
-                            style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    when {
+                        !conversationInitialized -> EmptyChatOverlay.None
+                        isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages -> EmptyChatOverlay.Temporary
+                        assistantForConversation.enableWelcomePhrases && !isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages ->
+                            EmptyChatOverlay.Welcome
+
+                        else -> EmptyChatOverlay.None
                     }
                 }
 
-                // Temporary chat overlay - shown when no user messages and temporary
-                // (ignores preset messages from assistant)
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages,
-                    enter = androidx.compose.animation.fadeIn(),
-                    exit = androidx.compose.animation.fadeOut(),
-                    modifier = Modifier.align(Alignment.Center)
+                val overlayBottomPadding = remember(chatInputChromeHeightDp) {
+                    maxOf(EmptyChatOverlayBottomPaddingFallback, chatInputChromeHeightDp)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = overlayBottomPadding)
+                        .padding(WindowInsets.ime.asPaddingValues()),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.HistoryToggleOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = stringResource(R.string.temporary_chat_description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = overlayState,
+                        contentAlignment = Alignment.Center,
+                        transitionSpec = {
+                            val fadeSpec = androidx.compose.animation.core.spring<Float>(
+                                dampingRatio = 1f,
+                                stiffness = 400f
+                            )
+                            val scaleSpec = androidx.compose.animation.core.spring<Float>(
+                                dampingRatio = 0.6f,
+                                stiffness = 300f
+                            )
+                            (
+                                (
+                                    androidx.compose.animation.fadeIn(
+                                        animationSpec = fadeSpec
+                                    ) + androidx.compose.animation.scaleIn(
+                                        initialScale = 0.9f,
+                                        animationSpec = scaleSpec
+                                    )
+                                ) togetherWith (
+                                    androidx.compose.animation.fadeOut(
+                                        animationSpec = fadeSpec
+                                    ) + androidx.compose.animation.scaleOut(
+                                        targetScale = 0.9f,
+                                        animationSpec = scaleSpec
+                                    )
+                                )
+                            ).using(
+                                SizeTransform(
+                                    clip = false,
+                                    sizeAnimationSpec = { _, _ -> snap() },
+                                )
+                            )
+                        },
+                        label = "empty_chat_overlay",
+                    ) { state ->
+                        when (state) {
+                            EmptyChatOverlay.Welcome -> {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
+                                    modifier = Modifier
+                                        .padding(horizontal = 32.dp)
+                                        .offset(y = EmptyChatOverlayContentYOffset),
+                                ) {
+                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                        name = assistantForConversation.name.ifBlank {
+                                            stringResource(R.string.assistant_page_default_assistant)
+                                        },
+                                        value = assistantForConversation.avatar,
+                                        modifier = Modifier.size(64.dp),
+                                    )
+                                    Text(
+                                        text = welcomeText,
+                                        style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            EmptyChatOverlay.Temporary -> {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier
+                                        .padding(32.dp)
+                                        .offset(y = EmptyChatOverlayContentYOffset),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.HistoryToggleOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.temporary_chat_description),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                }
+                            }
+
+                            EmptyChatOverlay.None -> Unit
+                        }
                     }
                 }
 
@@ -482,7 +571,8 @@ private fun ChatPageContent(
 
                 ChatInput(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter),
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { chatInputHeightPx = it.height },
                     state = inputState,
                     settings = setting,
                     conversation = conversation,
@@ -600,7 +690,8 @@ private fun TopBar(
     
     // State for assistant picker - must be at function level for proper recomposition
     var showAssistantPicker by remember { mutableStateOf(false) }
-    val currentAssistant = settings.getCurrentAssistant()
+    val assistantForConversation = settings.getAssistantById(conversation.assistantId)
+        ?: settings.getCurrentAssistant()
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -695,8 +786,8 @@ private fun TopBar(
                                 contentAlignment = Alignment.Center
                             ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                    value = currentAssistant.avatar,
+                                    name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                    value = assistantForConversation.avatar,
                                     modifier = Modifier.size(32.dp),
                                     onClick = { showAssistantPicker = true }
                                 )
@@ -717,8 +808,8 @@ private fun TopBar(
                                 contentAlignment = Alignment.Center
                             ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                    value = currentAssistant.avatar,
+                                    name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                    value = assistantForConversation.avatar,
                                     modifier = Modifier.size(32.dp),
                                     onClick = { showAssistantPicker = true }
                                 )
@@ -752,7 +843,7 @@ private fun TopBar(
         val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(settings, onUpdateSettings)
         me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
             settings = settings,
-            currentAssistant = currentAssistant,
+            currentAssistant = assistantForConversation,
             onAssistantSelected = { selectedAssistant ->
                 assistantState.setSelectAssistant(selectedAssistant)
                 showAssistantPicker = false
