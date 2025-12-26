@@ -221,6 +221,10 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         truncateIndex: Int,
     ): List<UIMessage> {
+        val contextMessages = messages
+            .truncate(truncateIndex)
+            .limitContext(assistant.contextMessageSize.coerceAtLeast(0))
+
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
         fun estimateTokens(message: UIMessage) = estimateTokens(message.toText())
@@ -240,14 +244,14 @@ class GenerationHandler(
         }
         tools.forEach { tool ->
             baseSystemPromptBuilder.appendLine()
-            baseSystemPromptBuilder.append(tool.systemPrompt(model, messages))
+            baseSystemPromptBuilder.append(tool.systemPrompt(model, contextMessages))
         }
         val baseSystemPrompt = baseSystemPromptBuilder.toString()
         currentTokens += estimateTokens(baseSystemPrompt)
 
         // 2. Prepare Candidates
         // Chat History (reverse order to prioritize recent)
-        val chatHistoryCandidates = messages.truncate(truncateIndex).reversed()
+        val chatHistoryCandidates = contextMessages.reversed()
         
         // Memories (Prepare effective memories including recent chats if enabled)
         val effectiveMemoriesCandidates = if (assistant.enableMemory) {

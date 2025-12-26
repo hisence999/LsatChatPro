@@ -23,6 +23,8 @@ data class Assistant(
     val systemPrompt: String = "",
     val temperature: Float? = null,
     val topP: Float? = null,
+    /** Limit how many recent chat messages are sent to model as context. `0` means no limit. */
+    val contextMessageSize: Int = 0,
     val maxTokenUsage: Int = 81920, // 80k default
     val contextPriority: ContextPriority = ContextPriority.BALANCED,
     val summarizerModelId: Uuid? = null, // Model used for memory summarization

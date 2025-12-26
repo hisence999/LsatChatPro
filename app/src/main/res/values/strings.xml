@@ -38,8 +38,8 @@
     <string name="assistant_page_clone">Clone</string>
     <string name="assistant_page_confirm">Confirm</string>
     <string name="assistant_page_context_message_count">Context Messages: %d</string>
-    <string name="assistant_page_context_message_desc">Controls how many history messages are sent as context. Messages beyond this limit are ignored to save tokens.</string>
-    <string name="assistant_page_context_message_size">Context Size</string>
+    <string name="assistant_page_context_message_desc">Only send the last N messages to the model.</string>
+    <string name="assistant_page_context_message_size">Context Message Limit</string>
     <string name="assistant_page_creative">Creative</string>
     <string name="assistant_page_custom_bodies">Custom Body</string>
     <string name="assistant_page_custom_headers">Custom Headers</string>

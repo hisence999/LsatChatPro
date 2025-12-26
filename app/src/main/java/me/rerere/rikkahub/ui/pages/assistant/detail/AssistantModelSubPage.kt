@@ -245,6 +245,24 @@ fun AssistantModelSubPage(
                     }
                 }
             }
+
+            SettingGroupItem(
+                title = stringResource(R.string.assistant_page_context_message_size),
+                subtitle = stringResource(R.string.assistant_page_context_message_desc),
+                trailing = {
+                    OutlinedTextField(
+                        value = assistant.contextMessageSize.takeIf { it > 0 }?.toString() ?: "",
+                        onValueChange = { text ->
+                            val size = text.toIntOrNull()?.takeIf { it > 0 } ?: 0
+                            onUpdate(assistant.copy(contextMessageSize = size))
+                        },
+                        modifier = Modifier.width(100.dp),
+                        placeholder = { Text(stringResource(R.string.auto)) },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                }
+            )
         }
 
         // ═══════════════════════════════════════════════════════════════════
