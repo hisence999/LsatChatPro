@@ -7,7 +7,7 @@
   <string name="about_page_version">版本</string>
   <string name="about_page_website">官網</string>
   <string name="add">添加</string>
-  <string name="app_name">LastChat</string>
+  <string name="app_name">LastChat Plus</string>
   <string name="assistant_importer_import_failed">匯入失敗</string>
   <string name="assistant_importer_import_tavern_json">匯入酒館角色卡 (JSON)</string>
   <string name="assistant_importer_import_tavern_png">匯入酒館角色卡 (PNG)</string>
@@ -678,4 +678,7 @@
     <string name="delete_memory_confirmation">確定要刪除這條記憶嗎？此操作無法復原。</string>
     <string name="done">完成</string>
     <string name="loading">載入中...</string>
+    <string name="assistant_page_welcome_phrases_title">歡迎詞</string>
+    <string name="assistant_page_welcome_phrases_desc">使用聊天建議模型，在新聊天介面新增歡迎詞。</string>
+    <string name="welcome_phrases_fallback">你好呀，想聊點什麼？</string>
 </resources>

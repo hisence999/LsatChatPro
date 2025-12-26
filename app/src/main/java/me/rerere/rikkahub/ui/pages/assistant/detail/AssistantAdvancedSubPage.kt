@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,8 @@ import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.service.WelcomePhrasesService
+import org.koin.compose.koinInject
 
 /**
  * Advanced tab - Notifications and custom request settings.
@@ -45,10 +48,17 @@ fun AssistantAdvancedSubPage(
     assistant: Assistant,
     onUpdate: (Assistant) -> Unit
 ) {
+    val welcomePhrasesService = koinInject<WelcomePhrasesService>()
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         onUpdate(assistant.copy(enableSpontaneous = true))
+    }
+
+    LaunchedEffect(assistant.id, assistant.enableWelcomePhrases, assistant.welcomePhrases) {
+        if (assistant.enableWelcomePhrases && assistant.welcomePhrases.isEmpty()) {
+            welcomePhrasesService.refreshForAssistantIfNeeded(assistant.id)
+        }
     }
     
     Column(
@@ -182,6 +192,21 @@ fun AssistantAdvancedSubPage(
                     )
                 }
             }
+        }
+
+        SettingsGroup(title = stringResource(R.string.assistant_page_group_other)) {
+            SettingGroupItem(
+                title = stringResource(R.string.assistant_page_welcome_phrases_title),
+                subtitle = stringResource(R.string.assistant_page_welcome_phrases_desc),
+                trailing = {
+                    HapticSwitch(
+                        checked = assistant.enableWelcomePhrases,
+                        onCheckedChange = { enabled ->
+                            onUpdate(assistant.copy(enableWelcomePhrases = enabled))
+                        }
+                    )
+                }
+            )
         }
     }
 }

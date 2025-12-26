@@ -7,7 +7,7 @@
   <string name="about_page_version">版本</string>
   <string name="about_page_website">官网</string>
   <string name="add">添加</string>
-  <string name="app_name">LastChat</string>
+  <string name="app_name">LastChat Plus</string>
   <string name="assistant_importer_import_failed">导入失败</string>
   <string name="assistant_importer_import_tavern_json">导入酒馆角色卡 (JSON)</string>
   <string name="assistant_importer_import_tavern_png">导入酒馆角色卡 (PNG)</string>
@@ -834,6 +834,9 @@
     <string name="end">结束</string>
     <string name="start">开始</string>
     <string name="unit_hours_abbrev">h</string>
+    <string name="assistant_page_welcome_phrases_title">欢迎词</string>
+    <string name="assistant_page_welcome_phrases_desc">使用聊天建议模型，在新聊天界面添加欢迎词。</string>
+    <string name="welcome_phrases_fallback">你好呀，想聊点什么？</string>
 
     <string name="a11y_forward">前进</string>
     <string name="a11y_hide">隐藏</string>

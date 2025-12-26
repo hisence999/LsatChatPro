@@ -48,6 +48,10 @@ data class Assistant(
     val lastNotificationContent: String = "", // Content of last notification to avoid repetition
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),
+
+    val enableWelcomePhrases: Boolean = true,
+    val welcomePhrases: List<String> = emptyList(),
+
     val quickMessages: List<QuickMessage> = emptyList(),
     val regexes: List<AssistantRegex> = emptyList(),
     val thinkingBudget: Int? = 1024,

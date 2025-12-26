@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.pebbletemplates.pebble.PebbleEngine
@@ -89,6 +90,7 @@ class SettingsStore(
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
         val ASSISTANTS = stringPreferencesKey("assistants")
+        val LAST_WELCOME_PHRASES_REQUEST_EPOCH_DAY = longPreferencesKey("last_welcome_phrases_request_epoch_day")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
         val PROVIDER_TAGS = stringPreferencesKey("provider_tags")
         val RECENTLY_USED_ASSISTANTS = stringPreferencesKey("recently_used_assistants")
@@ -157,6 +159,7 @@ class SettingsStore(
                 recentlyUsedAssistants = preferences[RECENTLY_USED_ASSISTANTS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
+                lastWelcomePhrasesRequestEpochDay = preferences[LAST_WELCOME_PHRASES_REQUEST_EPOCH_DAY] ?: -1L,
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 developerMode = preferences[DEVELOPER_MODE] == true,
@@ -308,6 +311,7 @@ class SettingsStore(
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settingsToSave.assistantTags)
             preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(settingsToSave.providerTags)
             preferences[RECENTLY_USED_ASSISTANTS] = JsonInstant.encodeToString(settingsToSave.recentlyUsedAssistants)
+            preferences[LAST_WELCOME_PHRASES_REQUEST_EPOCH_DAY] = settingsToSave.lastWelcomePhrasesRequestEpochDay
 
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settingsToSave.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settingsToSave.searchCommonOptions)
@@ -387,6 +391,7 @@ data class Settings(
     val assistantTags: List<Tag> = emptyList(),
     val providerTags: List<Tag> = emptyList(),
     val recentlyUsedAssistants: List<Uuid> = emptyList(), // For app shortcuts, max 3 items
+    val lastWelcomePhrasesRequestEpochDay: Long = -1L,
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,

@@ -9,7 +9,7 @@
     <string name="add">Add</string>
     <string name="developer_page_title">Developer Page</string>
     <string name="developer_page_tab_developer">Developer</string>
-    <string name="app_name">LastChat</string>
+    <string name="app_name">LastChat Plus</string>
     <string name="assistant_importer_import_failed">Import Failed</string>
     <string name="assistant_importer_import_tavern_json">Import Tavern Card (JSON)</string>
     <string name="assistant_importer_import_tavern_png">Import Tavern Card (PNG)</string>
@@ -836,6 +836,8 @@
     <string name="assistant_page_frequency_title">Frequency</string>
     <string name="assistant_page_group_custom_request">Custom Request</string>
     <string name="assistant_page_group_spontaneous_messaging">Spontaneous Messaging</string>
+    <string name="assistant_page_welcome_phrases_title">Welcome phrases</string>
+    <string name="assistant_page_welcome_phrases_desc">Use the suggestion model to show greetings on the new chat screen.</string>
     <string name="assistant_page_custom_prompt_desc">Instructions for spontaneous messages. Use {{history}} and {{memories}}.</string>
     <string name="assistant_page_custom_prompt_title">Custom Prompt</string>
     <string name="assistant_page_debugger_id_format">ID: %1$d</string>
@@ -854,6 +856,7 @@
     <string name="end">End</string>
     <string name="start">Start</string>
     <string name="unit_hours_abbrev">h</string>
+    <string name="welcome_phrases_fallback">Hi—what would you like to chat about?</string>
 
     <string name="a11y_forward">Forward</string>
     <string name="a11y_hide">Hide</string>

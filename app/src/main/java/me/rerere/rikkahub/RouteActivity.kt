@@ -81,6 +81,7 @@ import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
+import me.rerere.rikkahub.service.WelcomePhrasesService
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -92,6 +93,7 @@ class RouteActivity : ComponentActivity() {
     private val highlighter by inject<Highlighter>()
     private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
+    private val welcomePhrasesService by inject<WelcomePhrasesService>()
     private var navStack by mutableStateOf<NavHostController?>(null)
     private var pendingAssistantId by mutableStateOf<String?>(null)
 
@@ -146,18 +148,20 @@ class RouteActivity : ComponentActivity() {
         val assistantIdStr = pendingAssistantId
         LaunchedEffect(assistantIdStr) {
             if (assistantIdStr != null) {
-                pendingAssistantId = null
                 try {
                     val assistantId = Uuid.parse(assistantIdStr)
                     // Update the selected assistant
                     settingsStore.updateAssistant(assistantId)
                     // Mark as recently used
                     settingsStore.markAssistantUsed(assistantId)
+                    welcomePhrasesService.refreshForAssistantIfNeeded(assistantId)
+                    pendingAssistantId = null
                     // Navigate to a new chat
                     navBackStack.navigate(Screen.Chat(Uuid.random().toString())) {
                         popUpTo(0) { inclusive = true }
                     }
                 } catch (e: Exception) {
+                    pendingAssistantId = null
                     e.printStackTrace()
                 }
             }
@@ -200,6 +204,13 @@ class RouteActivity : ComponentActivity() {
         val toastState = rememberAppToasterState()
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
         val tts = rememberCustomTtsState()
+
+        LaunchedEffect(settings.init, pendingAssistantId) {
+            if (!settings.init && pendingAssistantId == null) {
+                welcomePhrasesService.refreshForCurrentAssistantIfNeeded()
+            }
+        }
+
         SharedTransitionLayout {
             CompositionLocalProvider(
                 LocalNavController provides navBackStack,
