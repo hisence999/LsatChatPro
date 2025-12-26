@@ -51,6 +51,7 @@ data class Assistant(
 
     val enableWelcomePhrases: Boolean = true,
     val welcomePhrases: List<String> = emptyList(),
+    val lastWelcomePhrasesRequestEpochDay: Long = -1L,
 
     val quickMessages: List<QuickMessage> = emptyList(),
     val regexes: List<AssistantRegex> = emptyList(),

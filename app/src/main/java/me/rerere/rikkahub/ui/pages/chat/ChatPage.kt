@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -86,7 +85,6 @@ import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
-import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.rememberChatInputState
@@ -416,31 +414,25 @@ private fun ChatPageContent(
                     ),
                     modifier = Modifier.align(Alignment.Center)
                 ) {
-                    Surface(
-                        shape = AppShapes.CardLarge,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
                         modifier = Modifier
                             .padding(horizontal = 32.dp)
-                            .offset(y = (-16).dp),
+                            .offset(y = (-56).dp),
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
-                        ) {
-                            me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                value = currentAssistant.avatar,
-                                modifier = Modifier.size(72.dp),
-                            )
-                            Text(
-                                text = welcomeText,
-                                style = MaterialTheme.typography.titleLarge.copy(lineHeight = 28.sp),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
+                        me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                            name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                            value = currentAssistant.avatar,
+                            modifier = Modifier.size(64.dp),
+                        )
+                        Text(
+                            text = welcomeText,
+                            style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
 

@@ -41,23 +41,30 @@ class WelcomePhrasesService(
             if (settingsSnapshot.init) return@withLock null
 
             val todayEpochDay = LocalDate.now().toEpochDay()
-            if (settingsSnapshot.lastWelcomePhrasesRequestEpochDay == todayEpochDay) return@withLock null
-
             val assistant = settingsSnapshot.getAssistantById(assistantId) ?: return@withLock null
             if (!assistant.enableWelcomePhrases) return@withLock null
             if (assistant.presetMessages.isNotEmpty()) return@withLock null
+            if (assistant.lastWelcomePhrasesRequestEpochDay == todayEpochDay) return@withLock null
 
             val model = settingsSnapshot.findModelById(settingsSnapshot.suggestionModelId) ?: return@withLock null
             val provider = model.findProvider(settingsSnapshot.providers) ?: return@withLock null
 
             settingsStore.update { current ->
-                if (current.lastWelcomePhrasesRequestEpochDay == todayEpochDay) current
-                else current.copy(lastWelcomePhrasesRequestEpochDay = todayEpochDay)
+                current.copy(
+                    assistants = current.assistants.map { currentAssistant ->
+                        if (currentAssistant.id == assistantId) {
+                            currentAssistant.copy(lastWelcomePhrasesRequestEpochDay = todayEpochDay)
+                        } else {
+                            currentAssistant
+                        }
+                    }
+                )
             }
 
             PendingRequest(
                 assistantId = assistantId,
                 assistantSystemPrompt = assistant.systemPrompt,
+                todayEpochDay = todayEpochDay,
                 model = model,
                 provider = provider,
                 locale = Locale.getDefault(),
@@ -69,7 +76,10 @@ class WelcomePhrasesService(
         settingsStore.update { current ->
             val updatedAssistants = current.assistants.map { assistant ->
                 if (assistant.id == pending.assistantId) {
-                    assistant.copy(welcomePhrases = phrases)
+                    assistant.copy(
+                        welcomePhrases = phrases,
+                        lastWelcomePhrasesRequestEpochDay = pending.todayEpochDay,
+                    )
                 } else {
                     assistant
                 }
@@ -142,6 +152,7 @@ class WelcomePhrasesService(
     private data class PendingRequest(
         val assistantId: Uuid,
         val assistantSystemPrompt: String,
+        val todayEpochDay: Long,
         val model: Model,
         val provider: ProviderSetting,
         val locale: Locale,

@@ -205,7 +205,7 @@ class RouteActivity : ComponentActivity() {
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
         val tts = rememberCustomTtsState()
 
-        LaunchedEffect(settings.init, pendingAssistantId) {
+        LaunchedEffect(settings.init, settings.assistantId, pendingAssistantId) {
             if (!settings.init && pendingAssistantId == null) {
                 welcomePhrasesService.refreshForCurrentAssistantIfNeeded()
             }
