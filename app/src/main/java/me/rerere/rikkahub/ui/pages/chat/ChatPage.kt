@@ -160,14 +160,15 @@ private fun AnimatedWelcomeText(
 
     LaunchedEffect(text) {
         graphemes.forEachIndexed { index, _ ->
-            // 并行启动所有字符动画，使用非线性延迟产生由快到慢的节奏
-            val delayMs = (index.toFloat().pow(1.5f) * 25f).toInt()
+            // Adjust delay for a smoother "wave" effect
+            // Linear delay often looks more continuous for text than exponential
+            val delayMs = index * 30L
             launch {
-                kotlinx.coroutines.delay(delayMs.toLong())
+                delay(delayMs)
                 animationProgress[index].animateTo(
                     targetValue = 1f,
                     animationSpec = tween(
-                        durationMillis = 200,
+                        durationMillis = 400, // Slower, smoother transition
                         easing = FastOutSlowInEasing
                     )
                 )
@@ -176,14 +177,22 @@ private fun AnimatedWelcomeText(
     }
 
     androidx.compose.foundation.layout.FlowRow(
-        modifier = modifier,
+        // Add animateContentSize to handle line breaking (row expansion) smoothly
+        // This ensures that when a new line is added, the container grows with an animation,
+        // pushing existing content (or centered content) smoothly.
+        modifier = modifier.animateContentSize(),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Start,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
         graphemes.forEachIndexed { index, grapheme ->
             val progress = animationProgress.getOrNull(index)?.value ?: 1f
-            val alpha = progress
-            val blurRadius = ((1f - progress) * 8f).dp
+
+            // Delay alpha appearance slightly to ensure width exists first (prevents visual overlap/crowding)
+            val alpha = (progress - 0.2f).coerceAtLeast(0f) / 0.8f
+            
+            // Blur fades out as it becomes opaque. 
+            // Using alpha for blur helps synchronize the "focusing" effect with visibility.
+            val blurRadius = ((1f - alpha) * 4f).dp
 
             Text(
                 text = grapheme,
@@ -196,11 +205,14 @@ private fun AnimatedWelcomeText(
                     }
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
-                        // 宽度随 progress 连续变化，实现平滑扩展
+                        // Width expands from 0 to full width based on progress
+                        // Using raw progress (not alpha) so layout reserves space before fully visible
                         val animatedWidth = (placeable.width * progress).toInt()
                         layout(animatedWidth, placeable.height) {
-                            // 居中放置，让字符从中心展开
-                            placeable.placeRelative((animatedWidth - placeable.width) / 2, 0)
+                            // Center the content within the expanding width
+                            // effectively growing from the horizontal center of the character slot
+                            val x = (animatedWidth - placeable.width) / 2
+                            placeable.placeRelative(x, 0)
                         }
                     },
             )

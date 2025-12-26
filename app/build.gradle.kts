@@ -23,7 +23,7 @@ android {
         applicationId = "lastchat.rikkafork.cocolal"
         minSdk = 31
         targetSdk = 36
-        versionCode = 43
+        versionCode = 47
         versionName = "1.2.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
