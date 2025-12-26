@@ -7,7 +7,7 @@
 **LastChat** 是一款功能丰富的 Android AI 助手应用。它是 [RikkaHub](https://github.com/re-ovo/RikkaHub) 的分支版本，通过 **Claude 4.5 Opus** 和 **Gemini 3 Pro** 进行修改和优化。
 
 > [!NOTE]
-> 本项目是 LastChat 的中文翻译补充，更新进度可能较慢。
+> zh 后缀为 LastChat 提供中文翻译，plus后缀修改增加特性。
 
 本项目旨在为 Android 平台提供一个注重隐私且高度个性化的 AI 聊天体验。
 
