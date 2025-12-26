@@ -177,7 +177,7 @@ private fun AnimatedWelcomeText(
 
     androidx.compose.foundation.layout.FlowRow(
         modifier = modifier,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Start,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
         graphemes.forEachIndexed { index, grapheme ->
