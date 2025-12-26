@@ -103,6 +103,16 @@ import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.ui.text.buildAnnotatedString
+import kotlin.math.pow
+import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.layout.layout
 
 private enum class EmptyChatOverlay {
     None,
@@ -112,6 +122,91 @@ private enum class EmptyChatOverlay {
 
 private val EmptyChatOverlayBottomPaddingFallback = 140.dp
 private val EmptyChatOverlayContentYOffset = (-16).dp
+
+/**
+ * 使用 BreakIterator 正确分割文本为字素簇（支持 emoji）
+ */
+private fun splitIntoGraphemes(text: String): List<String> {
+    val graphemes = mutableListOf<String>()
+    val iterator = java.text.BreakIterator.getCharacterInstance()
+    iterator.setText(text)
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != java.text.BreakIterator.DONE) {
+        graphemes.add(text.substring(start, end))
+        start = end
+        end = iterator.next()
+    }
+    return graphemes
+}
+
+/**
+ * 逐字模糊淡入动画文本组件
+ * @param text 要显示的文本
+ * @param style 文本样式
+ * @param color 文本颜色
+ */
+@Composable
+private fun AnimatedWelcomeText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val graphemes = remember(text) { splitIntoGraphemes(text) }
+    val animationProgress = remember(text) {
+        graphemes.map { Animatable(0f) }
+    }
+
+    LaunchedEffect(text) {
+        graphemes.forEachIndexed { index, _ ->
+            // 并行启动所有字符动画，使用非线性延迟产生由快到慢的节奏
+            val delayMs = (index.toFloat().pow(1.5f) * 25f).toInt()
+            launch {
+                kotlinx.coroutines.delay(delayMs.toLong())
+                animationProgress[index].animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = 200,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        }
+    }
+
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    ) {
+        graphemes.forEachIndexed { index, grapheme ->
+            val progress = animationProgress.getOrNull(index)?.value ?: 1f
+            val alpha = progress
+            val blurRadius = ((1f - progress) * 8f).dp
+
+            Text(
+                text = grapheme,
+                style = style,
+                color = color.copy(alpha = alpha),
+                modifier = Modifier
+                    .blur(blurRadius)
+                    .graphicsLayer {
+                        this.alpha = alpha
+                    }
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        // 宽度随 progress 连续变化，实现平滑扩展
+                        val animatedWidth = (placeable.width * progress).toInt()
+                        layout(animatedWidth, placeable.height) {
+                            // 居中放置，让字符从中心展开
+                            placeable.placeRelative((animatedWidth - placeable.width) / 2, 0)
+                        }
+                    },
+            )
+        }
+    }
+}
 
 @Composable
 fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
@@ -462,94 +557,54 @@ private fun ChatPageContent(
                         .padding(WindowInsets.ime.asPaddingValues()),
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.animation.AnimatedContent(
-                        targetState = overlayState,
-                        contentAlignment = Alignment.Center,
-                        transitionSpec = {
-                            val fadeSpec = androidx.compose.animation.core.spring<Float>(
-                                dampingRatio = 1f,
-                                stiffness = 400f
-                            )
-                            val scaleSpec = androidx.compose.animation.core.spring<Float>(
-                                dampingRatio = 0.6f,
-                                stiffness = 300f
-                            )
-                            (
-                                (
-                                    androidx.compose.animation.fadeIn(
-                                        animationSpec = fadeSpec
-                                    ) + androidx.compose.animation.scaleIn(
-                                        initialScale = 0.9f,
-                                        animationSpec = scaleSpec
-                                    )
-                                ) togetherWith (
-                                    androidx.compose.animation.fadeOut(
-                                        animationSpec = fadeSpec
-                                    ) + androidx.compose.animation.scaleOut(
-                                        targetScale = 0.9f,
-                                        animationSpec = scaleSpec
-                                    )
+                    when (overlayState) {
+                        EmptyChatOverlay.Welcome -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
+                                modifier = Modifier
+                                    .padding(horizontal = 32.dp)
+                                    .offset(y = EmptyChatOverlayContentYOffset),
+                            ) {
+                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                    name = assistantForConversation.name.ifBlank {
+                                        stringResource(R.string.assistant_page_default_assistant)
+                                    },
+                                    value = assistantForConversation.avatar,
+                                    modifier = Modifier.size(64.dp),
                                 )
-                            ).using(
-                                SizeTransform(
-                                    clip = false,
-                                    sizeAnimationSpec = { _, _ -> snap() },
+                                AnimatedWelcomeText(
+                                    text = welcomeText,
+                                    style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
-                            )
-                        },
-                        label = "empty_chat_overlay",
-                    ) { state ->
-                        when (state) {
-                            EmptyChatOverlay.Welcome -> {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
-                                    modifier = Modifier
-                                        .padding(horizontal = 32.dp)
-                                        .offset(y = EmptyChatOverlayContentYOffset),
-                                ) {
-                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                        name = assistantForConversation.name.ifBlank {
-                                            stringResource(R.string.assistant_page_default_assistant)
-                                        },
-                                        value = assistantForConversation.avatar,
-                                        modifier = Modifier.size(64.dp),
-                                    )
-                                    Text(
-                                        text = welcomeText,
-                                        style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
                             }
-
-                            EmptyChatOverlay.Temporary -> {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-                                    modifier = Modifier
-                                        .padding(32.dp)
-                                        .offset(y = EmptyChatOverlayContentYOffset),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.HistoryToggleOff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.temporary_chat_description),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    )
-                                }
-                            }
-
-                            EmptyChatOverlay.None -> Unit
                         }
+
+                        EmptyChatOverlay.Temporary -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+                                modifier = Modifier
+                                    .padding(32.dp)
+                                    .offset(y = EmptyChatOverlayContentYOffset),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.HistoryToggleOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                )
+                                Text(
+                                    text = stringResource(R.string.temporary_chat_description),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        }
+
+                        EmptyChatOverlay.None -> Unit
                     }
                 }
 
