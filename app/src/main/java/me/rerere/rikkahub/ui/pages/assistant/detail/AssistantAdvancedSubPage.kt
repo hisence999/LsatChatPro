@@ -39,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
@@ -62,6 +63,7 @@ fun AssistantAdvancedSubPage(
 ) {
     val welcomePhrasesService = koinInject<WelcomePhrasesService>()
     val navController = LocalNavController.current
+    val appScope = koinInject<AppScope>()
     val scope = rememberCoroutineScope()
     var isRefreshingWelcomePhrases by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -72,7 +74,9 @@ fun AssistantAdvancedSubPage(
 
     LaunchedEffect(assistant.id, assistant.enableWelcomePhrases, assistant.welcomePhrases) {
         if (assistant.enableWelcomePhrases && assistant.welcomePhrases.isEmpty()) {
-            welcomePhrasesService.refreshForAssistantIfNeeded(assistant.id)
+            appScope.launch {
+                welcomePhrasesService.refreshForAssistantIfNeeded(assistant.id)
+            }
         }
     }
     
@@ -250,9 +254,12 @@ fun AssistantAdvancedSubPage(
                     } else {
                         {
                             isRefreshingWelcomePhrases = true
+                            val job = appScope.launch {
+                                welcomePhrasesService.forceRefreshForAssistant(assistant.id)
+                            }
                             scope.launch {
                                 try {
-                                    welcomePhrasesService.forceRefreshForAssistant(assistant.id)
+                                    job.join()
                                 } finally {
                                     isRefreshingWelcomePhrases = false
                                 }

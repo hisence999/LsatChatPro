@@ -90,7 +90,12 @@ fun AssistantScheduledTasksPage(assistantId: String) {
                 actions = {
                     HapticIconButton(
                         onClick = {
-                            navController.navigate(Screen.AssistantScheduledTaskEdit(assistantId = assistantId, taskId = null))
+                            navController.navigate(
+                                Screen.AssistantScheduledTaskEdit(
+                                    assistantId = assistantId,
+                                    taskId = Uuid.random().toString(),
+                                )
+                            )
                         }
                     ) {
                         Icon(
