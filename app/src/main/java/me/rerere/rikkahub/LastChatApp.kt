@@ -26,12 +26,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import me.rerere.rikkahub.service.MemoryConsolidationWorker
 import me.rerere.rikkahub.service.SpontaneousWorker
+import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRescheduleWorker
 import java.util.concurrent.TimeUnit
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
@@ -103,6 +106,13 @@ class LastChatApp : Application() {
                     )
                 }
         }
+
+        // Reschedule scheduled tasks on app start (covers restore/update edge cases)
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "scheduled_task_reschedule",
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<ScheduledTaskRescheduleWorker>().build()
+        )
         
         // Update app shortcuts when recently used assistants change
         val appShortcutManager = me.rerere.rikkahub.utils.AppShortcutManager(this)

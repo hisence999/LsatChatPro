@@ -17,17 +17,29 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
+import me.rerere.rikkahub.data.db.dao.ScheduledTaskDao
+import me.rerere.rikkahub.data.db.dao.ScheduledTaskRunDao
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.EmbeddingCacheEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
+import me.rerere.rikkahub.data.db.entity.ScheduledTaskEntity
+import me.rerere.rikkahub.data.db.entity.ScheduledTaskRunEntity
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
-    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class],
-    version = 19,
+    entities = [
+        ConversationEntity::class,
+        MemoryEntity::class,
+        GenMediaEntity::class,
+        ChatEpisodeEntity::class,
+        EmbeddingCacheEntity::class,
+        ScheduledTaskEntity::class,
+        ScheduledTaskRunEntity::class,
+    ],
+    version = 20,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -44,6 +56,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 16, to = 17),
         AutoMigration(from = 17, to = 18),
         AutoMigration(from = 18, to = 19),
+        AutoMigration(from = 19, to = 20),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -57,6 +70,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatEpisodeDao(): ChatEpisodeDAO
 
     abstract fun embeddingCacheDao(): EmbeddingCacheDAO
+
+    abstract fun scheduledTaskDao(): ScheduledTaskDao
+
+    abstract fun scheduledTaskRunDao(): ScheduledTaskRunDao
 
     companion object {
         const val TAG = "AppDatabase"

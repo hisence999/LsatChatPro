@@ -2,6 +2,8 @@ package me.rerere.rikkahub.di
 
 import me.rerere.rikkahub.ui.pages.assistant.AssistantVM
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
+import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEditVM
+import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksVM
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.chat.ChatVM
 import me.rerere.rikkahub.ui.pages.developer.DeveloperVM
@@ -51,4 +53,22 @@ val viewModelModule = module {
     viewModelOf(::ImgGenVM)
     viewModelOf(::DeveloperVM)
     viewModelOf(::MenuVM)
+
+    viewModel<AssistantScheduledTasksVM> {
+        AssistantScheduledTasksVM(
+            assistantId = it.get(),
+            settingsStore = get(),
+            taskDao = get(),
+            scheduler = get(),
+        )
+    }
+
+    viewModel<AssistantScheduledTaskEditVM> {
+        AssistantScheduledTaskEditVM(
+            assistantId = it.get(),
+            taskId = it.getOrNull(),
+            taskDao = get(),
+            scheduler = get(),
+        )
+    }
 }

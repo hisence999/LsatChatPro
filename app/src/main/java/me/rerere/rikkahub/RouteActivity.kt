@@ -60,6 +60,8 @@ import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
+import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEditPage
+import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
 import me.rerere.rikkahub.ui.pages.developer.DeveloperPage
@@ -318,6 +320,19 @@ class RouteActivity : ComponentActivity() {
                         }
                     }
 
+                    composable<Screen.AssistantScheduledTasks> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.AssistantScheduledTasks>()
+                        AssistantScheduledTasksPage(assistantId = route.assistantId)
+                    }
+
+                    composable<Screen.AssistantScheduledTaskEdit> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.AssistantScheduledTaskEdit>()
+                        AssistantScheduledTaskEditPage(
+                            assistantId = route.assistantId,
+                            taskId = route.taskId,
+                        )
+                    }
+
                     composable<Screen.Menu> {
                         MenuPage()
                     }
@@ -407,6 +422,12 @@ sealed interface Screen {
 
     @Serializable
     data class AssistantDetail(val id: String) : Screen
+
+    @Serializable
+    data class AssistantScheduledTasks(val assistantId: String) : Screen
+
+    @Serializable
+    data class AssistantScheduledTaskEdit(val assistantId: String, val taskId: String? = null) : Screen
 
     @Serializable
     data object Menu : Screen

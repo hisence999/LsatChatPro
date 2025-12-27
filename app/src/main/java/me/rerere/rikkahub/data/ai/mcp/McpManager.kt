@@ -25,6 +25,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.ai.mcp.transport.SseClientTransport
 import me.rerere.rikkahub.data.ai.mcp.transport.StreamableHttpClientTransport
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.utils.checkDifferent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -86,22 +87,31 @@ class McpManager(
     fun getAllAvailableTools(): List<McpTool> {
         val settings = settingsStore.settingsFlow.value
         val assistant = settings.getCurrentAssistant()
-        val mcpServers = settings.mcpServers
-            .filter {
-                it.commonOptions.enable && it.id in assistant.mcpServers
-            }
-            .flatMap {
-                it.commonOptions.tools.filter { tool -> tool.enable }
-            }
-        return mcpServers
+        return getAvailableToolsForAssistant(assistant)
+    }
+
+    fun getAvailableToolsForAssistant(assistant: Assistant): List<McpTool> {
+        val settings = settingsStore.settingsFlow.value
+        return settings.mcpServers
+            .filter { it.commonOptions.enable && it.id in assistant.mcpServers }
+            .flatMap { it.commonOptions.tools.filter { tool -> tool.enable } }
     }
 
     suspend fun callTool(toolName: String, args: JsonObject): JsonElement {
-        val tools = getAllAvailableTools()
-        val tool = tools.find { it.name == toolName }
+        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
+        return callToolForAssistant(assistant, toolName, args)
+    }
+
+    suspend fun callToolForAssistant(assistant: Assistant, toolName: String, args: JsonObject): JsonElement {
+        val tool = getAvailableToolsForAssistant(assistant).find { it.name == toolName }
             ?: return JsonPrimitive("Failed to execute tool, because no such tool")
-        val client =
-            clients.entries.find { it.key.commonOptions.tools.any { it.name == toolName } }?.value
+
+        val client = clients.entries.find { entry ->
+            entry.key.commonOptions.enable &&
+                entry.key.id in assistant.mcpServers &&
+                entry.key.commonOptions.tools.any { it.name == toolName }
+        }?.value
+
         if (client == null) return JsonPrimitive("Failed to execute tool, because no such mcp client for the tool")
         val config = clients.entries.first { it.value == client }.key
         Log.i(TAG, "callTool: $toolName / $args")

@@ -47,6 +47,8 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.service.WelcomePhrasesService
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.context.LocalNavController
 import org.koin.compose.koinInject
 
 /**
@@ -59,6 +61,7 @@ fun AssistantAdvancedSubPage(
     onUpdate: (Assistant) -> Unit
 ) {
     val welcomePhrasesService = koinInject<WelcomePhrasesService>()
+    val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     var isRefreshingWelcomePhrases by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -207,6 +210,14 @@ fun AssistantAdvancedSubPage(
         }
 
         SettingsGroup(title = stringResource(R.string.assistant_page_group_other)) {
+            SettingGroupItem(
+                title = stringResource(R.string.scheduled_tasks_title),
+                subtitle = stringResource(R.string.scheduled_tasks_entry_desc),
+                onClick = {
+                    navController.navigate(Screen.AssistantScheduledTasks(assistantId = assistant.id.toString()))
+                }
+            )
+
             SettingGroupItem(
                 title = stringResource(R.string.assistant_page_welcome_phrases_title),
                 subtitle = stringResource(R.string.assistant_page_welcome_phrases_desc),
