@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -151,29 +152,21 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                 }
             )
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        bottomBar = {
+            // Both FAB and tab bar at same height
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                // FAB
-                FloatingActionButton(
-                    onClick = { 
-                        showAddDialog = true
-                        haptics.perform(HapticPattern.Pop)
-                    },
-                    shape = AppShapes.CardLarge
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
-                }
-                
-                // Floating Tab Bar
+                // Centered floating tab bar
                 Surface(
+                    modifier = Modifier.align(Alignment.Center),
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     tonalElevation = 6.dp,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.navigationBarsPadding()
+                    shadowElevation = 8.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(4.dp),
@@ -217,18 +210,31 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                         }
                     }
                 }
+                
+                // FAB aligned to end/right at same height
+                FloatingActionButton(
+                    onClick = { 
+                        showAddDialog = true
+                        haptics.perform(HapticPattern.Pop)
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    shape = AppShapes.CardLarge
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
+                }
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .consumeWindowInsets(contentPadding),
-            state = lazyListState,
-            contentPadding = contentPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .consumeWindowInsets(contentPadding),
+                state = lazyListState,
+                contentPadding = contentPadding + PaddingValues(16.dp) + PaddingValues(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
             // Description card
             item(key = "description") {
                 Card(
@@ -354,6 +360,23 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
+            }
+            
+            // Bottom fade gradient
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
         }
     }
 

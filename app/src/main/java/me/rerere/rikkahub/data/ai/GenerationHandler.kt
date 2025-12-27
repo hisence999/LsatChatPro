@@ -50,10 +50,12 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.LorebookActivationType
 import me.rerere.rikkahub.data.model.LorebookEntry
 import me.rerere.rikkahub.data.model.Mode
+import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
+import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
@@ -84,6 +86,7 @@ class GenerationHandler(
         tools: List<Tool> = emptyList(),
         truncateIndex: Int = -1,
         maxSteps: Int = 256,
+        enabledModeIds: Set<Uuid> = emptySet(),
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -142,7 +145,8 @@ class GenerationHandler(
                 tools = toolsInternal,
                 memories = memories ?: emptyList(),
                 truncateIndex = truncateIndex,
-                stream = assistant.streamOutput
+                stream = assistant.streamOutput,
+                enabledModeIds = enabledModeIds
             )
             messages = messages.visualTransforms(
                 transformers = outputTransformers,
@@ -226,6 +230,7 @@ class GenerationHandler(
         tools: List<Tool>,
         memories: List<AssistantMemory>,
         truncateIndex: Int,
+        enabledModeIds: Set<Uuid> = emptySet(),
     ): List<UIMessage> {
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
@@ -303,9 +308,12 @@ class GenerationHandler(
         // Get recent message text for lorebook keyword scanning
         val recentMessagesForScan = messages.takeLast(10).map { it.toText() }
 
-        // Collect enabled modes (using defaultEnabled as we don't have conversation context here)
-        // For full per-chat mode support, conversation.enabledModeIds would need to be passed
-        val enabledModes = settings.modes.filter { it.defaultEnabled }
+        // Collect enabled modes - use per-conversation enabledModeIds if provided, otherwise fall back to defaultEnabled
+        val enabledModes = if (enabledModeIds.isNotEmpty()) {
+            settings.modes.filter { enabledModeIds.contains(it.id) }
+        } else {
+            settings.modes.filter { it.defaultEnabled }
+        }
 
         // Check if any lorebook entries use RAG activation
         val lorebooksForAssistant = settings.lorebooks
@@ -518,6 +526,41 @@ class GenerationHandler(
         }
 
         // 4. Construct Final List
+        // Collect all attachments from enabled modes
+        val modeAttachmentParts = enabledModes.flatMap { mode ->
+            mode.attachments.map { attachment ->
+                when (attachment.type) {
+                    ModeAttachmentType.IMAGE -> UIMessagePart.Image(url = attachment.url)
+                    ModeAttachmentType.VIDEO -> UIMessagePart.Video(url = attachment.url)
+                    ModeAttachmentType.AUDIO -> UIMessagePart.Audio(url = attachment.url)
+                    ModeAttachmentType.DOCUMENT -> UIMessagePart.Document(
+                        url = attachment.url,
+                        fileName = attachment.fileName,
+                        mime = attachment.mime
+                    )
+                }
+            }
+        }
+        
+        // Collect attachments from activated lorebook entries
+        val lorebookAttachmentParts = activatedEntries.flatMap { entry ->
+            entry.attachments.map { attachment ->
+                when (attachment.type) {
+                    ModeAttachmentType.IMAGE -> UIMessagePart.Image(url = attachment.url)
+                    ModeAttachmentType.VIDEO -> UIMessagePart.Video(url = attachment.url)
+                    ModeAttachmentType.AUDIO -> UIMessagePart.Audio(url = attachment.url)
+                    ModeAttachmentType.DOCUMENT -> UIMessagePart.Document(
+                        url = attachment.url,
+                        fileName = attachment.fileName,
+                        mime = attachment.mime
+                    )
+                }
+            }
+        }
+        
+        // Combine all context attachments
+        val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
+        
         return buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
@@ -529,6 +572,15 @@ class GenerationHandler(
             if (finalSystemPrompt.isNotBlank()) {
                 add(UIMessage.system(finalSystemPrompt))
             }
+            
+            // Add mode and lorebook attachments as a user message if there are any
+            if (allContextAttachments.isNotEmpty()) {
+                add(UIMessage(
+                    role = me.rerere.ai.core.MessageRole.USER,
+                    parts = allContextAttachments
+                ))
+            }
+            
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
@@ -546,7 +598,8 @@ class GenerationHandler(
         tools: List<Tool>,
         memories: List<AssistantMemory>,
         truncateIndex: Int,
-        stream: Boolean
+        stream: Boolean,
+        enabledModeIds: Set<Uuid> = emptySet()
     ) {
         val internalMessages = buildMessages(
             assistant = assistant,
@@ -555,7 +608,8 @@ class GenerationHandler(
             model = model,
             tools = tools,
             memories = memories,
-            truncateIndex = truncateIndex
+            truncateIndex = truncateIndex,
+            enabledModeIds = enabledModeIds
         ).transforms(transformers, context, model, assistant)
 
         var messages: List<UIMessage> = messages

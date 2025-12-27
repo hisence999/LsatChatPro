@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Book
@@ -82,7 +83,7 @@ fun AssistantLorebooksSubPage(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp) // Match Lorebooks settings spacing
         ) {
             // Description card header
             item(key = "description") {
@@ -117,16 +118,25 @@ fun AssistantLorebooksSubPage(
                     text = stringResource(R.string.lorebooks_section_available),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
                 )
             }
             
-            items(lorebooks, key = { it.id }) { lorebook ->
+            itemsIndexed(lorebooks, key = { _, it -> it.id }) { index, lorebook ->
                 val isEnabled = assistant.enabledLorebookIds.contains(lorebook.id)
+                
+                // Calculate position for connected card styling
+                val position = when {
+                    lorebooks.size == 1 -> me.rerere.rikkahub.ui.components.ui.ItemPosition.ONLY
+                    index == 0 -> me.rerere.rikkahub.ui.components.ui.ItemPosition.FIRST
+                    index == lorebooks.lastIndex -> me.rerere.rikkahub.ui.components.ui.ItemPosition.LAST
+                    else -> me.rerere.rikkahub.ui.components.ui.ItemPosition.MIDDLE
+                }
                 
                 LorebookSelectionCard(
                     lorebook = lorebook,
                     isEnabled = isEnabled,
+                    position = position,
                     onToggle = { enabled ->
                         val newIds = if (enabled) {
                             assistant.enabledLorebookIds + lorebook.id
@@ -145,13 +155,30 @@ fun AssistantLorebooksSubPage(
 private fun LorebookSelectionCard(
     lorebook: Lorebook,
     isEnabled: Boolean,
+    position: me.rerere.rikkahub.ui.components.ui.ItemPosition,
     onToggle: (Boolean) -> Unit
 ) {
+    // Calculate shape based on position for connected look (matching Lorebooks settings page)
+    val cornerRadius = 28.dp
+    val smallCorner = 8.dp
+    val shape = when (position) {
+        me.rerere.rikkahub.ui.components.ui.ItemPosition.ONLY -> RoundedCornerShape(cornerRadius)
+        me.rerere.rikkahub.ui.components.ui.ItemPosition.FIRST -> RoundedCornerShape(
+            topStart = cornerRadius, topEnd = cornerRadius,
+            bottomStart = smallCorner, bottomEnd = smallCorner
+        )
+        me.rerere.rikkahub.ui.components.ui.ItemPosition.MIDDLE -> RoundedCornerShape(smallCorner)
+        me.rerere.rikkahub.ui.components.ui.ItemPosition.LAST -> RoundedCornerShape(
+            topStart = smallCorner, topEnd = smallCorner,
+            bottomStart = cornerRadius, bottomEnd = cornerRadius
+        )
+    }
+    
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        shape = AppShapes.CardLarge
+        shape = shape
     ) {
         Row(
             modifier = Modifier

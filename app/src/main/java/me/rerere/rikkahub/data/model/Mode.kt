@@ -27,6 +27,32 @@ enum class InjectionPosition {
 }
 
 /**
+ * Type of multimedia attachment for modes.
+ */
+@Serializable
+enum class ModeAttachmentType {
+    @SerialName("image")
+    IMAGE,
+    @SerialName("video")
+    VIDEO,
+    @SerialName("audio")
+    AUDIO,
+    @SerialName("document")
+    DOCUMENT
+}
+
+/**
+ * A multimedia attachment that can be added to a mode.
+ */
+@Serializable
+data class ModeAttachment(
+    val url: String,  // Local file URI
+    val type: ModeAttachmentType,
+    val fileName: String = "",  // For documents
+    val mime: String = ""  // For documents
+)
+
+/**
  * A custom mode that can be enabled to inject additional prompts.
  * Modes are ordered by priority (list position).
  * Default state is set here, but can be overridden per-conversation.
@@ -38,5 +64,7 @@ data class Mode(
     val prompt: String = "",
     val defaultEnabled: Boolean = false,  // Default state for new chats
     val injectionPosition: InjectionPosition = InjectionPosition.AFTER_SYSTEM,
-    val depth: Int = 0  // Only used when injectionPosition is AT_DEPTH
+    val depth: Int = 0,  // Only used when injectionPosition is AT_DEPTH
+    val attachments: List<ModeAttachment> = emptyList()  // Multimedia attachments
 )
+

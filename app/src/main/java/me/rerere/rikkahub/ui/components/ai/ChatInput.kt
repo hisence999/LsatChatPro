@@ -342,11 +342,19 @@ fun ChatInput(
                             ),
                             label = "rotation"
                         )
+                        // Check if any mode is active for this conversation
+                        val hasActiveModes = remember(conversation.enabledModeIds, settings.modes) {
+                            if (conversation.enabledModeIds.isNotEmpty()) {
+                                true // Explicit modes enabled
+                            } else {
+                                settings.modes.any { it.defaultEnabled }
+                            }
+                        }
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = stringResource(R.string.more_options),
                             modifier = Modifier.rotate(rotation),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = if (hasActiveModes) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
 

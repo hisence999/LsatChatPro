@@ -24,7 +24,7 @@ android {
         minSdk = 31
         targetSdk = 36
         versionCode = 18
-        versionName = "1.2.6"
+        versionName = "1.2.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -245,6 +245,9 @@ dependencies {
     // Paging3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
+    
+    // Palette (for color extraction from images)
+    implementation(libs.androidx.palette.ktx)
 
     // WebDav
     implementation(libs.dav4jvm) {

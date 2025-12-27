@@ -379,15 +379,19 @@ class RouteActivity : ComponentActivity() {
                     }
 
                     composable<Screen.SettingModes>(
-                        enterTransition = { fadeIn(animationSpec = tween(200)) },
-                        exitTransition = { fadeOut(animationSpec = tween(200)) }
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
                     ) {
                         SettingModesPage()
                     }
 
                     composable<Screen.SettingLorebooks>(
-                        enterTransition = { fadeIn(animationSpec = tween(200)) },
-                        exitTransition = { fadeOut(animationSpec = tween(200)) }
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
                     ) {
                         SettingLorebooksPage()
                     }

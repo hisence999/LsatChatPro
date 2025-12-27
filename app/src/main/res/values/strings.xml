@@ -713,6 +713,9 @@
     <string name="modes_page_prompt_placeholder">Enter the prompt to inject...</string>
     <string name="modes_page_injection_position">Injection Position</string>
     <string name="modes_page_depth">Depth</string>
+    <string name="modes_page_attachments">Attachments</string>
+    <string name="modes_page_add_image">Image</string>
+    <string name="modes_page_add_file">File</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="save">Save</string>
     <string name="create">Create</string>

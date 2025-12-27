@@ -2,17 +2,54 @@ package me.rerere.rikkahub.utils
 
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.model.ChubCharacterV2
 import me.rerere.rikkahub.data.model.Lorebook
+import me.rerere.rikkahub.data.model.LorebookEntry
 import me.rerere.rikkahub.data.model.LorebookExport
+import me.rerere.rikkahub.data.model.ModeAttachment
+import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.data.model.SillyTavernWorldInfo
 import me.rerere.rikkahub.data.model.TavernCharacterBook
 import me.rerere.rikkahub.data.model.toLorebook
 import me.rerere.rikkahub.data.model.toSillyTavernWorldInfo
 import me.rerere.rikkahub.data.model.toTavernCharacterBook
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
+
+/**
+ * Embedded attachment for export - contains base64 encoded file content.
+ */
+@Serializable
+data class EmbeddedAttachment(
+    val type: ModeAttachmentType,
+    val fileName: String,
+    val mime: String,
+    val content: String  // Base64 encoded file content
+)
+
+/**
+ * Lorebook entry with embedded attachments for export.
+ */
+@Serializable  
+data class LorebookEntryExport(
+    val entry: LorebookEntry,
+    val embeddedAttachments: List<EmbeddedAttachment> = emptyList()
+)
+
+/**
+ * LastChat export format with embedded attachments.
+ */
+@Serializable
+data class LorebookExportV2(
+    val version: Int = 2,
+    val format: String = "lastchat",
+    val lorebook: Lorebook,
+    val entryAttachments: Map<String, List<EmbeddedAttachment>> = emptyMap()  // entry id -> attachments
+)
 
 /**
  * Utility for importing and exporting lorebooks.
@@ -27,9 +64,32 @@ object LorebookExportImport {
     }
     
     /**
-     * Export a lorebook to LastChat JSON format.
+     * Export a lorebook to LastChat JSON format with embedded attachments.
      */
-    fun exportToLastChatFormat(lorebook: Lorebook): String {
+    fun exportToLastChatFormat(lorebook: Lorebook, context: Context? = null): String {
+        // If context is provided, embed attachments as base64
+        val entryAttachments = if (context != null) {
+            lorebook.entries.associate { entry ->
+                entry.id.toString() to entry.attachments.mapNotNull { attachment ->
+                    embedAttachment(context, attachment)
+                }
+            }.filterValues { it.isNotEmpty() }
+        } else {
+            emptyMap()
+        }
+        
+        if (entryAttachments.isNotEmpty()) {
+            // Use V2 format with embedded attachments
+            val export = LorebookExportV2(
+                version = 2,
+                format = "lastchat",
+                lorebook = lorebook,
+                entryAttachments = entryAttachments
+            )
+            return json.encodeToString(LorebookExportV2.serializer(), export)
+        }
+        
+        // Fallback to V1 format (no attachments or no context)
         val export = LorebookExport(
             version = 1,
             format = "lastchat",
@@ -39,8 +99,36 @@ object LorebookExportImport {
     }
     
     /**
+     * Embed an attachment as base64.
+     */
+    private fun embedAttachment(context: Context, attachment: ModeAttachment): EmbeddedAttachment? {
+        return try {
+            val uri = Uri.parse(attachment.url)
+            val bytes = when {
+                attachment.url.startsWith("file://") -> {
+                    val file = File(uri.path ?: return null)
+                    if (file.exists()) file.readBytes() else return null
+                }
+                attachment.url.startsWith("content://") -> {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+                }
+                else -> return null
+            }
+            
+            EmbeddedAttachment(
+                type = attachment.type,
+                fileName = attachment.fileName,
+                mime = attachment.mime,
+                content = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
      * Export a lorebook to Tavern CharacterBook format.
-     * Note: Image content will be lost in conversion.
+     * Note: Attachments are not supported in Tavern format.
      */
     fun exportToTavernFormat(lorebook: Lorebook): String {
         val tavernBook = lorebook.toTavernCharacterBook()
@@ -49,7 +137,7 @@ object LorebookExportImport {
     
     /**
      * Export a lorebook to SillyTavern World Info format.
-     * This format has entries as an object with numeric string keys.
+     * Note: Attachments are not supported in SillyTavern format.
      */
     fun exportToSillyTavernFormat(lorebook: Lorebook): String {
         val worldInfo = lorebook.toSillyTavernWorldInfo()
@@ -66,11 +154,26 @@ object LorebookExportImport {
     
     /**
      * Import a lorebook from a JSON string.
-     * Auto-detects format (LastChat, Tavern, or SillyTavern).
+     * Auto-detects format (LastChat V1/V2, Tavern, or SillyTavern).
      */
-    fun importFromJson(jsonString: String): ImportResult {
+    fun importFromJson(jsonString: String, context: Context? = null): ImportResult {
         return try {
-            // Try LastChat format first
+            // Try LastChat V2 format first (with embedded attachments)
+            try {
+                val export = json.decodeFromString(LorebookExportV2.serializer(), jsonString)
+                if (export.format == "lastchat" && export.version >= 2) {
+                    val lorebook = if (context != null && export.entryAttachments.isNotEmpty()) {
+                        restoreAttachments(context, export.lorebook, export.entryAttachments)
+                    } else {
+                        export.lorebook
+                    }
+                    return ImportResult.Success(lorebook, "lastchat")
+                }
+            } catch (e: Exception) {
+                // Not V2 format
+            }
+            
+            // Try LastChat V1 format
             try {
                 val export = json.decodeFromString(LorebookExport.serializer(), jsonString)
                 return ImportResult.Success(export.lorebook, "lastchat")
@@ -123,6 +226,50 @@ object LorebookExportImport {
     }
     
     /**
+     * Restore embedded attachments to local files.
+     */
+    private fun restoreAttachments(
+        context: Context,
+        lorebook: Lorebook,
+        entryAttachments: Map<String, List<EmbeddedAttachment>>
+    ): Lorebook {
+        val updatedEntries = lorebook.entries.map { entry ->
+            val embeddedList = entryAttachments[entry.id.toString()] ?: emptyList()
+            if (embeddedList.isEmpty()) {
+                entry
+            } else {
+                val restoredAttachments = embeddedList.mapNotNull { embedded ->
+                    restoreEmbeddedAttachment(context, embedded)
+                }
+                entry.copy(attachments = entry.attachments + restoredAttachments)
+            }
+        }
+        return lorebook.copy(entries = updatedEntries)
+    }
+    
+    /**
+     * Restore a single embedded attachment to a local file.
+     */
+    private fun restoreEmbeddedAttachment(context: Context, embedded: EmbeddedAttachment): ModeAttachment? {
+        return try {
+            val bytes = Base64.decode(embedded.content, Base64.NO_WRAP)
+            val extension = embedded.fileName.substringAfterLast('.', "bin")
+            val file = File(context.filesDir, "chat_files/${System.currentTimeMillis()}_${embedded.fileName}")
+            file.parentFile?.mkdirs()
+            file.writeBytes(bytes)
+            
+            ModeAttachment(
+                url = "file://${file.absolutePath}",
+                type = embedded.type,
+                fileName = embedded.fileName,
+                mime = embedded.mime
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
      * Import a lorebook from a URI.
      */
     fun importFromUri(context: Context, uri: Uri): ImportResult {
@@ -134,7 +281,7 @@ object LorebookExportImport {
             val content = reader.readText()
             reader.close()
             
-            importFromJson(content)
+            importFromJson(content, context)
         } catch (e: Exception) {
             ImportResult.Error("Failed to read file: ${e.message}")
         }
@@ -154,4 +301,3 @@ object LorebookExportImport {
         }
     }
 }
-

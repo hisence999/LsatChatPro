@@ -2,6 +2,9 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -28,6 +32,10 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -54,7 +62,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -68,6 +78,8 @@ import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.LorebookActivationType
 import me.rerere.rikkahub.data.model.LorebookEntry
+import me.rerere.rikkahub.data.model.ModeAttachment
+import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -83,6 +95,8 @@ import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.createChatFilesByContents
+import me.rerere.rikkahub.utils.getFileNameFromUri
+import me.rerere.rikkahub.utils.getFileMimeType
 import me.rerere.rikkahub.utils.LorebookExportImport
 import androidx.activity.result.contract.ActivityResultContracts
 import org.koin.androidx.compose.koinViewModel
@@ -92,6 +106,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun SettingLorebookDetailPage(
@@ -160,10 +175,10 @@ fun SettingLorebookDetailPage(
     
     fun exportLorebook(format: String) {
         val content = when (format) {
-            "lastchat" -> LorebookExportImport.exportToLastChatFormat(lorebook)
+            "lastchat" -> LorebookExportImport.exportToLastChatFormat(lorebook, context)
             "tavern" -> LorebookExportImport.exportToTavernFormat(lorebook)
             "sillytavern" -> LorebookExportImport.exportToSillyTavernFormat(lorebook)
-            else -> LorebookExportImport.exportToLastChatFormat(lorebook)
+            else -> LorebookExportImport.exportToLastChatFormat(lorebook, context)
         }
         pendingExportContent = content
         pendingExportFormat = format
@@ -177,7 +192,7 @@ fun SettingLorebookDetailPage(
         updateLorebook(lorebook.copy(entries = newEntries))
         haptics.perform(HapticPattern.Pop)
     }
-
+    
     Scaffold(
         topBar = {
             OneUITopAppBar(
@@ -255,27 +270,20 @@ fun SettingLorebookDetailPage(
             contentPadding = contentPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Lorebook description card
+            // Lorebook description (centered, no card)
             item(key = "header") {
                 if (lorebook.description.isNotEmpty()) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-                        ),
-                        shape = AppShapes.CardLarge,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = lorebook.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Text(
+                        text = lorebook.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
                 }
             }
             
@@ -464,53 +472,66 @@ private fun EntryCard(
         ),
         shape = AppShapes.CardLarge
     ) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Leading Content (Number)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = priority.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Middle Content (Text)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = entry.name.ifEmpty { stringResource(R.string.lorebook_entry_unnamed) },
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = entry.prompt.take(50) + if (entry.prompt.length > 50) "..." else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = when (entry.activationType) {
-                            LorebookActivationType.ALWAYS -> stringResource(R.string.activation_always)
-                            LorebookActivationType.KEYWORDS -> stringResource(R.string.activation_keywords_with_count, entry.keywords.size)
-                            LorebookActivationType.RAG -> stringResource(R.string.activation_rag)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            },
-            leadingContent = {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = priority.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondary
-                        )
-                    }
-                }
-            },
-            trailingContent = dragHandle
-        )
+                Text(
+                    text = entry.prompt.take(50) + if (entry.prompt.length > 50) "..." else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Text(
+                    text = when (entry.activationType) {
+                        LorebookActivationType.ALWAYS -> stringResource(R.string.activation_always)
+                        LorebookActivationType.KEYWORDS -> stringResource(R.string.activation_keywords_with_count, entry.keywords.size)
+                        LorebookActivationType.RAG -> stringResource(R.string.activation_rag)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Trailing Content (Drag Handle)
+            dragHandle()
+        }
     }
 }
 
@@ -521,6 +542,7 @@ private fun EntryEditorSheet(
     onSave: (LorebookEntry) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
     
     var name by remember(entry) { mutableStateOf(entry?.name ?: "") }
     var prompt by remember(entry) { mutableStateOf(entry?.prompt ?: "") }
@@ -531,6 +553,57 @@ private fun EntryEditorSheet(
     var scanDepth by remember(entry) { mutableStateOf(entry?.scanDepth ?: 5) }
     var injectionPosition by remember(entry) { 
         mutableStateOf(entry?.injectionPosition ?: InjectionPosition.AFTER_SYSTEM) 
+    }
+    var attachments by remember(entry) { mutableStateOf(entry?.attachments ?: emptyList()) }
+    
+    // Image picker
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val savedUris = context.createChatFilesByContents(uris)
+            val newAttachments = savedUris.mapIndexed { index, uri ->
+                val originalUri = uris.getOrNull(index)
+                val fileName = originalUri?.let { context.getFileNameFromUri(it) } ?: "image"
+                val mime = originalUri?.let { context.getFileMimeType(it) } ?: "image/*"
+                val type = when {
+                    mime.startsWith("video/") -> ModeAttachmentType.VIDEO
+                    else -> ModeAttachmentType.IMAGE
+                }
+                ModeAttachment(
+                    url = uri.toString(),
+                    type = type,
+                    fileName = fileName,
+                    mime = mime
+                )
+            }
+            attachments = attachments + newAttachments
+        }
+    }
+    
+    // Document picker
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val savedUris = context.createChatFilesByContents(uris)
+            val newAttachments = savedUris.mapIndexed { index, uri ->
+                val originalUri = uris.getOrNull(index)
+                val fileName = originalUri?.let { context.getFileNameFromUri(it) } ?: "file"
+                val mime = originalUri?.let { context.getFileMimeType(it) } ?: "application/octet-stream"
+                val type = when {
+                    mime.startsWith("audio/") -> ModeAttachmentType.AUDIO
+                    else -> ModeAttachmentType.DOCUMENT
+                }
+                ModeAttachment(
+                    url = uri.toString(),
+                    type = type,
+                    fileName = fileName,
+                    mime = mime
+                )
+            }
+            attachments = attachments + newAttachments
+        }
     }
     
     ModalBottomSheet(
@@ -672,6 +745,60 @@ private fun EntryEditorSheet(
                 )
             }
 
+            // Attachments section
+            FormItem(
+                label = { Text(stringResource(R.string.modes_page_attachments)) }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Display existing attachments
+                    if (attachments.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            attachments.forEach { attachment ->
+                                LorebookEntryAttachmentItem(
+                                    attachment = attachment,
+                                    onRemove = {
+                                        attachments = attachments.filter { it != attachment }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Add buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { imagePickerLauncher.launch("image/*") }
+                        ) {
+                            Icon(
+                                Icons.Rounded.AddPhotoAlternate,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.modes_page_add_image))
+                        }
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
+                        ) {
+                            Icon(
+                                Icons.Rounded.AttachFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.modes_page_add_file))
+                        }
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -691,7 +818,8 @@ private fun EntryEditorSheet(
                             caseSensitive = caseSensitive,
                             useRegex = useRegex,
                             scanDepth = scanDepth,
-                            injectionPosition = injectionPosition
+                            injectionPosition = injectionPosition,
+                            attachments = attachments
                         )
                         onSave(savedEntry)
                     },
@@ -835,5 +963,112 @@ private fun LorebookEditorSheet(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LorebookEntryAttachmentItem(
+    attachment: ModeAttachment,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(80.dp)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (attachment.type) {
+                    ModeAttachmentType.IMAGE -> {
+                        coil3.compose.AsyncImage(
+                            model = attachment.url,
+                            contentDescription = attachment.fileName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                    ModeAttachmentType.VIDEO -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.VideoLibrary,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = attachment.fileName,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                    ModeAttachmentType.AUDIO -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.AudioFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = attachment.fileName,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                    ModeAttachmentType.DOCUMENT -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.AttachFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = attachment.fileName,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Remove button
+        Icon(
+            imageVector = Icons.Rounded.Close,
+            contentDescription = null,
+            modifier = Modifier
+                .size(20.dp)
+                .clickable { onRemove() }
+                .align(Alignment.TopEnd)
+                .background(MaterialTheme.colorScheme.secondary, CircleShape),
+            tint = MaterialTheme.colorScheme.onSecondary
+        )
     }
 }

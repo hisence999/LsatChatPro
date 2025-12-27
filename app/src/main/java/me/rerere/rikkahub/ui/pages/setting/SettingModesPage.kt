@@ -1,10 +1,14 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,16 +23,23 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Book
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -38,6 +49,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -54,17 +66,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.data.model.Mode
+import me.rerere.rikkahub.data.model.ModeAttachment
+import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -79,10 +96,14 @@ import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.utils.createChatFilesByContents
+import me.rerere.rikkahub.utils.getFileNameFromUri
+import me.rerere.rikkahub.utils.getFileMimeType
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
 
 @Composable
 fun SettingModesPage(vm: SettingVM = koinViewModel()) {
@@ -125,29 +146,21 @@ fun SettingModesPage(vm: SettingVM = koinViewModel()) {
                 }
             )
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        bottomBar = {
+            // Both FAB and tab bar at same height
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                // FAB
-                FloatingActionButton(
-                    onClick = { 
-                        showAddDialog = true
-                        haptics.perform(HapticPattern.Pop)
-                    },
-                    shape = AppShapes.CardLarge
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
-                }
-                
-                // Floating Tab Bar
+                // Centered floating tab bar
                 Surface(
+                    modifier = Modifier.align(Alignment.Center),
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     tonalElevation = 6.dp,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.navigationBarsPadding()
+                    shadowElevation = 8.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(4.dp),
@@ -191,18 +204,31 @@ fun SettingModesPage(vm: SettingVM = koinViewModel()) {
                         }
                     }
                 }
+                
+                // FAB aligned to end/right at same height
+                FloatingActionButton(
+                    onClick = { 
+                        showAddDialog = true
+                        haptics.perform(HapticPattern.Pop)
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    shape = AppShapes.CardLarge
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
+                }
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .consumeWindowInsets(contentPadding),
-            state = lazyListState,
-            contentPadding = contentPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .consumeWindowInsets(contentPadding),
+                state = lazyListState,
+                contentPadding = contentPadding + PaddingValues(16.dp) + PaddingValues(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
             // Description card
             item(key = "description") {
                 Card(
@@ -348,6 +374,23 @@ fun SettingModesPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
+            }
+            
+            // Bottom fade gradient
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
         }
     }
 
@@ -433,6 +476,7 @@ internal fun ModeEditorSheet(
     onSave: (Mode) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
     
     var name by remember(mode) { mutableStateOf(mode?.name ?: "") }
     var prompt by remember(mode) { mutableStateOf(mode?.prompt ?: "") }
@@ -441,6 +485,77 @@ internal fun ModeEditorSheet(
         mutableStateOf(mode?.injectionPosition ?: InjectionPosition.AFTER_SYSTEM) 
     }
     var depth by remember(mode) { mutableStateOf(mode?.depth ?: 0) }
+    var attachments by remember(mode) { mutableStateOf(mode?.attachments ?: emptyList()) }
+    
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val localUris = context.createChatFilesByContents(uris)
+            val newAttachments = localUris.map { uri ->
+                ModeAttachment(
+                    url = uri.toString(),
+                    type = ModeAttachmentType.IMAGE
+                )
+            }
+            attachments = attachments + newAttachments
+        }
+    }
+    
+    // Video picker launcher
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val localUris = context.createChatFilesByContents(uris)
+            val newAttachments = localUris.map { uri ->
+                ModeAttachment(
+                    url = uri.toString(),
+                    type = ModeAttachmentType.VIDEO
+                )
+            }
+            attachments = attachments + newAttachments
+        }
+    }
+    
+    // Audio picker launcher
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val localUris = context.createChatFilesByContents(uris)
+            val newAttachments = localUris.map { uri ->
+                ModeAttachment(
+                    url = uri.toString(),
+                    type = ModeAttachmentType.AUDIO
+                )
+            }
+            attachments = attachments + newAttachments
+        }
+    }
+    
+    // Document picker launcher
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val newAttachments = uris.mapNotNull { uri ->
+                val fileName = context.getFileNameFromUri(uri) ?: "file"
+                val mime = context.getFileMimeType(uri) ?: "application/octet-stream"
+                val localUri = context.createChatFilesByContents(listOf(uri)).firstOrNull()
+                localUri?.let {
+                    ModeAttachment(
+                        url = it.toString(),
+                        type = ModeAttachmentType.DOCUMENT,
+                        fileName = fileName,
+                        mime = mime
+                    )
+                }
+            }
+            attachments = attachments + newAttachments
+        }
+    }
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -449,6 +564,7 @@ internal fun ModeEditorSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -484,6 +600,50 @@ internal fun ModeEditorSheet(
                         .height(150.dp),
                     placeholder = { Text(stringResource(R.string.modes_page_prompt_placeholder)) }
                 )
+            }
+            
+            // Attachments section
+            FormItem(
+                label = { Text(stringResource(R.string.modes_page_attachments)) }
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Display current attachments
+                    if (attachments.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            attachments.forEach { attachment ->
+                                ModeAttachmentItem(
+                                    attachment = attachment,
+                                    onRemove = {
+                                        attachments = attachments.filter { it != attachment }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Add attachment buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { imagePickerLauncher.launch("image/*") }
+                        ) {
+                            Text(stringResource(R.string.modes_page_add_image))
+                        }
+                        OutlinedButton(
+                            onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
+                        ) {
+                            Text(stringResource(R.string.modes_page_add_file))
+                        }
+                    }
+                }
             }
 
             FormItem(
@@ -550,11 +710,12 @@ internal fun ModeEditorSheet(
                             prompt = prompt,
                             defaultEnabled = defaultEnabled,
                             injectionPosition = injectionPosition,
-                            depth = depth
+                            depth = depth,
+                            attachments = attachments
                         )
                         onSave(savedMode)
                     },
-                    enabled = name.isNotBlank() && prompt.isNotBlank()
+                    enabled = name.isNotBlank() && (prompt.isNotBlank() || attachments.isNotEmpty())
                 ) {
                     Text(stringResource(R.string.save))
                 }
@@ -562,3 +723,96 @@ internal fun ModeEditorSheet(
         }
     }
 }
+
+@Composable
+private fun ModeAttachmentItem(
+    attachment: ModeAttachment,
+    onRemove: () -> Unit
+) {
+    Box {
+        when (attachment.type) {
+            ModeAttachmentType.IMAGE -> {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    AsyncImage(
+                        model = attachment.url,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            ModeAttachmentType.VIDEO -> {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.VideoLibrary, null)
+                    }
+                }
+            }
+            ModeAttachmentType.AUDIO -> {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.AudioFile, null)
+                    }
+                }
+            }
+            ModeAttachmentType.DOCUMENT -> {
+                Surface(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .widthIn(max = 128.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.AttachFile, 
+                            null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = attachment.fileName.ifEmpty { "File" },
+                            style = MaterialTheme.typography.bodySmall,
+                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Remove button
+        Icon(
+            imageVector = Icons.Rounded.Close,
+            contentDescription = null,
+            modifier = Modifier
+                .clip(CircleShape)
+                .size(20.dp)
+                .clickable { onRemove() }
+                .align(Alignment.TopEnd)
+                .background(MaterialTheme.colorScheme.secondary),
+            tint = MaterialTheme.colorScheme.onSecondary
+        )
+    }
+}
+

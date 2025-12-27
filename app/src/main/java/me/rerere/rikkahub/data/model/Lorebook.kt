@@ -40,7 +40,10 @@ data class LorebookEntry(
     val useRegex: Boolean = false,
     val scanDepth: Int = 10,  // How many recent messages to scan for keywords/RAG
     
-    // For multimodal models - can inject images
+    // Multimedia attachments (images, files, etc.)
+    val attachments: List<ModeAttachment> = emptyList(),
+    
+    // Legacy: For multimodal models - can inject images (deprecated, use attachments instead)
     val imageContent: String? = null,  // Base64 encoded image or file path
     
     // RAG settings (when activationType is RAG)
