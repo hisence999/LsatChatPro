@@ -481,14 +481,6 @@ private fun ChatPageContent(
                     previewMode = previewMode,
                     settings = setting,
                     recentlyRestoredNodeIds = vm.recentlyRestoredNodeIds.collectAsStateWithLifecycle().value,
-                    onJumpToMessage = { index ->
-                        previewMode = false
-                        scope.launch {
-                            // Wait for AnimatedContent transition to complete before scrolling
-                            delay(350)
-                            chatListState.animateScrollToItem(index)
-                        }
-                    },
                     onRegenerate = {
                         vm.regenerateAtMessage(it)
                     },
