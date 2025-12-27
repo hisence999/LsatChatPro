@@ -96,6 +96,7 @@
   <string name="scheduled_tasks_model_override">指定模型</string>
   <string name="scheduled_tasks_model_override_desc">預設使用助手的後台模型</string>
   <string name="scheduled_tasks_inherit">繼承</string>
+  <string name="scheduled_tasks_custom">自訂</string>
   <string name="scheduled_tasks_search_provider">搜尋提供商</string>
   <string name="scheduled_tasks_mcp_server">MCP 伺服器</string>
   <string name="scheduled_tasks_exact_timing">精準時間</string>

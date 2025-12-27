@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,6 +55,12 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
+private object UpdateEntryButtonSession {
+    var suppressErrorUntilRestart by mutableStateOf(false)
+    var errorRetryRequested by mutableStateOf(false)
+    var errorRetryStarted by mutableStateOf(false)
+}
+
 @OptIn(ExperimentalTime::class)
 @Composable
 fun UpdateEntryButton(
@@ -69,7 +76,33 @@ fun UpdateEntryButton(
     val latest = remember(updateInfo) { updateInfo?.let { Version(it.version) } }
     val hasUpdate = latest != null && latest > current
 
-    val showButton = state is UiState.Error || hasUpdate
+    LaunchedEffect(state) {
+        when (state) {
+            is UiState.Loading -> {
+                if (UpdateEntryButtonSession.errorRetryRequested && !UpdateEntryButtonSession.errorRetryStarted) {
+                    UpdateEntryButtonSession.errorRetryStarted = true
+                }
+            }
+
+            is UiState.Success -> {
+                UpdateEntryButtonSession.errorRetryRequested = false
+                UpdateEntryButtonSession.errorRetryStarted = false
+            }
+
+            is UiState.Error -> {
+                if (UpdateEntryButtonSession.errorRetryStarted) {
+                    UpdateEntryButtonSession.suppressErrorUntilRestart = true
+                    UpdateEntryButtonSession.errorRetryRequested = false
+                    UpdateEntryButtonSession.errorRetryStarted = false
+                }
+            }
+
+            else -> Unit
+        }
+    }
+
+    val isRetryInProgress = UpdateEntryButtonSession.errorRetryRequested || UpdateEntryButtonSession.errorRetryStarted
+    val showButton = (state is UiState.Error && !UpdateEntryButtonSession.suppressErrorUntilRestart && !isRetryInProgress) || hasUpdate
     if (!showButton) return
 
     val isError = state is UiState.Error
@@ -94,7 +127,10 @@ fun UpdateEntryButton(
         onClick = {
             haptics.perform(HapticPattern.Pop)
             if (isError) {
-                vm.retryUpdateCheck()
+                if (!UpdateEntryButtonSession.errorRetryRequested && !UpdateEntryButtonSession.errorRetryStarted) {
+                    UpdateEntryButtonSession.errorRetryRequested = true
+                    vm.retryUpdateCheck()
+                }
             } else {
                 showDetail = true
             }
@@ -191,4 +227,3 @@ fun UpdateEntryButton(
         }
     }
 }
-

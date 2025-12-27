@@ -15,6 +15,7 @@ import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskAccuracyMode
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskIntervalUnit
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskNextRunCalculator
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskOverrideType
+import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskSearchOverrideType
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRepeatType
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskScheduler
 import kotlin.uuid.Uuid
@@ -96,7 +97,7 @@ class AssistantScheduledTaskEditVM(
             intervalValue = 1,
             intervalUnit = ScheduledTaskIntervalUnit.DAYS,
             overrideModelId = null,
-            searchOverrideType = ScheduledTaskOverrideType.INHERIT,
+            searchOverrideType = ScheduledTaskSearchOverrideType.INHERIT,
             searchProviderIndex = -1,
             mcpOverrideType = ScheduledTaskOverrideType.INHERIT,
             mcpServerId = null,

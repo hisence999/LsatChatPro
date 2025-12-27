@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -41,14 +42,21 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskAccuracyMode
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskIntervalUnit
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskOverrideType
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRepeatType
+import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskSearchOverrideType
+import me.rerere.rikkahub.ui.components.ai.McpPickerButton
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
+import me.rerere.rikkahub.ui.components.ai.SearchPickerButton
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import me.rerere.rikkahub.ui.components.ui.Select
@@ -63,6 +71,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.search.SearchServiceOptions
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -478,48 +487,199 @@ private fun SearchProviderPicker(
     draft: ScheduledTaskDraft,
     onUpdate: ((ScheduledTaskDraft) -> ScheduledTaskDraft) -> Unit,
 ) {
-    data class SearchOption(val overrideType: Int, val providerIndex: Int, val title: String)
-    val offText = stringResource(R.string.off)
-    val inheritText = stringResource(R.string.scheduled_tasks_inherit)
+    val assistant = runCatching { Uuid.parse(draft.assistantId) }
+        .getOrNull()
+        ?.let(settings::getAssistantById)
+        ?: settings.getCurrentAssistant()
 
-    val options = buildList {
-        add(SearchOption(ScheduledTaskOverrideType.INHERIT, -1, inheritText))
-        add(SearchOption(ScheduledTaskOverrideType.OFF, -1, offText))
-        settings.searchServices.forEachIndexed { index, service ->
-            val name = SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
-            add(SearchOption(ScheduledTaskOverrideType.OVERRIDE, index, name))
-        }
+    val overrideModelUuid = draft.overrideModelId
+        ?.takeIf { it.isNotBlank() }
+        ?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() }
+    val resolvedModelId = overrideModelUuid ?: assistant.backgroundModelId ?: assistant.chatModelId ?: settings.chatModelId
+    val model = settings.findModelById(resolvedModelId)
+
+    val inheritText = stringResource(R.string.scheduled_tasks_inherit)
+    val offText = stringResource(R.string.off)
+    val customText = stringResource(R.string.scheduled_tasks_custom)
+
+    data class ModeOption(val mode: Int, val title: String)
+    val modeOptions = listOf(
+        ModeOption(ScheduledTaskSearchOverrideType.INHERIT, inheritText),
+        ModeOption(ScheduledTaskSearchOverrideType.OFF, offText),
+        ModeOption(ScheduledTaskSearchOverrideType.OVERRIDE, customText),
+    )
+    val selectedModeValue = when (draft.searchOverrideType) {
+        ScheduledTaskSearchOverrideType.INHERIT -> ScheduledTaskSearchOverrideType.INHERIT
+        ScheduledTaskSearchOverrideType.OFF -> ScheduledTaskSearchOverrideType.OFF
+        else -> ScheduledTaskSearchOverrideType.OVERRIDE
+    }
+    val selectedMode = modeOptions.firstOrNull { it.mode == selectedModeValue } ?: modeOptions.first()
+
+    val preferBuiltInSearch = when (draft.searchOverrideType) {
+        ScheduledTaskSearchOverrideType.INHERIT -> assistant.preferBuiltInSearch
+        ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> true
+        else -> false
     }
 
-    val selected = options.firstOrNull { opt ->
-        when (opt.overrideType) {
-            ScheduledTaskOverrideType.INHERIT -> draft.searchOverrideType == ScheduledTaskOverrideType.INHERIT
-            ScheduledTaskOverrideType.OFF -> draft.searchOverrideType == ScheduledTaskOverrideType.OFF
-            ScheduledTaskOverrideType.OVERRIDE -> draft.searchOverrideType == ScheduledTaskOverrideType.OVERRIDE &&
-                draft.searchProviderIndex == opt.providerIndex
-            else -> false
+    val providerIndexFromAssistant = (assistant.searchMode as? AssistantSearchMode.Provider)?.index
+    val effectiveProviderIndex = when (draft.searchOverrideType) {
+        ScheduledTaskSearchOverrideType.INHERIT -> providerIndexFromAssistant ?: -1
+        else -> draft.searchProviderIndex
+    }
+
+    val providerName = effectiveProviderIndex
+        .takeIf { it >= 0 }
+        ?.let { index -> settings.searchServices.getOrNull(index) }
+        ?.let { service -> SearchServiceOptions.TYPES[service::class] }
+        ?.ifBlank { null }
+        ?: if (effectiveProviderIndex >= 0) {
+            "Provider ${effectiveProviderIndex + 1}"
+        } else {
+            offText
         }
-    } ?: options.first()
+
+    val detailText = when {
+        draft.searchOverrideType == ScheduledTaskSearchOverrideType.OFF -> offText
+        preferBuiltInSearch -> stringResource(R.string.built_in_search_title)
+        effectiveProviderIndex >= 0 -> providerName
+        else -> offText
+    }
+    val subtitle = when (selectedModeValue) {
+        ScheduledTaskSearchOverrideType.INHERIT -> "$inheritText · $detailText"
+        ScheduledTaskSearchOverrideType.OFF -> offText
+        else -> "$customText · $detailText"
+    }
+
+    val enableSearch = when (draft.searchOverrideType) {
+        ScheduledTaskSearchOverrideType.OFF -> false
+        ScheduledTaskSearchOverrideType.INHERIT -> assistant.searchMode !is AssistantSearchMode.Off || preferBuiltInSearch
+        ScheduledTaskSearchOverrideType.OVERRIDE,
+        ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> (draft.searchProviderIndex >= 0) || preferBuiltInSearch
+        else -> false
+    }
+
+    val providerIndexForDialog = when {
+        effectiveProviderIndex >= 0 -> effectiveProviderIndex
+        settings.searchServices.isNotEmpty() -> 0
+        else -> -1
+    }
+
+    fun defaultProviderIndex(): Int {
+        return draft.searchProviderIndex.takeIf { it >= 0 }
+            ?: providerIndexFromAssistant
+            ?: if (settings.searchServices.isNotEmpty()) 0 else -1
+    }
 
     SettingGroupItem(
         title = stringResource(R.string.scheduled_tasks_search_provider),
-        subtitle = selected.title,
+        subtitle = subtitle,
         trailing = {
-            Select(
-                options = options,
-                selectedOption = selected,
-                onOptionSelected = { opt ->
-                    onUpdate {
-                        it.copy(
-                            searchOverrideType = opt.overrideType,
-                            searchProviderIndex = opt.providerIndex,
-                        )
-                    }
-                },
-                optionToString = { it.title },
-                modifier = Modifier.width(170.dp),
-            )
-        }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Select(
+                    options = modeOptions,
+                    selectedOption = selectedMode,
+                    onOptionSelected = { opt ->
+                        onUpdate { d ->
+                            when (opt.mode) {
+                                ScheduledTaskSearchOverrideType.INHERIT -> {
+                                    d.copy(searchOverrideType = ScheduledTaskSearchOverrideType.INHERIT)
+                                }
+
+                                ScheduledTaskSearchOverrideType.OFF -> {
+                                    d.copy(searchOverrideType = ScheduledTaskSearchOverrideType.OFF)
+                                }
+
+                                else -> {
+                                    val shouldPreferBuiltIn = when (d.searchOverrideType) {
+                                        ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> true
+                                        ScheduledTaskSearchOverrideType.INHERIT -> assistant.preferBuiltInSearch
+                                        else -> false
+                                    }
+                                    d.copy(
+                                        searchOverrideType = if (shouldPreferBuiltIn) {
+                                            ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN
+                                        } else {
+                                            ScheduledTaskSearchOverrideType.OVERRIDE
+                                        },
+                                        searchProviderIndex = defaultProviderIndex(),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    optionToString = { it.title },
+                    modifier = Modifier.width(110.dp),
+                )
+
+                SearchPickerButton(
+                    enableSearch = enableSearch,
+                    settings = settings,
+                    shape = CircleShape,
+                    onToggleSearch = { enabled ->
+                        onUpdate { d ->
+                            if (!enabled) {
+                                d.copy(searchOverrideType = ScheduledTaskSearchOverrideType.OFF)
+                            } else {
+                                val shouldPreferBuiltIn = when (d.searchOverrideType) {
+                                    ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> true
+                                    ScheduledTaskSearchOverrideType.INHERIT -> assistant.preferBuiltInSearch
+                                    else -> false
+                                }
+                                d.copy(
+                                    searchOverrideType = if (shouldPreferBuiltIn) {
+                                        ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN
+                                    } else {
+                                        ScheduledTaskSearchOverrideType.OVERRIDE
+                                    },
+                                    searchProviderIndex = defaultProviderIndex(),
+                                )
+                            }
+                        }
+                    },
+                    onUpdateSearchService = { index ->
+                        onUpdate { d ->
+                            val shouldPreferBuiltIn = when (d.searchOverrideType) {
+                                ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> true
+                                ScheduledTaskSearchOverrideType.INHERIT -> assistant.preferBuiltInSearch
+                                else -> false
+                            }
+                            d.copy(
+                                searchOverrideType = if (shouldPreferBuiltIn) {
+                                    ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN
+                                } else {
+                                    ScheduledTaskSearchOverrideType.OVERRIDE
+                                },
+                                searchProviderIndex = index,
+                            )
+                        }
+                    },
+                    model = model,
+                    selectedProviderIndex = providerIndexForDialog,
+                    preferBuiltInSearch = preferBuiltInSearch,
+                    onTogglePreferBuiltInSearch = { enabled ->
+                        onUpdate { d ->
+                            d.copy(
+                                searchOverrideType = if (enabled) {
+                                    ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN
+                                } else {
+                                    ScheduledTaskSearchOverrideType.OVERRIDE
+                                },
+                                searchProviderIndex = defaultProviderIndex(),
+                            )
+                        }
+                    },
+                    contentColor = if (enableSearch || model?.tools?.contains(BuiltInTools.Search) == true) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    onlyIcon = true,
+                )
+            }
+        },
     )
 }
 
@@ -529,47 +689,91 @@ private fun McpServerPicker(
     draft: ScheduledTaskDraft,
     onUpdate: ((ScheduledTaskDraft) -> ScheduledTaskDraft) -> Unit,
 ) {
-    data class McpOption(val overrideType: Int, val serverId: String?, val title: String)
-    val offText = stringResource(R.string.off)
-    val inheritText = stringResource(R.string.scheduled_tasks_inherit)
+    if (settings.mcpServers.isEmpty()) return
 
-    val options = buildList {
-        add(McpOption(ScheduledTaskOverrideType.INHERIT, null, inheritText))
-        add(McpOption(ScheduledTaskOverrideType.OFF, null, offText))
-        settings.mcpServers.forEachIndexed { index, server ->
-            val name = server.commonOptions.name.ifBlank { "MCP ${index + 1}" }
-            add(McpOption(ScheduledTaskOverrideType.OVERRIDE, server.id.toString(), name))
-        }
+    val assistant = runCatching { Uuid.parse(draft.assistantId) }
+        .getOrNull()
+        ?.let(settings::getAssistantById)
+        ?: settings.getCurrentAssistant()
+
+    val inheritText = stringResource(R.string.scheduled_tasks_inherit)
+    val offText = stringResource(R.string.off)
+    val customText = stringResource(R.string.scheduled_tasks_custom)
+
+    data class ModeOption(val mode: Int, val title: String)
+    val modeOptions = listOf(
+        ModeOption(ScheduledTaskOverrideType.INHERIT, inheritText),
+        ModeOption(ScheduledTaskOverrideType.OFF, offText),
+        ModeOption(ScheduledTaskOverrideType.OVERRIDE, customText),
+    )
+    val selectedModeValue = when (draft.mcpOverrideType) {
+        ScheduledTaskOverrideType.INHERIT -> ScheduledTaskOverrideType.INHERIT
+        ScheduledTaskOverrideType.OFF -> ScheduledTaskOverrideType.OFF
+        else -> ScheduledTaskOverrideType.OVERRIDE
+    }
+    val selectedMode = modeOptions.firstOrNull { it.mode == selectedModeValue } ?: modeOptions.first()
+
+    val selectedServerIds = when (draft.mcpOverrideType) {
+        ScheduledTaskOverrideType.INHERIT -> assistant.mcpServers
+        ScheduledTaskOverrideType.OFF -> emptySet()
+        ScheduledTaskOverrideType.OVERRIDE -> draft.mcpServerId.toUuidSet()
+        else -> assistant.mcpServers
     }
 
-    val selected = options.firstOrNull { opt ->
-        when (opt.overrideType) {
-            ScheduledTaskOverrideType.INHERIT -> draft.mcpOverrideType == ScheduledTaskOverrideType.INHERIT
-            ScheduledTaskOverrideType.OFF -> draft.mcpOverrideType == ScheduledTaskOverrideType.OFF
-            ScheduledTaskOverrideType.OVERRIDE -> draft.mcpOverrideType == ScheduledTaskOverrideType.OVERRIDE &&
-                draft.mcpServerId == opt.serverId
-            else -> false
-        }
-    } ?: options.first()
+    val subtitle = when (selectedModeValue) {
+        ScheduledTaskOverrideType.INHERIT -> "$inheritText · ${assistant.mcpServers.size}"
+        ScheduledTaskOverrideType.OFF -> offText
+        else -> "$customText · ${selectedServerIds.size}"
+    }
+
+    fun defaultServerIdsCsvOrNull(): String? {
+        val current = draft.mcpServerId?.takeIf { it.isNotBlank() }
+        if (current != null) return current
+        return assistant.mcpServers.toUuidCsvOrNull()
+    }
 
     SettingGroupItem(
         title = stringResource(R.string.scheduled_tasks_mcp_server),
-        subtitle = selected.title,
+        subtitle = subtitle,
         trailing = {
-            Select(
-                options = options,
-                selectedOption = selected,
-                onOptionSelected = { opt ->
-                    onUpdate {
-                        it.copy(
-                            mcpOverrideType = opt.overrideType,
-                            mcpServerId = opt.serverId,
-                        )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Select(
+                    options = modeOptions,
+                    selectedOption = selectedMode,
+                    onOptionSelected = { opt ->
+                        onUpdate { d ->
+                            when (opt.mode) {
+                                ScheduledTaskOverrideType.INHERIT -> d.copy(mcpOverrideType = ScheduledTaskOverrideType.INHERIT)
+                                ScheduledTaskOverrideType.OFF -> d.copy(mcpOverrideType = ScheduledTaskOverrideType.OFF)
+                                else -> d.copy(
+                                    mcpOverrideType = ScheduledTaskOverrideType.OVERRIDE,
+                                    mcpServerId = defaultServerIdsCsvOrNull(),
+                                )
+                            }
+                        }
+                    },
+                    optionToString = { it.title },
+                    modifier = Modifier.width(110.dp),
+                )
+
+                val assistantForPicker = assistant.copy(mcpServers = selectedServerIds)
+                McpPickerButton(
+                    assistant = assistantForPicker,
+                    servers = settings.mcpServers,
+                    mcpManager = koinInject(),
+                    onUpdateAssistant = { updatedAssistant ->
+                        onUpdate { d ->
+                            d.copy(
+                                mcpOverrideType = ScheduledTaskOverrideType.OVERRIDE,
+                                mcpServerId = updatedAssistant.mcpServers.toUuidCsvOrNull(),
+                            )
+                        }
                     }
-                },
-                optionToString = { it.title },
-                modifier = Modifier.width(170.dp),
-            )
+                )
+            }
         }
     )
 }
@@ -602,6 +806,26 @@ private fun TextFieldValue.insertText(insert: String): TextFieldValue {
     }
     val newCursor = start + insert.length
     return copy(text = newText, selection = TextRange(newCursor))
+}
+
+private fun String?.toUuidSet(): Set<Uuid> {
+    val raw = this?.trim().orEmpty()
+    if (raw.isBlank()) return emptySet()
+    return raw
+        .split(',')
+        .asSequence()
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .mapNotNull { id -> runCatching { Uuid.parse(id) }.getOrNull() }
+        .toSet()
+}
+
+private fun Set<Uuid>.toUuidCsvOrNull(): String? {
+    if (this.isEmpty()) return null
+    return this
+        .map { it.toString() }
+        .sorted()
+        .joinToString(",")
 }
 
 private fun Int.toLocalTimeOrNull(): LocalTime? {

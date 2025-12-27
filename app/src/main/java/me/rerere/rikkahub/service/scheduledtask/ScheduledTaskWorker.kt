@@ -341,6 +341,7 @@ class ScheduledTaskWorker(
 
         val assistantForRun = assistant.copy(
             searchMode = resolveSearchModeOverride(task, assistant),
+            preferBuiltInSearch = resolvePreferBuiltInSearchOverride(task, assistant),
             mcpServers = resolveMcpServersOverride(task, assistant),
         )
 
@@ -349,9 +350,10 @@ class ScheduledTaskWorker(
 
     private fun resolveSearchModeOverride(task: ScheduledTaskEntity, assistant: Assistant): AssistantSearchMode {
         return when (task.searchOverrideType) {
-            ScheduledTaskOverrideType.INHERIT -> assistant.searchMode
-            ScheduledTaskOverrideType.OFF -> AssistantSearchMode.Off
-            ScheduledTaskOverrideType.OVERRIDE -> {
+            ScheduledTaskSearchOverrideType.INHERIT -> assistant.searchMode
+            ScheduledTaskSearchOverrideType.OFF -> AssistantSearchMode.Off
+            ScheduledTaskSearchOverrideType.OVERRIDE,
+            ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> {
                 task.searchProviderIndex.takeIf { it >= 0 }?.let { AssistantSearchMode.Provider(it) }
                     ?: AssistantSearchMode.Off
             }
@@ -360,20 +362,38 @@ class ScheduledTaskWorker(
         }
     }
 
+    private fun resolvePreferBuiltInSearchOverride(task: ScheduledTaskEntity, assistant: Assistant): Boolean {
+        return when (task.searchOverrideType) {
+            ScheduledTaskSearchOverrideType.INHERIT -> assistant.preferBuiltInSearch
+            ScheduledTaskSearchOverrideType.OFF -> false
+            ScheduledTaskSearchOverrideType.OVERRIDE -> false
+            ScheduledTaskSearchOverrideType.OVERRIDE_PREFER_BUILTIN -> true
+            else -> assistant.preferBuiltInSearch
+        }
+    }
+
     private fun resolveMcpServersOverride(task: ScheduledTaskEntity, assistant: Assistant): Set<Uuid> {
         return when (task.mcpOverrideType) {
             ScheduledTaskOverrideType.INHERIT -> assistant.mcpServers
             ScheduledTaskOverrideType.OFF -> emptySet()
             ScheduledTaskOverrideType.OVERRIDE -> {
-                task.mcpServerId
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() }
-                    ?.let { setOf(it) }
-                    ?: emptySet()
+                task.mcpServerId.toUuidSet()
             }
 
             else -> assistant.mcpServers
         }
+    }
+
+    private fun String?.toUuidSet(): Set<Uuid> {
+        val raw = this?.trim().orEmpty()
+        if (raw.isBlank()) return emptySet()
+        return raw
+            .split(',')
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { id -> runCatching { Uuid.parse(id) }.getOrNull() }
+            .toSet()
     }
 
     private fun buildTools(
