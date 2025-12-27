@@ -43,9 +43,9 @@ class UpdateChecker(private val client: OkHttpClient) {
                     ).await()
                     if (response.isSuccessful) {
                         val releases = json.decodeFromString<List<GitHubRelease>>(response.body.string())
-                        // 筛选 tag_name 包含 "zh" 的版本，取最新的一个
-                        val release = releases.firstOrNull { it.tag_name.contains("zh", ignoreCase = true) }
-                            ?: throw Exception("No zh release found")
+                        // 筛选 tag_name 包含 "plus" 的版本，取最新的一个
+                        val release = releases.firstOrNull { it.tag_name.contains("plus", ignoreCase = true) }
+                            ?: throw Exception("No plus release found")
                         
                         // Convert GitHub release to UpdateInfo
                         val arch = getDeviceArchitecture()
