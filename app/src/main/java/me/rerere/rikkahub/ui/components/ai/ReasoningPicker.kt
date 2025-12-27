@@ -303,7 +303,7 @@ private fun ReasoningLevelCard(
             contentColor = resolvedContentColor
         )
         // Selected items are completely round, non-selected use 10.dp corners
-        val resolvedShape = if (selected) RoundedCornerShape(50) else RoundedCornerShape(12.dp)
+        val resolvedShape = if (selected) RoundedCornerShape(50) else RoundedCornerShape(10.dp)
         Card(
             onClick = onClick,
             modifier = modifier,

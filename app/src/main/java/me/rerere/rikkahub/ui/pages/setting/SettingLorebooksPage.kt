@@ -415,7 +415,7 @@ private fun LorebookCard(
         ) {
             // Book cover or placeholder
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.size(width = 50.dp, height = 70.dp)
             ) {

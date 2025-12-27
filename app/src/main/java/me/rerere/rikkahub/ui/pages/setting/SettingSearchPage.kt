@@ -708,7 +708,7 @@ private fun AddSearchServiceButton(
                             val shape = when (position) {
                                 ItemPosition.FIRST -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
                                 ItemPosition.LAST -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                                ItemPosition.MIDDLE -> RoundedCornerShape(12.dp)
+                                ItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
                                 ItemPosition.ONLY -> RoundedCornerShape(24.dp)
                             }
                             

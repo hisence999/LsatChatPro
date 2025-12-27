@@ -97,7 +97,7 @@ fun AssistantProfileSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),

@@ -710,7 +710,7 @@ private fun ConsolidationSettingsCard(
         // Consolidation Delay
         Surface(
             color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -1029,7 +1029,7 @@ private fun ManageMemoriesSection(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                modifier = Modifier.clip(RoundedCornerShape(10.dp))
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -1293,7 +1293,7 @@ private fun MemoryDebugger(
                     placeholder = { Text("Enter test query...") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
@@ -1320,7 +1320,7 @@ private fun MemoryDebugger(
                     retrievalResults.forEachIndexed { index, (memory, score) ->
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(

@@ -140,7 +140,7 @@ fun ImagePreviewDialog(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(48.dp)
                         ) {

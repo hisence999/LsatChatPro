@@ -1610,7 +1610,7 @@ private fun ModesPickerSheet(
                                 }
                             )
                         },
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
                     )
                 }
             }

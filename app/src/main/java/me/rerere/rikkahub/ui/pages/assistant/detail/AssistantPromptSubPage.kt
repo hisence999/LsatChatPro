@@ -453,7 +453,7 @@ fun AssistantPromptSubPage(
                         // Each preset message in its own card
                         Surface(
                             color = MaterialTheme.colorScheme.background,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -616,7 +616,7 @@ private fun AssistantRegexCard(
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.background
     ) {
         Column(

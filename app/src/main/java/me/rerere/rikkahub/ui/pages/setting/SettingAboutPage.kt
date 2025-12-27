@@ -223,7 +223,7 @@ private fun AboutItem(
         },
         enabled = onClick != null,
         color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
