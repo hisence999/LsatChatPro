@@ -82,6 +82,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.selectWelcomePhrase
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.RpStyleRule
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -102,17 +103,14 @@ import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.blur
-import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.ui.text.buildAnnotatedString
-import kotlin.math.pow
-import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.layout.layout
 
 private enum class EmptyChatOverlay {
@@ -124,81 +122,159 @@ private enum class EmptyChatOverlay {
 private val EmptyChatOverlayBottomPaddingFallback = 140.dp
 private val EmptyChatOverlayContentYOffset = (-16).dp
 
-/**
- * 使用 BreakIterator 正确分割文本为字素簇（支持 emoji）
- */
-private fun splitIntoGraphemes(text: String): List<String> {
-    val graphemes = mutableListOf<String>()
+private data class Grapheme(
+    val text: String,
+    val range: IntRange,
+)
+
+private fun splitIntoGraphemes(text: String): List<Grapheme> {
+    val graphemes = mutableListOf<Grapheme>()
     val iterator = java.text.BreakIterator.getCharacterInstance()
     iterator.setText(text)
     var start = iterator.first()
     var end = iterator.next()
     while (end != java.text.BreakIterator.DONE) {
-        graphemes.add(text.substring(start, end))
+        graphemes.add(Grapheme(text.substring(start, end), start until end))
         start = end
         end = iterator.next()
     }
     return graphemes
 }
 
+private data class RpStyledRange(
+    val range: IntRange,
+    val color: Color,
+)
+
+private data class RpStyledText(
+    val text: String,
+    val ranges: List<RpStyledRange>,
+) {
+    fun colorAt(index: Int): Color? = ranges.firstOrNull { index in it.range }?.color
+}
+
+private val RP_PREFIX_PATTERNS = setOf("#", "##", "###", "####", "#####", "######", ">")
+
+private fun applyRpStyleRules(text: String, rpStyleRules: List<RpStyleRule>): RpStyledText {
+    val enabledRules = rpStyleRules
+        .asSequence()
+        .filter { it.enabled }
+        .filter { it.pattern.isNotBlank() }
+        .filter { it.pattern !in RP_PREFIX_PATTERNS }
+        .toList()
+
+    if (enabledRules.isEmpty()) return RpStyledText(text = text, ranges = emptyList())
+
+    data class Match(val range: IntRange, val content: String, val color: Color)
+    val allMatches = mutableListOf<Match>()
+
+    enabledRules.forEach { rule ->
+        val color = runCatching {
+            Color(android.graphics.Color.parseColor(rule.colorHex))
+        }.getOrNull() ?: return@forEach
+
+        val escaped = Regex.escape(rule.pattern)
+        val regex = runCatching { Regex("$escaped(.+?)$escaped") }.getOrNull() ?: return@forEach
+        regex.findAll(text).forEach { matchResult ->
+            allMatches.add(
+                Match(
+                    range = matchResult.range,
+                    content = matchResult.groupValues[1],
+                    color = color,
+                )
+            )
+        }
+    }
+
+    if (allMatches.isEmpty()) return RpStyledText(text = text, ranges = emptyList())
+
+    allMatches.sortWith(compareBy<Match>({ it.range.first }, { -it.range.last }))
+
+    val nonOverlapping = mutableListOf<Match>()
+    var lastEnd = -1
+    allMatches.forEach { match ->
+        if (match.range.first > lastEnd) {
+            nonOverlapping.add(match)
+            lastEnd = match.range.last
+        }
+    }
+
+    val styledRanges = mutableListOf<RpStyledRange>()
+    val output = StringBuilder(text.length)
+    var currentIndex = 0
+    nonOverlapping.forEach { match ->
+        if (match.range.first > currentIndex) {
+            output.append(text.substring(currentIndex, match.range.first))
+        }
+
+        val start = output.length
+        output.append(match.content)
+        val endExclusive = output.length
+        if (endExclusive > start) {
+            styledRanges.add(RpStyledRange(range = start until endExclusive, color = match.color))
+        }
+
+        currentIndex = match.range.last + 1
+    }
+
+    if (currentIndex < text.length) {
+        output.append(text.substring(currentIndex))
+    }
+
+    return RpStyledText(text = output.toString(), ranges = styledRanges)
+}
+
 /**
- * 逐字模糊淡入动画文本组件
- * @param text 要显示的文本
- * @param style 文本样式
- * @param color 文本颜色
+ * 使用 BreakIterator 正确分割文本为字素簇（支持 emoji）
+ */
+/**
+ * 欢迎词淡入动画组件（支持 Markdown / RP 自定义样式）
  */
 @Composable
 private fun AnimatedWelcomeText(
     text: String,
     style: androidx.compose.ui.text.TextStyle,
     color: Color,
+    rpStyleRules: List<RpStyleRule>,
     modifier: Modifier = Modifier,
 ) {
-    val graphemes = remember(text) { splitIntoGraphemes(text) }
-    val animationProgress = remember(text) {
-        graphemes.map { Animatable(0f) }
-    }
+    val styledText = remember(text, rpStyleRules) { applyRpStyleRules(text, rpStyleRules) }
+    val graphemes = remember(styledText.text) { splitIntoGraphemes(styledText.text) }
+    val animationProgress = remember(styledText.text) { graphemes.map { Animatable(0f) } }
 
-    LaunchedEffect(text) {
+    LaunchedEffect(styledText.text) {
         graphemes.forEachIndexed { index, _ ->
-            // Adjust delay for a smoother "wave" effect
-            // Linear delay often looks more continuous for text than exponential
             val delayMs = index * 30L
             launch {
                 delay(delayMs)
                 animationProgress[index].animateTo(
                     targetValue = 1f,
                     animationSpec = tween(
-                        durationMillis = 400, // Slower, smoother transition
-                        easing = FastOutSlowInEasing
-                    )
+                        durationMillis = 400,
+                        easing = FastOutSlowInEasing,
+                    ),
                 )
             }
         }
     }
 
-    androidx.compose.foundation.layout.FlowRow(
-        // Add animateContentSize to handle line breaking (row expansion) smoothly
-        // This ensures that when a new line is added, the container grows with an animation,
-        // pushing existing content (or centered content) smoothly.
+    FlowRow(
         modifier = modifier.animateContentSize(),
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Start,
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        horizontalArrangement = Arrangement.Start,
+        verticalArrangement = Arrangement.Center,
     ) {
         graphemes.forEachIndexed { index, grapheme ->
             val progress = animationProgress.getOrNull(index)?.value ?: 1f
 
-            // Delay alpha appearance slightly to ensure width exists first (prevents visual overlap/crowding)
             val alpha = (progress - 0.2f).coerceAtLeast(0f) / 0.8f
-            
-            // Blur fades out as it becomes opaque. 
-            // Using alpha for blur helps synchronize the "focusing" effect with visibility.
             val blurRadius = ((1f - alpha) * 10f).dp
+            val rpColor = styledText.colorAt(grapheme.range.first)
+            val finalColor = (rpColor ?: color).copy(alpha = alpha)
 
             Text(
-                text = grapheme,
+                text = grapheme.text,
                 style = style,
-                color = color.copy(alpha = alpha),
+                color = finalColor,
                 modifier = Modifier
                     .blur(blurRadius)
                     .graphicsLayer {
@@ -206,12 +282,8 @@ private fun AnimatedWelcomeText(
                     }
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
-                        // Width expands from 0 to full width based on progress
-                        // Using raw progress (not alpha) so layout reserves space before fully visible
                         val animatedWidth = (placeable.width * progress).toInt()
                         layout(animatedWidth, placeable.height) {
-                            // Center the content within the expanding width
-                            // effectively growing from the horizontal center of the character slot
                             val x = (animatedWidth - placeable.width) / 2
                             placeable.placeRelative(x, 0)
                         }
@@ -592,10 +664,17 @@ private fun ChatPageContent(
                                     value = assistantForConversation.avatar,
                                     modifier = Modifier.size(64.dp),
                                 )
+                                val fontSizeRatio = setting.displaySetting.fontSizeRatio
+                                val welcomeTextStyle = MaterialTheme.typography.headlineSmall.copy(
+                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize * fontSizeRatio,
+                                    lineHeight = 34.sp * fontSizeRatio,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
                                 AnimatedWelcomeText(
                                     text = welcomeText,
-                                    style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 34.sp),
+                                    style = welcomeTextStyle,
                                     color = MaterialTheme.colorScheme.onSurface,
+                                    rpStyleRules = setting.displaySetting.rpStyleRules,
                                 )
                             }
                         }

@@ -12,7 +12,7 @@ internal val DEFAULT_WELCOME_PHRASES_PROMPT = """
        - Evening (17:00-21:59): 5 greetings
        - Late night (22:00-05:59): 5 greetings
        - General (any time): 10 greetings
-    4. Length: each greeting MUST be 5-15 Chinese characters (other languages: similarly short), and mix shorter/longer ones within that range.
+    4. Length: each greeting MUST be 3-14 Chinese characters and **mix shorter/longer ones within that range** (other languages: similarly short).
     5. Style: natural, friendly, and suitable as a greeting.
     6. Use the assistant's persona and system prompt. Use the date, region/locale, and the provided memories to infer whether today might be a holiday or special schedule; if so, subtly reflect it in some greetings.
     7. Never reveal or quote memories directly; only use them as background context.
