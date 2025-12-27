@@ -19,7 +19,8 @@ import me.rerere.rikkahub.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-private const val GITHUB_API_URL = "https://api.github.com/repos/54xzh/LastChat/releases/latest"
+// 获取所有 releases，筛选包含 "zh" 的 tag
+private const val GITHUB_API_URL = "https://api.github.com/repos/54xzh/LastChat/releases"
 
 class UpdateChecker(private val client: OkHttpClient) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -41,7 +42,10 @@ class UpdateChecker(private val client: OkHttpClient) {
                             .build()
                     ).await()
                     if (response.isSuccessful) {
-                        val release = json.decodeFromString<GitHubRelease>(response.body.string())
+                        val releases = json.decodeFromString<List<GitHubRelease>>(response.body.string())
+                        // 筛选 tag_name 包含 "zh" 的版本，取最新的一个
+                        val release = releases.firstOrNull { it.tag_name.contains("zh", ignoreCase = true) }
+                            ?: throw Exception("No zh release found")
                         
                         // Convert GitHub release to UpdateInfo
                         val arch = getDeviceArchitecture()

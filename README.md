@@ -1,13 +1,13 @@
 # LastChat
 
 <div align="center">
-  <img src="docs/app_icon.png" alt="LastChat Icon" width="128" height="128" />
+  <img src="docs/newest_app_icon.png" alt="LastChat Icon" width="128" height="128" />
 </div>
 
 **LastChat** 是一款功能丰富的 Android AI 助手应用。它是 [RikkaHub](https://github.com/re-ovo/RikkaHub) 的分支版本，通过 **Claude 4.5 Opus** 和 **Gemini 3 Pro** 进行修改和优化。
 
 > [!NOTE]
-> 本项目是 LastChat 的中文翻译补充，更新进度可能较慢。
+> zh 后缀为 LastChat 提供中文翻译，plus后缀修改增加特性。
 
 本项目旨在为 Android 平台提供一个注重隐私且高度个性化的 AI 聊天体验。
 
@@ -18,7 +18,7 @@
     &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/1.1.3_menu.jpg" alt="主屏幕" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/1.1.7_providers_use.gif" alt="服务商页面" width="200" />
+  <img src="docs/1.2.6_providers_use.gif" alt="服务商页面" width="200" />
     &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/1.2.4_memory.jpg" alt="记忆设置" width="200" />
 </div>
@@ -66,7 +66,7 @@
 
 ## 致谢
 *   原项目: [RikkaHub](https://github.com/re-ovo/RikkaHub)
-*   助手设置菜单布局部分参考自 [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
+*   关于页面灵感来自 [PixelPlayer](https://github.com/theovilardo/PixelPlayer)
 *   图片裁剪工具修改自 [LavenderPhotos](https://github.com/kaii-lb/LavenderPhotos) 的图像编辑器
 *   由以下 **AI Agent** 驱动开发:
     *   **Claude 4.5 Opus**
