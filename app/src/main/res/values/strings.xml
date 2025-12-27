@@ -838,6 +838,8 @@
     <string name="assistant_page_group_spontaneous_messaging">Spontaneous Messaging</string>
     <string name="assistant_page_welcome_phrases_title">Welcome phrases</string>
     <string name="assistant_page_welcome_phrases_desc">Use the suggestion model to show greetings on the new chat screen.</string>
+    <string name="assistant_page_refresh_welcome_phrases_title">Re-fetch welcome phrases</string>
+    <string name="assistant_page_refresh_welcome_phrases_desc">Generate a new set of greetings now.</string>
     <string name="assistant_page_custom_prompt_desc">Instructions for spontaneous messages. Use {{history}} and {{memories}}.</string>
     <string name="assistant_page_custom_prompt_title">Custom Prompt</string>
     <string name="assistant_page_debugger_id_format">ID: %1$d</string>

@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -27,7 +31,12 @@ import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
@@ -37,6 +46,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.service.WelcomePhrasesService
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
@@ -49,6 +59,8 @@ fun AssistantAdvancedSubPage(
     onUpdate: (Assistant) -> Unit
 ) {
     val welcomePhrasesService = koinInject<WelcomePhrasesService>()
+    val scope = rememberCoroutineScope()
+    var isRefreshingWelcomePhrases by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -207,6 +219,37 @@ fun AssistantAdvancedSubPage(
                     )
                 }
             )
+
+            if (assistant.enableWelcomePhrases) {
+                SettingGroupItem(
+                    title = stringResource(R.string.assistant_page_refresh_welcome_phrases_title),
+                    subtitle = stringResource(R.string.assistant_page_refresh_welcome_phrases_desc),
+                    trailing = {
+                        if (isRefreshingWelcomePhrases) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            androidx.compose.material3.Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = stringResource(R.string.a11y_refresh),
+                            )
+                        }
+                    },
+                    onClick = if (isRefreshingWelcomePhrases) {
+                        null
+                    } else {
+                        {
+                            isRefreshingWelcomePhrases = true
+                            scope.launch {
+                                try {
+                                    welcomePhrasesService.forceRefreshForAssistant(assistant.id)
+                                } finally {
+                                    isRefreshingWelcomePhrases = false
+                                }
+                            }
+                        }
+                    }
+                )
+            }
         }
     }
 }

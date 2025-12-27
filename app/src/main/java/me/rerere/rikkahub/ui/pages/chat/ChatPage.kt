@@ -79,6 +79,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.service.selectWelcomePhrase
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -538,7 +539,7 @@ private fun ChatPageContent(
                 val hasAnyPresetMessages = assistantForConversation.presetMessages.isNotEmpty()
 
                 val welcomeText = remember(assistantForConversation.id, assistantForConversation.welcomePhrases) {
-                    assistantForConversation.welcomePhrases.takeIf { it.isNotEmpty() }?.random()
+                    selectWelcomePhrase(assistantForConversation.welcomePhrases)
                 } ?: stringResource(R.string.welcome_phrases_fallback)
 
                 val overlayState = remember(
@@ -555,6 +556,12 @@ private fun ChatPageContent(
                             EmptyChatOverlay.Welcome
 
                         else -> EmptyChatOverlay.None
+                    }
+                }
+
+                LaunchedEffect(conversation.id, overlayState, welcomeText) {
+                    if (overlayState == EmptyChatOverlay.Welcome && welcomeText.isNotBlank()) {
+                        vm.setPendingUiWelcomePhraseForAppContext(welcomeText)
                     }
                 }
 

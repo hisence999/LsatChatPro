@@ -65,6 +65,7 @@ val appModule = module {
         WelcomePhrasesService(
             settingsStore = get(),
             providerManager = get(),
+            memoryRepository = get(),
         )
     }
 

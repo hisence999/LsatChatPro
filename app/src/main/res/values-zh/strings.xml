@@ -836,6 +836,8 @@
     <string name="unit_hours_abbrev">h</string>
     <string name="assistant_page_welcome_phrases_title">欢迎词</string>
     <string name="assistant_page_welcome_phrases_desc">使用聊天建议模型，在新聊天界面添加欢迎词。</string>
+    <string name="assistant_page_refresh_welcome_phrases_title">重新获取欢迎词</string>
+    <string name="assistant_page_refresh_welcome_phrases_desc">立即生成一组新的欢迎词。</string>
     <string name="welcome_phrases_fallback">你好呀，想聊点什么？</string>
 
     <string name="a11y_forward">前进</string>

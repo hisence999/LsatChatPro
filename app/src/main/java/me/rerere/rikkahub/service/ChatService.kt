@@ -113,11 +113,19 @@ class ChatService(
     // 存储每个对话的状态
     private val conversations = ConcurrentHashMap<Uuid, MutableStateFlow<Conversation>>()
 
+    private val pendingUiWelcomePhraseForAppContext = ConcurrentHashMap<Uuid, String>()
+
     // 记录哪些conversation有VM引用
     private val conversationReferences = ConcurrentHashMap<Uuid, Int>()
 
     // 记录哪些对话是临时对话（不持久化、不使用记忆）
     private val temporaryConversations = ConcurrentHashMap.newKeySet<Uuid>()
+
+    fun setPendingUiWelcomePhraseForAppContext(conversationId: Uuid, welcomePhrase: String) {
+        val normalized = welcomePhrase.replace("\r", "").trim()
+        if (normalized.isBlank()) return
+        pendingUiWelcomePhraseForAppContext[conversationId] = normalized
+    }
 
     // 存储每个对话的生成任务状态
     private val _generationJobs = MutableStateFlow<Map<Uuid, Job?>>(emptyMap())
@@ -363,6 +371,7 @@ class ChatService(
         // Set on first token arrival to exclude TTFT (time to first token) from the calculation
         var firstTokenTime: Long? = null
 
+        var shouldConsumeWelcomePhraseAppContext = false
         runCatching {
             val conversation = getConversationFlow(conversationId).value
 
@@ -381,17 +390,33 @@ class ChatService(
             // check invalid messages
             checkInvalidMessages(conversationId)
 
+            val baseMessages = conversation.currentMessages.let {
+                if (messageRange != null) {
+                    it.subList(messageRange.start, messageRange.endInclusive + 1)
+                } else {
+                    it
+                }
+            }
+            val welcomePhraseForAppContext = pendingUiWelcomePhraseForAppContext[conversationId]
+            val appContextTransformer = if (!welcomePhraseForAppContext.isNullOrBlank() && baseMessages.any { it.role == MessageRole.USER }) {
+                shouldConsumeWelcomePhraseAppContext = true
+                object : me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer {
+                    override suspend fun transform(
+                        ctx: me.rerere.rikkahub.data.ai.transformers.TransformerContext,
+                        messages: List<UIMessage>,
+                    ): List<UIMessage> {
+                        return injectWelcomePhraseIntoFirstUserMessage(messages, welcomePhraseForAppContext).messages
+                    }
+                }
+            } else {
+                null
+            }
+
             // start generating
             generationHandler.generateText(
                 settings = settings,
                 model = model,
-                messages = conversation.currentMessages.let {
-                    if (messageRange != null) {
-                        it.subList(messageRange.start, messageRange.endInclusive + 1)
-                    } else {
-                        it
-                    }
-                },
+                messages = baseMessages,
                 assistant = settings.getCurrentAssistant(),
                 memories = if (settings.getCurrentAssistant().enableMemory && !temporaryConversations.contains(conversationId)) {
                     val assistant = settings.getCurrentAssistant()
@@ -429,6 +454,7 @@ class ChatService(
                     emptyList()
                 },
                 inputTransformers = buildList {
+                    appContextTransformer?.let(::add)
                     addAll(inputTransformers)
                     add(templateTransformer)
                 },
@@ -527,6 +553,9 @@ class ChatService(
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
+            if (shouldConsumeWelcomePhraseAppContext) {
+                pendingUiWelcomePhraseForAppContext.remove(conversationId)
+            }
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
 

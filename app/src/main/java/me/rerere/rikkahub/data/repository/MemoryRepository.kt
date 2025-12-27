@@ -65,6 +65,50 @@ class MemoryRepository(
         return chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
     }
 
+    suspend fun getRecentCombinedMemories(
+        assistantId: String,
+        limit: Int,
+        includeCore: Boolean = true,
+        includeEpisodes: Boolean = true,
+    ): List<AssistantMemory> {
+        val coreEntities = if (includeCore) {
+            memoryDAO.getRecentMemoriesOfAssistant(assistantId, limit)
+        } else {
+            emptyList()
+        }
+        val episodeEntities = if (includeEpisodes) {
+            chatEpisodeDAO.getRecentEpisodesOfAssistant(assistantId, limit)
+        } else {
+            emptyList()
+        }
+
+        val core = coreEntities.map {
+            AssistantMemory(
+                id = it.id,
+                content = it.content,
+                type = it.type,
+                hasEmbedding = it.embedding != null,
+                embeddingModelId = it.embeddingModelId,
+                timestamp = it.createdAt,
+            )
+        }
+        val episodes = episodeEntities.map { episode ->
+            AssistantMemory(
+                id = -episode.id,
+                content = episode.content,
+                type = MemoryType.EPISODIC,
+                hasEmbedding = episode.embedding != null,
+                embeddingModelId = episode.embeddingModelId,
+                timestamp = maxOf(episode.endTime, episode.startTime),
+                significance = episode.significance,
+            )
+        }
+
+        return (core + episodes)
+            .sortedByDescending { it.timestamp }
+            .take(limit)
+    }
+
     /**
      * Get or create an embedding for a memory/episode content.
      * First checks the cache, then generates if not found.
