@@ -4,7 +4,6 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,8 +53,6 @@ import androidx.compose.material.icons.rounded.Edit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
@@ -66,7 +63,7 @@ import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.ui.components.ui.UpdateCard
+import me.rerere.rikkahub.ui.components.ui.UpdateEntryButton
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
@@ -122,10 +119,6 @@ fun ChatDrawerContent(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (settings.displaySetting.showUpdates && !isPlayStore) {
-                UpdateCard(vm)
-            }
-
             // 用户头像和昵称自定义区域
             Row(
                 modifier = Modifier
@@ -175,6 +168,10 @@ fun ChatDrawerContent(
                         ),
                         assistant = settings.getCurrentAssistant()
                     )
+                }
+
+                if (settings.displaySetting.showUpdates && !isPlayStore) {
+                    UpdateEntryButton(vm = vm)
                 }
             }
 

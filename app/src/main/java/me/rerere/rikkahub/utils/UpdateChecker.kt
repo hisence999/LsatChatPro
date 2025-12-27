@@ -165,8 +165,19 @@ value class Version(val value: String) : Comparable<Version> {
      * 将版本号分解为数字数组
      */
     private fun parseVersion(): List<Int> {
-        return value.split(".")
-            .map { it.toIntOrNull() ?: 0 }
+        val normalized = value
+            .trim()
+            .removePrefix("v")
+            .removePrefix("V")
+            .substringBefore('+')
+            .substringBefore('-')
+
+        return normalized
+            .split(".")
+            .filter { it.isNotBlank() }
+            .map { part ->
+                part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+            }
     }
 
     /**

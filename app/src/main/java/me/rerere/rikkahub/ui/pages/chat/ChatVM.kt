@@ -301,8 +301,14 @@ class ChatVM(
     }
 
     // Update checker
-    val updateState =
-        updateChecker.checkUpdate().stateIn(viewModelScope, SharingStarted.Lazily, UiState.Loading)
+    private val updateCheckTrigger = MutableStateFlow(0)
+    val updateState = updateCheckTrigger
+        .flatMapLatest { updateChecker.checkUpdate() }
+        .stateIn(viewModelScope, SharingStarted.Lazily, UiState.Loading)
+
+    fun retryUpdateCheck() {
+        updateCheckTrigger.value = updateCheckTrigger.value + 1
+    }
 
     /**
      * 处理消息发送
