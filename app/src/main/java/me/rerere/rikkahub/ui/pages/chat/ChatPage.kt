@@ -192,7 +192,7 @@ private fun AnimatedWelcomeText(
             
             // Blur fades out as it becomes opaque. 
             // Using alpha for blur helps synchronize the "focusing" effect with visibility.
-            val blurRadius = ((1f - alpha) * 4f).dp
+            val blurRadius = ((1f - alpha) * 10f).dp
 
             Text(
                 text = grapheme,
