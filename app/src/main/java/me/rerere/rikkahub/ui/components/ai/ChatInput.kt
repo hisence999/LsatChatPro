@@ -66,6 +66,7 @@ import androidx.compose.material3.LocalAbsoluteTonalElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
+import androidx.compose.material3.ModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -120,6 +121,8 @@ import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FlashOn
@@ -187,6 +190,7 @@ fun ChatInput(
     onClickSuggestion: (String) -> Unit = {},
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
     onCancelClick: () -> Unit,
@@ -559,6 +563,7 @@ fun ChatInput(
                             assistant = assistant,
                             onClearContext = onClearContext,
                             onUpdateAssistant = onUpdateAssistant,
+                            onUpdateConversation = onUpdateConversation,
                             onDismiss = { dismissExpand() }
                         )
                     }
@@ -960,6 +965,7 @@ private fun FilesPicker(
     state: ChatInputState,
     onClearContext: () -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -1058,31 +1064,60 @@ private fun FilesPicker(
         if (!WindowInsets.isImeVisible) {
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Calculate active modes count from conversation
+            val activeModeCount = settings.modes.count { mode ->
+                if (conversation.enabledModeIds.isEmpty()) {
+                    mode.defaultEnabled
+                } else {
+                    conversation.enabledModeIds.contains(mode.id)
+                }
+            }
+
+            var showModesPicker by remember { mutableStateOf(false) }
+
             ListItem(
                 colors = ListItemDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 leadingContent = {
                     Icon(
-                        imageVector = Icons.Rounded.School,
-                        contentDescription = stringResource(R.string.chat_page_learning_mode),
+                        imageVector = Icons.Rounded.AutoFixHigh,
+                        contentDescription = stringResource(R.string.modes_picker_title),
                     )
                 },
                 headlineContent = {
-                    Text(stringResource(R.string.chat_page_learning_mode))
+                    Text(stringResource(R.string.modes_picker_title))
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.chat_page_learning_mode_desc))
-                },
-                trailingContent = {
-                    HapticSwitch(
-                        checked = assistant.learningMode,
-                        onCheckedChange = {
-                            onUpdateAssistant(assistant.copy(learningMode = it))
+                    Text(
+                        if (settings.modes.isEmpty()) {
+                            stringResource(R.string.modes_picker_none)
+                        } else {
+                            stringResource(R.string.modes_picker_count, activeModeCount)
                         }
                     )
                 },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                modifier = Modifier.clickable {
+                    showModesPicker = true
+                }
             )
+
+            // Modes picker sheet
+            if (showModesPicker) {
+                ModesPickerSheet(
+                    settings = settings,
+                    conversation = conversation,
+                    onUpdateConversation = onUpdateConversation,
+                    onDismiss = { showModesPicker = false }
+                )
+            }
         }
 
     }
@@ -1487,5 +1522,90 @@ private fun BigIconTextButtonPreview() {
             Icon(Icons.Rounded.Photo, null)
             }
         ) {}
+    }
+}
+
+@Composable
+private fun ModesPickerSheet(
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+    conversation: Conversation,
+    onUpdateConversation: (Conversation) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    // Use local state for immediate UI feedback
+    var localEnabledIds by remember(conversation.id) {
+        mutableStateOf(
+            if (conversation.enabledModeIds.isEmpty()) {
+                settings.modes.filter { it.defaultEnabled }.map { it.id }.toSet()
+            } else {
+                conversation.enabledModeIds
+            }
+        )
+    }
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.modes_picker_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            if (settings.modes.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.modes_picker_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                settings.modes.forEach { mode ->
+                    // Use local state for isEnabled
+                    val isEnabled = localEnabledIds.contains(mode.id)
+                    
+                    ListItem(
+                        colors = ListItemDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        headlineContent = {
+                            Text(mode.name.ifEmpty { stringResource(R.string.modes_page_unnamed) })
+                        },
+                        supportingContent = {
+                            Text(
+                                text = mode.prompt.take(50) + if (mode.prompt.length > 50) "..." else "",
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        trailingContent = {
+                            HapticSwitch(
+                                checked = isEnabled,
+                                onCheckedChange = { newEnabled ->
+                                    val newEnabledIds = if (newEnabled) {
+                                        localEnabledIds + mode.id
+                                    } else {
+                                        localEnabledIds - mode.id
+                                    }
+                                    // Update local state immediately for UI feedback
+                                    localEnabledIds = newEnabledIds
+                                    // Persist change via callback
+                                    onUpdateConversation(conversation.copy(enabledModeIds = newEnabledIds))
+                                }
+                            )
+                        },
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            }
+        }
     }
 }

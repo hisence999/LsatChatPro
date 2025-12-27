@@ -76,6 +76,10 @@ import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
 import me.rerere.rikkahub.ui.pages.setting.SettingRpOptimizationsPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPromptInjectionsPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModesPage
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
@@ -370,6 +374,29 @@ class RouteActivity : ComponentActivity() {
                         SettingRpOptimizationsPage()
                     }
 
+                    composable<Screen.SettingPromptInjections> {
+                        SettingPromptInjectionsPage()
+                    }
+
+                    composable<Screen.SettingModes>(
+                        enterTransition = { fadeIn(animationSpec = tween(200)) },
+                        exitTransition = { fadeOut(animationSpec = tween(200)) }
+                    ) {
+                        SettingModesPage()
+                    }
+
+                    composable<Screen.SettingLorebooks>(
+                        enterTransition = { fadeIn(animationSpec = tween(200)) },
+                        exitTransition = { fadeOut(animationSpec = tween(200)) }
+                    ) {
+                        SettingLorebooksPage()
+                    }
+
+                    composable<Screen.SettingLorebookDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.SettingLorebookDetail>()
+                        SettingLorebookDetailPage(id = route.id)
+                    }
+
                     composable<Screen.Developer> {
                         DeveloperPage()
                     }
@@ -441,6 +468,18 @@ sealed interface Screen {
 
     @Serializable
     data object SettingRpOptimizations : Screen
+
+    @Serializable
+    data object SettingPromptInjections : Screen
+
+    @Serializable
+    data object SettingModes : Screen
+
+    @Serializable
+    data object SettingLorebooks : Screen
+
+    @Serializable
+    data class SettingLorebookDetail(val id: String) : Screen
 
     @Serializable
     data object Developer : Screen
