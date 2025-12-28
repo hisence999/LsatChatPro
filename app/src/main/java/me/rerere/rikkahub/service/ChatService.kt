@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -121,6 +122,12 @@ class ChatService(
     // 记录哪些对话是临时对话（不持久化、不使用记忆）
     private val temporaryConversations = ConcurrentHashMap.newKeySet<Uuid>()
 
+    private val liveUpdateNotifier = ChatLiveUpdateNotifier(context)
+    private val liveUpdateSessionIds = ConcurrentHashMap<Uuid, Long>()
+    private val liveUpdateStates = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
+    private val liveUpdateLastNotifyAtMs = ConcurrentHashMap<Uuid, Long>()
+    private val liveUpdateLastNotifiedState = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
+
     fun setPendingUiWelcomePhraseForAppContext(conversationId: Uuid, welcomePhrase: String) {
         val normalized = welcomePhrase.replace("\r", "").trim()
         if (normalized.isBlank()) return
@@ -146,8 +153,16 @@ class ChatService(
 
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
-            Lifecycle.Event.ON_START -> _isForeground.value = true
-            Lifecycle.Event.ON_STOP -> _isForeground.value = false
+            Lifecycle.Event.ON_START -> {
+                _isForeground.value = true
+                appScope.launch { cancelOngoingLiveUpdates() }
+            }
+
+            Lifecycle.Event.ON_STOP -> {
+                _isForeground.value = false
+                appScope.launch { notifyOngoingLiveUpdates(force = true) }
+            }
+
             else -> {}
         }
     }
@@ -160,6 +175,118 @@ class ChatService(
     fun cleanup() = runCatching {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
         _generationJobs.value.values.forEach { it?.cancel() }
+    }
+
+    private fun shouldUseLiveUpdate(settings: Settings): Boolean {
+        val display = settings.displaySetting
+        return display.enableNotificationOnMessageGeneration && display.enableLiveUpdate
+    }
+
+    private fun startLiveUpdateSession(conversationId: Uuid): Long {
+        ChatLiveUpdateDismissalTracker.clear(conversationId)
+        val sessionId = System.currentTimeMillis()
+        liveUpdateSessionIds[conversationId] = sessionId
+        liveUpdateStates[conversationId] = ChatLiveUpdateState.INFERENCE
+        liveUpdateLastNotifyAtMs.remove(conversationId)
+        liveUpdateLastNotifiedState.remove(conversationId)
+        return sessionId
+    }
+
+    private fun clearLiveUpdateSession(conversationId: Uuid) {
+        liveUpdateSessionIds.remove(conversationId)
+        liveUpdateStates.remove(conversationId)
+        liveUpdateLastNotifyAtMs.remove(conversationId)
+        liveUpdateLastNotifiedState.remove(conversationId)
+    }
+
+    private fun cancelOngoingLiveUpdates() {
+        liveUpdateStates.forEach { (conversationId, state) ->
+            if (state.isOngoing()) {
+                liveUpdateNotifier.cancel(conversationId)
+            }
+        }
+    }
+
+    private fun notifyOngoingLiveUpdates(force: Boolean) {
+        val settings = settingsStore.settingsFlow.value
+        if (!shouldUseLiveUpdate(settings)) return
+        if (isForeground.value) return
+
+        liveUpdateStates.forEach { (conversationId, state) ->
+            notifyLiveUpdate(conversationId, state, settings = settings, force = force, error = null)
+        }
+    }
+
+    private fun notifyLiveUpdate(
+        conversationId: Uuid,
+        state: ChatLiveUpdateState,
+        settings: Settings,
+        force: Boolean,
+        error: Throwable?,
+    ) {
+        if (!shouldUseLiveUpdate(settings)) return
+        if (isForeground.value) return
+
+        val sessionId = liveUpdateSessionIds[conversationId] ?: return
+
+        val now = System.currentTimeMillis()
+        val lastAt = liveUpdateLastNotifyAtMs[conversationId] ?: 0L
+        val lastState = liveUpdateLastNotifiedState[conversationId]
+
+        val shouldNotify = force || lastState != state || now - lastAt >= 750L
+        if (!shouldNotify) return
+
+        liveUpdateLastNotifyAtMs[conversationId] = now
+        liveUpdateLastNotifiedState[conversationId] = state
+
+        val (contentText, bigText) = buildLiveUpdateTexts(conversationId, state, error)
+        liveUpdateNotifier.notify(
+            conversationId = conversationId,
+            sessionId = sessionId,
+            state = state,
+            contentText = contentText,
+            bigText = bigText,
+        )
+    }
+
+    private fun buildLiveUpdateTexts(
+        conversationId: Uuid,
+        state: ChatLiveUpdateState,
+        error: Throwable?,
+    ): Pair<String?, String?> {
+        val conversation = getConversationFlow(conversationId).value
+        val lastUserText = conversation.currentMessages
+            .lastOrNull { it.role == MessageRole.USER }
+            ?.toText()
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        val lastAssistantText = conversation.currentMessages
+            .lastOrNull { it.role == MessageRole.ASSISTANT }
+            ?.toText()
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+        fun String?.short(): String? = this?.take(80)?.takeIf { it.isNotBlank() }
+        fun String?.long(): String? = this?.take(420)?.takeIf { it.isNotBlank() }
+
+        return when (state) {
+            ChatLiveUpdateState.INFERENCE -> lastUserText.short() to lastUserText.long()
+            ChatLiveUpdateState.OUTPUT -> lastAssistantText.short() to lastAssistantText.long()
+            ChatLiveUpdateState.DONE -> lastAssistantText.short() to lastAssistantText.long()
+            ChatLiveUpdateState.ERROR -> {
+                val errorSummary = error?.message?.trim()?.take(120)?.takeIf { it.isNotBlank() }
+                    ?: error?.javaClass?.simpleName
+                errorSummary to buildString {
+                    if (!errorSummary.isNullOrBlank()) {
+                        append(errorSummary)
+                    }
+                    if (!lastUserText.isNullOrBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append(lastUserText.take(420))
+                    }
+                }.take(600)
+            }
+        }
     }
 
     // 添加引用
@@ -366,6 +493,7 @@ class ChatService(
     ) {
         val settings = settingsStore.settingsFlow.first()
         val model = settings.getCurrentChatModel() ?: return
+        val useLiveUpdate = shouldUseLiveUpdate(settings)
 
         // Track generation start time for tokens/sec calculation
         // Set on first token arrival to exclude TTFT (time to first token) from the calculation
@@ -410,6 +538,17 @@ class ChatService(
                 }
             } else {
                 null
+            }
+
+            if (useLiveUpdate) {
+                startLiveUpdateSession(conversationId)
+                notifyLiveUpdate(
+                    conversationId = conversationId,
+                    state = ChatLiveUpdateState.INFERENCE,
+                    settings = settings,
+                    force = true,
+                    error = null,
+                )
             }
 
             // start generating
@@ -503,7 +642,7 @@ class ChatService(
                 },
                 truncateIndex = conversation.truncateIndex,
                 enabledModeIds = conversation.enabledModeIds,
-            ).onCompletion {
+            ).onCompletion { cause ->
                 // Calculate generation duration from first token (excludes TTFT)
                 val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
 
@@ -530,9 +669,24 @@ class ChatService(
                 )
                 updateConversation(conversationId, updatedConversation)
 
-                // Show notification if app is not in foreground
-                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                    sendGenerationDoneNotification(conversationId)
+                val generationFinishedNormally = cause == null
+                if (generationFinishedNormally) {
+                    liveUpdateStates.remove(conversationId)
+
+                    // Show notification if app is not in foreground
+                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                        if (useLiveUpdate) {
+                            notifyLiveUpdate(
+                                conversationId = conversationId,
+                                state = ChatLiveUpdateState.DONE,
+                                settings = settings,
+                                force = true,
+                                error = null,
+                            )
+                        } else {
+                            sendGenerationDoneNotification(conversationId)
+                        }
+                    }
                 }
             }.collect { chunk ->
                 // Set first token time on first chunk arrival (excludes TTFT from tok/s)
@@ -545,15 +699,44 @@ class ChatService(
                         val updatedConversation = getConversationFlow(conversationId).value
                             .updateCurrentMessages(chunk.messages)
                         updateConversation(conversationId, updatedConversation)
+
+                        if (useLiveUpdate) {
+                            val previousState = liveUpdateStates.put(conversationId, ChatLiveUpdateState.OUTPUT)
+                            notifyLiveUpdate(
+                                conversationId = conversationId,
+                                state = ChatLiveUpdateState.OUTPUT,
+                                settings = settings,
+                                force = previousState != ChatLiveUpdateState.OUTPUT,
+                                error = null,
+                            )
+                        }
                     }
                 }
             }
         }.onFailure {
+            if (useLiveUpdate) {
+                liveUpdateStates.remove(conversationId)
+                if (it is CancellationException) {
+                    liveUpdateNotifier.cancel(conversationId)
+                } else {
+                    notifyLiveUpdate(
+                        conversationId = conversationId,
+                        state = ChatLiveUpdateState.ERROR,
+                        settings = settings,
+                        force = true,
+                        error = it,
+                    )
+                }
+                clearLiveUpdateSession(conversationId)
+            }
             it.printStackTrace()
             _errorFlow.emit(it)
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
+            if (useLiveUpdate) {
+                clearLiveUpdateSession(conversationId)
+            }
             if (shouldConsumeWelcomePhraseAppContext) {
                 pendingUiWelcomePhraseForAppContext.remove(conversationId)
             }

@@ -42,6 +42,7 @@ import org.koin.core.context.startKoin
 private const val TAG = "LastChatApp"
 
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
+const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 
 class LastChatApp : Application() {
     override fun onCreate() {
@@ -147,7 +148,16 @@ class LastChatApp : Application() {
             .setName(getString(R.string.notification_channel_chat_completed))
             .setVibrationEnabled(true)
             .build()
+        val chatLiveUpdateChannel = NotificationChannelCompat
+            .Builder(
+                CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
+                NotificationManagerCompat.IMPORTANCE_LOW
+            )
+            .setName(getString(R.string.notification_channel_chat_live_update))
+            .setVibrationEnabled(false)
+            .build()
         notificationManager.createNotificationChannel(chatCompletedChannel)
+        notificationManager.createNotificationChannel(chatLiveUpdateChannel)
     }
 
     override fun onTerminate() {

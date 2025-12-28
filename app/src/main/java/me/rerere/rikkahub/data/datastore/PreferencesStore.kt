@@ -471,6 +471,7 @@ data class DisplaySetting(
     val enableUIHaptics: Boolean = true,
     val skipCropImage: Boolean = false,
     val enableNotificationOnMessageGeneration: Boolean = false,
+    val enableLiveUpdate: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
