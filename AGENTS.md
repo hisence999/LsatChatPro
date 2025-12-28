@@ -8,7 +8,7 @@
 LastChat is not just a tool; it is designed to be a "fidget toy".
 -   **Feel:** Interactions must be playful, physics-based, and deeply satisfying.
 -   **Tactile Feedback:** High-quality haptics are non-negotiable. Every tap, toggle, and drag must have appropriate feedback.
--   **Motion:** **Strictly NO Linear (Tween) animations.** All motion must use physics-based interpolators (springs) to convey momentum and weight.
+-   **Motion:** Prefer physics-based interpolators (springs) for all interactive motion to convey momentum and weight. **Exception:** navigation/page transitions may use `tween`.
 
 **Workflow:**
 -   **Iterative Polish:** We prefer iterative "glow-ups" of specific components over massive, risky refactors.
@@ -75,7 +75,7 @@ LastChat is not just a tool; it is designed to be a "fidget toy".
 ### Animation
 -   **Standard Spec:** `spring(dampingRatio = 0.5f, stiffness = 400f)`
 -   **Bouncy/Clicky Spec:** `spring(dampingRatio = 0.6f, stiffness = 300f)`
--   **Prohibited:** `tween` or linear animations.
+-   **Prohibited (Interactive):** `tween` or linear animations. **Exception:** navigation/page transitions may use `tween`.
 
 ## 5. Specific Feature Guidelines
 

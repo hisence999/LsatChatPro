@@ -65,6 +65,7 @@ data class Assistant(
     val learningMode: Boolean = false,
     val enableSpontaneous: Boolean = false, // 是否启用自发消息
     val spontaneousPrompt: String = "", // 自发消息的Prompt
+    val enabledLorebookIds: Set<Uuid> = emptySet(), // Lorebooks enabled for this assistant
 
     // Memory System Configuration & Stats
     val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat

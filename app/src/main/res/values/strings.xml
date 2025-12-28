@@ -1070,5 +1070,117 @@
     <string name="assistant_page_group_configuration">Configuration</string>
     <string name="assistant_page_group_capabilities">Capabilities</string>
     <string name="assistant_page_group_other">Other</string>
+
+    <!-- Prompt Injections -->
+    <string name="setting_page_prompt_injections">Prompt Injections</string>
+    <string name="setting_page_prompt_injections_desc">Modes and lorebooks</string>
+    <string name="prompt_injections_page_injection_types">Injection Types</string>
+    <string name="prompt_injections_page_modes">Modes</string>
+    <string name="prompt_injections_page_modes_desc">Custom prompts that can be toggled on/off</string>
+    <string name="prompt_injections_page_lorebooks">Lorebooks</string>
+    <string name="prompt_injections_page_lorebooks_desc">Context-triggered prompt entries</string>
+
+    <!-- Modes -->
+    <string name="modes_page_description_title">Custom Modes</string>
+    <string name="modes_page_description_text">Define custom prompts that can be toggled on/off per chat. Higher priority modes are injected first.</string>
+    <string name="modes_page_deleted">Mode \"%s\" deleted</string>
+    <string name="modes_page_enable_by_default">Enable by default</string>
+    <string name="modes_page_empty_title">No modes yet</string>
+    <string name="modes_page_empty_desc">Add modes to inject custom prompts</string>
+    <string name="modes_page_unnamed">Unnamed Mode</string>
+    <string name="modes_page_add_mode">Add Mode</string>
+    <string name="modes_page_edit_mode">Edit Mode</string>
+    <string name="modes_page_name">Name</string>
+    <string name="modes_page_name_placeholder">e.g. Creative Writing</string>
+    <string name="modes_page_prompt">Prompt</string>
+    <string name="modes_page_prompt_placeholder">Enter the prompt to inject...</string>
+    <string name="modes_page_injection_position">Injection Position</string>
+    <string name="modes_page_depth">Depth</string>
+    <string name="modes_page_attachments">Attachments</string>
+    <string name="modes_page_add_image">Image</string>
+    <string name="modes_page_add_file">File</string>
+    <string name="drag_to_reorder">Drag to reorder</string>
+    <string name="create">Create</string>
+    <string name="import_label">Import</string>
+    <string name="export_label">Export</string>
+
+    <!-- Injection Positions -->
+    <string name="injection_position_before_system">Before System Prompt</string>
+    <string name="injection_position_after_system">After System Prompt</string>
+    <string name="injection_position_top_of_chat">Top of Chat</string>
+    <string name="injection_position_before_latest">Before Latest Message</string>
+    <string name="injection_position_at_depth">At Specific Depth</string>
+
+    <!-- Lorebooks -->
+    <string name="lorebooks_page_description_title">World Lorebooks</string>
+    <string name="lorebooks_page_description_text">Create organized collections of prompts that activate based on keywords or semantic similarity.</string>
+    <string name="lorebooks_page_deleted">Lorebook \"%s\" deleted</string>
+    <string name="lorebooks_page_empty_title">No lorebooks yet</string>
+    <string name="lorebooks_page_empty_desc">Add lorebooks to inject context-aware prompts</string>
+    <string name="lorebooks_page_unnamed">Unnamed Lorebook</string>
+    <string name="lorebooks_page_no_description">No description</string>
+    <string name="lorebooks_page_entries_count">%d entries</string>
+    <string name="lorebooks_page_create_lorebook">Create Lorebook</string>
+    <string name="lorebooks_page_name">Name</string>
+    <string name="lorebooks_page_name_placeholder">e.g. Fantasy World</string>
+    <string name="lorebooks_page_description">Description</string>
+    <string name="lorebooks_page_description_placeholder">Describe what this lorebook contains...</string>
+    <string name="lorebooks_page_cover">Cover Image</string>
+    <string name="lorebooks_page_cover_hint">Tap to select an image or emoji</string>
+
+    <!-- Lorebook Detail -->
+    <string name="lorebook_detail_not_found">Lorebook not found</string>
+    <string name="lorebook_detail_no_entries">No entries yet</string>
+    <string name="lorebook_detail_add_entry_hint">Add entries to inject prompts when triggered</string>
+    <string name="lorebook_edit">Edit Lorebook</string>
+    <string name="lorebook_entry_unnamed">Unnamed Entry</string>
+    <string name="lorebook_entry_add">Add Entry</string>
+    <string name="lorebook_entry_edit">Edit Entry</string>
+    <string name="lorebook_entry_name">Name</string>
+    <string name="lorebook_entry_name_placeholder">e.g. Character Name</string>
+    <string name="lorebook_entry_prompt">Content</string>
+    <string name="lorebook_entry_prompt_placeholder">Enter the content to inject...</string>
+    <string name="lorebook_entry_activation_type">Activation Type</string>
+    <string name="lorebook_entry_keywords">Keywords</string>
+    <string name="lorebook_entry_keywords_placeholder">keyword1, keyword2, keyword3</string>
+    <string name="lorebook_entry_case_sensitive">Case Sensitive</string>
+    <string name="lorebook_entry_use_regex">Use Regex</string>
+    <string name="lorebook_entry_scan_depth">Scan Depth</string>
+    <string name="lorebook_entry_injection_position">Injection Position</string>
+
+    <!-- Activation Types -->
+    <string name="activation_always">Always Active</string>
+    <string name="activation_keywords">Keywords</string>
+    <string name="activation_keywords_with_count">Keywords (%d)</string>
+    <string name="activation_rag">RAG (Semantic)</string>
+
+    <!-- Modes Picker -->
+    <string name="modes_page_default_on">On by default</string>
+    <string name="modes_page_default_off">Off by default</string>
+    <string name="modes_picker_title">Modes</string>
+    <string name="modes_picker_count">%d active</string>
+    <string name="modes_picker_none">No modes configured</string>
+    <string name="modes_page_default_enabled">Enable by default</string>
+    <string name="modes_page_default_enabled_desc">Automatically enable for new chats</string>
+    <string name="lorebook_entry_deleted">Entry %s deleted</string>
+
+    <!-- Assistant Lorebooks Selection -->
+    <string name="assistant_lorebooks_title">Lorebooks</string>
+    <string name="assistant_lorebooks_desc">Select which lorebooks to use with this assistant</string>
+    <string name="assistant_lorebooks_empty">No lorebooks configured</string>
+    <string name="assistant_lorebooks_empty_hint">Create lorebooks in Settings → Prompt Injections → Lorebooks</string>
+    <string name="assistant_lorebooks_enabled">%d enabled</string>
+
+    <!-- Import/Export -->
+    <string name="lorebook_import_success">Imported: %s</string>
+    <string name="lorebook_export_success">Lorebook exported successfully</string>
+    <string name="lorebook_export_error">Failed to export lorebook</string>
+    <string name="lorebook_export_format">Export Format</string>
+    <string name="export_format_lastchat">LastChat (Full)</string>
+    <string name="export_format_sillytavern">SillyTavern</string>
+    <string name="export_format_tavern">Tavern (Compatible)</string>
+
+    <!-- Lorebook Sections -->
+    <string name="lorebooks_section_available">Available Lorebooks</string>
 </resources>
 

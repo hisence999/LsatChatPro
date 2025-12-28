@@ -43,12 +43,20 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.model.InjectionPosition
+import me.rerere.rikkahub.data.model.Lorebook
+import me.rerere.rikkahub.data.model.LorebookActivationType
+import me.rerere.rikkahub.data.model.LorebookEntry
+import me.rerere.rikkahub.data.model.Mode
+import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
+import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
@@ -66,6 +74,7 @@ class GenerationHandler(
     private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
+    private val embeddingService: EmbeddingService,
 ) {
     fun generateText(
         settings: Settings,
@@ -78,6 +87,7 @@ class GenerationHandler(
         tools: List<Tool> = emptyList(),
         truncateIndex: Int = -1,
         maxSteps: Int = 256,
+        enabledModeIds: Set<Uuid> = emptySet(),
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -136,7 +146,8 @@ class GenerationHandler(
                 tools = toolsInternal,
                 memories = memories ?: emptyList(),
                 truncateIndex = truncateIndex,
-                stream = assistant.streamOutput
+                stream = assistant.streamOutput,
+                enabledModeIds = enabledModeIds,
             )
             messages = messages.visualTransforms(
                 transformers = outputTransformers,
@@ -220,6 +231,7 @@ class GenerationHandler(
         tools: List<Tool>,
         memories: List<AssistantMemory>,
         truncateIndex: Int,
+        enabledModeIds: Set<Uuid> = emptySet(),
     ): List<UIMessage> {
         val contextMessages = messages
             .truncate(truncateIndex)
@@ -232,8 +244,135 @@ class GenerationHandler(
         val maxTokens = assistant.maxTokenUsage
         var currentTokens = 0
 
-        // 1. Base System Prompt (System + Learning + Tools)
+        // Cosine similarity for RAG matching
+        fun cosineSimilarity(a: List<Float>, b: List<Float>): Float {
+            if (a.size != b.size) return 0f
+            var dotProduct = 0f
+            var normA = 0f
+            var normB = 0f
+            for (i in a.indices) {
+                dotProduct += a[i] * b[i]
+                normA += a[i] * a[i]
+                normB += b[i] * b[i]
+            }
+            val denominator = kotlin.math.sqrt(normA) * kotlin.math.sqrt(normB)
+            return if (denominator == 0f) 0f else dotProduct / denominator
+        }
+
+        // Helper to check if lorebook entry should be activated
+        fun isLorebookEntryActivated(
+            entry: LorebookEntry,
+            recentMessages: List<String>,
+            queryEmbedding: List<Float>? = null,
+        ): Boolean {
+            if (!entry.enabled) return false
+            return when (entry.activationType) {
+                LorebookActivationType.ALWAYS -> true
+                LorebookActivationType.KEYWORDS -> {
+                    val searchText = recentMessages.joinToString(" ")
+                    entry.keywords.any { keyword ->
+                        if (entry.useRegex) {
+                            try {
+                                val regex = if (entry.caseSensitive) {
+                                    Regex(keyword)
+                                } else {
+                                    Regex(keyword, RegexOption.IGNORE_CASE)
+                                }
+                                regex.containsMatchIn(searchText)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Invalid regex in lorebook entry: $keyword", e)
+                                false
+                            }
+                        } else {
+                            if (entry.caseSensitive) {
+                                searchText.contains(keyword)
+                            } else {
+                                searchText.contains(keyword, ignoreCase = true)
+                            }
+                        }
+                    }
+                }
+
+                LorebookActivationType.RAG -> {
+                    // RAG activation uses embedding similarity
+                    if (entry.embedding.isNullOrEmpty()) {
+                        Log.d(TAG, "RAG entry '${entry.name}' has no embedding, skipping")
+                        false
+                    } else if (queryEmbedding == null) {
+                        Log.d(TAG, "No query embedding available for RAG matching")
+                        false
+                    } else {
+                        // Compute cosine similarity
+                        val similarity = cosineSimilarity(entry.embedding, queryEmbedding)
+                        val threshold = 0.7f // Similarity threshold for activation
+                        val activated = similarity >= threshold
+                        if (activated) {
+                            Log.d(TAG, "RAG entry '${entry.name}' activated with similarity $similarity")
+                        }
+                        activated
+                    }
+                }
+            }
+        }
+
+        // Get recent message text for lorebook keyword scanning
+        val recentMessagesForScan = contextMessages.takeLast(10).map { it.toText() }
+
+        // Collect enabled modes - use per-conversation enabledModeIds if provided, otherwise fall back to defaultEnabled
+        val enabledModes = if (enabledModeIds.isNotEmpty()) {
+            settings.modes.filter { enabledModeIds.contains(it.id) }
+        } else {
+            settings.modes.filter { it.defaultEnabled }
+        }
+
+        // Collect enabled lorebooks assigned to this assistant
+        val lorebooksForAssistant = settings.lorebooks
+            .filter { it.enabled && assistant.enabledLorebookIds.contains(it.id) }
+
+        // Check if any lorebook entries use RAG activation
+        val hasRagEntries = lorebooksForAssistant.any { lorebook ->
+            lorebook.entries.any { it.activationType == LorebookActivationType.RAG && it.enabled }
+        }
+
+        // Compute query embedding only if there are RAG entries
+        val queryEmbedding: List<Float>? = if (hasRagEntries) {
+            try {
+                val queryText = recentMessagesForScan.takeLast(3).joinToString("\n")
+                if (queryText.isNotBlank()) {
+                    embeddingService.embed(queryText)
+                } else null
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to compute query embedding for RAG", e)
+                null
+            }
+        } else null
+
+        // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
+        val activatedEntries = lorebooksForAssistant
+            .flatMap { lorebook ->
+                lorebook.entries.filter { entry ->
+                    isLorebookEntryActivated(entry, recentMessagesForScan, queryEmbedding)
+                }
+            }
+
+        val beforeSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
+        val afterSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.AFTER_SYSTEM }
+        val beforeSystemEntries = activatedEntries.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
+        val afterSystemEntries = activatedEntries.filter { it.injectionPosition == InjectionPosition.AFTER_SYSTEM }
+
+        // 1. Base System Prompt (BEFORE_SYSTEM modes/entries + System + Learning + AFTER_SYSTEM modes/entries + Tools)
         val baseSystemPromptBuilder = StringBuilder()
+
+        // BEFORE_SYSTEM injections
+        beforeSystemModes.forEach { mode ->
+            baseSystemPromptBuilder.append(mode.prompt)
+            baseSystemPromptBuilder.appendLine()
+        }
+        beforeSystemEntries.forEach { entry ->
+            baseSystemPromptBuilder.append(entry.prompt)
+            baseSystemPromptBuilder.appendLine()
+        }
+
         if (assistant.systemPrompt.isNotBlank()) {
             baseSystemPromptBuilder.append(assistant.systemPrompt)
         }
@@ -242,6 +381,17 @@ class GenerationHandler(
             baseSystemPromptBuilder.append(settings.learningModePrompt.ifEmpty { DEFAULT_LEARNING_MODE_PROMPT })
             baseSystemPromptBuilder.appendLine()
         }
+
+        // AFTER_SYSTEM injections
+        afterSystemModes.forEach { mode ->
+            baseSystemPromptBuilder.appendLine()
+            baseSystemPromptBuilder.append(mode.prompt)
+        }
+        afterSystemEntries.forEach { entry ->
+            baseSystemPromptBuilder.appendLine()
+            baseSystemPromptBuilder.append(entry.prompt)
+        }
+
         tools.forEach { tool ->
             baseSystemPromptBuilder.appendLine()
             baseSystemPromptBuilder.append(tool.systemPrompt(model, contextMessages))
@@ -385,6 +535,41 @@ class GenerationHandler(
         }
 
         // 4. Construct Final List
+        // Collect all attachments from enabled modes
+        val modeAttachmentParts = enabledModes.flatMap { mode ->
+            mode.attachments.map { attachment ->
+                when (attachment.type) {
+                    ModeAttachmentType.IMAGE -> UIMessagePart.Image(url = attachment.url)
+                    ModeAttachmentType.VIDEO -> UIMessagePart.Video(url = attachment.url)
+                    ModeAttachmentType.AUDIO -> UIMessagePart.Audio(url = attachment.url)
+                    ModeAttachmentType.DOCUMENT -> UIMessagePart.Document(
+                        url = attachment.url,
+                        fileName = attachment.fileName,
+                        mime = attachment.mime,
+                    )
+                }
+            }
+        }
+
+        // Collect attachments from activated lorebook entries
+        val lorebookAttachmentParts = activatedEntries.flatMap { entry ->
+            entry.attachments.map { attachment ->
+                when (attachment.type) {
+                    ModeAttachmentType.IMAGE -> UIMessagePart.Image(url = attachment.url)
+                    ModeAttachmentType.VIDEO -> UIMessagePart.Video(url = attachment.url)
+                    ModeAttachmentType.AUDIO -> UIMessagePart.Audio(url = attachment.url)
+                    ModeAttachmentType.DOCUMENT -> UIMessagePart.Document(
+                        url = attachment.url,
+                        fileName = attachment.fileName,
+                        mime = attachment.mime,
+                    )
+                }
+            }
+        }
+
+        // Combine all context attachments
+        val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
+
         return buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
@@ -396,6 +581,17 @@ class GenerationHandler(
             if (finalSystemPrompt.isNotBlank()) {
                 add(UIMessage.system(finalSystemPrompt))
             }
+
+            // Add mode and lorebook attachments as a user message if there are any
+            if (allContextAttachments.isNotEmpty()) {
+                add(
+                    UIMessage(
+                        role = MessageRole.USER,
+                        parts = allContextAttachments,
+                    )
+                )
+            }
+
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
@@ -413,7 +609,8 @@ class GenerationHandler(
         tools: List<Tool>,
         memories: List<AssistantMemory>,
         truncateIndex: Int,
-        stream: Boolean
+        stream: Boolean,
+        enabledModeIds: Set<Uuid> = emptySet(),
     ) {
         val internalMessages = buildMessages(
             assistant = assistant,
@@ -422,7 +619,8 @@ class GenerationHandler(
             model = model,
             tools = tools,
             memories = memories,
-            truncateIndex = truncateIndex
+            truncateIndex = truncateIndex,
+            enabledModeIds = enabledModeIds,
         ).transforms(transformers, context, model, assistant)
 
         var messages: List<UIMessage> = messages

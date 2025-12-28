@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Person
@@ -65,6 +66,7 @@ private object AssistantDetailRoutes {
     const val PROMPTS = "prompts"
     const val TOOLS = "tools"
     const val MEMORY = "memory"
+    const val LOREBOOKS = "lorebooks"
     const val ADVANCED = "advanced"
 }
 
@@ -163,6 +165,7 @@ fun AssistantDetailPage(id: String) {
                     onNavigateToPrompts = { navController.navigate(AssistantDetailRoutes.PROMPTS) },
                     onNavigateToTools = { navController.navigate(AssistantDetailRoutes.TOOLS) },
                     onNavigateToMemory = { navController.navigate(AssistantDetailRoutes.MEMORY) },
+                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
                     onNavigateToAdvanced = { navController.navigate(AssistantDetailRoutes.ADVANCED) }
                 )
             }
@@ -228,6 +231,15 @@ fun AssistantDetailPage(id: String) {
                 )
             }
 
+            // Lorebooks (enabled books for this assistant)
+            composable(AssistantDetailRoutes.LOREBOOKS) {
+                AssistantLorebooksSubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) },
+                    vm = vm
+                )
+            }
+
             // Advanced
             composable(AssistantDetailRoutes.ADVANCED) {
                 AssistantAdvancedSubPage(
@@ -250,6 +262,7 @@ private fun AssistantDetailHome(
     onNavigateToPrompts: () -> Unit,
     onNavigateToTools: () -> Unit,
     onNavigateToMemory: () -> Unit,
+    onNavigateToLorebooks: () -> Unit,
     onNavigateToAdvanced: () -> Unit
 ) {
     Column(
@@ -331,6 +344,13 @@ private fun AssistantDetailHome(
                 title = stringResource(R.string.assistant_page_tab_memory),
                 description = stringResource(R.string.assistant_page_tab_memory_desc),
                 onClick = onNavigateToMemory
+            )
+
+            NavigationCard(
+                icon = Icons.Rounded.Book,
+                title = stringResource(R.string.assistant_lorebooks_title),
+                description = stringResource(R.string.assistant_lorebooks_desc),
+                onClick = onNavigateToLorebooks
             )
 
             NavigationCard(

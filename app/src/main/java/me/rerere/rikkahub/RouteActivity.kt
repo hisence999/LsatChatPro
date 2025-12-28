@@ -69,10 +69,13 @@ import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.menu.MenuPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
-
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPromptInjectionsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
@@ -396,6 +399,33 @@ class RouteActivity : ComponentActivity() {
                         SettingRpOptimizationsPage()
                     }
 
+                    composable<Screen.SettingPromptInjections> {
+                        SettingPromptInjectionsPage()
+                    }
+
+                    composable<Screen.SettingModes>(
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                    ) {
+                        SettingModesPage()
+                    }
+
+                    composable<Screen.SettingLorebooks>(
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                    ) {
+                        SettingLorebooksPage()
+                    }
+
+                    composable<Screen.SettingLorebookDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.SettingLorebookDetail>()
+                        SettingLorebookDetailPage(id = route.id)
+                    }
+
                     composable<Screen.Developer> {
                         DeveloperPage()
                     }
@@ -473,6 +503,18 @@ sealed interface Screen {
 
     @Serializable
     data object SettingRpOptimizations : Screen
+
+    @Serializable
+    data object SettingPromptInjections : Screen
+
+    @Serializable
+    data object SettingModes : Screen
+
+    @Serializable
+    data object SettingLorebooks : Screen
+
+    @Serializable
+    data class SettingLorebookDetail(val id: String) : Screen
 
     @Serializable
     data object Developer : Screen

@@ -187,6 +187,7 @@ class ConversationRepository(
             chatSuggestions = JsonInstant.encodeToString(conversation.chatSuggestions),
             isPinned = conversation.isPinned,
             isConsolidated = conversation.isConsolidated,
+            enabledModeIds = JsonInstant.encodeToString(conversation.enabledModeIds.map { it.toString() }),
         )
     }
 
@@ -194,6 +195,13 @@ class ConversationRepository(
         val messageNodes = JsonInstant
             .decodeFromString<List<MessageNode>>(migrateLegacyNodesJson(conversationEntity.nodes))
             .filter { it.messages.isNotEmpty() }
+        val enabledModeIds = try {
+            JsonInstant.decodeFromString<List<String>>(conversationEntity.enabledModeIds)
+                .map { Uuid.parse(it) }
+                .toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
         return Conversation(
             id = Uuid.parse(conversationEntity.id),
             title = conversationEntity.title,
@@ -205,6 +213,7 @@ class ConversationRepository(
             chatSuggestions = JsonInstant.decodeFromString(conversationEntity.chatSuggestions),
             isPinned = conversationEntity.isPinned,
             isConsolidated = conversationEntity.isConsolidated,
+            enabledModeIds = enabledModeIds,
         )
     }
 
