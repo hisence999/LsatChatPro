@@ -476,6 +476,7 @@ class ChatService(
                     }
                 },
                 truncateIndex = conversation.truncateIndex,
+                enabledModeIds = conversation.enabledModeIds,
             ).onCompletion {
                 // Calculate generation duration from first token (excludes TTFT)
                 val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
@@ -959,8 +960,6 @@ class ChatService(
 
     // 保存对话
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
-        if (conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return // 如果对话为空，则不保存
-        
         // 临时对话不持久化到数据库
         if (temporaryConversations.contains(conversationId)) {
             updateConversation(conversationId, conversation)
@@ -968,7 +967,12 @@ class ChatService(
         }
 
         val updatedConversation = conversation.copy()
+        // Always update in-memory state (even for empty conversations)
+        // This ensures mode toggles work on new chats before first message
         updateConversation(conversationId, updatedConversation)
+
+        // Skip database persist for empty conversations (no messages and no title)
+        if (conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return
 
         try {
             if (conversationRepo.getConversationById(conversation.id) == null) {

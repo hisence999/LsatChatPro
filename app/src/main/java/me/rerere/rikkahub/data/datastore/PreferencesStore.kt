@@ -30,6 +30,8 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.model.Lorebook
+import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
@@ -111,6 +113,10 @@ class SettingsStore(
         // Background Worker
         val CONSOLIDATION_WORKER_INTERVAL = intPreferencesKey("consolidation_worker_interval")
         val CONSOLIDATION_REQUIRES_DEVICE_IDLE = booleanPreferencesKey("consolidation_requires_device_idle")
+
+        // Prompt Injections
+        val MODES = stringPreferencesKey("modes")
+        val LOREBOOKS = stringPreferencesKey("lorebooks")
     }
 
     private val dataStore = context.settingsStore
@@ -182,6 +188,12 @@ class SettingsStore(
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 consolidationWorkerIntervalMinutes = preferences[CONSOLIDATION_WORKER_INTERVAL] ?: 15,
                 consolidationRequiresDeviceIdle = preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] ?: false,
+                modes = preferences[MODES]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+                lorebooks = preferences[LOREBOOKS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
             )
         }
         .map {
@@ -322,6 +334,9 @@ class SettingsStore(
 
             preferences[CONSOLIDATION_WORKER_INTERVAL] = settingsToSave.consolidationWorkerIntervalMinutes
             preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] = settingsToSave.consolidationRequiresDeviceIdle
+
+            preferences[MODES] = JsonInstant.encodeToString(settingsToSave.modes)
+            preferences[LOREBOOKS] = JsonInstant.encodeToString(settingsToSave.lorebooks)
         }
     }
 
@@ -396,6 +411,9 @@ data class Settings(
     val selectedTTSProviderId: Uuid = DEFAULT_SYSTEM_TTS_ID,
     val consolidationWorkerIntervalMinutes: Int = 15,
     val consolidationRequiresDeviceIdle: Boolean = false,
+    // Prompt Injections
+    val modes: List<Mode> = emptyList(),
+    val lorebooks: List<Lorebook> = emptyList(),
 ) {
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储

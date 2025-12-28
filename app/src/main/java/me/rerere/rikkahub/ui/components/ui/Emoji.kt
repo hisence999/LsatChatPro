@@ -82,7 +82,7 @@ fun EmojiPicker(
                     .height(height.dp)
                     .background(
                         MaterialTheme.colorScheme.surface,
-                        RoundedCornerShape(12.dp)
+                        RoundedCornerShape(10.dp)
                     )
                     .padding(8.dp)
             ) {
@@ -279,7 +279,7 @@ private fun EmojiModifierPicker(
             modifier = Modifier
                 .wrapContentSize()
                 .padding(16.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             tonalElevation = 8.dp

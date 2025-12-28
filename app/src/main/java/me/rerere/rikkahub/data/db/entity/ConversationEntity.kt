@@ -31,4 +31,6 @@ data class ConversationEntity(
     val isPinned: Boolean,
     @ColumnInfo(name = "is_consolidated", defaultValue = "0")
     val isConsolidated: Boolean = false,
+    @ColumnInfo(name = "enabled_mode_ids", defaultValue = "[]")
+    val enabledModeIds: String = "[]",
 )

@@ -505,6 +505,10 @@ private fun ChatPageContent(
                     onClearContext = {
                         vm.handleMessageTruncate()
                     },
+                    onUpdateConversation = { updatedConversation ->
+                        vm.updateConversation(updatedConversation)
+                        vm.saveConversationAsync()
+                    },
                 )
             }
         }

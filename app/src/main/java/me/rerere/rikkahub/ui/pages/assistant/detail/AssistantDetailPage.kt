@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Person
@@ -63,6 +64,7 @@ private object AssistantDetailRoutes {
     const val PROFILE = "profile"
     const val MODEL = "model"
     const val PROMPTS = "prompts"
+    const val LOREBOOKS = "lorebooks"
     const val TOOLS = "tools"
     const val MEMORY = "memory"
     const val ADVANCED = "advanced"
@@ -161,6 +163,7 @@ fun AssistantDetailPage(id: String) {
                     onNavigateToProfile = { navController.navigate(AssistantDetailRoutes.PROFILE) },
                     onNavigateToModel = { navController.navigate(AssistantDetailRoutes.MODEL) },
                     onNavigateToPrompts = { navController.navigate(AssistantDetailRoutes.PROMPTS) },
+                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
                     onNavigateToTools = { navController.navigate(AssistantDetailRoutes.TOOLS) },
                     onNavigateToMemory = { navController.navigate(AssistantDetailRoutes.MEMORY) },
                     onNavigateToAdvanced = { navController.navigate(AssistantDetailRoutes.ADVANCED) }
@@ -189,6 +192,15 @@ fun AssistantDetailPage(id: String) {
             // Prompts
             composable(AssistantDetailRoutes.PROMPTS) {
                 AssistantPromptSubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) },
+                    vm = vm
+                )
+            }
+
+            // Lorebooks
+            composable(AssistantDetailRoutes.LOREBOOKS) {
+                AssistantLorebooksSubPage(
                     assistant = assistant,
                     onUpdate = { onUpdate(it) },
                     vm = vm
@@ -248,6 +260,7 @@ private fun AssistantDetailHome(
     onNavigateToProfile: () -> Unit,
     onNavigateToModel: () -> Unit,
     onNavigateToPrompts: () -> Unit,
+    onNavigateToLorebooks: () -> Unit,
     onNavigateToTools: () -> Unit,
     onNavigateToMemory: () -> Unit,
     onNavigateToAdvanced: () -> Unit
@@ -315,6 +328,13 @@ private fun AssistantDetailHome(
                 title = stringResource(R.string.assistant_page_tab_prompt),
                 description = stringResource(R.string.assistant_page_tab_prompt_desc),
                 onClick = onNavigateToPrompts
+            )
+
+            NavigationCard(
+                icon = Icons.Rounded.Book,
+                title = stringResource(R.string.assistant_lorebooks_title),
+                description = stringResource(R.string.assistant_lorebooks_desc),
+                onClick = onNavigateToLorebooks
             )
 
             NavigationCard(

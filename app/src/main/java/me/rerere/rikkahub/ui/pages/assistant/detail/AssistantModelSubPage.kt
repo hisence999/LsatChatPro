@@ -69,7 +69,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -101,7 +101,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -173,7 +173,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(
@@ -232,7 +232,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(

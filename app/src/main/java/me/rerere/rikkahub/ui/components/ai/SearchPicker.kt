@@ -244,7 +244,7 @@ private fun AppSearchSettings(
             totalCount == 1 -> RoundedCornerShape(24.dp) // Single item
             index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
             index == totalCount - 1 -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-            else -> RoundedCornerShape(12.dp)
+            else -> RoundedCornerShape(10.dp)
         }
     }
     

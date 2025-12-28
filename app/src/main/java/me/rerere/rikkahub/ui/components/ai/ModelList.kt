@@ -654,7 +654,7 @@ private fun ModelItem(
                 topStart = 24.dp, topEnd = 24.dp,
                 bottomStart = 10.dp, bottomEnd = 10.dp
             )
-            ModelItemPosition.MIDDLE -> RoundedCornerShape(12.dp)
+            ModelItemPosition.MIDDLE -> RoundedCornerShape(10.dp)
             ModelItemPosition.LAST -> RoundedCornerShape(
                 topStart = 10.dp, topEnd = 10.dp,
                 bottomStart = 24.dp, bottomEnd = 24.dp

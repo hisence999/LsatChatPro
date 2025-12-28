@@ -279,13 +279,15 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                     }
                     
 
+                    // Collect memories OUTSIDE of ReorderableItem to prevent recomposition issues during drag
+                    val memories by vm.getMemories(assistant).collectAsStateWithLifecycle(
+                        initialValue = emptyList(),
+                    )
+
                     ReorderableItem(
                         state = reorderableState, 
                         key = assistant.id
                     ) { isDragging ->
-                        val memories by vm.getMemories(assistant).collectAsStateWithLifecycle(
-                            initialValue = emptyList(),
-                        )
                         // Key on canDelete to force complete PhysicsSwipeToDelete recreation when list size changes
                         androidx.compose.runtime.key(canDelete) {
                             PhysicsSwipeToDelete(

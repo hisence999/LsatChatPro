@@ -400,7 +400,7 @@ private fun ToastContent(
             if (isLongMessage && !isExpanded) {
                 Surface(
                     onClick = { isExpanded = true },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = contentColor.copy(alpha = 0.1f),
                     modifier = Modifier.size(28.dp)
                 ) {
