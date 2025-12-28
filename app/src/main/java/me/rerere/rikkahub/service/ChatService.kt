@@ -6,10 +6,18 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Icon
+import android.net.Uri
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -64,9 +72,11 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.AssistantSearchMode
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -127,6 +137,8 @@ class ChatService(
     private val liveUpdateStates = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
     private val liveUpdateLastNotifyAtMs = ConcurrentHashMap<Uuid, Long>()
     private val liveUpdateLastNotifiedState = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
+    private val liveUpdateSmallIcons = ConcurrentHashMap<Uuid, Icon>()
+    private val liveUpdateLargeIcons = ConcurrentHashMap<Uuid, Icon>()
 
     fun setPendingUiWelcomePhraseForAppContext(conversationId: Uuid, welcomePhrase: String) {
         val normalized = welcomePhrase.replace("\r", "").trim()
@@ -189,6 +201,9 @@ class ChatService(
         liveUpdateStates[conversationId] = ChatLiveUpdateState.INFERENCE
         liveUpdateLastNotifyAtMs.remove(conversationId)
         liveUpdateLastNotifiedState.remove(conversationId)
+        liveUpdateSmallIcons.remove(conversationId)
+        liveUpdateLargeIcons.remove(conversationId)
+        liveUpdateSmallIcons[conversationId] = Icon.createWithResource(context, R.drawable.ic_launcher_monochrome)
         return sessionId
     }
 
@@ -197,6 +212,8 @@ class ChatService(
         liveUpdateStates.remove(conversationId)
         liveUpdateLastNotifyAtMs.remove(conversationId)
         liveUpdateLastNotifiedState.remove(conversationId)
+        liveUpdateSmallIcons.remove(conversationId)
+        liveUpdateLargeIcons.remove(conversationId)
     }
 
     private fun cancelOngoingLiveUpdates() {
@@ -240,13 +257,251 @@ class ChatService(
         liveUpdateLastNotifiedState[conversationId] = state
 
         val (contentText, bigText) = buildLiveUpdateTexts(conversationId, state, error)
+        val title = buildLiveUpdateTitle(conversationId, settings)
+        val smallIcon = liveUpdateSmallIcons[conversationId]
+        val largeIcon = liveUpdateLargeIcons[conversationId]
         liveUpdateNotifier.notify(
             conversationId = conversationId,
             sessionId = sessionId,
             state = state,
+            title = title,
             contentText = contentText,
             bigText = bigText,
+            smallIcon = smallIcon,
+            largeIcon = largeIcon,
         )
+    }
+
+    private fun buildLiveUpdateTitle(conversationId: Uuid, settings: Settings): String {
+        val conversation = getConversationFlow(conversationId).value
+        val assistantName = settings.getAssistantById(conversation.assistantId)?.name
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        return assistantName ?: context.getString(R.string.app_name)
+    }
+
+    private fun warmUpLiveUpdateIcon(conversationId: Uuid, settings: Settings) {
+        if (!shouldUseLiveUpdate(settings)) return
+        if (liveUpdateSmallIcons.containsKey(conversationId) && liveUpdateLargeIcons.containsKey(conversationId)) return
+
+        val sessionId = liveUpdateSessionIds[conversationId] ?: return
+        val conversation = getConversationFlow(conversationId).value
+        val assistant = settings.getAssistantById(conversation.assistantId) ?: return
+
+        appScope.launch(Dispatchers.IO) {
+            val small = buildAssistantAvatarSmallIcon(assistant.name, assistant.avatar)
+            val large = buildAssistantAvatarLargeIcon(assistant.name, assistant.avatar)
+            if (small == null && large == null) return@launch
+
+            if (liveUpdateSessionIds[conversationId] != sessionId) return@launch
+            small?.let { liveUpdateSmallIcons[conversationId] = it }
+            large?.let { liveUpdateLargeIcons[conversationId] = it }
+
+            val state = liveUpdateStates[conversationId] ?: return@launch
+            notifyLiveUpdate(
+                conversationId = conversationId,
+                state = state,
+                settings = settings,
+                force = true,
+                error = null,
+            )
+        }
+    }
+
+    private fun buildAssistantAvatarSmallIcon(name: String, avatar: Avatar): Icon? {
+        return when (avatar) {
+            is Avatar.Resource -> {
+                val drawable = runCatching {
+                    ResourcesCompat.getDrawable(context.resources, avatar.id, context.theme)
+                }.getOrNull()
+                if (drawable == null || drawable is BitmapDrawable) {
+                    null
+                } else {
+                    Icon.createWithResource(context, avatar.id)
+                }
+            }
+            is Avatar.Emoji -> buildEmojiSmallIcon(avatar.content)
+            is Avatar.Image -> null
+            is Avatar.Dummy -> buildTextSmallIcon(name)
+        }
+    }
+
+    private fun buildAssistantAvatarLargeIcon(name: String, avatar: Avatar): Icon? {
+        return when (avatar) {
+            is Avatar.Resource -> {
+                val drawable = runCatching {
+                    ResourcesCompat.getDrawable(context.resources, avatar.id, context.theme)
+                }.getOrNull()
+                if (drawable is BitmapDrawable) {
+                    val scaled = scaleCenterCropSquare(drawable.bitmap, size = 160)
+                    Icon.createWithAdaptiveBitmap(scaled)
+                } else {
+                    Icon.createWithResource(context, avatar.id)
+                }
+            }
+            is Avatar.Emoji -> buildEmojiLargeIcon(avatar.content)
+            is Avatar.Image -> buildImageLargeIcon(avatar.url)
+            is Avatar.Dummy -> buildTextLargeIcon(name)
+        }
+    }
+
+    private fun buildEmojiSmallIcon(emoji: String): Icon? {
+        val normalized = emoji.trim()
+        if (normalized.isBlank()) return null
+
+        val size = 108
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = size * 0.56f
+        }
+        val fm = textPaint.fontMetrics
+        val x = size / 2f
+        val y = size / 2f - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(normalized, x, y, textPaint)
+
+        return Icon.createWithBitmap(bitmap)
+    }
+
+    private fun buildTextSmallIcon(name: String): Icon? {
+        val normalized = name.trim().takeIf { it.isNotBlank() }
+            ?.firstOrNull()
+            ?.uppercaseChar()
+            ?.toString()
+            ?: return null
+
+        val size = 108
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = size * 0.62f
+        }
+        val fm = textPaint.fontMetrics
+        val x = size / 2f
+        val y = size / 2f - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(normalized, x, y, textPaint)
+
+        return Icon.createWithBitmap(bitmap)
+    }
+
+    private fun buildEmojiLargeIcon(emoji: String): Icon? {
+        val normalized = emoji.trim()
+        if (normalized.isBlank()) return null
+
+        val size = 160
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFE0E0E0.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, bgPaint)
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = size * 0.56f
+        }
+        val fm = textPaint.fontMetrics
+        val x = size / 2f
+        val y = size / 2f - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(normalized, x, y, textPaint)
+
+        return Icon.createWithAdaptiveBitmap(bitmap)
+    }
+
+    private fun buildTextLargeIcon(name: String): Icon? {
+        val normalized = name.trim().takeIf { it.isNotBlank() }
+            ?.firstOrNull()
+            ?.uppercaseChar()
+            ?.toString()
+            ?: return null
+
+        val size = 160
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFE0E0E0.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, bgPaint)
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = size * 0.62f
+        }
+        val fm = textPaint.fontMetrics
+        val x = size / 2f
+        val y = size / 2f - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(normalized, x, y, textPaint)
+
+        return Icon.createWithAdaptiveBitmap(bitmap)
+    }
+
+    private fun buildImageLargeIcon(url: String): Icon? {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+        val scheme = uri.scheme?.lowercase()
+        if (scheme == "http" || scheme == "https") return null
+
+        val bitmap = decodeSampledBitmapFromUri(uri, reqSize = 256) ?: return null
+        val scaled = scaleCenterCropSquare(bitmap, size = 160)
+        if (!bitmap.isRecycled) bitmap.recycle()
+        return Icon.createWithAdaptiveBitmap(scaled)
+    }
+
+    private fun decodeSampledBitmapFromUri(uri: Uri, reqSize: Int): Bitmap? {
+        fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+            val (height, width) = options.outHeight to options.outWidth
+            var inSampleSize = 1
+            if (height > reqHeight || width > reqWidth) {
+                var halfHeight = height / 2
+                var halfWidth = width / 2
+                while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                    inSampleSize *= 2
+                }
+            }
+            return inSampleSize.coerceAtLeast(1)
+        }
+
+        return runCatching {
+            val resolver = context.contentResolver
+
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            resolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, boundsOptions)
+            } ?: return@runCatching null
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            resolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, decodeOptions)
+            }
+        }.getOrNull()
+    }
+
+    private fun scaleCenterCropSquare(source: Bitmap, size: Int): Bitmap {
+        val srcWidth = source.width.coerceAtLeast(1)
+        val srcHeight = source.height.coerceAtLeast(1)
+        val srcSize = minOf(srcWidth, srcHeight)
+
+        val srcLeft = (srcWidth - srcSize) / 2
+        val srcTop = (srcHeight - srcSize) / 2
+
+        val cropped = Bitmap.createBitmap(source, srcLeft, srcTop, srcSize, srcSize)
+        return if (cropped.width == size && cropped.height == size) {
+            cropped
+        } else {
+            Bitmap.createScaledBitmap(cropped, size, size, true).also {
+                if (cropped != source) cropped.recycle()
+            }
+        }
     }
 
     private fun buildLiveUpdateTexts(
@@ -257,12 +512,12 @@ class ChatService(
         val conversation = getConversationFlow(conversationId).value
         val lastUserText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.USER }
-            ?.toText()
+            ?.toContentText()
             ?.trim()
             ?.takeIf { it.isNotBlank() }
         val lastAssistantText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.ASSISTANT }
-            ?.toText()
+            ?.toContentText()
             ?.trim()
             ?.takeIf { it.isNotBlank() }
 
@@ -542,6 +797,7 @@ class ChatService(
 
             if (useLiveUpdate) {
                 startLiveUpdateSession(conversationId)
+                warmUpLiveUpdateIcon(conversationId, settings)
                 notifyLiveUpdate(
                     conversationId = conversationId,
                     state = ChatLiveUpdateState.INFERENCE,
@@ -1118,7 +1374,7 @@ class ChatService(
         val notification =
             NotificationCompat.Builder(context, CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.notification_chat_done_title))
-                .setContentText(conversation.currentMessages.lastOrNull()?.toText()?.take(50) ?: "")
+                .setContentText(conversation.currentMessages.lastOrNull()?.toContentText()?.take(50) ?: "")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)

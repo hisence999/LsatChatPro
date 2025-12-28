@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.datastore
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.datastore.core.IOException
 import androidx.datastore.preferences.SharedPreferencesMigration
@@ -12,11 +13,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.pebbletemplates.pebble.PebbleEngine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
@@ -66,6 +69,7 @@ class SettingsStore(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val THEME_ID = stringPreferencesKey("theme_id")
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
+        val LIVE_UPDATE_DEFAULT_APPLIED = booleanPreferencesKey("live_update_default_applied")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
         val ENABLE_RAG_LOGGING = booleanPreferencesKey("enable_rag_logging")
 
@@ -120,6 +124,37 @@ class SettingsStore(
     }
 
     private val dataStore = context.settingsStore
+
+    init {
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                if (Build.VERSION.SDK_INT < 36) return@launch
+
+                val prefs = dataStore.data.first()
+                if (prefs[LIVE_UPDATE_DEFAULT_APPLIED] == true) return@launch
+
+                val rawDisplaySetting = prefs[DISPLAY_SETTING]
+                val alreadyPersisted = rawDisplaySetting?.contains("\"enableLiveUpdate\"") == true
+                if (alreadyPersisted) {
+                    dataStore.edit { it[LIVE_UPDATE_DEFAULT_APPLIED] = true }
+                    return@launch
+                }
+
+                val currentDisplaySetting = rawDisplaySetting?.let {
+                    JsonInstant.decodeFromString<DisplaySetting>(it)
+                } ?: DisplaySetting()
+
+                dataStore.edit { preferences ->
+                    preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(
+                        currentDisplaySetting.copy(enableLiveUpdate = true)
+                    )
+                    preferences[LIVE_UPDATE_DEFAULT_APPLIED] = true
+                }
+            }.onFailure {
+                Log.w(TAG, "applyLiveUpdateDefaultIfNeeded failed: ${it.message}", it)
+            }
+        }
+    }
 
     val settingsFlowRaw = dataStore.data
         .catch { exception ->

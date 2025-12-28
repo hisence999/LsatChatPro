@@ -180,20 +180,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     if (displaySetting.enableNotificationOnMessageGeneration) {
-                        Column(modifier = Modifier.padding(start = 16.dp)) {
-                            SettingGroupItem(
-                                title = stringResource(R.string.setting_display_page_notification_live_update),
-                                subtitle = stringResource(R.string.setting_display_page_notification_live_update_desc),
-                                trailing = {
-                                    HapticSwitch(
-                                        checked = displaySetting.enableLiveUpdate,
-                                        onCheckedChange = {
-                                            updateDisplaySetting(displaySetting.copy(enableLiveUpdate = it))
-                                        }
-                                    )
-                                }
-                            )
-                        }
+                        SettingGroupItem(
+                            title = stringResource(R.string.setting_display_page_notification_live_update),
+                            subtitle = stringResource(R.string.setting_display_page_notification_live_update_desc),
+                            trailing = {
+                                HapticSwitch(
+                                    checked = displaySetting.enableLiveUpdate,
+                                    onCheckedChange = {
+                                        updateDisplaySetting(displaySetting.copy(enableLiveUpdate = it))
+                                    }
+                                )
+                            }
+                        )
                     }
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_check_updates_title),

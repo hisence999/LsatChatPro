@@ -1,14 +1,15 @@
 package me.rerere.rikkahub.service
 
 import android.Manifest
+import android.app.Notification
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.os.Bundle
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
@@ -20,6 +21,7 @@ private const val EXTRA_CONVERSATION_ID = "conversationId"
 private const val EXTRA_SESSION_ID = "sessionId"
 
 private const val ANDROID_EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
+private const val FLAG_PROMOTED_ONGOING = 0x40000
 
 enum class ChatLiveUpdateState {
     INFERENCE,
@@ -43,33 +45,57 @@ class ChatLiveUpdateNotifier(
         conversationId: Uuid,
         sessionId: Long,
         state: ChatLiveUpdateState,
+        title: String,
         contentText: String?,
         bigText: String?,
+        smallIcon: Icon?,
+        largeIcon: Icon?,
     ) {
         if (ChatLiveUpdateDismissalTracker.isDismissed(conversationId, sessionId)) return
         if (!hasPostNotificationsPermission()) return
 
-        val builder = NotificationCompat.Builder(context, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(stateTitle(state))
+        val stateTitle = stateTitle(state)
+        val builder = Notification.Builder(context, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(smallIcon ?: Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
+            .setContentTitle(title)
             .setContentText(contentText.orEmpty())
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setOnlyAlertOnce(true)
             .setOngoing(state.isOngoing())
             .setAutoCancel(state.isAutoCancel())
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(conversationPendingIntent(conversationId))
             .setDeleteIntent(deleteIntent(conversationId, sessionId))
+
+        builder.setShortCriticalTextCompat(stateTitle)
+
+        builder.setPublicVersion(
+            Notification.Builder(context, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(smallIcon ?: Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
+                .setContentTitle(title)
+                .setContentText(stateTitle)
+                .setOnlyAlertOnce(true)
+                .setOngoing(state.isOngoing())
+                .setAutoCancel(state.isAutoCancel())
+                .setCategory(Notification.CATEGORY_PROGRESS)
+                .setContentIntent(conversationPendingIntent(conversationId))
+                .also { it.setShortCriticalTextCompat(stateTitle) }
+                .build()
+        )
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
 
         if (state.isOngoing()) {
             builder.setProgress(0, 0, true)
             builder.requestPromotedOngoingCompat(true)
+        } else {
+            builder.requestPromotedOngoingCompat(false)
         }
 
         if (!bigText.isNullOrBlank()) {
-            builder.setStyle(
-                NotificationCompat.BigTextStyle().bigText(bigText)
-            )
+            builder.setStyle(Notification.BigTextStyle().bigText(bigText))
         }
 
         NotificationManagerCompat.from(context).notify(notificationId(conversationId), builder.build())
@@ -126,7 +152,8 @@ class ChatLiveUpdateNotifier(
     }
 }
 
-private fun NotificationCompat.Builder.requestPromotedOngoingCompat(request: Boolean) {
+private fun Notification.Builder.requestPromotedOngoingCompat(request: Boolean) {
+    setFlag(FLAG_PROMOTED_ONGOING, request)
     runCatching {
         javaClass
             .getMethod("setRequestPromotedOngoing", Boolean::class.javaPrimitiveType)
@@ -137,6 +164,19 @@ private fun NotificationCompat.Builder.requestPromotedOngoingCompat(request: Boo
                 putBoolean(ANDROID_EXTRA_REQUEST_PROMOTED_ONGOING, request)
             }
         )
+    }
+}
+
+private fun Notification.Builder.setShortCriticalTextCompat(text: CharSequence?) {
+    if (text.isNullOrBlank()) return
+    runCatching {
+        javaClass
+            .getMethod("setShortCriticalText", String::class.java)
+            .invoke(this, text.toString())
+    }.recoverCatching {
+        javaClass
+            .getMethod("setShortCriticalText", CharSequence::class.java)
+            .invoke(this, text)
     }
 }
 
