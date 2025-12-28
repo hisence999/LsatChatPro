@@ -55,8 +55,9 @@ class ChatLiveUpdateNotifier(
         if (!hasPostNotificationsPermission()) return
 
         val stateTitle = stateTitle(state)
+        val finalLargeIcon = largeIcon ?: smallIcon
         val builder = Notification.Builder(context, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(smallIcon ?: Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
+            .setSmallIcon(R.drawable.ic_statusbar)
             .setContentTitle(title)
             .setContentText(contentText.orEmpty())
             .setVisibility(Notification.VISIBILITY_PRIVATE)
@@ -71,7 +72,7 @@ class ChatLiveUpdateNotifier(
 
         builder.setPublicVersion(
             Notification.Builder(context, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(smallIcon ?: Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
+                .setSmallIcon(R.drawable.ic_statusbar)
                 .setContentTitle(title)
                 .setContentText(stateTitle)
                 .setOnlyAlertOnce(true)
@@ -83,8 +84,8 @@ class ChatLiveUpdateNotifier(
                 .build()
         )
 
-        if (largeIcon != null) {
-            builder.setLargeIcon(largeIcon)
+        if (finalLargeIcon != null) {
+            builder.setLargeIcon(finalLargeIcon)
         }
 
         if (state.isOngoing()) {

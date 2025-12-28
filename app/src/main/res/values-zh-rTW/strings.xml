@@ -752,8 +752,8 @@
   <string name="menu_page_total_chats">總聊天數</string>
   <string name="none">無</string>
   <string name="notification_channel_chat_live_update">聊天 Live Update</string>
-  <string name="notification_live_update_inference">推理中…</string>
-  <string name="notification_live_update_output">輸出中…</string>
+  <string name="notification_live_update_inference">推理中</string>
+  <string name="notification_live_update_output">輸出中</string>
   <string name="notification_live_update_done">輸出完成</string>
   <string name="notification_live_update_error">生成異常</string>
   <string name="placeholder_location">位置</string>
