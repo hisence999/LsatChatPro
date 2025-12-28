@@ -42,7 +42,9 @@ class UpdateChecker(private val client: OkHttpClient) {
                             .build()
                     ).await()
                     if (response.isSuccessful) {
-                        val releases = json.decodeFromString<List<GitHubRelease>>(response.body.string())
+                        val responseBody = response.body?.string()
+                            ?: throw Exception("Empty response body")
+                        val releases = json.decodeFromString<List<GitHubRelease>>(responseBody)
                         // 筛选 tag_name 包含 "zh" 的版本，取最新的一个
                         val release = releases.firstOrNull { it.tag_name.contains("zh", ignoreCase = true) }
                             ?: throw Exception("No zh release found")
@@ -69,9 +71,9 @@ class UpdateChecker(private val client: OkHttpClient) {
                         }
                         
                         UpdateInfo(
-                            version = release.tag_name.removePrefix("v"),
+                            version = release.tag_name.removePrefix("v").removePrefix("V"),
                             publishedAt = release.published_at,
-                            changelog = release.body,
+                            changelog = release.body.orEmpty(),
                             downloads = sortedDownloads
                         )
                     } else {
@@ -128,7 +130,7 @@ class UpdateChecker(private val client: OkHttpClient) {
 data class GitHubRelease(
     val tag_name: String,
     val name: String,
-    val body: String,
+    val body: String? = null,
     val published_at: String,
     val assets: List<GitHubAsset>
 )
@@ -165,8 +167,19 @@ value class Version(val value: String) : Comparable<Version> {
      * 将版本号分解为数字数组
      */
     private fun parseVersion(): List<Int> {
-        return value.split(".")
-            .map { it.toIntOrNull() ?: 0 }
+        val normalized = value
+            .trim()
+            .removePrefix("v")
+            .removePrefix("V")
+            .substringBefore('+')
+            .substringBefore('-')
+
+        return normalized
+            .split(".")
+            .filter { it.isNotBlank() }
+            .map { part ->
+                part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+            }
     }
 
     /**

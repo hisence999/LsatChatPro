@@ -23,7 +23,7 @@ android {
         applicationId = "lastchat.rikkafork.cocolal.zh"
         minSdk = 31
         targetSdk = 36
-        versionCode = 19
+        versionCode = ((System.currentTimeMillis() - 1577808000000) / 60000).toInt() // 基于 2020-01-01 00:00:00 UTC 的分钟数
         versionName = "1.2.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
