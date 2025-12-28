@@ -45,14 +45,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.Translate
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.prompts.DEFAULT_LEARNING_MODE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
@@ -103,10 +101,6 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
 
             item {
                 DefaultTranslationModelSetting(settings = settings, vm = vm)
-            }
-
-            item {
-                LearningModePromptSetting(settings = settings, vm = vm)
             }
 
             item {
@@ -436,80 +430,6 @@ private fun DefaultChatModelSetting(
             }
         }
     )
-}
-
-@Composable
-private fun LearningModePromptSetting(
-    settings: Settings,
-    vm: SettingVM
-) {
-    var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
-        title = {
-            Text(stringResource(R.string.setting_model_page_learning_mode), maxLines = 1)
-        },
-        description = {
-            Text(stringResource(R.string.setting_model_page_learning_mode_desc))
-        },
-        icon = {
-            Icon(Icons.Rounded.School, null)
-        },
-        actions = {
-            IconButton(
-                onClick = {
-                    showModal = true
-                }
-            ) {
-                Icon(Icons.Rounded.Settings, null)
-            }
-        }
-    )
-
-    if (showModal) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                showModal = false
-            },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FormItem(
-                    label = {
-                        Text(stringResource(R.string.setting_model_page_prompt))
-                    },
-                ) {
-                    OutlinedTextField(
-                        value = settings.learningModePrompt,
-                        onValueChange = {
-                            vm.updateSettings(
-                                settings.copy(
-                                    learningModePrompt = it
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 10,
-                    )
-                    TextButton(
-                        onClick = {
-                            vm.updateSettings(
-                                settings.copy(
-                                    learningModePrompt = DEFAULT_LEARNING_MODE_PROMPT
-                                )
-                            )
-                        }
-                    ) {
-                        Text(stringResource(R.string.setting_model_page_reset_to_default))
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable

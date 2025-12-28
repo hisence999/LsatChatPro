@@ -103,7 +103,9 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
@@ -166,11 +168,13 @@ fun SettingLorebookDetailPage(
     }
     
     fun updateLorebook(updated: Lorebook) {
-        vm.updateSettings(settings.copy(
-            lorebooks = settings.lorebooks.map {
-                if (it.id == lorebook.id) updated else it
-            }
-        ))
+        vm.updateSettings { current ->
+            current.copy(
+                lorebooks = current.lorebooks.map { existing ->
+                    if (existing.id == updated.id) updated else existing
+                }
+            )
+        }
     }
     
     fun exportLorebook(format: String) {
@@ -362,11 +366,23 @@ fun SettingLorebookDetailPage(
                                     action = ToastAction(
                                         label = context.getString(R.string.undo),
                                         onClick = {
-                                            updateLorebook(lorebook.copy(
-                                                entries = lorebook.entries.toMutableList().apply {
-                                                    add(index.coerceAtMost(size), deletedEntry)
+                                            vm.updateSettings { current ->
+                                                val currentLorebook = current.lorebooks.find { it.id == lorebook.id }
+                                                    ?: return@updateSettings current
+                                                if (currentLorebook.entries.any { it.id == deletedEntry.id }) {
+                                                    return@updateSettings current
                                                 }
-                                            ))
+
+                                                val updatedEntries = currentLorebook.entries.toMutableList().apply {
+                                                    add(index.coerceIn(0, size), deletedEntry)
+                                                }
+                                                val updatedLorebook = currentLorebook.copy(entries = updatedEntries.toList())
+                                                current.copy(
+                                                    lorebooks = current.lorebooks.map { existing ->
+                                                        if (existing.id == updatedLorebook.id) updatedLorebook else existing
+                                                    }
+                                                )
+                                            }
                                         }
                                     )
                                 )
@@ -412,31 +428,46 @@ fun SettingLorebookDetailPage(
             },
             onSave = { savedEntry ->
                 // Generate embedding for RAG entries
+                val lorebookId = lorebook.id
                 scope.launch {
                     val finalEntry = if (savedEntry.activationType == LorebookActivationType.RAG && savedEntry.prompt.isNotBlank()) {
                         try {
-                            val embeddingResult = embeddingService.embedWithModelId(savedEntry.prompt)
+                            val embeddingResult = withContext(Dispatchers.IO) {
+                                embeddingService.embedWithModelId(savedEntry.prompt)
+                            }
+                            val embedding = embeddingResult.embeddings.firstOrNull()
                             savedEntry.copy(
-                                embedding = embeddingResult.embeddings.firstOrNull(),
-                                hasEmbedding = true,
+                                embedding = embedding,
+                                hasEmbedding = embedding != null,
                                 embeddingModelId = embeddingResult.modelId
                             )
                         } catch (e: Exception) {
                             android.util.Log.w("LorebookDetail", "Failed to generate embedding", e)
                             toaster.show("Failed to generate embedding: ${e.message}", me.rerere.rikkahub.ui.components.ui.ToastType.Error)
-                            savedEntry.copy(hasEmbedding = false)
+                            savedEntry.copy(embedding = null, hasEmbedding = false, embeddingModelId = null)
                         }
                     } else {
                         savedEntry.copy(embedding = null, hasEmbedding = false, embeddingModelId = null)
                     }
                     
-                    if (editingEntry != null) {
-                        val updatedEntries = lorebook.entries.map {
-                            if (it.id == finalEntry.id) finalEntry else it
+                    vm.updateSettings { current ->
+                        val currentLorebook = current.lorebooks.find { it.id == lorebookId }
+                            ?: return@updateSettings current
+
+                        val updatedEntries = currentLorebook.entries.toMutableList()
+                        val existingIndex = updatedEntries.indexOfFirst { it.id == finalEntry.id }
+                        if (existingIndex >= 0) {
+                            updatedEntries[existingIndex] = finalEntry
+                        } else {
+                            updatedEntries.add(finalEntry)
                         }
-                        updateLorebook(lorebook.copy(entries = updatedEntries))
-                    } else {
-                        updateLorebook(lorebook.copy(entries = lorebook.entries + finalEntry))
+
+                        val updatedLorebook = currentLorebook.copy(entries = updatedEntries.toList())
+                        current.copy(
+                            lorebooks = current.lorebooks.map { existing ->
+                                if (existing.id == updatedLorebook.id) updatedLorebook else existing
+                            }
+                        )
                     }
                 }
                 showAddEntrySheet = false

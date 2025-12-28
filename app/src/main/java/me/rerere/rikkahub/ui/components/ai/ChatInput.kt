@@ -127,7 +127,8 @@ import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.AudioFile
-import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FlashOn
@@ -197,6 +198,7 @@ fun ChatInput(
     onClickSuggestion: (String) -> Unit = {},
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
     onCancelClick: () -> Unit,
@@ -348,11 +350,18 @@ fun ChatInput(
                             ),
                             label = "rotation"
                         )
+                        val hasActiveModes = remember(conversation.enabledModeIds, settings.modes) {
+                            if (conversation.enabledModeIds.isNotEmpty()) {
+                                true
+                            } else {
+                                settings.modes.any { it.defaultEnabled }
+                            }
+                        }
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = stringResource(R.string.more_options),
                             modifier = Modifier.rotate(rotation),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = if (hasActiveModes) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -570,6 +579,7 @@ fun ChatInput(
                             mcpManager = mcpManager,
                             onClearContext = onClearContext,
                             onUpdateAssistant = onUpdateAssistant,
+                            onUpdateConversation = onUpdateConversation,
                             onDismiss = { dismissExpand() }
                         )
                     }
@@ -972,6 +982,7 @@ private fun FilesPicker(
     mcpManager: McpManager,
     onClearContext: () -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -1079,31 +1090,77 @@ private fun FilesPicker(
         if (!WindowInsets.isImeVisible) {
             Spacer(modifier = Modifier.height(8.dp))
 
+            val activeModeCount = remember(conversation.enabledModeIds, settings.modes) {
+                settings.modes.count { mode ->
+                    if (conversation.enabledModeIds.isEmpty()) {
+                        mode.defaultEnabled
+                    } else {
+                        conversation.enabledModeIds.contains(mode.id)
+                    }
+                }
+            }
+
+            var showModesPicker by remember { mutableStateOf(false) }
+
+            val modesInteractionSource = remember { MutableInteractionSource() }
+            val isModesPressed by modesInteractionSource.collectIsPressedAsState()
+            val modesScale by animateFloatAsState(
+                targetValue = if (isModesPressed) 0.98f else 1f,
+                animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+                label = "modes_item_scale"
+            )
             ListItem(
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = modesScale
+                        scaleY = modesScale
+                    }
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = modesInteractionSource,
+                        indication = LocalIndication.current
+                    ) {
+                        haptics.perform(HapticPattern.Pop)
+                        showModesPicker = true
+                    },
                 colors = ListItemDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 leadingContent = {
                     Icon(
-                        imageVector = Icons.Rounded.School,
-                        contentDescription = stringResource(R.string.chat_page_learning_mode),
+                        imageVector = Icons.Rounded.AutoFixHigh,
+                        contentDescription = stringResource(R.string.modes_picker_title),
                     )
                 },
                 headlineContent = {
-                    Text(stringResource(R.string.chat_page_learning_mode))
+                    Text(stringResource(R.string.modes_picker_title))
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.chat_page_learning_mode_desc))
-                },
-                trailingContent = {
-                    HapticSwitch(
-                        checked = assistant.learningMode,
-                        onCheckedChange = {
-                            onUpdateAssistant(assistant.copy(learningMode = it))
+                    Text(
+                        if (settings.modes.isEmpty()) {
+                            stringResource(R.string.modes_picker_none)
+                        } else {
+                            stringResource(R.string.modes_picker_count, activeModeCount)
                         }
                     )
                 },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
             )
+
+            if (showModesPicker) {
+                ModesPickerSheet(
+                    settings = settings,
+                    conversation = conversation,
+                    onUpdateConversation = onUpdateConversation,
+                    onDismiss = { showModesPicker = false }
+                )
+            }
 
             if (mcpServers.isNotEmpty()) {
                 val mcpInteractionSource = remember { MutableInteractionSource() }
@@ -1221,6 +1278,86 @@ private fun FilesPicker(
                         .fillMaxWidth()
                         .weight(1f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModesPickerSheet(
+    settings: Settings,
+    conversation: Conversation,
+    onUpdateConversation: (Conversation) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.modes_picker_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            var localEnabledIds by remember(conversation.id) {
+                mutableStateOf(
+                    if (conversation.enabledModeIds.isEmpty()) {
+                        settings.modes.filter { it.defaultEnabled }.map { it.id }.toSet()
+                    } else {
+                        conversation.enabledModeIds
+                    }
+                )
+            }
+
+            if (settings.modes.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.modes_picker_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                settings.modes.forEach { mode ->
+                    val isEnabled = localEnabledIds.contains(mode.id)
+
+                    ListItem(
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)),
+                        colors = ListItemDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        headlineContent = {
+                            Text(mode.name.ifEmpty { stringResource(R.string.modes_page_unnamed) })
+                        },
+                        supportingContent = {
+                            Text(
+                                text = mode.prompt.take(50) + if (mode.prompt.length > 50) "..." else "",
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        trailingContent = {
+                            HapticSwitch(
+                                checked = isEnabled,
+                                onCheckedChange = { newEnabled ->
+                                    val newEnabledIds = if (newEnabled) {
+                                        localEnabledIds + mode.id
+                                    } else {
+                                        localEnabledIds - mode.id
+                                    }
+                                    localEnabledIds = newEnabledIds
+                                    onUpdateConversation(conversation.copy(enabledModeIds = newEnabledIds))
+                                }
+                            )
+                        },
+                    )
+                }
             }
         }
     }

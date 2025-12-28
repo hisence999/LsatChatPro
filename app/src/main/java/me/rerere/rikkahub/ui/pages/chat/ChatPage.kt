@@ -807,6 +807,9 @@ private fun ChatPageContent(
                             )
                         )
                     },
+                    onUpdateConversation = { updatedConversation ->
+                        vm.updateConversation(updatedConversation)
+                    },
                     onUpdateSearchService = { index ->
                         // Only persist the selection to the assistant's searchMode to avoid double-update flicker
                         // The global setting 'searchServiceSelected' is deprecated in favor of assistant-specific settings

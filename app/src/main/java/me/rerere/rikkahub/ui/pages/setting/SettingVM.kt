@@ -23,4 +23,10 @@ class SettingVM(
             settingsStore.update(settings)
         }
     }
+
+    fun updateSettings(fn: (Settings) -> Settings) {
+        viewModelScope.launch {
+            settingsStore.update(fn)
+        }
+    }
 }
