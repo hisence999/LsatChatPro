@@ -1172,8 +1172,6 @@ class ChatService(
 
     // 保存对话
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
-        if (conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return // 如果对话为空，则不保存
-        
         // 临时对话不持久化到数据库
         if (temporaryConversations.contains(conversationId)) {
             updateConversation(conversationId, conversation)
@@ -1182,6 +1180,9 @@ class ChatService(
 
         val updatedConversation = conversation.copy()
         updateConversation(conversationId, updatedConversation)
+
+        // 空对话不落库，但仍需要更新内存态（例如：首次发送消息前启用 modes）
+        if (updatedConversation.title.isBlank() && updatedConversation.messageNodes.isEmpty()) return
 
         try {
             if (conversationRepo.getConversationById(conversation.id) == null) {
