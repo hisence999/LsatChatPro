@@ -88,7 +88,9 @@ import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.ByteArrayOutputStream
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -449,11 +451,20 @@ class ChatService(
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase()
         if (scheme == "http" || scheme == "https") {
-            val bytes = downloadImageBytes(url, maxBytes = 10L * 1024 * 1024) ?: return null
-            val bitmap = decodeSampledBitmapFromBytes(bytes, reqSize = 256) ?: return null
+            val bitmap = decodeSampledBitmapFromHttpUrl(url, reqSize = 256) ?: return null
             val scaled = scaleCenterCropSquare(bitmap, size = 160)
             if (!bitmap.isRecycled) bitmap.recycle()
             return Icon.createWithAdaptiveBitmap(scaled)
+        }
+
+        if (scheme == "file") {
+            val path = uri.path
+            if (!path.isNullOrBlank()) {
+                val bitmap = decodeSampledBitmapFromFile(File(path), reqSize = 256) ?: return null
+                val scaled = scaleCenterCropSquare(bitmap, size = 160)
+                if (!bitmap.isRecycled) bitmap.recycle()
+                return Icon.createWithAdaptiveBitmap(scaled)
+            }
         }
 
         val bitmap = decodeSampledBitmapFromUri(uri, reqSize = 256) ?: return null
@@ -462,38 +473,7 @@ class ChatService(
         return Icon.createWithAdaptiveBitmap(scaled)
     }
 
-    private fun downloadImageBytes(url: String, maxBytes: Long): ByteArray? {
-        return runCatching {
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .build()
-
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@runCatching null
-                val body = response.body ?: return@runCatching null
-
-                val contentLength = body.contentLength()
-                if (contentLength > maxBytes) return@runCatching null
-
-                body.byteStream().use { input ->
-                    val out = ByteArrayOutputStream()
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var total = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        total += read
-                        if (total > maxBytes) return@runCatching null
-                        out.write(buffer, 0, read)
-                    }
-                    out.toByteArray()
-                }
-            }
-        }.getOrNull()
-    }
-
-    private fun decodeSampledBitmapFromBytes(bytes: ByteArray, reqSize: Int): Bitmap? {
+    private fun decodeSampledBitmapFromFile(file: File, reqSize: Int): Bitmap? {
         fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
             val (height, width) = options.outHeight to options.outWidth
             var inSampleSize = 1
@@ -508,18 +488,98 @@ class ChatService(
         }
 
         return runCatching {
+            if (!file.exists()) {
+                Log.w(TAG, "decodeSampledBitmapFromFile failed: not exists path=${file.absolutePath}")
+                return@runCatching null
+            }
+            if (!file.canRead()) {
+                Log.w(TAG, "decodeSampledBitmapFromFile failed: not readable path=${file.absolutePath}")
+                return@runCatching null
+            }
+            if (file.length() > 25L * 1024 * 1024) {
+                Log.w(TAG, "decodeSampledBitmapFromFile failed: too large (${file.length()}B) path=${file.absolutePath}")
+                return@runCatching null
+            }
+
             val boundsOptions = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
-            if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return@runCatching null
+            FileInputStream(file).use { input ->
+                BitmapFactory.decodeStream(input, null, boundsOptions)
+            }
+            if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+                Log.w(TAG, "decodeSampledBitmapFromFile failed: invalid bounds path=${file.absolutePath}")
+                return@runCatching null
+            }
 
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
-        }.getOrNull()
+            FileInputStream(file).use { input ->
+                BitmapFactory.decodeStream(input, null, decodeOptions)
+            }
+        }.getOrElse {
+            Log.w(TAG, "decodeSampledBitmapFromFile failed: path=${file.absolutePath} msg=${it.message}", it)
+            null
+        }
+    }
+
+    private fun decodeSampledBitmapFromHttpUrl(url: String, reqSize: Int): Bitmap? {
+        fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+            val (height, width) = options.outHeight to options.outWidth
+            var inSampleSize = 1
+            if (height > reqHeight || width > reqWidth) {
+                var halfHeight = height / 2
+                var halfWidth = width / 2
+                while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                    inSampleSize *= 2
+                }
+            }
+            return inSampleSize.coerceAtLeast(1)
+        }
+
+        return runCatching {
+            val request = Request.Builder()
+                .url(url)
+                .header("Accept", "image/*")
+                .get()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "decodeSampledBitmapFromHttpUrl failed: http=${response.code} url=$url")
+                    return@runCatching null
+                }
+
+                val body = response.body ?: return@runCatching null
+                val contentLength = body.contentLength()
+                if (contentLength > 25L * 1024 * 1024) {
+                    Log.w(TAG, "decodeSampledBitmapFromHttpUrl failed: too large (${contentLength}B) url=$url")
+                    return@runCatching null
+                }
+
+                body.byteStream().use { raw ->
+                    val input = BufferedInputStream(raw)
+                    input.mark(512 * 1024)
+                    val boundsOptions = BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
+                    BitmapFactory.decodeStream(input, null, boundsOptions)
+                    input.reset()
+                    if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return@runCatching null
+
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        inSampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    BitmapFactory.decodeStream(input, null, decodeOptions)
+                }
+            }
+        }.getOrElse {
+            Log.w(TAG, "decodeSampledBitmapFromHttpUrl failed: url=$url msg=${it.message}", it)
+            null
+        }
     }
 
     private fun decodeSampledBitmapFromUri(uri: Uri, reqSize: Int): Bitmap? {
@@ -546,6 +606,11 @@ class ChatService(
                 BitmapFactory.decodeStream(input, null, boundsOptions)
             } ?: return@runCatching null
 
+            if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+                Log.w(TAG, "decodeSampledBitmapFromUri failed: invalid bounds uri=$uri")
+                return@runCatching null
+            }
+
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
                 inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -553,7 +618,10 @@ class ChatService(
             resolver.openInputStream(uri)?.use { input ->
                 BitmapFactory.decodeStream(input, null, decodeOptions)
             }
-        }.getOrNull()
+        }.getOrElse {
+            Log.w(TAG, "decodeSampledBitmapFromUri failed: uri=$uri msg=${it.message}", it)
+            null
+        }
     }
 
     private fun scaleCenterCropSquare(source: Bitmap, size: Int): Bitmap {
