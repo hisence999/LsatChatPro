@@ -22,7 +22,15 @@ class KeepAliveService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        if (action == null) {
+            // If the service is restarted without an intent (process death / redelivery edge cases),
+            // stop immediately to avoid foreground-service startup timeout crashes.
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        when (action) {
             ACTION_START_ALWAYS -> startAlways()
             ACTION_START_OR_UPDATE_GENERATION -> startOrUpdateGeneration(
                 activeCount = intent.getIntExtra(EXTRA_ACTIVE_COUNT, 1).coerceAtLeast(1)
@@ -32,8 +40,15 @@ class KeepAliveService : Service() {
             )
             ACTION_STOP_ALWAYS -> stopAlwaysIfRunning()
             ACTION_STOP -> stopAll()
+            else -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
         }
-        return START_REDELIVER_INTENT
+        return when (action) {
+            ACTION_START_ALWAYS, ACTION_START_OR_UPDATE_GENERATION -> START_STICKY
+            else -> START_NOT_STICKY
+        }
     }
 
     private fun startAlways() {
@@ -78,7 +93,11 @@ class KeepAliveService : Service() {
     }
 
     private fun startForegroundCompat(notification: Notification) {
-        if (!hasPostNotificationsPermission()) return
+        if (!hasPostNotificationsPermission()) {
+            // Don't keep a foreground-service start pending without calling startForeground().
+            stopSelf()
+            return
+        }
 
         runCatching {
             ServiceCompat.startForeground(
