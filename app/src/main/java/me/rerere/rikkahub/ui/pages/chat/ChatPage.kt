@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -673,12 +674,14 @@ private fun ChatPageContent(
                                     lineHeight = 34.sp * fontSizeRatio,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
-                                AnimatedWelcomeText(
-                                    text = welcomeText,
-                                    style = welcomeTextStyle,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    rpStyleRules = setting.displaySetting.rpStyleRules,
-                                )
+                                key(assistantForConversation.id) {
+                                    AnimatedWelcomeText(
+                                        text = welcomeText,
+                                        style = welcomeTextStyle,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        rpStyleRules = setting.displaySetting.rpStyleRules,
+                                    )
+                                }
                             }
                         }
 
