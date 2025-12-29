@@ -59,6 +59,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
@@ -123,6 +125,7 @@ class ChatService(
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
     private val generationHandler: GenerationHandler,
+    private val requestLogManager: AIRequestLogManager,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
@@ -1141,6 +1144,7 @@ class ChatService(
                 },
                 truncateIndex = conversation.truncateIndex,
                 enabledModeIds = conversation.enabledModeIds,
+                source = AIRequestSource.CHAT,
             ).onCompletion { cause ->
                 finalizeGenerationKeepAlive(cause)
 
@@ -1493,25 +1497,50 @@ class ChatService(
                 return
             }
             
-            val result = providerHandler.generateText(
-                providerSetting = provider,
-                messages = listOf(
-                    UIMessage.user(
-                        prompt = settings.titlePrompt.applyPlaceholders(
-                            "locale" to Locale.getDefault().displayName,
-                            "content" to contentForTitle)
-                    ),
-                ),
-                params = TextGenerationParams(
-                    model = model, temperature = 0.3f, thinkingBudget = 0
+            val requestMessages = listOf(
+                UIMessage.user(
+                    prompt = settings.titlePrompt.applyPlaceholders(
+                        "locale" to Locale.getDefault().displayName,
+                        "content" to contentForTitle
+                    )
                 ),
             )
+            val params = TextGenerationParams(
+                model = model,
+                temperature = 0.3f,
+                thinkingBudget = 0,
+            )
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            var titleText = ""
+            try {
+                val result = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = requestMessages,
+                    params = params,
+                )
+                titleText = result.choices.firstOrNull()?.message?.toContentText()?.trim().orEmpty()
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.TITLE_SUMMARY,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = titleText,
+                    stream = false,
+                    durationMs = System.currentTimeMillis() - startAt,
+                    error = failure,
+                )
+            }
 
             // 生成完，conversation可能不是最新了，因此需要重新获取
             conversationRepo.getConversationById(conversation.id)?.let {
                 saveConversation(
                     conversationId,
-                    it.copy(title = result.choices[0].message?.toContentText()?.trim() ?: "")
+                    it.copy(title = titleText)
                 )
             }
         }.onFailure {
@@ -1532,25 +1561,49 @@ class ChatService(
             )
 
             val providerHandler = providerManager.getProviderByType(provider)
-            val result = providerHandler.generateText(
-                providerSetting = provider,
-                messages = listOf(
-                    UIMessage.user(
-                        settings.suggestionPrompt.applyPlaceholders(
-                            "locale" to Locale.getDefault().displayName,
-                            "content" to conversation.currentMessages.truncate(conversation.truncateIndex)
-                                .takeLast(8).joinToString("\n\n") { it.summaryAsText() }),
-                    )
-                ),
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 1.0f,
-                    thinkingBudget = 0,
-                ),
+            val requestMessages = listOf(
+                UIMessage.user(
+                    settings.suggestionPrompt.applyPlaceholders(
+                        "locale" to Locale.getDefault().displayName,
+                        "content" to conversation.currentMessages.truncate(conversation.truncateIndex)
+                            .takeLast(8)
+                            .joinToString("\n\n") { it.summaryAsText() },
+                    ),
+                )
             )
-            val suggestions =
-                result.choices[0].message?.toContentText()?.split("\n")?.map { it.trim() }
-                    ?.filter { it.isNotBlank() } ?: emptyList()
+            val params = TextGenerationParams(
+                model = model,
+                temperature = 1.0f,
+                thinkingBudget = 0,
+            )
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            var rawSuggestions = ""
+            val suggestions = try {
+                val result = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = requestMessages,
+                    params = params,
+                )
+                rawSuggestions = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                rawSuggestions.split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.CHAT_SUGGESTION,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = rawSuggestions,
+                    stream = false,
+                    durationMs = System.currentTimeMillis() - startAt,
+                    error = failure,
+                )
+            }
 
             // Fetch fresh conversation from DB to avoid overwriting concurrent updates (e.g., title generation)
             conversationRepo.getConversationById(conversationId)?.let { freshConversation ->

@@ -22,6 +22,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.SearchTools
@@ -214,6 +215,7 @@ class ScheduledTaskWorker(
                 outputTransformers = outputTransformers,
                 tools = tools,
                 truncateIndex = -1,
+                source = AIRequestSource.SCHEDULED_MESSAGE,
             ).collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> latestMessages = chunk.messages

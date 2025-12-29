@@ -73,6 +73,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().aiRequestLogDao()
+    }
+
+    single {
         get<AppDatabase>().scheduledTaskDao()
     }
 
@@ -90,6 +94,7 @@ val dataSourceModule = module {
             memoryRepo = get(),
             conversationRepo = get(),
             aiLoggingManager = get(),
+            requestLogManager = get(),
             embeddingService = get(),
         )
     }

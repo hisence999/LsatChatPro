@@ -20,6 +20,8 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_WELCOME_PHRASES_PROMPT
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -38,6 +40,7 @@ class WelcomePhrasesService(
     private val settingsStore: SettingsStore,
     private val providerManager: ProviderManager,
     private val memoryRepository: MemoryRepository,
+    private val requestLogManager: AIRequestLogManager,
 ) {
     private val mutex = Mutex()
     private val inFlightAssistantIds = mutableSetOf<Uuid>()
@@ -257,19 +260,39 @@ class WelcomePhrasesService(
             )
         }
 
-        val result = withContext(Dispatchers.IO) {
-            providerHandler.generateText(
-                providerSetting = pending.provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = pending.model,
-                    temperature = 0.9f,
-                    thinkingBudget = 0,
-                ),
-            )
+        val params = TextGenerationParams(
+            model = pending.model,
+            temperature = 0.9f,
+            thinkingBudget = 0,
+        )
+        val startAt = System.currentTimeMillis()
+        var failure: Throwable? = null
+        var raw = ""
+        withContext(Dispatchers.IO) {
+            try {
+                val result = providerHandler.generateText(
+                    providerSetting = pending.provider,
+                    messages = messages,
+                    params = params,
+                )
+                raw = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.WELCOME_PHRASES,
+                    providerSetting = pending.provider,
+                    params = params,
+                    requestMessages = messages,
+                    responseText = raw,
+                    stream = false,
+                    durationMs = System.currentTimeMillis() - startAt,
+                    error = failure,
+                )
+            }
         }
 
-        val raw = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
         val phrases = parseWelcomePhrases(raw)
         if (pending.requireFullCount) {
             require(phrases.size == WELCOME_PHRASES_TOTAL) {

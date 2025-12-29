@@ -15,6 +15,8 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.cache.LruCache
 import me.rerere.common.cache.SingleFileCacheStore
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -82,20 +84,40 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         val model = settings.findModelById(settings.ocrModelId) ?: return "[Image]"
         val providerSetting = model.findProvider(settings.providers) ?: return "[Image]"
         val provider = get<ProviderManager>().getProviderByType(providerSetting)
-        val result = provider.generateText(
-            providerSetting = providerSetting,
-            messages = listOf(
-                UIMessage.system(settings.ocrPrompt),
-                UIMessage(
-                    role = MessageRole.USER,
-                    parts = listOf(UIMessagePart.Image(part.url))
-                )
-            ),
-            params = TextGenerationParams(
-                model = model,
-            ),
+        val requestMessages = listOf(
+            UIMessage.system(settings.ocrPrompt),
+            UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Image(part.url))
+            )
         )
-        val content = result.choices[0].message?.toText() ?: "[ERROR, OCR failed]"
+        val params = TextGenerationParams(model = model)
+        val startAt = System.currentTimeMillis()
+        var failure: Throwable? = null
+        var content = ""
+        try {
+            val result = provider.generateText(
+                providerSetting = providerSetting,
+                messages = requestMessages,
+                params = params,
+            )
+            content = result.choices.firstOrNull()?.message?.toText().orEmpty()
+            if (content.isBlank()) content = "[ERROR, OCR failed]"
+        } catch (t: Throwable) {
+            failure = t
+            throw t
+        } finally {
+            get<AIRequestLogManager>().logTextGeneration(
+                source = AIRequestSource.OCR,
+                providerSetting = providerSetting,
+                params = params,
+                requestMessages = requestMessages,
+                responseText = content,
+                stream = false,
+                durationMs = System.currentTimeMillis() - startAt,
+                error = failure,
+            )
+        }
         Log.i(TAG, "performOcr: $content")
         val ocrResult = """
             <image_file_ocr>

@@ -13,6 +13,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -42,6 +44,7 @@ class MemoryConsolidationWorker(
     private val settingsStore: SettingsStore by inject()
     private val embeddingService: EmbeddingService by inject()
     private val providerManager: me.rerere.ai.provider.ProviderManager by inject()
+    private val requestLogManager: AIRequestLogManager by inject()
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -138,12 +141,34 @@ class MemoryConsolidationWorker(
             """.trimIndent()
             
             try {
-                val response = providerHandler.generateText(
-                    providerSetting = provider,
-                    messages = listOf(UIMessage.user(prompt)),
-                    params = TextGenerationParams(model = model, temperature = 0.5f)
-                )
-                val responseText = response.choices.firstOrNull()?.message?.toContentText() ?: continue
+                val requestMessages = listOf(UIMessage.user(prompt))
+                val params = TextGenerationParams(model = model, temperature = 0.5f)
+                val startAt = System.currentTimeMillis()
+                var failure: Throwable? = null
+                var responseText = ""
+                try {
+                    val response = providerHandler.generateText(
+                        providerSetting = provider,
+                        messages = requestMessages,
+                        params = params,
+                    )
+                    responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                    if (responseText.isBlank()) continue
+                } catch (t: Throwable) {
+                    failure = t
+                    throw t
+                } finally {
+                    requestLogManager.logTextGeneration(
+                        source = AIRequestSource.MEMORY_CONSOLIDATION,
+                        providerSetting = provider,
+                        params = params,
+                        requestMessages = requestMessages,
+                        responseText = responseText,
+                        stream = false,
+                        durationMs = System.currentTimeMillis() - startAt,
+                        error = failure,
+                    )
+                }
                 
                 var summary = responseText
                 var significance = 5
@@ -262,12 +287,34 @@ class MemoryConsolidationWorker(
                             Return ONLY a number from 1-10.
                         """.trimIndent()
                         
-                        val scoreResponse = providerHandler.generateText(
-                            providerSetting = provider,
-                            messages = listOf(UIMessage.user(scorePrompt)),
-                            params = TextGenerationParams(model = model, temperature = 0.3f)
-                        )
-                        val scoreText = scoreResponse.choices.firstOrNull()?.message?.toContentText() ?: continue
+                        val requestMessages = listOf(UIMessage.user(scorePrompt))
+                        val params = TextGenerationParams(model = model, temperature = 0.3f)
+                        val startAt = System.currentTimeMillis()
+                        var failure: Throwable? = null
+                        var scoreText = ""
+                        try {
+                            val scoreResponse = providerHandler.generateText(
+                                providerSetting = provider,
+                                messages = requestMessages,
+                                params = params,
+                            )
+                            scoreText = scoreResponse.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                            if (scoreText.isBlank()) continue
+                        } catch (t: Throwable) {
+                            failure = t
+                            throw t
+                        } finally {
+                            requestLogManager.logTextGeneration(
+                                source = AIRequestSource.MEMORY_CONSOLIDATION,
+                                providerSetting = provider,
+                                params = params,
+                                requestMessages = requestMessages,
+                                responseText = scoreText,
+                                stream = false,
+                                durationMs = System.currentTimeMillis() - startAt,
+                                error = failure,
+                            )
+                        }
                         val newSignificance = scoreText.trim().filter { it.isDigit() }.take(2).toIntOrNull()?.coerceIn(1, 10) ?: 5
                         
                         if (newSignificance != 5) {
@@ -302,12 +349,34 @@ class MemoryConsolidationWorker(
                 """.trimIndent()
 
                 try {
-                    val response = providerHandler.generateText(
-                        providerSetting = provider,
-                        messages = listOf(UIMessage.user(prompt)),
-                        params = TextGenerationParams(model = model, temperature = 0.3f)
-                    )
-                    val factsText = response.choices.firstOrNull()?.message?.toContentText() ?: return
+                    val requestMessages = listOf(UIMessage.user(prompt))
+                    val params = TextGenerationParams(model = model, temperature = 0.3f)
+                    val startAt = System.currentTimeMillis()
+                    var failure: Throwable? = null
+                    var factsText = ""
+                    try {
+                        val response = providerHandler.generateText(
+                            providerSetting = provider,
+                            messages = requestMessages,
+                            params = params,
+                        )
+                        factsText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                        if (factsText.isBlank()) return
+                    } catch (t: Throwable) {
+                        failure = t
+                        throw t
+                    } finally {
+                        requestLogManager.logTextGeneration(
+                            source = AIRequestSource.MEMORY_CONSOLIDATION,
+                            providerSetting = provider,
+                            params = params,
+                            requestMessages = requestMessages,
+                            responseText = factsText,
+                            stream = false,
+                            durationMs = System.currentTimeMillis() - startAt,
+                            error = failure,
+                        )
+                    }
                     
                     if (factsText != "NONE" && factsText.isNotBlank()) {
                         val facts = factsText.split("\n").map { it.trim().removePrefix("- ").trim() }.filter { it.isNotBlank() }
@@ -507,12 +576,34 @@ class MemoryConsolidationWorker(
                 """.trimIndent()
 
                 try {
-                    val response = providerHandler.generateText(
-                        providerSetting = provider,
-                        messages = listOf(UIMessage.user(prompt)),
-                        params = TextGenerationParams(model = model, temperature = 0.1f)
-                    )
-                    val mergedText = response.choices.firstOrNull()?.message?.toContentText()?.trim() ?: continue
+                    val requestMessages = listOf(UIMessage.user(prompt))
+                    val params = TextGenerationParams(model = model, temperature = 0.1f)
+                    val startAt = System.currentTimeMillis()
+                    var failure: Throwable? = null
+                    var mergedText = ""
+                    try {
+                        val response = providerHandler.generateText(
+                            providerSetting = provider,
+                            messages = requestMessages,
+                            params = params,
+                        )
+                        mergedText = response.choices.firstOrNull()?.message?.toContentText()?.trim().orEmpty()
+                        if (mergedText.isBlank()) continue
+                    } catch (t: Throwable) {
+                        failure = t
+                        throw t
+                    } finally {
+                        requestLogManager.logTextGeneration(
+                            source = AIRequestSource.MEMORY_CONSOLIDATION,
+                            providerSetting = provider,
+                            params = params,
+                            requestMessages = requestMessages,
+                            responseText = mergedText,
+                            stream = false,
+                            durationMs = System.currentTimeMillis() - startAt,
+                            error = failure,
+                        )
+                    }
 
                     if (mergedText != "NO_MERGE" && mergedText.isNotBlank() && mergedText.length > 5) {
                         Log.i("MemoryConsolidation", "Merging ${cluster.size} memories: ${memoriesToMerge.map { it.id }}")

@@ -75,6 +75,7 @@ class GenerationHandler(
     private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
+    private val requestLogManager: AIRequestLogManager,
     private val embeddingService: EmbeddingService,
 ) {
     fun generateText(
@@ -89,6 +90,7 @@ class GenerationHandler(
         truncateIndex: Int = -1,
         maxSteps: Int = 256,
         enabledModeIds: Set<Uuid> = emptySet(),
+        source: AIRequestSource = AIRequestSource.OTHER,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -149,6 +151,7 @@ class GenerationHandler(
                 truncateIndex = truncateIndex,
                 stream = assistant.streamOutput,
                 enabledModeIds = enabledModeIds,
+                source = source,
             )
             messages = messages.visualTransforms(
                 transformers = outputTransformers,
@@ -618,6 +621,7 @@ class GenerationHandler(
         truncateIndex: Int,
         stream: Boolean,
         enabledModeIds: Set<Uuid> = emptySet(),
+        source: AIRequestSource,
     ) {
         val internalMessages = buildMessages(
             assistant = assistant,
@@ -654,22 +658,40 @@ class GenerationHandler(
                 providerSetting = provider,
                 stream = true
             ))
-            providerImpl.streamText(
-                providerSetting = provider,
-                messages = internalMessages,
-                params = params
-            ).collect {
-                messages = messages.handleMessageChunk(chunk = it, model = model)
-                it.usage?.let { usage ->
-                    messages = messages.mapIndexed { index, message ->
-                        if (index == messages.lastIndex) {
-                            message.copy(usage = message.usage.merge(usage))
-                        } else {
-                            message
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            try {
+                providerImpl.streamText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params
+                ).collect {
+                    messages = messages.handleMessageChunk(chunk = it, model = model)
+                    it.usage?.let { usage ->
+                        messages = messages.mapIndexed { index, message ->
+                            if (index == messages.lastIndex) {
+                                message.copy(usage = message.usage.merge(usage))
+                            } else {
+                                message
+                            }
                         }
                     }
+                    onUpdateMessages(messages)
                 }
-                onUpdateMessages(messages)
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = source,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = internalMessages,
+                    responseText = messages.lastOrNull()?.toContentText().orEmpty(),
+                    stream = true,
+                    durationMs = (System.currentTimeMillis() - startAt),
+                    error = failure,
+                )
             }
         } else {
             aiLoggingManager.addLog(AILogging.Generation(
@@ -678,24 +700,42 @@ class GenerationHandler(
                 providerSetting = provider,
                 stream = false
             ))
-            val chunk = providerImpl.generateText(
-                providerSetting = provider,
-                messages = internalMessages,
-                params = params,
-            )
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            chunk.usage?.let { usage ->
-                messages = messages.mapIndexed { index, message ->
-                    if (index == messages.lastIndex) {
-                        message.copy(
-                            usage = message.usage.merge(usage)
-                        )
-                    } else {
-                        message
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            try {
+                val chunk = providerImpl.generateText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params,
+                )
+                messages = messages.handleMessageChunk(chunk = chunk, model = model)
+                chunk.usage?.let { usage ->
+                    messages = messages.mapIndexed { index, message ->
+                        if (index == messages.lastIndex) {
+                            message.copy(
+                                usage = message.usage.merge(usage)
+                            )
+                        } else {
+                            message
+                        }
                     }
                 }
+                onUpdateMessages(messages)
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = source,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = internalMessages,
+                    responseText = messages.lastOrNull()?.toContentText().orEmpty(),
+                    stream = false,
+                    durationMs = (System.currentTimeMillis() - startAt),
+                    error = failure,
+                )
             }
-            onUpdateMessages(messages)
         }
     }
 
@@ -890,47 +930,87 @@ class GenerationHandler(
             var messages = listOf(UIMessage.user(prompt))
             var translatedText = ""
 
-            providerHandler.streamText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0.3f,
-                ),
-            ).collect { chunk ->
-                messages = messages.handleMessageChunk(chunk)
-                translatedText = messages.lastOrNull()?.toContentText() ?: ""
+            val params = TextGenerationParams(
+                model = model,
+                temperature = 0.3f,
+            )
+            val requestMessages = messages
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            try {
+                providerHandler.streamText(
+                    providerSetting = provider,
+                    messages = messages,
+                    params = params,
+                ).collect { chunk ->
+                    messages = messages.handleMessageChunk(chunk)
+                    translatedText = messages.lastOrNull()?.toContentText() ?: ""
 
-                if (translatedText.isNotBlank()) {
-                    onStreamUpdate?.invoke(translatedText)
-                    emit(translatedText)
+                    if (translatedText.isNotBlank()) {
+                        onStreamUpdate?.invoke(translatedText)
+                        emit(translatedText)
+                    }
                 }
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.TRANSLATION,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = translatedText,
+                    stream = true,
+                    durationMs = (System.currentTimeMillis() - startAt),
+                    error = failure,
+                )
             }
         } else {
             // Use Qwen MT model with special translation options
             val messages = listOf(UIMessage.user(sourceText))
-            val chunk = providerHandler.generateText(
+            val params = TextGenerationParams(
+                model = model,
+                temperature = 0.3f,
+                topP = 0.95f,
+                customBody = listOf(
+                    CustomBody(
+                        key = "translation_options",
+                        value = buildJsonObject {
+                            put("source_lang", JsonPrimitive("auto"))
+                            put(
+                                "target_lang",
+                                JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
+                            )
+                        }
+                    )
+                )
+            )
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            var translatedText = ""
+            try {
+                val response = providerHandler.generateText(
                 providerSetting = provider,
                 messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0.3f,
-                    topP = 0.95f,
-                    customBody = listOf(
-                        CustomBody(
-                            key = "translation_options",
-                            value = buildJsonObject {
-                                put("source_lang", JsonPrimitive("auto"))
-                                put(
-                                    "target_lang",
-                                    JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
-                                )
-                            }
-                        )
-                    )
-                ),
-            )
-            val translatedText = chunk.choices.firstOrNull()?.message?.toContentText() ?: ""
+                    params = params,
+                )
+                translatedText = response.choices.firstOrNull()?.message?.toContentText() ?: ""
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.TRANSLATION,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = messages,
+                    responseText = translatedText,
+                    stream = false,
+                    durationMs = (System.currentTimeMillis() - startAt),
+                    error = failure,
+                )
+            }
 
             if (translatedText.isNotBlank()) {
                 onStreamUpdate?.invoke(translatedText)
