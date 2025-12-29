@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Tune
@@ -67,6 +68,7 @@ private object AssistantDetailRoutes {
     const val LOREBOOKS = "lorebooks"
     const val TOOLS = "tools"
     const val MEMORY = "memory"
+    const val UI = "ui"
     const val ADVANCED = "advanced"
 }
 
@@ -156,7 +158,6 @@ fun AssistantDetailPage(id: String) {
                 ) + fadeOut(animationSpec = tween(300))
             }
         ) {
-            // Home - Card navigation
             composable(AssistantDetailRoutes.HOME) {
                 AssistantDetailHome(
                     assistant = assistant,
@@ -166,6 +167,7 @@ fun AssistantDetailPage(id: String) {
                     onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
                     onNavigateToTools = { navController.navigate(AssistantDetailRoutes.TOOLS) },
                     onNavigateToMemory = { navController.navigate(AssistantDetailRoutes.MEMORY) },
+                    onNavigateToUI = { navController.navigate(AssistantDetailRoutes.UI) },
                     onNavigateToAdvanced = { navController.navigate(AssistantDetailRoutes.ADVANCED) }
                 )
             }
@@ -240,6 +242,14 @@ fun AssistantDetailPage(id: String) {
                 )
             }
 
+            // UI Customization
+            composable(AssistantDetailRoutes.UI) {
+                AssistantUISubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) }
+                )
+            }
+
             // Advanced
             composable(AssistantDetailRoutes.ADVANCED) {
                 AssistantAdvancedSubPage(
@@ -263,6 +273,7 @@ private fun AssistantDetailHome(
     onNavigateToLorebooks: () -> Unit,
     onNavigateToTools: () -> Unit,
     onNavigateToMemory: () -> Unit,
+    onNavigateToUI: () -> Unit,
     onNavigateToAdvanced: () -> Unit
 ) {
     Column(
@@ -362,6 +373,13 @@ private fun AssistantDetailHome(
         }
 
         SettingsGroup(title = "Other") {
+            NavigationCard(
+                icon = Icons.Rounded.Palette,
+                title = "UI Customization",
+                description = "Per-assistant display settings",
+                onClick = onNavigateToUI
+            )
+
             NavigationCard(
                 icon = Icons.Rounded.Tune,
                 title = "Advanced",

@@ -98,7 +98,6 @@ import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 private fun getMemoryMode(assistant: Assistant): MemoryMode {
     return when {
         !assistant.enableMemory -> MemoryMode.OFF
-        assistant.enableHumanMemory -> MemoryMode.ADVANCED_REFLECTION
         assistant.enableMemoryConsolidation -> MemoryMode.ADVANCED
         assistant.useRagMemoryRetrieval -> MemoryMode.BASIC_RAG
         assistant.enableRecentChatsReference -> MemoryMode.BASIC_RECENT
@@ -111,15 +110,13 @@ private enum class MemoryMode(val displayName: String, val description: String) 
     BASIC("Basic", "All memories sent to model in every conversation"),
     BASIC_RECENT("Basic + Recent Chats", "Adds titles and timestamps of recent conversations"),
     BASIC_RAG("Basic + RAG", "Smart memory retrieval based on conversation context"),
-    ADVANCED("Advanced", "Forms episodic memories with automatic consolidation"),
-    ADVANCED_REFLECTION("Advanced + Reflection", "Includes significance scoring and core memory formation")
+    ADVANCED("Advanced", "Forms episodic memories with automatic consolidation")
 }
 
-private enum class MemorySortOrder(val displayName: String, val episodicOnly: Boolean = false) {
+private enum class MemorySortOrder(val displayName: String) {
     NEWEST_FIRST("Newest First"),
     OLDEST_FIRST("Oldest First"),
-    ALPHABETICAL("Alphabetical"),
-    MOST_SIGNIFICANT("Most Significant", episodicOnly = true) // Only for episodic memories with reflection enabled
+    ALPHABETICAL("Alphabetical")
 }
 
 @Composable
@@ -287,8 +284,7 @@ fun AssistantMemorySettings(
                                 if (!enabled) {
                                     onUpdateAssistant(assistant.copy(
                                         useRagMemoryRetrieval = false,
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
+                                        enableMemoryConsolidation = false
                                     ))
                                 } else {
                                     onUpdateAssistant(assistant.copy(useRagMemoryRetrieval = true))
@@ -308,15 +304,14 @@ fun AssistantMemorySettings(
                 MemorySettingsItem(
                     title = "Advanced Memory",
                     subtitle = "Form episodic memories from conversations",
-                    position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
+                    position = "LAST",
                     trailing = {
                         HapticSwitch(
                             checked = assistant.enableMemoryConsolidation,
                             onCheckedChange = { enabled ->
                                 if (!enabled) {
                                     onUpdateAssistant(assistant.copy(
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
+                                        enableMemoryConsolidation = false
                                     ))
                                 } else {
                                     onUpdateAssistant(assistant.copy(
@@ -325,25 +320,6 @@ fun AssistantMemorySettings(
                                     ))
                                 }
                             }
-                        )
-                    }
-                )
-            }
-
-            // Human-like Memory Toggle (requires Consolidation)
-            AnimatedVisibility(
-                visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                MemorySettingsItem(
-                    title = "Reflection",
-                    subtitle = "Significance scoring and core memory formation",
-                    position = "LAST",
-                    trailing = {
-                        HapticSwitch(
-                            checked = assistant.enableHumanMemory,
-                            onCheckedChange = { onUpdateAssistant(assistant.copy(enableHumanMemory = it)) }
                         )
                     }
                 )
@@ -384,22 +360,6 @@ fun AssistantMemorySettings(
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
-        // REFLECTION SETTINGS (when human memory is enabled)
-        // ═══════════════════════════════════════════════════════════════════
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.enableHumanMemory,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = "Reflection Settings")
-                ReflectionSettingsCard(
-                    assistant = assistant,
-                    onUpdateAssistant = onUpdateAssistant
-                )
-            }
-        }
 
         // ═══════════════════════════════════════════════════════════════════
         // MEMORY STATISTICS (when memory is enabled)
@@ -435,8 +395,7 @@ fun AssistantMemorySettings(
                 memorySearchQuery = memorySearchQuery,
                 onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
                 currentEmbeddingModelId = currentEmbeddingModelId,
-                showMemoryTypes = assistant.enableMemoryConsolidation,
-                showSignificanceSort = assistant.enableHumanMemory
+                showMemoryTypes = assistant.enableMemoryConsolidation
             )
         }
 
@@ -771,56 +730,6 @@ private fun ConsolidationSettingsCard(
 }
 
 @Composable
-private fun ReflectionSettingsCard(
-    assistant: Assistant,
-    onUpdateAssistant: (Assistant) -> Unit
-) {
-    Surface(
-        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Reflection Interval", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "${assistant.humanMemoryUpdateIntervalHours} hours",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                text = "How often to reflect on episodes to form core memories",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Slider(
-                value = assistant.humanMemoryUpdateIntervalHours.toFloat(),
-                onValueChange = { onUpdateAssistant(assistant.copy(humanMemoryUpdateIntervalHours = it.toInt())) },
-                valueRange = 1f..72f,
-                steps = 70,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (assistant.lastHumanMemoryUpdateTime > 0) {
-                val time = java.time.Instant.ofEpochMilli(assistant.lastHumanMemoryUpdateTime)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .toLocalDateTime()
-                    .toLocalString()
-                Text(
-                    text = "Last reflection: $time",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun MemoryStatisticsCard(
     assistant: Assistant,
     memories: List<AssistantMemory>,
@@ -930,8 +839,7 @@ private fun ManageMemoriesSection(
     memorySearchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     currentEmbeddingModelId: String,
-    showMemoryTypes: Boolean,
-    showSignificanceSort: Boolean = false // Only show when reflection is enabled
+    showMemoryTypes: Boolean
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var sortOrder by remember { mutableStateOf(MemorySortOrder.NEWEST_FIRST) }
@@ -955,17 +863,6 @@ private fun ManageMemoriesSection(
             MemorySortOrder.NEWEST_FIRST -> list.sortedByDescending { it.timestamp }
             MemorySortOrder.OLDEST_FIRST -> list.sortedBy { it.timestamp }
             MemorySortOrder.ALPHABETICAL -> list.sortedBy { it.content.lowercase() }
-            MemorySortOrder.MOST_SIGNIFICANT -> list.sortedByDescending { it.significance ?: 0 }
-        }
-    }
-    
-    // Filter sort options based on current context
-    val availableSortOptions = MemorySortOrder.entries.filter { order ->
-        if (order.episodicOnly) {
-            // Only show significance sort on episodic tab when reflection is enabled
-            showSignificanceSort && showMemoryTypes && selectedTab == 1
-        } else {
-            true
         }
     }
 
@@ -992,7 +889,7 @@ private fun ManageMemoriesSection(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false }
                     ) {
-                        availableSortOptions.forEach { order ->
+                        MemorySortOrder.entries.forEach { order ->
                             DropdownMenuItem(
                                 text = { Text(order.displayName) },
                                 onClick = {

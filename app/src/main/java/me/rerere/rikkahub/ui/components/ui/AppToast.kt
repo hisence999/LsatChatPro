@@ -98,6 +98,16 @@ data class Toast(
 class AppToasterState {
     private val _toasts = mutableStateListOf<Toast>()
     val toasts: List<Toast> get() = _toasts
+    
+    companion object {
+        private const val MAX_VISIBLE_TOASTS = 4
+    }
+    
+    private fun trimOldestIfNeeded() {
+        while (_toasts.size > MAX_VISIBLE_TOASTS) {
+            _toasts.removeAt(0)
+        }
+    }
 
     fun show(
         message: String,
@@ -107,6 +117,7 @@ class AppToasterState {
     ): Toast {
         val toast = Toast(message = message, type = type, duration = duration, action = action)
         _toasts.add(toast)
+        trimOldestIfNeeded()
         return toast
     }
 
@@ -121,6 +132,7 @@ class AppToasterState {
 
     fun show(toast: Toast) {
         _toasts.add(toast)
+        trimOldestIfNeeded()
     }
 
     fun dismiss(toast: Toast) {

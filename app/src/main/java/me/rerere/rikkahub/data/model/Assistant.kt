@@ -8,6 +8,23 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import kotlin.uuid.Uuid
 
+/**
+ * Per-assistant UI settings. All nullable - null means "use global setting".
+ */
+@Serializable
+data class AssistantUISettings(
+    val showUserAvatar: Boolean? = null,
+    val showAssistantAvatar: Boolean? = null,
+    val showTokenUsage: Boolean? = null,
+    val autoCloseThinking: Boolean? = null,
+    val showMessageJumper: Boolean? = null,
+    val messageJumperOnLeft: Boolean? = null,
+    val fontSizeRatio: Float? = null,
+    val codeBlockAutoWrap: Boolean? = null,
+    val codeBlockAutoCollapse: Boolean? = null,
+    val showLorebookStacks: Boolean? = null,
+)
+
 @Serializable
 data class Assistant(
     val id: Uuid = Uuid.random(),
@@ -36,7 +53,6 @@ data class Assistant(
     val ragIncludeCore: Boolean = true, // Include core memories in RAG
     val enableRagLogging: Boolean = false, // Enable detailed RAG logging
     val enableMemoryConsolidation: Boolean = false, // Enable episodic memory creation from chats (requires RAG)
-    val enableHumanMemory: Boolean = false, // Enable reflection features (significance scoring, core memory extraction)
 
     // Spontaneous Notification Settings
     val notificationStartHour: Int = 7, // Hour when notifications can start (0-23)
@@ -64,9 +80,10 @@ data class Assistant(
     val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat
     val lastConsolidationTime: Long = 0L,
     val lastConsolidationResult: String = "",
-    val humanMemoryUpdateIntervalHours: Int = 24, // Interval for core memory reflection
-    val lastHumanMemoryUpdateTime: Long = 0L,
-    val lastHumanMemoryUpdateResult: String = "",
+
+
+    // Per-assistant UI customization (null = use global setting)
+    val uiSettings: AssistantUISettings = AssistantUISettings(),
 )
 
 @Serializable

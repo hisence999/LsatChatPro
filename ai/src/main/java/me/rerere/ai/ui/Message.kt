@@ -27,7 +27,8 @@ data class UIMessage(
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
     val translation: String? = null,
-    val generationDurationMs: Long? = null // Duration of AI generation in milliseconds
+    val generationDurationMs: Long? = null, // Duration of AI generation in milliseconds
+    val usedLorebookEntries: List<UsedLorebookEntry>? = null // Lorebook entries used in this message
 ) {
     private fun appendChunk(chunk: MessageChunk): UIMessage {
         val choice = chunk.choices.getOrNull(0)
@@ -216,6 +217,21 @@ data class UIMessage(
     }
 }
 
+/**
+ * Represents a lorebook entry that was used when generating a message.
+ * Stores enough info to display the entry and allow editing.
+ */
+@Serializable
+data class UsedLorebookEntry(
+    val lorebookId: String,  // UUID as string for serialization compatibility
+    val lorebookName: String,
+    val lorebookCover: String? = null,  // Avatar serialized as string or null
+    val entryId: String,  // UUID as string
+    val entryName: String,
+    val entryIndex: Int,  // Position in the lorebook's entry list
+    val priority: Int = 0,  // Higher = more priority (for sorting display)
+    val activationReason: String? = null // e.g. "Always Active", "Keywords: foo, bar", "RAG (0.85)"
+)
 
 
 /**

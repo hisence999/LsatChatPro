@@ -398,7 +398,7 @@ class RouteActivity : ComponentActivity() {
 
                     composable<Screen.SettingLorebookDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.SettingLorebookDetail>()
-                        SettingLorebookDetailPage(id = route.id)
+                        SettingLorebookDetailPage(id = route.id, scrollToEntryId = route.scrollToEntryId)
                     }
 
                     composable<Screen.Developer> {
@@ -483,7 +483,7 @@ sealed interface Screen {
     data object SettingLorebooks : Screen
 
     @Serializable
-    data class SettingLorebookDetail(val id: String) : Screen
+    data class SettingLorebookDetail(val id: String, val scrollToEntryId: String? = null) : Screen
 
     @Serializable
     data object Developer : Screen

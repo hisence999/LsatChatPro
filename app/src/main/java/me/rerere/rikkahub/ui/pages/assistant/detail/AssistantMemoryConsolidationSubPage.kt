@@ -104,29 +104,6 @@ fun AssistantMemoryConsolidationSubPage(
                     }
 
                     if (assistant.enableMemory) {
-                        // Human-like Memory
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Human-like Memory",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "Enable significance scoring and reflection",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            HapticSwitch(
-                                checked = assistant.enableHumanMemory,
-                                onCheckedChange = { onUpdate(assistant.copy(enableHumanMemory = it)) }
-                            )
-                        }
 
                         // Summarizer Model
                         Column(
@@ -179,30 +156,6 @@ fun AssistantMemoryConsolidationSubPage(
                                 valueRange = 0f..240f, // 0 to 4 hours
                                 steps = 23 // 10 min steps approx
                             )
-                        }
-
-                        if (assistant.enableHumanMemory) {
-                            // Human Memory Interval
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Reflection Interval: ${assistant.humanMemoryUpdateIntervalHours} hours",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "How often to reflect on recent episodes to extract core memories.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                androidx.compose.material3.Slider(
-                                    value = assistant.humanMemoryUpdateIntervalHours.toFloat(),
-                                    onValueChange = { 
-                                        onUpdate(assistant.copy(humanMemoryUpdateIntervalHours = it.toInt())) 
-                                    },
-                                    valueRange = 1f..72f, // 1 hour to 3 days
-                                    steps = 70
-                                )
-                            }
                         }
                     }
                 }
@@ -280,35 +233,6 @@ fun AssistantMemoryConsolidationSubPage(
                                     )
                                 } else {
                                     Text("No run recorded yet", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            
-                            // Track B Stats
-                            if (assistant.enableHumanMemory) {
-                                Spacer(Modifier.size(4.dp))
-                                Column {
-                                    Text(
-                                        text = "Reflection (Track B)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (assistant.lastHumanMemoryUpdateTime > 0) {
-                                        val time = java.time.Instant.ofEpochMilli(assistant.lastHumanMemoryUpdateTime)
-                                            .atZone(java.time.ZoneId.systemDefault())
-                                            .toLocalDateTime()
-                                            .toLocalString()
-                                        Text(
-                                            text = "Last Run: $time",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        Text(
-                                            text = "Result: ${assistant.lastHumanMemoryUpdateResult}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    } else {
-                                        Text("No run recorded yet", style = MaterialTheme.typography.bodySmall)
-                                    }
                                 }
                             }
                         }

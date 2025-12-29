@@ -54,8 +54,11 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UsedLorebookEntry
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toLocalString
@@ -67,9 +70,16 @@ fun ColumnScope.ChatMessageActionButtons(
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
     onOpenActionSheet: () -> Unit,
+    onEditLorebookEntry: ((UsedLorebookEntry) -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val settings = LocalSettings.current
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
     var isPendingDelete by remember { mutableStateOf(false) }
+    var showLorebooksSheet by remember { mutableStateOf(false) }
+    
+    val usedEntries = message.usedLorebookEntries ?: emptyList()
+    val showLorebookStacks = effectiveDisplay.showLorebookStacks && usedEntries.isNotEmpty()
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -77,11 +87,32 @@ fun ColumnScope.ChatMessageActionButtons(
             isPendingDelete = false
         }
     }
+    
+    // Lorebook entries sheet
+    if (showLorebooksSheet && usedEntries.isNotEmpty()) {
+        UsedLorebooksSheet(
+            entries = usedEntries,
+            onEntryClick = { entry ->
+                showLorebooksSheet = false
+                onEditLorebookEntry?.invoke(entry)
+            },
+            onDismissRequest = { showLorebooksSheet = false }
+        )
+    }
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
+        // Lorebook stack indicator at the start
+        if (showLorebookStacks) {
+            LorebookStackIndicator(
+                entries = usedEntries,
+                onClick = { showLorebooksSheet = true },
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        
         Icon(
             Icons.Rounded.ContentCopy, stringResource(R.string.copy), modifier = Modifier
                 .clip(CircleShape)

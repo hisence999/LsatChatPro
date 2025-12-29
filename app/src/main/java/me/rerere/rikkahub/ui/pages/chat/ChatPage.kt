@@ -509,6 +509,9 @@ private fun ChatPageContent(
                         vm.updateConversation(updatedConversation)
                         vm.saveConversationAsync()
                     },
+                    onNavigateToLorebook = { lorebookId ->
+                        navController.navigate(Screen.SettingLorebookDetail(lorebookId))
+                    },
                 )
             }
         }

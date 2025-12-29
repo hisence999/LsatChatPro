@@ -59,6 +59,14 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
+/**
+ * Result of building messages, includes both the messages and info about activated lorebook entries.
+ */
+data class BuildMessagesResult(
+    val messages: List<UIMessage>,
+    val activatedLorebookEntries: List<me.rerere.ai.ui.UsedLorebookEntry>
+)
+
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
@@ -231,7 +239,7 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         truncateIndex: Int,
         enabledModeIds: Set<Uuid> = emptySet(),
-    ): List<UIMessage> {
+    ): BuildMessagesResult {
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
         fun estimateTokens(message: UIMessage) = estimateTokens(message.toText())
@@ -254,14 +262,14 @@ class GenerationHandler(
             return if (denominator == 0f) 0f else dotProduct / denominator
         }
         
-        // Helper to check if lorebook entry should be activated
-        fun isLorebookEntryActivated(entry: LorebookEntry, recentMessages: List<String>, queryEmbedding: List<Float>? = null): Boolean {
-            if (!entry.enabled) return false
+        // Helper to check if and why lorebook entry activated
+        fun getLorebookEntryActivationReason(entry: LorebookEntry, recentMessages: List<String>, queryEmbedding: List<Float>? = null): String? {
+            if (!entry.enabled) return null
             return when (entry.activationType) {
-                LorebookActivationType.ALWAYS -> true
+                LorebookActivationType.ALWAYS -> "Always Active"
                 LorebookActivationType.KEYWORDS -> {
                     val searchText = recentMessages.joinToString(" ")
-                    entry.keywords.any { keyword ->
+                    val matchingKeyword = entry.keywords.firstOrNull { keyword ->
                         if (entry.useRegex) {
                             try {
                                 val regex = if (entry.caseSensitive) {
@@ -282,24 +290,30 @@ class GenerationHandler(
                             }
                         }
                     }
+                    if (matchingKeyword != null) "Keyword: $matchingKeyword" else null
                 }
                 LorebookActivationType.RAG -> {
                     // RAG activation uses embedding similarity
                     if (entry.embedding == null || entry.embedding.isEmpty()) {
                         Log.d(TAG, "RAG entry '${entry.name}' has no embedding, skipping")
-                        false
+                        null
                     } else if (queryEmbedding == null) {
                         Log.d(TAG, "No query embedding available for RAG matching")
-                        false
+                        null
                     } else {
                         // Compute cosine similarity
                         val similarity = cosineSimilarity(entry.embedding, queryEmbedding)
                         val threshold = 0.7f // Similarity threshold for activation
                         val activated = similarity >= threshold
                         if (activated) {
+                            val scoreStr = try {
+                                "%.2f".format(similarity)
+                            } catch (e: Exception) {
+                                similarity.toString().take(4)
+                            }
                             Log.d(TAG, "RAG entry '${entry.name}' activated with similarity $similarity")
-                        }
-                        activated
+                            "RAG Match ($scoreStr)"
+                        } else null
                     }
                 }
             }
@@ -336,10 +350,42 @@ class GenerationHandler(
         } else null
 
         // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
-        val activatedEntries = lorebooksForAssistant
+        // Also track UsedLorebookEntry info for the UI display
+        // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
+        // Also track UsedLorebookEntry info for the UI display
+        data class ActivatedEntryWithLorebook(val lorebook: Lorebook, val entry: LorebookEntry, val entryIndex: Int, val reason: String)
+        val activatedEntriesWithLorebook = lorebooksForAssistant
             .flatMap { lorebook -> 
-                lorebook.entries.filter { entry -> isLorebookEntryActivated(entry, recentMessagesForScan, queryEmbedding) }
+                lorebook.entries.mapIndexedNotNull { index, entry ->
+                    val reason = getLorebookEntryActivationReason(entry, recentMessagesForScan, queryEmbedding)
+                    if (reason != null) {
+                        ActivatedEntryWithLorebook(lorebook, entry, index, reason)
+                    } else null
+                }
             }
+        val activatedEntries = activatedEntriesWithLorebook.map { it.entry }
+        
+        // Build UsedLorebookEntry list for UI display
+        val usedLorebookEntries = activatedEntriesWithLorebook.mapIndexed { priority, activated ->
+            // Serialize cover Avatar to JSON string for UI display
+            val coverJson = activated.lorebook.cover?.let { cover ->
+                try {
+                    json.encodeToString(me.rerere.rikkahub.data.model.Avatar.serializer(), cover)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            me.rerere.ai.ui.UsedLorebookEntry(
+                lorebookId = activated.lorebook.id.toString(),
+                lorebookName = activated.lorebook.name,
+                lorebookCover = coverJson,
+                entryId = activated.entry.id.toString(),
+                entryName = activated.entry.name,
+                entryIndex = activated.entryIndex,
+                priority = activatedEntriesWithLorebook.size - priority, // Higher priority for first entries
+                activationReason = activated.reason
+            )
+        }
 
         // Group injections by position
         val beforeSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
@@ -561,7 +607,7 @@ class GenerationHandler(
         // Combine all context attachments
         val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
         
-        return buildList {
+        val builtMessages = buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
                 if (selectedMemories.isNotEmpty()) {
@@ -584,6 +630,11 @@ class GenerationHandler(
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
+        
+        return BuildMessagesResult(
+            messages = builtMessages,
+            activatedLorebookEntries = usedLorebookEntries
+        )
     }
 
     private suspend fun generateInternal(
@@ -601,7 +652,7 @@ class GenerationHandler(
         stream: Boolean,
         enabledModeIds: Set<Uuid> = emptySet()
     ) {
-        val internalMessages = buildMessages(
+        val buildResult = buildMessages(
             assistant = assistant,
             settings = settings,
             messages = messages,
@@ -610,7 +661,9 @@ class GenerationHandler(
             memories = memories,
             truncateIndex = truncateIndex,
             enabledModeIds = enabledModeIds
-        ).transforms(transformers, context, model, assistant)
+        )
+        val internalMessages = buildResult.messages.transforms(transformers, context, model, assistant)
+        val usedLorebookEntries = buildResult.activatedLorebookEntries
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(
@@ -653,6 +706,17 @@ class GenerationHandler(
                 }
                 onUpdateMessages(messages)
             }
+            // Attach usedLorebookEntries to the last assistant message after streaming completes
+            if (usedLorebookEntries.isNotEmpty()) {
+                messages = messages.mapIndexed { index, message ->
+                    if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
+                        message.copy(usedLorebookEntries = usedLorebookEntries)
+                    } else {
+                        message
+                    }
+                }
+                onUpdateMessages(messages)
+            }
         } else {
             aiLoggingManager.addLog(AILogging.Generation(
                 params = params,
@@ -672,6 +736,16 @@ class GenerationHandler(
                         message.copy(
                             usage = message.usage.merge(usage)
                         )
+                    } else {
+                        message
+                    }
+                }
+            }
+            // Attach usedLorebookEntries to the last assistant message
+            if (usedLorebookEntries.isNotEmpty()) {
+                messages = messages.mapIndexed { index, message ->
+                    if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
+                        message.copy(usedLorebookEntries = usedLorebookEntries)
                     } else {
                         message
                     }

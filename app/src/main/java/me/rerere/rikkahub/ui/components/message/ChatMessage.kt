@@ -124,6 +124,7 @@ fun ChatMessage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (MessageNode) -> Unit,
+    onEditLorebookEntry: ((me.rerere.ai.ui.UsedLorebookEntry) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalSettings.current.displaySetting
@@ -256,6 +257,7 @@ fun ChatMessage(
                 onOpenActionSheet = {
                     showActionsSheet = true
                 },
+                onEditLorebookEntry = onEditLorebookEntry,
             )
         }
     }

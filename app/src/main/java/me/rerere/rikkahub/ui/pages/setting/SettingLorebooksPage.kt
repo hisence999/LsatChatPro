@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.People
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -211,7 +212,7 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
                 
-                // FAB aligned to end/right at same height
+                // FAB aligned to end/right
                 FloatingActionButton(
                     onClick = { 
                         showAddDialog = true
@@ -352,6 +353,7 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                     ) {
                         LorebookCard(
                             lorebook = lorebook,
+                            position = position,
                             onClick = {
                                 haptics.perform(HapticPattern.Tick)
                                 navController.navigate(Screen.SettingLorebookDetail(lorebook.id.toString()))
@@ -397,6 +399,7 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
 @Composable
 private fun LorebookCard(
     lorebook: Lorebook,
+    position: ItemPosition,
     onClick: () -> Unit
 ) {
     Card(
@@ -414,8 +417,23 @@ private fun LorebookCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Book cover or placeholder
+            val bookShape = when (position) {
+                ItemPosition.ONLY -> RoundedCornerShape(
+                    topStart = 16.dp, topEnd = 6.dp,
+                    bottomStart = 16.dp, bottomEnd = 6.dp
+                )
+                ItemPosition.FIRST -> RoundedCornerShape(
+                    topStart = 16.dp, topEnd = 6.dp,
+                    bottomStart = 6.dp, bottomEnd = 6.dp
+                )
+                ItemPosition.MIDDLE -> RoundedCornerShape(6.dp)
+                ItemPosition.LAST -> RoundedCornerShape(
+                    topStart = 6.dp, topEnd = 6.dp,
+                    bottomStart = 16.dp, bottomEnd = 6.dp
+                )
+            }
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = bookShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.size(width = 50.dp, height = 70.dp)
             ) {

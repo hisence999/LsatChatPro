@@ -475,6 +475,7 @@ data class DisplaySetting(
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
+    val showLorebookStacks: Boolean = true, // Show lorebook entry stacks in message toolbar
 )
 
 @Serializable
@@ -528,6 +529,26 @@ fun Settings.getCurrentAssistant(): Assistant {
 
 fun Settings.getAssistantById(id: Uuid): Assistant? {
     return this.assistants.find { it.id == id }
+}
+
+/**
+ * Get effective display settings by merging assistant's UI overrides with global display settings.
+ * Per-assistant settings take precedence when set (non-null).
+ */
+fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySetting {
+    val ui = (assistant ?: getCurrentAssistant()).uiSettings
+    return displaySetting.copy(
+        showUserAvatar = ui.showUserAvatar ?: displaySetting.showUserAvatar,
+        showModelIcon = ui.showAssistantAvatar ?: displaySetting.showModelIcon,
+        showTokenUsage = ui.showTokenUsage ?: displaySetting.showTokenUsage,
+        autoCloseThinking = ui.autoCloseThinking ?: displaySetting.autoCloseThinking,
+        showMessageJumper = ui.showMessageJumper ?: displaySetting.showMessageJumper,
+        messageJumperOnLeft = ui.messageJumperOnLeft ?: displaySetting.messageJumperOnLeft,
+        fontSizeRatio = ui.fontSizeRatio ?: displaySetting.fontSizeRatio,
+        codeBlockAutoWrap = ui.codeBlockAutoWrap ?: displaySetting.codeBlockAutoWrap,
+        codeBlockAutoCollapse = ui.codeBlockAutoCollapse ?: displaySetting.codeBlockAutoCollapse,
+        showLorebookStacks = ui.showLorebookStacks ?: displaySetting.showLorebookStacks,
+    )
 }
 
 fun Settings.getSelectedTTSProvider(): TTSProviderSetting? {

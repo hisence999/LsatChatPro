@@ -89,6 +89,7 @@ import me.rerere.highlight.buildHighlightText
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
@@ -126,20 +127,21 @@ fun HighlightCodeBlock(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val settings = LocalSettings.current
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
 
     // Determine initial state based on generation status
     // When generating (!completeCodeBlock): Preview (show code with fade)
     // When complete: Collapsed (banner) or Expanded (auto-collapse setting)
-    var expandState by remember(settings.displaySetting.codeBlockAutoCollapse, completeCodeBlock) {
+    var expandState by remember(effectiveDisplay.codeBlockAutoCollapse, completeCodeBlock) {
         mutableStateOf(
             when {
                 !completeCodeBlock -> CodeBlockState.Preview // Still generating - show preview
-                settings.displaySetting.codeBlockAutoCollapse -> CodeBlockState.Collapsed
+                effectiveDisplay.codeBlockAutoCollapse -> CodeBlockState.Collapsed
                 else -> CodeBlockState.Expanded
             }
         )
     }
-    val autoWrap = settings.displaySetting.codeBlockAutoWrap
+    val autoWrap = effectiveDisplay.codeBlockAutoWrap
 
     // Auto-scroll to bottom when generating (like reasoning card)
     LaunchedEffect(code, completeCodeBlock, expandState) {

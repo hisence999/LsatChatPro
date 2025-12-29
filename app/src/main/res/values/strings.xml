@@ -765,6 +765,7 @@
     <string name="lorebook_entry_use_regex">Use Regex</string>
     <string name="lorebook_entry_scan_depth">Scan Depth</string>
     <string name="lorebook_entry_injection_position">Injection Position</string>
+    <string name="lorebook_search_entries_placeholder">Search entries...</string>
     
     <!-- Activation Types -->
     <string name="activation_always">Always Active</string>
@@ -782,6 +783,13 @@
     <string name="modes_page_default_enabled_desc">Automatically enable for new chats</string>
     <string name="lorebook_entry_deleted">Entry %s deleted</string>
     
+    <!-- Lorebooks Picker -->
+    <string name="lorebooks_picker_title">Lorebooks</string>
+    <string name="lorebooks_picker_none">No lorebooks</string>
+    <string name="lorebooks_section_available">Available Lorebooks</string>
+    <string name="lorebook_toggle_assistants">Toggle Assistants</string>
+    <string name="lorebook_select_to_toggle">Select a lorebook to toggle</string>
+    
     <!-- Assistant Lorebooks Selection -->
     <string name="assistant_lorebooks_title">Lorebooks</string>
     <string name="assistant_lorebooks_desc">Select which lorebooks to use with this assistant</string>
@@ -797,8 +805,6 @@
     <string name="export_format_lastchat">LastChat (Full)</string>
     <string name="export_format_sillytavern">SillyTavern</string>
     <string name="export_format_tavern">Tavern (Compatible)</string>
-    
-    <!-- Lorebook Sections -->
-    <string name="lorebooks_section_available">Available Lorebooks</string>
 </resources>
+
 
