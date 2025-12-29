@@ -38,6 +38,7 @@ import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.db.dao.ScheduledTaskDao
 import me.rerere.rikkahub.data.db.dao.ScheduledTaskRunDao
 import me.rerere.rikkahub.data.db.entity.ScheduledTaskEntity
+import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.db.entity.ScheduledTaskRunEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantSearchMode
@@ -165,7 +166,7 @@ class ScheduledTaskWorker(
                 errorMessage = "Model not found",
             )
 
-        val memories = if (assistantForRun.enableMemory) {
+        val memories: List<AssistantMemory>? = if (assistantForRun.enableMemory) {
             if (assistantForRun.useRagMemoryRetrieval) {
                 memoryRepository.retrieveRelevantMemories(
                     assistantId = assistantForRun.id.toString(),
@@ -179,7 +180,7 @@ class ScheduledTaskWorker(
                 memoryRepository.getMemoriesOfAssistant(assistantForRun.id.toString())
             }
         } else {
-            emptyList()
+            null
         }
 
         val tools = buildTools(

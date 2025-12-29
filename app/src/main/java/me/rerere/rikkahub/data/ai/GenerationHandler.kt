@@ -59,6 +59,7 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
+private val MEMORY_TOOL_NAMES = setOf("create_memory", "edit_memory", "delete_memory")
 
 @Serializable
 sealed interface GenerationChunk {
@@ -99,9 +100,9 @@ class GenerationHandler(
 
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
-                // Only add memory tools if memory is enabled AND we have memories to work with
-                // (skip for temporary chats which pass null/empty memories)
-                if (assistant?.enableMemory == true && !memories.isNullOrEmpty()) {
+                // Only add memory tools if memory is enabled AND memory is available for this run
+                // (temporary chats pass `memories = null` to opt-out).
+                if (assistant.enableMemory && memories != null) {
                     buildMemoryTools(
                         onCreation = { content ->
                             memoryRepo.addMemory(assistant.id.toString(), content)
@@ -573,9 +574,15 @@ class GenerationHandler(
         return buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
-                if (selectedMemories.isNotEmpty()) {
+                val includeMemoryToolInstructions = tools.any { it.name in MEMORY_TOOL_NAMES }
+                val memoryPrompt = buildMemoryPrompt(
+                    model = model,
+                    memories = selectedMemories,
+                    includeToolInstructions = includeMemoryToolInstructions,
+                )
+                if (memoryPrompt.isNotBlank()) {
                     appendLine()
-                    append(buildMemoryPrompt(model, selectedMemories))
+                    append(memoryPrompt)
                 }
             }
             if (finalSystemPrompt.isNotBlank()) {
@@ -769,19 +776,33 @@ class GenerationHandler(
         )
     )
 
-    private suspend fun buildMemoryPrompt(model: Model, memories: List<AssistantMemory>): String {
-        Log.d(TAG, "buildMemoryPrompt: Injecting ${memories.size} memories into prompt")
-        if (memories.isEmpty()) {
-            Log.w(TAG, "buildMemoryPrompt: WARNING - No memories to inject!")
+    private suspend fun buildMemoryPrompt(
+        model: Model,
+        memories: List<AssistantMemory>,
+        includeToolInstructions: Boolean,
+    ): String {
+        val shouldIncludeToolInstructions =
+            includeToolInstructions && model.abilities.contains(ModelAbility.TOOL)
+        if (memories.isEmpty() && !shouldIncludeToolInstructions) {
             return ""
         }
+
+        Log.d(
+            TAG,
+            "buildMemoryPrompt: memories=${memories.size}, includeToolInstructions=$shouldIncludeToolInstructions",
+        )
 
         val coreMemories = memories.filter { it.type == 0 } // CORE
         val episodicMemories = memories.filter { it.type == 1 } // EPISODIC
         
         return buildString {
-            append("## Memories\n")
-            append("These are memories that you can reference in the future conversations.\n")
+            if (memories.isNotEmpty()) {
+                append("## Memories\n")
+                append("These are memories that you can reference in the future conversations.\n")
+            } else {
+                append("## Memories\n")
+                append("No memories were injected for this turn (none exist, none matched, or embeddings are unavailable).\n")
+            }
             
             if (coreMemories.isNotEmpty()) {
                 append("### Core Memories\n")
@@ -822,7 +843,7 @@ class GenerationHandler(
                 }
             }
             
-            if (model.abilities.contains(ModelAbility.TOOL)) {
+            if (shouldIncludeToolInstructions) {
                 append(
                     """
                         

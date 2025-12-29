@@ -1047,7 +1047,7 @@ class ChatService(
                         memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
                     }
                 } else {
-                    emptyList()
+                    null
                 },
                 inputTransformers = buildList {
                     appContextTransformer?.let(::add)
