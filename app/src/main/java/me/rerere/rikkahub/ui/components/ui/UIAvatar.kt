@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -55,9 +56,9 @@ fun TextAvatar(
 ) {
     Box(
         modifier = modifier
+            .sizeIn(minWidth = 32.dp, minHeight = 32.dp)
             .clip(shape = rememberAvatarShape(loading))
-            .background(color)
-            .size(32.dp),
+            .background(color),
         contentAlignment = Alignment.Center
     ) {
         Text(

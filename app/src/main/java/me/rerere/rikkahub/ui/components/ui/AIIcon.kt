@@ -1,23 +1,29 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.svg.css
 import me.rerere.rikkahub.R
@@ -54,9 +60,9 @@ fun ProviderIcon(
         is ProviderSetting.Claude -> provider.baseUrl
     }
     
-    // Derive provider slug from name for LobeHub lookup
+    // Only use known slugs for remote lookup; unknown names should fall back instantly to local icon/text.
     val providerSlug = remember(provider.name) {
-        getProviderSlugFromName(provider.name) ?: provider.name.lowercase().replace(" ", "-").replace("_", "-")
+        getProviderSlugFromName(provider.name)
     }
     
     AutoAIIconWithUrl(
@@ -140,7 +146,9 @@ private fun AIIcon(
             .build()
     }
     Surface(
-        modifier = modifier.size(24.dp),
+        modifier = Modifier
+            .sizeIn(minWidth = 24.dp, minHeight = 24.dp)
+            .then(modifier),
         shape = rememberAvatarShape(loading),
         color = Color.Transparent,
     ) {
@@ -217,6 +225,7 @@ fun AutoProviderIcon(
         url = lobeHubUrls.coloredUrl,
         fallbackUrl = lobeHubUrls.monochromeUrl,
         name = name,
+        cacheFailure = true,
         modifier = modifier,
         loading = loading,
         color = color,
@@ -258,6 +267,7 @@ private fun ProviderFaviconFallback(
         RemoteIcon(
             url = faviconUrl,
             name = name,
+            cacheFailure = true,
             modifier = modifier,
             loading = loading,
             color = color,
@@ -385,7 +395,17 @@ fun AutoAIIconWithUrl(
             modifier = modifier,
             loading = loading,
             color = color,
-            padding = padding
+            padding = padding,
+            fallback = {
+                AutoAIIcon(
+                    name = name,
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                    contentColor = contentColor,
+                    padding = padding
+                )
+            }
         )
         return
     }
@@ -398,6 +418,7 @@ fun AutoAIIconWithUrl(
             url = lobeHubUrls.coloredUrl,
             fallbackUrl = lobeHubUrls.monochromeUrl,
             name = name,
+            cacheFailure = true,
             modifier = modifier,
             loading = loading,
             color = color,
@@ -541,13 +562,18 @@ private fun RemoteIcon(
     name: String,
     modifier: Modifier = Modifier,
     fallbackUrl: String? = null,
+    cacheFailure: Boolean = false,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
     padding: Dp = 4.dp,
     fallback: @Composable (() -> Unit)? = null
 ) {
-    var primaryFailed by remember(url) { mutableStateOf(false) }
-    var fallbackFailed by remember(url, fallbackUrl) { mutableStateOf(false) }
+    var primaryFailed by remember(url) {
+        mutableStateOf(cacheFailure && url in REMOTE_ICON_FAILURE_CACHE)
+    }
+    var fallbackFailed by remember(url, fallbackUrl) {
+        mutableStateOf(cacheFailure && fallbackUrl != null && fallbackUrl in REMOTE_ICON_FAILURE_CACHE)
+    }
     
     // If both primary and fallback URLs failed, use the fallback composable
     if (primaryFailed && (fallbackUrl == null || fallbackFailed) && fallback != null) {
@@ -555,35 +581,59 @@ private fun RemoteIcon(
         return
     }
     
-    // If primary failed but we have a fallback URL, try it
-    if (primaryFailed && fallbackUrl != null && !fallbackFailed) {
-        Surface(
-            modifier = modifier.size(24.dp),
-            shape = rememberAvatarShape(loading),
-            color = Color.Transparent,
-        ) {
-            AsyncImage(
-                model = fallbackUrl,
-                contentDescription = name,
-                modifier = Modifier.padding(padding),
-                onError = { fallbackFailed = true }
-            )
-        }
-        return
+    val currentUrl = when {
+        !primaryFailed -> url
+        fallbackUrl != null && !fallbackFailed -> fallbackUrl
+        else -> null
     }
-    
-    // Try primary URL first
+
     Surface(
-        modifier = modifier.size(24.dp),
+        modifier = Modifier
+            .sizeIn(minWidth = 24.dp, minHeight = 24.dp)
+            .then(modifier),
         shape = rememberAvatarShape(loading),
         color = Color.Transparent,
     ) {
-        AsyncImage(
-            model = url,
-            contentDescription = name,
-            modifier = Modifier.padding(padding),
-            onError = { primaryFailed = true }
-        )
+        if (currentUrl == null) {
+            fallback?.invoke()
+            return@Surface
+        }
+
+        val painter = rememberAsyncImagePainter(model = currentUrl)
+        val state = painter.state
+
+        LaunchedEffect(currentUrl, state) {
+            if (state is AsyncImagePainter.State.Error) {
+                when (currentUrl) {
+                    url -> {
+                        primaryFailed = true
+                        if (cacheFailure) REMOTE_ICON_FAILURE_CACHE.add(url)
+                    }
+                    fallbackUrl -> {
+                        fallbackFailed = true
+                        if (cacheFailure) fallbackUrl?.let { REMOTE_ICON_FAILURE_CACHE.add(it) }
+                    }
+                }
+            }
+        }
+
+        when (state) {
+            is AsyncImagePainter.State.Success -> {
+                Image(
+                    painter = painter,
+                    contentDescription = name,
+                    modifier = Modifier.padding(padding),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            is AsyncImagePainter.State.Loading,
+            is AsyncImagePainter.State.Error,
+            is AsyncImagePainter.State.Empty -> {
+                // Show the final fallback (typically TextAvatar) immediately while loading.
+                // If loading succeeds, we'll swap to the icon; if it fails, fallback stays.
+                fallback?.invoke()
+            }
+        }
     }
 }
 
@@ -779,6 +829,8 @@ private fun matchIconPattern(searchName: String): String? {
 
 // 静态缓存和正则模式
 private val ICON_CACHE = mutableMapOf<String, String>()
+private val REMOTE_ICON_FAILURE_CACHE =
+    java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
 private val PATTERN_OPENAI = Regex("(gpt|openai|o\\d)")
 private val PATTERN_GEMINI = Regex("(gemini)")
 private val PATTERN_GOOGLE = Regex("google")
@@ -835,7 +887,7 @@ private val PATTERN_MISTRAL_MODEL = Regex("mistral")
 private val PATTERN_PHI = Regex("\\bphi\\b|phi-")
 private val PATTERN_COMMAND = Regex("command-")
 private val PATTERN_CLAUDE_MODEL = Regex("claude")
-private val PATTERN_GPT_MODEL = Regex("gpt-|\\bo\\d")
+private val PATTERN_GPT_MODEL = Regex("gpt(?:\\b|\\d|[-_])|\\bo\\d")
 private val PATTERN_DEEPSEEK_MODEL = Regex("deepseek")
 private val PATTERN_GEMINI_MODEL = Regex("gemini")
 private val PATTERN_GROK_MODEL = Regex("grok")
