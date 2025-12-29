@@ -549,6 +549,10 @@ class ChatVM(
         }
     }
 
+    fun setConversationAssistant(assistantId: Uuid) {
+        chatService.setConversationAssistant(_conversationId, assistantId)
+    }
+
     fun updateTitle(title: String) {
         viewModelScope.launch {
             val updatedConversation = conversation.value.copy(title = title)

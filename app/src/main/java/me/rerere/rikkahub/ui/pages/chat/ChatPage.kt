@@ -533,7 +533,10 @@ private fun ChatPageContent(
                     },
                     onToggleTemporaryChat = {
                         isTemporaryChat = !isTemporaryChat
-                    }
+                    },
+                    onSetConversationAssistant = { assistantId ->
+                        vm.setConversationAssistant(assistantId)
+                    },
                 )
             },
             // Removed bottomBar to allow floating input
@@ -836,7 +839,8 @@ private fun TopBar(
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onUpdateSettings: (Settings) -> Unit,
-    onToggleTemporaryChat: () -> Unit
+    onToggleTemporaryChat: () -> Unit,
+    onSetConversationAssistant: (Uuid) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -1002,6 +1006,7 @@ private fun TopBar(
             currentAssistant = assistantForConversation,
             onAssistantSelected = { selectedAssistant ->
                 assistantState.setSelectAssistant(selectedAssistant)
+                onSetConversationAssistant(selectedAssistant.id)
                 showAssistantPicker = false
             },
             onDismiss = { showAssistantPicker = false }

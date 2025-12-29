@@ -648,6 +648,69 @@ class ChatService(
         }
     }
 
+    /**
+     * Switch the assistant for the current conversation.
+     *
+     * Intended for "empty" chats (no user messages yet). Updates the in-memory conversation
+     * immediately, and only persists the assistant change if the conversation already exists in DB
+     * to avoid polluting history with new empty chats.
+     */
+    fun setConversationAssistant(conversationId: Uuid, assistantId: Uuid) {
+        val currentConversation = getConversationFlow(conversationId).value
+        if (currentConversation.assistantId == assistantId) return
+
+        val hasUserMessages = currentConversation.messageNodes.any { node ->
+            node.messages.any { it.role == MessageRole.USER }
+        }
+        if (hasUserMessages) {
+            Log.w(TAG, "setConversationAssistant ignored: conversation has user messages ($conversationId)")
+            return
+        }
+
+        val settingsSnapshot = settingsStore.settingsFlow.value
+        val assistant = settingsSnapshot.getAssistantById(assistantId)
+        if (assistant == null) {
+            Log.w(TAG, "setConversationAssistant ignored: assistant not found ($assistantId)")
+            return
+        }
+
+        val updatedConversation = currentConversation
+            .copy(
+                assistantId = assistantId,
+                messageNodes = emptyList(),
+                truncateIndex = -1,
+                chatSuggestions = emptyList(),
+            )
+            .updateCurrentMessages(assistant.presetMessages)
+
+        updateConversation(conversationId, updatedConversation)
+
+        appScope.launch(Dispatchers.IO) {
+            try {
+                settingsStore.updateAssistant(assistantId)
+            } catch (e: Exception) {
+                Log.w(TAG, "setConversationAssistant: updateAssistant failed (${e.message})", e)
+            }
+
+            if (temporaryConversations.contains(conversationId)) return@launch
+
+            val existsInDb = try {
+                conversationRepo.getConversationById(conversationId) != null
+            } catch (e: Exception) {
+                Log.w(TAG, "setConversationAssistant: getConversationById failed (${e.message})", e)
+                false
+            }
+
+            if (!existsInDb) return@launch
+
+            try {
+                conversationRepo.updateConversation(updatedConversation)
+            } catch (e: Exception) {
+                Log.w(TAG, "setConversationAssistant: updateConversation failed (${e.message})", e)
+            }
+        }
+    }
+
     // 发送消息
     fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean=true, isTemporaryChat: Boolean = false) {
         // 标记为临时对话
