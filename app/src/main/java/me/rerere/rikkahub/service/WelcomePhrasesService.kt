@@ -1,7 +1,16 @@
 package me.rerere.rikkahub.service
 
+import android.content.Context
 import android.util.Log
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -31,75 +40,147 @@ class WelcomePhrasesService(
     private val memoryRepository: MemoryRepository,
 ) {
     private val mutex = Mutex()
+    private val inFlightAssistantIds = mutableSetOf<Uuid>()
 
-    suspend fun refreshForCurrentAssistantIfNeeded() {
+    fun enqueueAutoRefreshForCurrentAssistantIfNeeded(context: Context) {
         val settingsSnapshot = settingsStore.settingsFlow.value
         if (settingsSnapshot.init) return
-        refreshForAssistantIfNeeded(settingsSnapshot.assistantId)
+        enqueueAutoRefreshForAssistantIfNeeded(context, settingsSnapshot.assistantId)
     }
 
-    suspend fun refreshForAssistantIfNeeded(assistantId: Uuid) {
-        refreshForAssistant(assistantId, force = false)
+    fun enqueueAutoRefreshForAssistantIfNeeded(context: Context, assistantId: Uuid) {
+        val settingsSnapshot = settingsStore.settingsFlow.value
+        if (settingsSnapshot.init) return
+
+        val assistant = settingsSnapshot.getAssistantById(assistantId) ?: return
+        if (!assistant.enableWelcomePhrases) return
+        if (assistant.presetMessages.isNotEmpty()) return
+
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val alreadyFresh = assistant.lastWelcomePhrasesRequestEpochDay == todayEpochDay &&
+            assistant.welcomePhrases.size == WELCOME_PHRASES_TOTAL
+        if (alreadyFresh) return
+
+        val model = settingsSnapshot.findModelById(settingsSnapshot.suggestionModelId) ?: return
+        model.findProvider(settingsSnapshot.providers) ?: return
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<WelcomePhrasesAutoRefreshWorker>()
+            .setInputData(
+                Data.Builder()
+                    .putString(WelcomePhrasesAutoRefreshWorker.KEY_ASSISTANT_ID, assistantId.toString())
+                    .build()
+            )
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS)
+            .addTag("welcome_phrases_auto_refresh")
+            .build()
+
+        val workName = "welcome_phrases_auto_refresh_${assistantId}"
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            workName,
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
     }
 
-    suspend fun forceRefreshForAssistant(assistantId: Uuid) {
-        refreshForAssistant(assistantId, force = true)
+    suspend fun refreshForCurrentAssistantIfNeeded(maxAttempts: Int = 3): WelcomePhrasesRefreshStatus {
+        val settingsSnapshot = settingsStore.settingsFlow.value
+        if (settingsSnapshot.init) return WelcomePhrasesRefreshStatus.NotEligible
+        return refreshForAssistantIfNeeded(settingsSnapshot.assistantId, maxAttempts = maxAttempts)
     }
 
-    private suspend fun refreshForAssistant(assistantId: Uuid, force: Boolean) {
-        val pending = mutex.withLock {
+    suspend fun refreshForAssistantIfNeeded(
+        assistantId: Uuid,
+        maxAttempts: Int = 3,
+    ): WelcomePhrasesRefreshStatus {
+        return refreshForAssistant(assistantId, force = false, maxAttempts = maxAttempts)
+    }
+
+    suspend fun forceRefreshForAssistant(
+        assistantId: Uuid,
+        maxAttempts: Int = 3,
+    ): WelcomePhrasesRefreshStatus {
+        return refreshForAssistant(assistantId, force = true, maxAttempts = maxAttempts)
+    }
+
+    private suspend fun refreshForAssistant(
+        assistantId: Uuid,
+        force: Boolean,
+        maxAttempts: Int,
+    ): WelcomePhrasesRefreshStatus {
+        val plan = mutex.withLock {
             val settingsSnapshot = settingsStore.settingsFlow.value
-            if (settingsSnapshot.init) return@withLock null
+            if (settingsSnapshot.init) return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
+
+            val assistant = settingsSnapshot.getAssistantById(assistantId)
+                ?: return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
+
+            if (!assistant.enableWelcomePhrases) return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
+            if (assistant.presetMessages.isNotEmpty()) return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
 
             val todayEpochDay = LocalDate.now().toEpochDay()
-            val assistant = settingsSnapshot.getAssistantById(assistantId) ?: return@withLock null
-            if (!assistant.enableWelcomePhrases) return@withLock null
-            if (assistant.presetMessages.isNotEmpty()) return@withLock null
-            if (!force && assistant.lastWelcomePhrasesRequestEpochDay == todayEpochDay) return@withLock null
+            val alreadyFresh = assistant.lastWelcomePhrasesRequestEpochDay == todayEpochDay &&
+                assistant.welcomePhrases.size == WELCOME_PHRASES_TOTAL
+            if (!force && alreadyFresh) return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.UpToDate)
 
-            val model = settingsSnapshot.findModelById(settingsSnapshot.suggestionModelId) ?: return@withLock null
-            val provider = model.findProvider(settingsSnapshot.providers) ?: return@withLock null
-
-            settingsStore.update { current ->
-                current.copy(
-                    assistants = current.assistants.map { currentAssistant ->
-                        if (currentAssistant.id == assistantId) {
-                            currentAssistant.copy(lastWelcomePhrasesRequestEpochDay = todayEpochDay)
-                        } else {
-                            currentAssistant
-                        }
-                    }
-                )
+            if (inFlightAssistantIds.contains(assistantId)) {
+                return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.InProgress)
             }
 
-            PendingRequest(
-                assistantId = assistantId,
-                assistantSystemPrompt = assistant.systemPrompt,
-                todayEpochDay = todayEpochDay,
-                model = model,
-                provider = provider,
-                locale = Locale.getDefault(),
-                enableMemory = assistant.enableMemory,
-                ragSimilarityThreshold = assistant.ragSimilarityThreshold,
-                ragIncludeCore = assistant.ragIncludeCore,
-                ragIncludeEpisodes = assistant.ragIncludeEpisodes,
+            val model = settingsSnapshot.findModelById(settingsSnapshot.suggestionModelId)
+                ?: return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
+            val provider = model.findProvider(settingsSnapshot.providers)
+                ?: return@withLock RefreshPlan.Skip(WelcomePhrasesRefreshStatus.NotEligible)
+
+            inFlightAssistantIds.add(assistantId)
+            RefreshPlan.Fetch(
+                PendingRequest(
+                    assistantId = assistantId,
+                    assistantSystemPrompt = assistant.systemPrompt,
+                    todayEpochDay = todayEpochDay,
+                    model = model,
+                    provider = provider,
+                    locale = Locale.getDefault(),
+                    enableMemory = assistant.enableMemory,
+                    ragSimilarityThreshold = assistant.ragSimilarityThreshold,
+                    ragIncludeCore = assistant.ragIncludeCore,
+                    ragIncludeEpisodes = assistant.ragIncludeEpisodes,
+                    requireFullCount = force,
+                )
             )
-        } ?: return
+        }
 
-        val phrases = fetchWithRetry(pending, maxAttempts = 3) ?: return
+        return when (plan) {
+            is RefreshPlan.Skip -> plan.status
+            is RefreshPlan.Fetch -> {
+                try {
+                    val phrases = fetchWithRetry(plan.pending, maxAttempts = maxAttempts)
+                        ?: return WelcomePhrasesRefreshStatus.Failed
 
-        settingsStore.update { current ->
-            val updatedAssistants = current.assistants.map { assistant ->
-                if (assistant.id == pending.assistantId) {
-                    assistant.copy(
-                        welcomePhrases = phrases,
-                        lastWelcomePhrasesRequestEpochDay = pending.todayEpochDay,
-                    )
-                } else {
-                    assistant
+                    settingsStore.update { current ->
+                        val updatedAssistants = current.assistants.map { assistant ->
+                            if (assistant.id == plan.pending.assistantId) {
+                                assistant.copy(
+                                    welcomePhrases = phrases,
+                                    lastWelcomePhrasesRequestEpochDay = plan.pending.todayEpochDay,
+                                )
+                            } else {
+                                assistant
+                            }
+                        }
+                        current.copy(assistants = updatedAssistants)
+                    }
+                    WelcomePhrasesRefreshStatus.Refreshed
+                } finally {
+                    mutex.withLock {
+                        inFlightAssistantIds.remove(assistantId)
+                    }
                 }
             }
-            current.copy(assistants = updatedAssistants)
         }
     }
 
@@ -109,6 +190,7 @@ class WelcomePhrasesService(
     ): List<String>? {
         for (attempt in 1..maxAttempts) {
             val phrases = runCatching { fetchOnce(pending) }.getOrElse { e ->
+                if (e is CancellationException) throw e
                 Log.w(TAG, "fetch attempt $attempt failed: ${e.message}", e)
                 null
             }
@@ -129,30 +211,34 @@ class WelcomePhrasesService(
             append(")")
         }
 
-        val memoryContext = withContext(Dispatchers.IO) {
-            val assistantIdString = pending.assistantId.toString()
-            val dateQuery = buildDateQuery(today)
+        val memoryContext = if (!pending.enableMemory) {
+            MemoryContext.EMPTY
+        } else {
+            withContext(Dispatchers.IO) {
+                val assistantIdString = pending.assistantId.toString()
+                val dateQuery = buildDateQuery(today)
 
-            val ragMemories = memoryRepository.retrieveRelevantMemories(
-                assistantId = assistantIdString,
-                query = dateQuery,
-                limit = 10,
-                similarityThreshold = pending.ragSimilarityThreshold,
-                includeCore = true,
-                includeEpisodes = true,
-            )
+                val ragMemories = memoryRepository.retrieveRelevantMemories(
+                    assistantId = assistantIdString,
+                    query = dateQuery,
+                    limit = 10,
+                    similarityThreshold = pending.ragSimilarityThreshold,
+                    includeCore = pending.ragIncludeCore,
+                    includeEpisodes = pending.ragIncludeEpisodes,
+                )
 
-            val recentMemories = memoryRepository.getRecentCombinedMemories(
-                assistantId = assistantIdString,
-                limit = 5,
-                includeCore = true,
-                includeEpisodes = true,
-            )
+                val recentMemories = memoryRepository.getRecentCombinedMemories(
+                    assistantId = assistantIdString,
+                    limit = 5,
+                    includeCore = pending.ragIncludeCore,
+                    includeEpisodes = pending.ragIncludeEpisodes,
+                )
 
-            MemoryContext(
-                ragMemoriesText = formatMemoriesForPrompt(ragMemories),
-                recentMemoriesText = formatMemoriesForPrompt(recentMemories),
-            )
+                MemoryContext(
+                    ragMemoriesText = formatMemoriesForPrompt(ragMemories),
+                    recentMemoriesText = formatMemoriesForPrompt(recentMemories),
+                )
+            }
         }
 
         val messages = buildList {
@@ -185,10 +271,19 @@ class WelcomePhrasesService(
 
         val raw = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
         val phrases = parseWelcomePhrases(raw)
-        require(phrases.size == WELCOME_PHRASES_TOTAL) {
-            "Expected $WELCOME_PHRASES_TOTAL welcome phrases, got ${phrases.size}. raw=$raw"
+        if (pending.requireFullCount) {
+            require(phrases.size == WELCOME_PHRASES_TOTAL) {
+                "Expected $WELCOME_PHRASES_TOTAL welcome phrases, got ${phrases.size}. raw=$raw"
+            }
+        } else {
+            require(phrases.size >= MIN_AUTO_ACCEPTED_COUNT) {
+                "Expected >= $MIN_AUTO_ACCEPTED_COUNT welcome phrases for auto refresh, got ${phrases.size}. raw=$raw"
+            }
+            if (phrases.size != WELCOME_PHRASES_TOTAL) {
+                Log.w(TAG, "auto refresh got ${phrases.size}/$WELCOME_PHRASES_TOTAL phrases; will keep trying later")
+            }
         }
-        return phrases
+        return phrases.take(WELCOME_PHRASES_TOTAL)
     }
 
     private data class PendingRequest(
@@ -202,7 +297,13 @@ class WelcomePhrasesService(
         val ragSimilarityThreshold: Float,
         val ragIncludeCore: Boolean,
         val ragIncludeEpisodes: Boolean,
+        val requireFullCount: Boolean,
     )
+
+    private sealed interface RefreshPlan {
+        data class Skip(val status: WelcomePhrasesRefreshStatus) : RefreshPlan
+        data class Fetch(val pending: PendingRequest) : RefreshPlan
+    }
 
     private data class MemoryContext(
         val ragMemoriesText: String,
@@ -246,4 +347,16 @@ class WelcomePhrasesService(
             append(" today")
         }
     }
+
+    private companion object {
+        private const val MIN_AUTO_ACCEPTED_COUNT = 8
+    }
+}
+
+sealed interface WelcomePhrasesRefreshStatus {
+    data object Refreshed : WelcomePhrasesRefreshStatus
+    data object UpToDate : WelcomePhrasesRefreshStatus
+    data object NotEligible : WelcomePhrasesRefreshStatus
+    data object InProgress : WelcomePhrasesRefreshStatus
+    data object Failed : WelcomePhrasesRefreshStatus
 }

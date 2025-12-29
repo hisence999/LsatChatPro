@@ -94,5 +94,5 @@ internal fun getWelcomePhraseCandidates(
 
 private fun isWelcomePhraseLengthValid(phrase: String): Boolean {
     val length = phrase.codePointCount(0, phrase.length)
-    return length in 5..15
+    return length in 3..14
 }

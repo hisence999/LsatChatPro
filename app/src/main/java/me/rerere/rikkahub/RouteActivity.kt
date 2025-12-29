@@ -159,7 +159,7 @@ class RouteActivity : ComponentActivity() {
                     settingsStore.updateAssistant(assistantId)
                     // Mark as recently used
                     settingsStore.markAssistantUsed(assistantId)
-                    welcomePhrasesService.refreshForAssistantIfNeeded(assistantId)
+                    welcomePhrasesService.enqueueAutoRefreshForAssistantIfNeeded(this@RouteActivity, assistantId)
                     pendingAssistantId = null
                     // Navigate to a new chat
                     navBackStack.navigate(Screen.Chat(Uuid.random().toString())) {
@@ -212,7 +212,7 @@ class RouteActivity : ComponentActivity() {
 
         LaunchedEffect(settings.init, settings.assistantId, pendingAssistantId) {
             if (!settings.init && pendingAssistantId == null) {
-                welcomePhrasesService.refreshForCurrentAssistantIfNeeded()
+                welcomePhrasesService.enqueueAutoRefreshForCurrentAssistantIfNeeded(this@RouteActivity)
             }
         }
 
