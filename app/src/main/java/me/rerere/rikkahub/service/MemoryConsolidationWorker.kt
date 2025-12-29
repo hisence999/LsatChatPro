@@ -88,7 +88,8 @@ class MemoryConsolidationWorker(
             
             for (conversation in conversationsToProcess) {
             // Skip short conversations
-            if (conversation.messageNodes.size < 4) continue
+            // Allow single-round chats (2 messages) to be consolidated into an episode.
+            if (conversation.messageNodes.size < 2) continue
             
             // Check if already consolidated (unless forced or full scan)
             if (conversation.isConsolidated && !isFullScan && forceConversationId == null) continue
@@ -120,6 +121,11 @@ class MemoryConsolidationWorker(
                 
                 1. **Summary**: Concise summary of what happened (under 100 words).
                 2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
+                
+                Language requirement:
+                - Write the Summary in the same language as the conversation.
+                - If the conversation is mixed-language, use the dominant language.
+                - Do not translate proper nouns unless the conversation does.
                 
                 Conversation:
                 $messagesText
@@ -283,6 +289,11 @@ class MemoryConsolidationWorker(
                     Reflect on the following recent memory episodes.
                     1. Extract any new permanent facts about the user. ONLY extract facts that are likely to remain true for a long time (e.g., names, relationships, core preferences, life events). Do NOT extract temporary states or trivial details.
                     2. Identify any high-level patterns or insights about the user's behavior or state of mind.
+                    
+                    Language requirement:
+                    - Write facts/insights in the same language as the episodes.
+                    - If episodes are mixed-language, use the dominant language.
+                    - Do not translate proper nouns unless the episodes do.
                     
                     Return a bulleted list of facts/insights. Return "NONE" if nothing new.
                     
@@ -486,6 +497,12 @@ class MemoryConsolidationWorker(
                     
                     Please merge them into a single, concise memory that retains all key information from all of them.
                     If they are not actually duplicates or related enough to merge, return "NO_MERGE".
+                    
+                    Language requirement:
+                    - Return the merged memory in the same language as the input memories.
+                    - If the memories are mixed-language, use the dominant language.
+                    - Do not translate proper nouns unless the memories do.
+                    
                     Return ONLY the merged memory text or "NO_MERGE".
                 """.trimIndent()
 
