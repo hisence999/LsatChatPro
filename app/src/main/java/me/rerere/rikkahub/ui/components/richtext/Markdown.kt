@@ -124,33 +124,48 @@ private fun getRpColor(pattern: String): Color? {
     return runCatching { Color(android.graphics.Color.parseColor(rule.colorHex)) }.getOrNull()
 }
 
-// Standard markdown patterns that are handled by the AST parser
+// Standard markdown patterns that are handled by the AST parser.
+// Note: some edge cases (e.g. **"quoted"**) may not be parsed as STRONG by the markdown parser,
+// so we keep a small fallback set of standard *wrapping* delimiters to handle them in plain text nodes.
 private val STANDARD_PATTERNS = setOf("*", "**", "~~", "`", "#", "##", "###", "####", "#####", "######", ">")
+private val FALLBACK_WRAPPING_PATTERNS = setOf("*", "**", "~~", "`")
 
 /**
- * Append text to AnnotatedString.Builder, scanning for custom RP patterns.
- * Custom patterns are those NOT in STANDARD_PATTERNS (which are handled by the markdown AST).
+ * Append text to AnnotatedString.Builder, scanning for RP patterns in plain text nodes.
+ * Normally, standard markdown patterns are handled by the AST parser, but we also provide a fallback
+ * for standard *wrapping* delimiters (e.g. `**...**`) in case the parser doesn't recognize them.
  * For each custom pattern, builds a regex like `pattern(.+?)pattern` and applies the color.
  */
 private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
     text: String,
     rpStyleRules: List<RpStyleRule>
 ) {
-    // Get custom patterns only (exclude standard markdown patterns)
-    val customRules = rpStyleRules.filter { it.enabled && it.pattern !in STANDARD_PATTERNS }
+    // Custom patterns + fallback wrapping delimiters
+    val rulesToScan = rpStyleRules.filter { rule ->
+        rule.enabled &&
+            rule.pattern.isNotBlank() &&
+            (rule.pattern !in STANDARD_PATTERNS || rule.pattern in FALLBACK_WRAPPING_PATTERNS)
+    }
     
-    if (customRules.isEmpty()) {
+    if (rulesToScan.isEmpty()) {
         append(text)
         return
     }
     
     // Build a combined regex for all custom patterns
     // Each pattern matches: pattern + content + pattern (non-greedy)
-    val patternRegexes = customRules.mapNotNull { rule ->
+    val patternRegexes = rulesToScan.mapNotNull { rule ->
         val escaped = Regex.escape(rule.pattern)
         runCatching {
             val color = Color(android.graphics.Color.parseColor(rule.colorHex))
-            Regex("$escaped(.+?)$escaped") to color
+            val spanStyle = when (rule.pattern) {
+                "*" -> SpanStyle(fontStyle = FontStyle.Italic, color = color)
+                "**" -> SpanStyle(fontWeight = FontWeight.SemiBold, color = color)
+                "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough, color = color)
+                "`" -> SpanStyle(fontFamily = FontFamily.Monospace, color = color)
+                else -> SpanStyle(color = color)
+            }
+            Regex("$escaped(.+?)$escaped") to spanStyle
         }.getOrNull()
     }
     
@@ -160,21 +175,21 @@ private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
     }
     
     // Find all matches from all patterns
-    data class Match(val range: IntRange, val content: String, val color: Color)
+    data class Match(val range: IntRange, val content: String, val style: SpanStyle)
     val allMatches = mutableListOf<Match>()
     
-    patternRegexes.forEach { (regex, color) ->
+    patternRegexes.forEach { (regex, style) ->
         regex.findAll(text).forEach { matchResult ->
             allMatches.add(Match(
                 range = matchResult.range,
                 content = matchResult.groupValues[1],
-                color = color
+                style = style
             ))
         }
     }
     
-    // Sort by start position
-    allMatches.sortBy { it.range.first }
+    // Sort by start position, then prefer longer matches at the same start (e.g. "**" over "*")
+    allMatches.sortWith(compareBy<Match>({ it.range.first }, { -it.range.last }))
     
     // Remove overlapping matches (keep earlier ones)
     val nonOverlapping = mutableListOf<Match>()
@@ -194,7 +209,7 @@ private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
             append(text.substring(currentIndex, match.range.first))
         }
         // Append the styled content (without the pattern delimiters)
-        withStyle(SpanStyle(color = match.color)) {
+        withStyle(match.style) {
             append(match.content)
         }
         currentIndex = match.range.last + 1
