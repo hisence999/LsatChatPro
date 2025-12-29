@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,9 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -50,6 +53,12 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+
+private enum class KeepAliveUiOption {
+    OFF,
+    ALWAYS,
+    GENERATION,
+}
 
 @Composable
 fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
@@ -187,12 +196,84 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 HapticSwitch(
                                     checked = displaySetting.enableLiveUpdate,
                                     onCheckedChange = {
-                                        updateDisplaySetting(displaySetting.copy(enableLiveUpdate = it))
+                                        updateDisplaySetting(
+                                            displaySetting.copy(
+                                                enableLiveUpdate = it,
+                                                keepAliveMode = if (it) KeepAliveMode.ALWAYS else displaySetting.keepAliveMode
+                                            )
+                                        )
                                     }
                                 )
                             }
                         )
                     }
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_keep_alive_title),
+                        trailing = {
+                            val options = remember(displaySetting.enableLiveUpdate) {
+                                buildList {
+                                    add(KeepAliveUiOption.OFF)
+                                    add(KeepAliveUiOption.ALWAYS)
+                                    if (!displaySetting.enableLiveUpdate) {
+                                        add(KeepAliveUiOption.GENERATION)
+                                    }
+                                }
+                            }
+                            val selected = remember(displaySetting) {
+                                when {
+                                    !displaySetting.enableKeepAliveNotification -> KeepAliveUiOption.OFF
+                                    displaySetting.keepAliveMode == KeepAliveMode.GENERATION -> KeepAliveUiOption.GENERATION
+                                    else -> KeepAliveUiOption.ALWAYS
+                                }
+                            }
+                            Select(
+                                options = options,
+                                selectedOption = selected,
+                                onOptionSelected = { option ->
+                                    when (option) {
+                                        KeepAliveUiOption.OFF -> updateDisplaySetting(
+                                            displaySetting.copy(
+                                                enableKeepAliveNotification = false,
+                                                keepAliveMode = KeepAliveMode.ALWAYS
+                                            )
+                                        )
+
+                                        KeepAliveUiOption.ALWAYS -> {
+                                            if (!permissionState.allPermissionsGranted) {
+                                                permissionState.requestPermissions()
+                                            }
+                                            updateDisplaySetting(
+                                                displaySetting.copy(
+                                                    enableKeepAliveNotification = true,
+                                                    keepAliveMode = KeepAliveMode.ALWAYS
+                                                )
+                                            )
+                                        }
+
+                                        KeepAliveUiOption.GENERATION -> {
+                                            if (!permissionState.allPermissionsGranted) {
+                                                permissionState.requestPermissions()
+                                            }
+                                            updateDisplaySetting(
+                                                displaySetting.copy(
+                                                    enableKeepAliveNotification = true,
+                                                    keepAliveMode = KeepAliveMode.GENERATION
+                                                )
+                                            )
+                                        }
+                                    }
+                                },
+                                optionToString = { option ->
+                                    when (option) {
+                                        KeepAliveUiOption.OFF -> stringResource(R.string.setting_keep_alive_mode_off)
+                                        KeepAliveUiOption.ALWAYS -> stringResource(R.string.setting_keep_alive_mode_always)
+                                        KeepAliveUiOption.GENERATION -> stringResource(R.string.setting_keep_alive_mode_generation)
+                                    }
+                                },
+                                modifier = Modifier.widthIn(min = 130.dp, max = 220.dp)
+                            )
+                        }
+                    )
                     SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_check_updates_title),
                         subtitle = stringResource(R.string.setting_display_page_check_updates_desc),

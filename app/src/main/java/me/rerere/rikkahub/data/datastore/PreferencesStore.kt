@@ -324,54 +324,58 @@ class SettingsStore(
         } else {
             settings
         }
-        
-        settingsFlow.value = settingsToSave
+
+        val finalSettingsToSave = settingsToSave.copy(
+            displaySetting = settingsToSave.displaySetting.coerceForConflicts()
+        )
+
+        settingsFlow.value = finalSettingsToSave
         dataStore.edit { preferences ->
-            preferences[DYNAMIC_COLOR] = settingsToSave.dynamicColor
-            preferences[THEME_ID] = settingsToSave.themeId
-            preferences[DEVELOPER_MODE] = settingsToSave.developerMode
-            preferences[ENABLE_RAG_LOGGING] = settingsToSave.enableRagLogging
-            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settingsToSave.displaySetting)
+            preferences[DYNAMIC_COLOR] = finalSettingsToSave.dynamicColor
+            preferences[THEME_ID] = finalSettingsToSave.themeId
+            preferences[DEVELOPER_MODE] = finalSettingsToSave.developerMode
+            preferences[ENABLE_RAG_LOGGING] = finalSettingsToSave.enableRagLogging
+            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(finalSettingsToSave.displaySetting)
 
-            preferences[ENABLE_WEB_SEARCH] = settingsToSave.enableWebSearch
-            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settingsToSave.favoriteModels)
-            preferences[SELECT_MODEL] = settingsToSave.chatModelId.toString()
-            preferences[TITLE_MODEL] = settingsToSave.titleModelId.toString()
-            preferences[TRANSLATE_MODEL] = settingsToSave.translateModeId.toString()
-            preferences[SUGGESTION_MODEL] = settingsToSave.suggestionModelId.toString()
-            preferences[IMAGE_GENERATION_MODEL] = settingsToSave.imageGenerationModelId.toString()
-            preferences[TITLE_PROMPT] = settingsToSave.titlePrompt
-            preferences[TRANSLATION_PROMPT] = settingsToSave.translatePrompt
-            preferences[SUGGESTION_PROMPT] = settingsToSave.suggestionPrompt
-            preferences[LEARNING_MODE_PROMPT] = settingsToSave.learningModePrompt
-            preferences[OCR_MODEL] = settingsToSave.ocrModelId.toString()
-            preferences[OCR_PROMPT] = settingsToSave.ocrPrompt
-            preferences[EMBEDDING_MODEL] = settingsToSave.embeddingModelId.toString()
+            preferences[ENABLE_WEB_SEARCH] = finalSettingsToSave.enableWebSearch
+            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(finalSettingsToSave.favoriteModels)
+            preferences[SELECT_MODEL] = finalSettingsToSave.chatModelId.toString()
+            preferences[TITLE_MODEL] = finalSettingsToSave.titleModelId.toString()
+            preferences[TRANSLATE_MODEL] = finalSettingsToSave.translateModeId.toString()
+            preferences[SUGGESTION_MODEL] = finalSettingsToSave.suggestionModelId.toString()
+            preferences[IMAGE_GENERATION_MODEL] = finalSettingsToSave.imageGenerationModelId.toString()
+            preferences[TITLE_PROMPT] = finalSettingsToSave.titlePrompt
+            preferences[TRANSLATION_PROMPT] = finalSettingsToSave.translatePrompt
+            preferences[SUGGESTION_PROMPT] = finalSettingsToSave.suggestionPrompt
+            preferences[LEARNING_MODE_PROMPT] = finalSettingsToSave.learningModePrompt
+            preferences[OCR_MODEL] = finalSettingsToSave.ocrModelId.toString()
+            preferences[OCR_PROMPT] = finalSettingsToSave.ocrPrompt
+            preferences[EMBEDDING_MODEL] = finalSettingsToSave.embeddingModelId.toString()
 
-            preferences[PROVIDERS] = JsonInstant.encodeToString(settingsToSave.providers)
+            preferences[PROVIDERS] = JsonInstant.encodeToString(finalSettingsToSave.providers)
 
-            preferences[ASSISTANTS] = JsonInstant.encodeToString(settingsToSave.assistants)
-            preferences[SELECT_ASSISTANT] = settingsToSave.assistantId.toString()
-            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settingsToSave.assistantTags)
-            preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(settingsToSave.providerTags)
-            preferences[RECENTLY_USED_ASSISTANTS] = JsonInstant.encodeToString(settingsToSave.recentlyUsedAssistants)
+            preferences[ASSISTANTS] = JsonInstant.encodeToString(finalSettingsToSave.assistants)
+            preferences[SELECT_ASSISTANT] = finalSettingsToSave.assistantId.toString()
+            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(finalSettingsToSave.assistantTags)
+            preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(finalSettingsToSave.providerTags)
+            preferences[RECENTLY_USED_ASSISTANTS] = JsonInstant.encodeToString(finalSettingsToSave.recentlyUsedAssistants)
 
-            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settingsToSave.searchServices)
-            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settingsToSave.searchCommonOptions)
-            preferences[SEARCH_SELECTED] = settingsToSave.searchServiceSelected.coerceIn(0, settingsToSave.searchServices.size - 1)
+            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(finalSettingsToSave.searchServices)
+            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(finalSettingsToSave.searchCommonOptions)
+            preferences[SEARCH_SELECTED] = finalSettingsToSave.searchServiceSelected.coerceIn(0, finalSettingsToSave.searchServices.size - 1)
 
-            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settingsToSave.mcpServers)
-            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settingsToSave.webDavConfig)
-            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settingsToSave.ttsProviders)
-            settingsToSave.selectedTTSProviderId?.let {
+            preferences[MCP_SERVERS] = JsonInstant.encodeToString(finalSettingsToSave.mcpServers)
+            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.webDavConfig)
+            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(finalSettingsToSave.ttsProviders)
+            finalSettingsToSave.selectedTTSProviderId?.let {
                 preferences[SELECTED_TTS_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_TTS_PROVIDER)
 
-            preferences[CONSOLIDATION_WORKER_INTERVAL] = settingsToSave.consolidationWorkerIntervalMinutes
-            preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] = settingsToSave.consolidationRequiresDeviceIdle
+            preferences[CONSOLIDATION_WORKER_INTERVAL] = finalSettingsToSave.consolidationWorkerIntervalMinutes
+            preferences[CONSOLIDATION_REQUIRES_DEVICE_IDLE] = finalSettingsToSave.consolidationRequiresDeviceIdle
 
-            preferences[MODES] = JsonInstant.encodeToString(settingsToSave.modes)
-            preferences[LOREBOOKS] = JsonInstant.encodeToString(settingsToSave.lorebooks)
+            preferences[MODES] = JsonInstant.encodeToString(finalSettingsToSave.modes)
+            preferences[LOREBOOKS] = JsonInstant.encodeToString(finalSettingsToSave.lorebooks)
         }
     }
 
@@ -488,6 +492,12 @@ enum class TtsFilterMode {
 }
 
 @Serializable
+enum class KeepAliveMode {
+    ALWAYS,
+    GENERATION,
+}
+
+@Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
@@ -505,6 +515,8 @@ data class DisplaySetting(
     val enableMessageGenerationHapticEffect: Boolean = false,
     val enableUIHaptics: Boolean = true,
     val skipCropImage: Boolean = false,
+    val enableKeepAliveNotification: Boolean = false,
+    val keepAliveMode: KeepAliveMode = KeepAliveMode.ALWAYS,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdate: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
@@ -513,6 +525,14 @@ data class DisplaySetting(
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
 )
+
+fun DisplaySetting.coerceForConflicts(): DisplaySetting {
+    if (!enableLiveUpdate) return this
+    return when (keepAliveMode) {
+        KeepAliveMode.ALWAYS -> this
+        KeepAliveMode.GENERATION -> copy(keepAliveMode = KeepAliveMode.ALWAYS)
+    }
+}
 
 @Serializable
 enum class ProviderViewMode {

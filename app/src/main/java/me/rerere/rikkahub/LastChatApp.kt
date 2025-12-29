@@ -25,6 +25,7 @@ import org.koin.android.ext.koin.androidLogger
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -34,6 +35,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import me.rerere.rikkahub.service.MemoryConsolidationWorker
 import me.rerere.rikkahub.service.SpontaneousWorker
+import me.rerere.rikkahub.service.KeepAliveService
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRescheduleWorker
 import java.util.concurrent.TimeUnit
 import org.koin.androidx.workmanager.koin.workManagerFactory
@@ -43,6 +45,7 @@ private const val TAG = "LastChatApp"
 
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
+const val KEEP_ALIVE_NOTIFICATION_CHANNEL_ID = "keep_alive"
 
 class LastChatApp : Application() {
     override fun onCreate() {
@@ -127,6 +130,20 @@ class LastChatApp : Application() {
                     }
                 }
         }
+
+        // Keep-alive notification (foreground service) controller
+        get<AppScope>().launch {
+            get<SettingsStore>().settingsFlow
+                .map { it.displaySetting.let { display -> display.enableKeepAliveNotification to display.keepAliveMode } }
+                .distinctUntilChanged()
+                .collect { (enabled, mode) ->
+                    when {
+                        !enabled -> KeepAliveService.stop(this@LastChatApp)
+                        mode == KeepAliveMode.ALWAYS -> KeepAliveService.startAlways(this@LastChatApp)
+                        else -> KeepAliveService.stopAlways(this@LastChatApp)
+                    }
+                }
+        }
     }
 
     private fun deleteTempFiles() {
@@ -156,8 +173,18 @@ class LastChatApp : Application() {
             .setName(getString(R.string.notification_channel_chat_live_update))
             .setVibrationEnabled(false)
             .build()
+        val keepAliveChannel = NotificationChannelCompat
+            .Builder(
+                KEEP_ALIVE_NOTIFICATION_CHANNEL_ID,
+                NotificationManagerCompat.IMPORTANCE_LOW
+            )
+            .setName(getString(R.string.notification_channel_keep_alive))
+            .setVibrationEnabled(false)
+            .setShowBadge(false)
+            .build()
         notificationManager.createNotificationChannel(chatCompletedChannel)
         notificationManager.createNotificationChannel(chatLiveUpdateChannel)
+        notificationManager.createNotificationChannel(keepAliveChannel)
     }
 
     override fun onTerminate() {

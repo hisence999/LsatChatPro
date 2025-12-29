@@ -68,6 +68,7 @@ import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
+import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -94,6 +95,7 @@ import java.io.FileInputStream
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
@@ -145,6 +147,8 @@ class ChatService(
     private val liveUpdateLastNotifiedState = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
     private val liveUpdateSmallIcons = ConcurrentHashMap<Uuid, Icon>()
     private val liveUpdateLargeIcons = ConcurrentHashMap<Uuid, Icon>()
+
+    private val keepAliveActiveGenerationCount = AtomicInteger(0)
 
     fun setPendingUiWelcomePhraseForAppContext(conversationId: Uuid, welcomePhrase: String) {
         val normalized = welcomePhrase.replace("\r", "").trim()
@@ -198,6 +202,13 @@ class ChatService(
     private fun shouldUseLiveUpdate(settings: Settings): Boolean {
         val display = settings.displaySetting
         return display.enableNotificationOnMessageGeneration && display.enableLiveUpdate
+    }
+
+    private fun shouldUseKeepAliveDuringGeneration(settings: Settings): Boolean {
+        val display = settings.displaySetting
+        if (!display.enableKeepAliveNotification) return false
+        if (display.keepAliveMode != KeepAliveMode.GENERATION) return false
+        return !display.enableLiveUpdate
     }
 
     private fun startLiveUpdateSession(conversationId: Uuid): Long {
@@ -950,12 +961,37 @@ class ChatService(
         val settings = settingsStore.settingsFlow.first()
         val model = settings.getCurrentChatModel() ?: return
         val useLiveUpdate = shouldUseLiveUpdate(settings)
+        val useGenerationKeepAlive = shouldUseKeepAliveDuringGeneration(settings)
 
         // Track generation start time for tokens/sec calculation
         // Set on first token arrival to exclude TTFT (time to first token) from the calculation
         var firstTokenTime: Long? = null
 
         var shouldConsumeWelcomePhraseAppContext = false
+        var keepAliveStarted = false
+        var keepAliveFinalized = false
+
+        fun finalizeGenerationKeepAlive(cause: Throwable?) {
+            if (!useGenerationKeepAlive) return
+            if (!keepAliveStarted) return
+            if (keepAliveFinalized) return
+            keepAliveFinalized = true
+
+            val remaining = keepAliveActiveGenerationCount.updateAndGet { current ->
+                (current - 1).coerceAtLeast(0)
+            }
+            if (remaining > 0) {
+                KeepAliveService.startOrUpdateGeneration(context, remaining)
+                return
+            }
+
+            when {
+                cause == null -> KeepAliveService.finishGenerationOk(context)
+                cause is CancellationException -> KeepAliveService.finishGenerationCancelled(context)
+                else -> KeepAliveService.finishGenerationError(context)
+            }
+        }
+
         runCatching {
             val conversation = getConversationFlow(conversationId).value
 
@@ -1006,6 +1042,12 @@ class ChatService(
                     force = true,
                     error = null,
                 )
+            }
+
+            if (useGenerationKeepAlive) {
+                val activeCount = keepAliveActiveGenerationCount.incrementAndGet()
+                keepAliveStarted = true
+                KeepAliveService.startOrUpdateGeneration(context, activeCount)
             }
 
             // start generating
@@ -1100,6 +1142,8 @@ class ChatService(
                 truncateIndex = conversation.truncateIndex,
                 enabledModeIds = conversation.enabledModeIds,
             ).onCompletion { cause ->
+                finalizeGenerationKeepAlive(cause)
+
                 // Calculate generation duration from first token (excludes TTFT)
                 val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
 
@@ -1171,6 +1215,7 @@ class ChatService(
                 }
             }
         }.onFailure {
+            finalizeGenerationKeepAlive(it)
             if (useLiveUpdate) {
                 liveUpdateStates.remove(conversationId)
                 if (it is CancellationException) {
