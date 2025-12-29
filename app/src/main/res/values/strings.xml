@@ -490,6 +490,7 @@
     <string name="setting_provider_page_add_model">Add Model</string>
     <string name="setting_provider_page_add_models_hint">Click button below to add models</string>
     <string name="setting_provider_page_add_new_model">Add New Model</string>
+    <string name="setting_provider_page_add_from_list">Add From List</string>
     <string name="setting_provider_page_add_provider">Add Provider</string>
     <string name="setting_provider_page_add_provider_override">Add Provider Override</string>
     <string name="setting_provider_page_advanced_settings">Advanced Settings</string>
