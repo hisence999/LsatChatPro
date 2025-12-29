@@ -86,6 +86,9 @@ import me.rerere.rikkahub.utils.applyPlaceholders
 import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -119,6 +122,7 @@ class ChatService(
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
+    private val okHttpClient: OkHttpClient,
     val mcpManager: McpManager,
 ) {
     // 存储每个对话的状态
@@ -340,7 +344,7 @@ class ChatService(
                 }
             }
             is Avatar.Emoji -> buildEmojiLargeIcon(avatar.content)
-            is Avatar.Image -> buildImageLargeIcon(avatar.url)
+            is Avatar.Image -> buildImageLargeIcon(avatar.url) ?: buildTextLargeIcon(name)
             is Avatar.Dummy -> buildTextLargeIcon(name)
         }
     }
@@ -444,12 +448,78 @@ class ChatService(
     private fun buildImageLargeIcon(url: String): Icon? {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase()
-        if (scheme == "http" || scheme == "https") return null
+        if (scheme == "http" || scheme == "https") {
+            val bytes = downloadImageBytes(url, maxBytes = 10L * 1024 * 1024) ?: return null
+            val bitmap = decodeSampledBitmapFromBytes(bytes, reqSize = 256) ?: return null
+            val scaled = scaleCenterCropSquare(bitmap, size = 160)
+            if (!bitmap.isRecycled) bitmap.recycle()
+            return Icon.createWithAdaptiveBitmap(scaled)
+        }
 
         val bitmap = decodeSampledBitmapFromUri(uri, reqSize = 256) ?: return null
         val scaled = scaleCenterCropSquare(bitmap, size = 160)
         if (!bitmap.isRecycled) bitmap.recycle()
         return Icon.createWithAdaptiveBitmap(scaled)
+    }
+
+    private fun downloadImageBytes(url: String, maxBytes: Long): ByteArray? {
+        return runCatching {
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@runCatching null
+                val body = response.body ?: return@runCatching null
+
+                val contentLength = body.contentLength()
+                if (contentLength > maxBytes) return@runCatching null
+
+                body.byteStream().use { input ->
+                    val out = ByteArrayOutputStream()
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        total += read
+                        if (total > maxBytes) return@runCatching null
+                        out.write(buffer, 0, read)
+                    }
+                    out.toByteArray()
+                }
+            }
+        }.getOrNull()
+    }
+
+    private fun decodeSampledBitmapFromBytes(bytes: ByteArray, reqSize: Int): Bitmap? {
+        fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+            val (height, width) = options.outHeight to options.outWidth
+            var inSampleSize = 1
+            if (height > reqHeight || width > reqWidth) {
+                var halfHeight = height / 2
+                var halfWidth = width / 2
+                while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                    inSampleSize *= 2
+                }
+            }
+            return inSampleSize.coerceAtLeast(1)
+        }
+
+        return runCatching {
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+            if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return@runCatching null
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
+        }.getOrNull()
     }
 
     private fun decodeSampledBitmapFromUri(uri: Uri, reqSize: Int): Bitmap? {

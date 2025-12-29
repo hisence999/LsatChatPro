@@ -81,6 +81,7 @@ val appModule = module {
             templateTransformer = get(),
             providerManager = get(),
             localTools = get(),
+            okHttpClient = get(),
             mcpManager = get()
         )
     }
