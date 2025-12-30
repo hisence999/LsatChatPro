@@ -88,4 +88,5 @@ LastChat is not just a tool; it is designed to be a "fidget toy".
 -   **Unit Tests:** Place in `src/test`. Cover parsing and logic.
 -   **Instrumented Tests:** Place in `src/androidTest`. Cover flows.
 -   **Commit Guidelines:** Use Conventional Commits (`feat:`, `fix:`, `chore:`).
+-   **Localization Requirement:** When adding or modifying features that introduce/modify user-visible text, you MUST provide both Simplified Chinese and Traditional Chinese `strings.xml` (typically `values-zh-rCN/strings.xml` and `values-zh-rTW/strings.xml`) alongside the default resources.
 -   **Language Support:** Do not submit new languages unless explicitly requested.
