@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -45,6 +47,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
@@ -78,15 +81,22 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GroupChatSeat
+import me.rerere.rikkahub.data.model.GroupChatSeatOverrides
+import me.rerere.rikkahub.data.model.GroupChatTemplate
+import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.applyPlaceholders
 import me.rerere.rikkahub.utils.deleteChatFiles
+import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
 import okhttp3.OkHttpClient
@@ -747,7 +757,7 @@ class ChatService(
             MutableStateFlow(
                 Conversation.ofId(
                     id = conversationId,
-                    assistantId = settings.getCurrentAssistant().id
+                    assistantId = settings.chatTarget.id
                 )
             )
         }
@@ -787,16 +797,33 @@ class ChatService(
         val conversation = conversationRepo.getConversationById(conversationId)
         if (conversation != null) {
             updateConversation(conversationId, conversation)
-            settingsStore.updateAssistant(conversation.assistantId)
+            val settingsSnapshot = settingsStore.settingsFlow.value
+            val isGroupChat = settingsSnapshot.groupChatTemplates.any { it.id == conversation.assistantId }
+            if (isGroupChat) {
+                settingsStore.updateChatTarget(ChatTarget.GroupChat(conversation.assistantId))
+            } else {
+                settingsStore.updateAssistant(conversation.assistantId)
+            }
         } else {
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
-            val assistant = currentSettings.getCurrentAssistant()
-            val newConversation = Conversation.ofId(
+            val target = currentSettings.chatTarget
+            val baseConversation = Conversation.ofId(
                 id = conversationId,
-                assistantId = assistant.id,
-            ).updateCurrentMessages(assistant.presetMessages)
-            updateConversation(conversationId, newConversation)
+                assistantId = target.id,
+            )
+
+            val initialConversation = when (target) {
+                is ChatTarget.Assistant -> {
+                    val assistant = currentSettings.getAssistantById(target.assistantId)
+                        ?: currentSettings.getCurrentAssistant()
+                    baseConversation.updateCurrentMessages(assistant.presetMessages)
+                }
+
+                is ChatTarget.GroupChat -> baseConversation
+            }
+
+            updateConversation(conversationId, initialConversation)
         }
     }
 
@@ -864,7 +891,13 @@ class ChatService(
     }
 
     // 发送消息
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean=true, isTemporaryChat: Boolean = false) {
+    fun sendMessage(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        answer: Boolean=true,
+        isTemporaryChat: Boolean = false,
+        groupChatSpeakerSeatIdsOverride: List<Uuid>? = null,
+    ) {
         // 标记为临时对话
         if (isTemporaryChat) {
             temporaryConversations.add(conversationId)
@@ -888,7 +921,10 @@ class ChatService(
 
                 // 开始补全
                 if(answer){
-                    handleMessageComplete(conversationId)
+                    handleMessageComplete(
+                        conversationId = conversationId,
+                        groupChatSpeakerSeatIdsOverride = groupChatSpeakerSeatIdsOverride,
+                    )
                 }
 
                 _generationDoneFlow.emit(conversationId)
@@ -959,10 +995,10 @@ class ChatService(
     // 处理消息补全
     private suspend fun handleMessageComplete(
         conversationId: Uuid,
-        messageRange: ClosedRange<Int>? = null
+        messageRange: ClosedRange<Int>? = null,
+        groupChatSpeakerSeatIdsOverride: List<Uuid>? = null,
     ) {
         val settings = settingsStore.settingsFlow.first()
-        val model = settings.getCurrentChatModel() ?: return
         val useLiveUpdate = shouldUseLiveUpdate(settings)
         val useGenerationKeepAlive = shouldUseKeepAliveDuringGeneration(settings)
 
@@ -1000,15 +1036,6 @@ class ChatService(
 
             // reset suggestions
             updateConversation(conversationId, conversation.copy(chatSuggestions = emptyList()))
-
-            // Check if model supports tools when external tools are configured
-            val assistant = settings.getCurrentAssistant()
-            val hasExternalTools = (assistant.searchMode !is AssistantSearchMode.Off) || mcpManager.getAllAvailableTools().isNotEmpty()
-            if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (hasExternalTools) {
-                    _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
-                }
-            }
 
             // check invalid messages
             checkInvalidMessages(conversationId)
@@ -1051,6 +1078,35 @@ class ChatService(
                 val activeCount = keepAliveActiveGenerationCount.incrementAndGet()
                 keepAliveStarted = true
                 KeepAliveService.startOrUpdateGeneration(context, activeCount)
+            }
+
+            val groupTemplate = settings.groupChatTemplates.find { it.id == conversation.assistantId }
+            if (groupTemplate != null) {
+                if (firstTokenTime == null) {
+                    firstTokenTime = System.currentTimeMillis()
+                }
+                handleGroupChatMessageComplete(
+                    conversationId = conversationId,
+                    settings = settings,
+                    conversation = conversation,
+                    template = groupTemplate,
+                    forcedSpeakerSeatIds = groupChatSpeakerSeatIdsOverride,
+                    baseMessages = baseMessages,
+                    appContextTransformer = appContextTransformer,
+                    useLiveUpdate = useLiveUpdate,
+                )
+                return@runCatching
+            }
+
+            val model = settings.getCurrentChatModel() ?: return@runCatching
+
+            // Check if model supports tools when external tools are configured
+            val assistant = settings.getCurrentAssistant()
+            val hasExternalTools = (assistant.searchMode !is AssistantSearchMode.Off) || mcpManager.getAllAvailableTools().isNotEmpty()
+            if (!model.abilities.contains(ModelAbility.TOOL)) {
+                if (hasExternalTools) {
+                    _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
+                }
             }
 
             // start generating
@@ -1268,6 +1324,375 @@ class ChatService(
                 removeConversationReference(conversationId) // 移除引用
             }
         }
+    }
+
+    private suspend fun handleGroupChatMessageComplete(
+        conversationId: Uuid,
+        settings: Settings,
+        conversation: Conversation,
+        template: GroupChatTemplate,
+        forcedSpeakerSeatIds: List<Uuid>? = null,
+        baseMessages: List<UIMessage>,
+        appContextTransformer: me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer?,
+        useLiveUpdate: Boolean,
+    ) {
+        if (template.seats.isEmpty()) return
+        val seatsById = template.seats.associateBy { it.id }
+
+        val lastUserText = baseMessages
+            .lastOrNull { it.role == MessageRole.USER }
+            ?.parts
+            ?.filterIsInstance<UIMessagePart.Text>()
+            ?.joinToString("\n") { it.text }
+            ?.trim()
+            .orEmpty()
+
+        val mentionedSeatIds = resolveMentionedSeatIds(
+            text = lastUserText,
+            settings = settings,
+            template = template,
+        )
+
+        val forcedSeatIds = forcedSpeakerSeatIds
+            ?.filter { seatId -> seatsById.containsKey(seatId) }
+            ?.distinct()
+        val speakerSeatIds = when {
+            !forcedSeatIds.isNullOrEmpty() -> forcedSeatIds
+            mentionedSeatIds.isNotEmpty() -> mentionedSeatIds
+            else -> routeGroupChatSpeakers(
+                settings = settings,
+                template = template,
+                userText = lastUserText,
+            )
+        }
+
+        if (speakerSeatIds.isEmpty()) return
+
+        val resolvedSpeakers = speakerSeatIds
+            .asSequence()
+            .distinct()
+            .mapNotNull { seatId -> seatsById[seatId] }
+            .toList()
+
+        if (resolvedSpeakers.isEmpty()) return
+
+        var runningMessages = baseMessages
+        var includeAppContextTransformer = appContextTransformer != null
+        val speakersGenerated = mutableListOf<GroupChatSeat>()
+
+        suspend fun generateSeatReply(
+            seat: GroupChatSeat,
+            assistant: me.rerere.rikkahub.data.model.Assistant,
+            model: Model,
+            systemPromptSuffix: String? = null,
+        ) {
+            val seatAssistant = applySeatOverrides(assistant, seat.overrides, systemPromptSuffix)
+            val seatModel = model.copy(tools = emptySet())
+
+            val seatInputTransformers = buildList {
+                if (includeAppContextTransformer) {
+                    appContextTransformer?.let(::add)
+                    includeAppContextTransformer = false
+                }
+                addAll(inputTransformers)
+                add(templateTransformer)
+            }
+
+            generationHandler.generateText(
+                settings = settings,
+                model = seatModel,
+                messages = runningMessages,
+                assistant = seatAssistant,
+                memories = null,
+                tools = emptyList(),
+                inputTransformers = seatInputTransformers,
+                outputTransformers = outputTransformers,
+                truncateIndex = conversation.truncateIndex,
+                enabledModeIds = conversation.enabledModeIds,
+                maxSteps = 1,
+                source = AIRequestSource.CHAT,
+            ).collect { chunk ->
+                when (chunk) {
+                    is GenerationChunk.Messages -> {
+                        val patchedMessages = patchGroupChatSpeaker(
+                            messages = chunk.messages,
+                            seat = seat,
+                            assistant = assistant,
+                            model = model,
+                        )
+
+                        val current = getConversationFlow(conversationId).value
+                        val updated = current.updateCurrentMessages(patchedMessages)
+                        updateConversation(conversationId, updated)
+
+                        if (useLiveUpdate) {
+                            val previousState = liveUpdateStates.put(conversationId, ChatLiveUpdateState.OUTPUT)
+                            notifyLiveUpdate(
+                                conversationId = conversationId,
+                                state = ChatLiveUpdateState.OUTPUT,
+                                settings = settings,
+                                force = previousState != ChatLiveUpdateState.OUTPUT,
+                                error = null,
+                            )
+                        }
+                    }
+                }
+            }
+
+            runningMessages = getConversationFlow(conversationId).value.currentMessages
+        }
+
+        resolvedSpeakers.forEach { seat ->
+            val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+            val seatModelId = seat.overrides.chatModelId ?: assistant.chatModelId ?: settings.chatModelId
+            val seatModel = settings.findModelById(seatModelId) ?: return@forEach
+
+            generateSeatReply(seat = seat, assistant = assistant, model = seatModel)
+            speakersGenerated += seat
+        }
+
+        // Assistant ↔ Assistant replies: simple deterministic chain, max 3 messages per round.
+        var remainingInterReplies = 3
+        for (i in 1 until speakersGenerated.size) {
+            if (remainingInterReplies <= 0) break
+
+            val speaker = speakersGenerated[i]
+            val replyTo = speakersGenerated[i - 1]
+
+            val speakerAssistant = settings.getAssistantById(speaker.assistantId) ?: continue
+            val replyToAssistant = settings.getAssistantById(replyTo.assistantId)
+
+            val speakerModelId = speaker.overrides.chatModelId ?: speakerAssistant.chatModelId ?: settings.chatModelId
+            val speakerModel = settings.findModelById(speakerModelId) ?: continue
+
+            val replyToName = replyToAssistant?.name?.ifBlank { "another assistant" } ?: "another assistant"
+            val suffix = buildString {
+                append("\n\n")
+                append("You are now replying to ")
+                append(replyToName)
+                append(". Do not address the user. Keep it concise.")
+            }
+
+            generateSeatReply(seat = speaker, assistant = speakerAssistant, model = speakerModel, systemPromptSuffix = suffix)
+            remainingInterReplies -= 1
+        }
+    }
+
+    private fun applySeatOverrides(
+        assistant: me.rerere.rikkahub.data.model.Assistant,
+        overrides: GroupChatSeatOverrides,
+        systemPromptSuffix: String?,
+    ): me.rerere.rikkahub.data.model.Assistant {
+        val updatedPrompt = systemPromptSuffix?.let { suffix ->
+            if (suffix.isBlank()) assistant.systemPrompt else assistant.systemPrompt + suffix
+        } ?: assistant.systemPrompt
+
+        return assistant.copy(
+            chatModelId = overrides.chatModelId ?: assistant.chatModelId,
+            thinkingBudget = overrides.thinkingBudget ?: assistant.thinkingBudget,
+            maxTokens = overrides.maxTokens ?: assistant.maxTokens,
+            searchMode = AssistantSearchMode.Off,
+            preferBuiltInSearch = false,
+            mcpServers = emptySet(),
+            localTools = emptyList(),
+            systemPrompt = updatedPrompt,
+        )
+    }
+
+    private fun patchGroupChatSpeaker(
+        messages: List<UIMessage>,
+        seat: GroupChatSeat,
+        assistant: me.rerere.rikkahub.data.model.Assistant,
+        model: Model,
+    ): List<UIMessage> {
+        val index = messages.indexOfLast { it.role == MessageRole.ASSISTANT }
+        if (index !in messages.indices) return messages
+
+        val target = messages[index]
+        val patched = target.copy(
+            modelId = target.modelId ?: model.id,
+            speakerAssistantId = assistant.id,
+            speakerSeatId = seat.id,
+        )
+
+        return messages.toMutableList().apply {
+            this[index] = patched
+        }
+    }
+
+    private fun resolveMentionedSeatIds(
+        text: String,
+        settings: Settings,
+        template: GroupChatTemplate,
+    ): List<Uuid> {
+        if (text.isBlank() || !text.contains('@')) return emptyList()
+
+        val tagNamesById = settings.assistantTags.associate { it.id to it.name }
+
+        val keyToSeatIds = mutableMapOf<String, MutableList<Uuid>>()
+        template.seats.forEach { seat ->
+            val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+            val keys = buildList {
+                assistant.name.trim().takeIf { it.isNotBlank() }?.let(::add)
+                assistant.tags.forEach { tagId ->
+                    tagNamesById[tagId]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
+                }
+            }
+            keys.forEach { key ->
+                val normalized = key.lowercase(Locale.ROOT)
+                keyToSeatIds.getOrPut(normalized) { mutableListOf() }.add(seat.id)
+            }
+        }
+
+        if (keyToSeatIds.isEmpty()) return emptyList()
+
+        val sortedKeys = keyToSeatIds.keys.sortedByDescending { it.length }
+        val result = mutableListOf<Uuid>()
+        val lowerText = text.lowercase(Locale.ROOT)
+
+        var cursor = 0
+        while (true) {
+            val atIndex = lowerText.indexOf('@', startIndex = cursor)
+            if (atIndex < 0) break
+
+            val after = lowerText.substring(atIndex + 1)
+            val matchedKey = sortedKeys.firstOrNull { after.startsWith(it) }
+            if (matchedKey != null) {
+                keyToSeatIds[matchedKey]
+                    ?.forEach { seatId ->
+                        if (seatId !in result) result.add(seatId)
+                    }
+                cursor = atIndex + 1 + matchedKey.length
+            } else {
+                cursor = atIndex + 1
+            }
+        }
+
+        return result
+    }
+
+    private suspend fun routeGroupChatSpeakers(
+        settings: Settings,
+        template: GroupChatTemplate,
+        userText: String,
+    ): List<Uuid> {
+        val enabledSeats = template.seats.filter { it.defaultEnabled }
+        if (enabledSeats.isEmpty()) return emptyList()
+
+        val fallback = enabledSeats.take(3).map { it.id }
+        val hostModelId = template.hostModelId ?: return fallback
+        val hostModel = settings.findModelById(hostModelId) ?: return fallback
+
+        val seatLines = enabledSeats.mapNotNull { seat ->
+            val assistant = settings.getAssistantById(seat.assistantId) ?: return@mapNotNull null
+            val name = assistant.name.ifBlank { "Assistant" }
+            val tagNames = assistant.tags.mapNotNull { tagId ->
+                settings.assistantTags.firstOrNull { it.id == tagId }?.name?.trim()?.takeIf { it.isNotBlank() }
+            }
+            buildString {
+                append("- ")
+                append(seat.id.toString())
+                append(": ")
+                append(name)
+                if (tagNames.isNotEmpty()) {
+                    append(" [")
+                    append(tagNames.joinToString(", "))
+                    append("]")
+                }
+            }
+        }
+
+        val routerPrompt = buildString {
+            appendLine("You are the host router for a group chat.")
+            appendLine("You NEVER reply to the user. You ONLY output JSON.")
+            appendLine()
+            appendLine("Rules:")
+            appendLine("- Choose 1 to 3 speakers from the seat list.")
+            appendLine("- Prefer the most relevant seats; avoid redundancy.")
+            appendLine("- Output schema: {\"speakers\":[\"<seatId>\", ...]}")
+            appendLine()
+            appendLine("Seats:")
+            seatLines.forEach { appendLine(it) }
+            appendLine()
+            appendLine("User message:")
+            appendLine(userText.take(4000))
+        }
+
+        val routerAssistant = me.rerere.rikkahub.data.model.Assistant(
+            name = "GroupChatHostRouter",
+            systemPrompt = routerPrompt,
+            streamOutput = false,
+            enableMemory = false,
+            searchMode = AssistantSearchMode.Off,
+            preferBuiltInSearch = false,
+            mcpServers = emptySet(),
+            localTools = emptyList(),
+            thinkingBudget = 0,
+        )
+
+        var lastMessages: List<UIMessage> = emptyList()
+        generationHandler.generateText(
+            settings = settings,
+            model = hostModel.copy(tools = emptySet()),
+            messages = listOf(
+                UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(UIMessagePart.Text("Route the speakers now.")),
+                )
+            ),
+            assistant = routerAssistant,
+            memories = null,
+            tools = emptyList(),
+            inputTransformers = emptyList(),
+            outputTransformers = emptyList(),
+            maxSteps = 1,
+            source = AIRequestSource.OTHER,
+        ).collect { chunk ->
+            if (chunk is GenerationChunk.Messages) {
+                lastMessages = chunk.messages
+            }
+        }
+
+        val outputText = lastMessages
+            .lastOrNull { it.role == MessageRole.ASSISTANT }
+            ?.toText()
+            ?.trim()
+            .orEmpty()
+
+        val allowedSeatIds = enabledSeats.map { it.id }.toSet()
+        val parsed = parseSeatIdArray(outputText, key = "speakers", allowList = allowedSeatIds)
+        return parsed?.take(3) ?: fallback
+    }
+
+    private fun parseSeatIdArray(
+        text: String,
+        key: String,
+        allowList: Set<Uuid>,
+    ): List<Uuid>? {
+        val jsonText = extractJsonObjectOrNull(text) ?: return null
+        val jsonObject = runCatching { JsonInstant.parseToJsonElement(jsonText) }.getOrNull() as? JsonObject
+            ?: return null
+        val value = jsonObject[key] ?: return null
+        val array = value as? JsonArray ?: return null
+        val ids = array.mapNotNull { element ->
+            element.jsonPrimitiveOrNull
+                ?.contentOrNull
+                ?.let { raw -> runCatching { Uuid.parse(raw) }.getOrNull() }
+        }
+        return ids.filter { it in allowList }.distinct()
+    }
+
+    private fun extractJsonObjectOrNull(text: String): String? {
+        if (text.isBlank()) return null
+        val trimmed = text.trim()
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+        val start = trimmed.indexOf('{')
+        val end = trimmed.lastIndexOf('}')
+        if (start < 0 || end <= start) return null
+        return trimmed.substring(start, end + 1)
     }
 
     // 创建搜索工具

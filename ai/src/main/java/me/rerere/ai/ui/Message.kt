@@ -27,7 +27,9 @@ data class UIMessage(
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
     val translation: String? = null,
-    val generationDurationMs: Long? = null // Duration of AI generation in milliseconds
+    val generationDurationMs: Long? = null, // Duration of AI generation in milliseconds
+    val speakerAssistantId: Uuid? = null,
+    val speakerSeatId: Uuid? = null,
 ) {
     private fun appendChunk(chunk: MessageChunk): UIMessage {
         val choice = chunk.choices.getOrNull(0)

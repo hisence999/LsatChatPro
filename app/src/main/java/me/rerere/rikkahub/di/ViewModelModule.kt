@@ -2,6 +2,7 @@ package me.rerere.rikkahub.di
 
 import me.rerere.rikkahub.ui.pages.assistant.AssistantVM
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
+import me.rerere.rikkahub.ui.pages.assistant.groupchat.GroupChatTemplateDetailVM
 import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEditVM
 import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksVM
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -32,6 +33,12 @@ val viewModelModule = module {
     }
     viewModelOf(::SettingVM)
     viewModelOf(::AssistantVM)
+    viewModel<GroupChatTemplateDetailVM> {
+        GroupChatTemplateDetailVM(
+            id = it.get(),
+            settingsStore = get(),
+        )
+    }
     viewModel<AssistantDetailVM> {
         AssistantDetailVM(
             id = it.get(),

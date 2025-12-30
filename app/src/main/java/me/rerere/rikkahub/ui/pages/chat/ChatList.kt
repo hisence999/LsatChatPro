@@ -88,6 +88,7 @@ import androidx.compose.material.icons.rounded.TouchApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -275,6 +276,7 @@ private fun SharedTransitionScope.ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    val message = node.currentMessage
                     val isSelected by remember(node.id) {
                         derivedStateOf { selectedItems.contains(node.id) }
                     }
@@ -289,28 +291,44 @@ private fun SharedTransitionScope.ChatListNormal(
                         },
                         enabled = selecting,
                     ) {
-                        val previousRole = if (index > 0) conversation.messageNodes[index - 1].currentMessage.role else null
+                        val previousMessage = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
+                        val speakerChanged = previousMessage?.role == MessageRole.ASSISTANT &&
+                            message.role == MessageRole.ASSISTANT &&
+                            previousMessage.speakerAssistantId != message.speakerAssistantId
+                        val previousRole = if (speakerChanged) null else previousMessage?.role
                         val isLast = index == conversation.messageNodes.lastIndex
+                        val assistantForMessage = message.speakerAssistantId
+                            ?.let { speakerId -> settings.getAssistantById(speakerId) }
+                            ?: message.speakerSeatId
+                                ?.let { seatId ->
+                                    settings.groupChatTemplates
+                                        .find { it.id == conversation.assistantId }
+                                        ?.seats
+                                        ?.find { it.id == seatId }
+                                        ?.assistantId
+                                }
+                                ?.let { assistantId -> settings.getAssistantById(assistantId) }
+                            ?: settings.getAssistantById(conversation.assistantId)
                         ChatMessage(
                             node = node,
                             previousRole = previousRole,
                             isLast = isLast,
                             onCitationClick = onCitationClick,
-                            model = node.currentMessage.modelId?.let { settings.findModelById(it) },
-                            assistant = settings.getAssistantById(conversation.assistantId),
+                            model = message.modelId?.let { settings.findModelById(it) },
+                            assistant = assistantForMessage,
                             loading = loading && isLast,
                             isRecentlyRestored = node.id in recentlyRestoredNodeIds,
                             onRegenerate = {
-                                onRegenerate(node.currentMessage)
+                                onRegenerate(message)
                             },
                             onEdit = {
-                                onEdit(node.currentMessage)
+                                onEdit(message)
                             },
                             onFork = {
-                                onForkMessage(node.currentMessage)
+                                onForkMessage(message)
                             },
                             onDelete = {
-                                onDelete(node.currentMessage)
+                                onDelete(message)
                             },
                             onShare = {
                                 selecting = true  // 使用 CoroutineScope 延迟状态更新

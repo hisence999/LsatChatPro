@@ -185,12 +185,18 @@ enum class ExpandState {
     Files,
 }
 
+enum class ChatInputUiMode {
+    Normal,
+    GroupChat,
+}
+
 @Composable
 fun ChatInput(
     state: ChatInputState,
     conversation: Conversation,
     settings: Settings,
     mcpManager: McpManager,
+    uiMode: ChatInputUiMode = ChatInputUiMode.Normal,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -278,7 +284,7 @@ fun ChatInput(
             }
 
             // Suggestions row (shown above toolbar, below images)
-            if (chatSuggestions.isNotEmpty()) {
+            if (uiMode == ChatInputUiMode.Normal && chatSuggestions.isNotEmpty()) {
                 ChatSuggestionsRow(
                     suggestions = chatSuggestions,
                     onClickSuggestion = onClickSuggestion
@@ -367,7 +373,7 @@ fun ChatInput(
 
                     // Search & Reasoning (Visible when NOT expanded)
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isExpanded,
+                        visible = uiMode == ChatInputUiMode.Normal && !isExpanded,
                         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandHorizontally(),
                         exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkHorizontally()
                     ) {
@@ -455,8 +461,10 @@ fun ChatInput(
                                         onFocusChange = { isFocused = it },
                                         trailingIcon = {
                                             // Crossfade between Model Picker and Send Button
+                                            val showSendButton =
+                                                uiMode == ChatInputUiMode.GroupChat || !state.isEmpty() || state.loading
                                             androidx.compose.animation.AnimatedContent(
-                                                targetState = !state.isEmpty() || state.loading,
+                                                targetState = showSendButton,
                                                 transitionSpec = {
                                                     androidx.compose.animation.fadeIn(
                                                         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
@@ -577,6 +585,7 @@ fun ChatInput(
                             state = state,
                             assistant = assistant,
                             mcpManager = mcpManager,
+                            uiMode = uiMode,
                             onClearContext = onClearContext,
                             onUpdateAssistant = onUpdateAssistant,
                             onUpdateConversation = onUpdateConversation,
@@ -980,6 +989,7 @@ private fun FilesPicker(
     assistant: Assistant,
     state: ChatInputState,
     mcpManager: McpManager,
+    uiMode: ChatInputUiMode,
     onClearContext: () -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateConversation: (Conversation) -> Unit,
@@ -1087,7 +1097,7 @@ private fun FilesPicker(
             }
         }
 
-        if (!WindowInsets.isImeVisible) {
+        if (uiMode == ChatInputUiMode.Normal && !WindowInsets.isImeVisible) {
             Spacer(modifier = Modifier.height(8.dp))
 
             val activeModeCount = remember(conversation.enabledModeIds, settings.modes) {
@@ -1237,7 +1247,7 @@ private fun FilesPicker(
 
     }
 
-    if (showMcpPicker) {
+    if (uiMode == ChatInputUiMode.Normal && showMcpPicker) {
         ModalBottomSheet(
             onDismissRequest = { showMcpPicker = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

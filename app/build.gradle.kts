@@ -39,6 +39,10 @@ android {
             dimension = "channel"
             applicationIdSuffix = ".plus"
         }
+        create("exp") {
+            dimension = "channel"
+            applicationIdSuffix = ".exp"
+        }
         create("zh") {
             dimension = "channel"
             applicationIdSuffix = ".zh"

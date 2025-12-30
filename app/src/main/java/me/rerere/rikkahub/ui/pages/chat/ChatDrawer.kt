@@ -57,7 +57,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.Greeting
@@ -217,7 +219,7 @@ fun ChatDrawerContent(
             )
 
             // 助手选择器
-            if (settings.assistants.size > 1) {
+            if (settings.assistants.size > 1 || settings.groupChatTemplates.isNotEmpty()) {
                 AssistantPicker(
                     settings = settings,
                     onUpdateSettings = { newSettings ->
@@ -234,7 +236,7 @@ fun ChatDrawerContent(
                             val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
                                 Uuid.random()
                             } else {
-                                repo.getConversationsOfAssistant(settings.assistantId)
+                                repo.getConversationsOfAssistant(settings.chatTarget.id)
                                     .first()
                                     .firstOrNull()
                                     ?.id ?: Uuid.random()
@@ -244,8 +246,15 @@ fun ChatDrawerContent(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     onClickSetting = {
-                        val currentAssistantId = settings.assistantId
-                        navController.navigate(Screen.AssistantDetail(id = currentAssistantId.toString()))
+                        when (val target = settings.chatTarget) {
+                            is ChatTarget.Assistant -> {
+                                navController.navigate(Screen.AssistantDetail(id = target.assistantId.toString()))
+                            }
+
+                            is ChatTarget.GroupChat -> {
+                                navController.navigate(Screen.GroupChatTemplateDetail(id = target.templateId.toString()))
+                            }
+                        }
                     }
                 )
             }

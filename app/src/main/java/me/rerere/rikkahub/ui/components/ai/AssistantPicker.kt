@@ -4,7 +4,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,15 +58,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Group
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.ChatTarget
+import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.hooks.rememberAssistantState
+import me.rerere.rikkahub.ui.hooks.rememberChatTargetState
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -81,18 +83,29 @@ fun AssistantPicker(
     modifier: Modifier = Modifier,
     onClickSetting: () -> Unit,
 ) {
-    val state = rememberAssistantState(settings, onUpdateSettings)
+    val state = rememberChatTargetState(settings, onUpdateSettings)
     val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+    val defaultGroupChatName = stringResource(R.string.group_chat_default_name)
     var showPicker by remember { mutableStateOf(false) }
 
     NavigationDrawerItem(
         icon = null,
         label = {
+            val haptics = rememberPremiumHaptics()
+            val title = when (val target = state.currentTarget) {
+                is ChatTarget.Assistant -> {
+                    state.currentAssistant?.name?.ifEmpty { defaultAssistantName } ?: defaultAssistantName
+                }
+
+                is ChatTarget.GroupChat -> {
+                    state.currentGroupChat?.name?.ifEmpty { defaultGroupChatName } ?: defaultGroupChatName
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = state.currentAssistant.name.ifEmpty { defaultAssistantName },
+                    text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
                     ),
@@ -102,11 +115,32 @@ fun AssistantPicker(
 
                 Spacer(Modifier.weight(1f))
 
-                UIAvatar(
-                    name = state.currentAssistant.name.ifEmpty { defaultAssistantName },
-                    value = state.currentAssistant.avatar,
-                    onClick = onClickSetting
-                )
+                val assistant = state.currentAssistant
+                if (assistant != null) {
+                    UIAvatar(
+                        name = assistant.name.ifEmpty { defaultAssistantName },
+                        value = assistant.avatar,
+                        onClick = onClickSetting
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clickable {
+                                haptics.perform(HapticPattern.Pop)
+                                onClickSetting()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Group,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         },
         onClick = {
@@ -119,11 +153,9 @@ fun AssistantPicker(
     if (showPicker) {
         AssistantPickerSheet(
             settings = settings,
-            currentAssistant = state.currentAssistant,
-            onAssistantSelected = { assistant ->
-                // Settings update happens immediately inside the sheet
-                state.setSelectAssistant(assistant)
-            },
+            currentTarget = state.currentTarget,
+            onAssistantSelected = { assistant -> state.selectAssistant(assistant) },
+            onGroupChatSelected = { template -> state.selectGroupChat(template) },
             onNavigate = {
                 // Navigation callback - called after animation
                 showPicker = false
@@ -139,21 +171,23 @@ fun AssistantPicker(
 @Composable
 fun AssistantPickerSheet(
     settings: Settings,
-    currentAssistant: Assistant,
+    currentTarget: ChatTarget,
     onAssistantSelected: (Assistant) -> Unit,
+    onGroupChatSelected: (GroupChatTemplate) -> Unit,
     onNavigate: () -> Unit = {},  // Called after animation completes
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+    val defaultGroupChatName = stringResource(R.string.group_chat_default_name)
 
     // 标签过滤状态
     var selectedTagIds by remember { mutableStateOf(emptySet<Uuid>()) }
     
     // Transition state - which assistant is being switched to (null = not transitioning)
-    var transitioningAssistantId by remember { mutableStateOf<Uuid?>(null) }
-    val isTransitioning = transitioningAssistantId != null
+    var transitioningTarget by remember { mutableStateOf<ChatTarget?>(null) }
+    val isTransitioning = transitioningTarget != null
 
     // 根据选中的标签过滤助手
     val filteredAssistants = remember(settings.assistants, selectedTagIds) {
@@ -231,7 +265,7 @@ fun AssistantPickerSheet(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 itemsIndexed(filteredAssistants, key = { _, item -> item.id }) { index, assistant ->
-                    val checked = assistant.id == currentAssistant.id
+                    val checked = currentTarget is ChatTarget.Assistant && assistant.id == currentTarget.assistantId
                     
                     // Determine position in the list for corner rounding
                     val position = when {
@@ -277,12 +311,12 @@ fun AssistantPickerSheet(
                             .clickable(enabled = !isTransitioning) {
                                 if (!checked) {
                                     haptics.perform(HapticPattern.Pop)
-                                    transitioningAssistantId = assistant.id
+                                    transitioningTarget = ChatTarget.Assistant(assistant.id)
                                     // Update settings immediately
                                     onAssistantSelected(assistant)
                                     // Close panels then navigate
                                     scope.launch {
-                                        transitioningAssistantId = null
+                                        transitioningTarget = null
                                         sheetState.hide() // Animate sheet close
                                         onNavigate() // drawer close + navigate
                                     }
@@ -317,7 +351,7 @@ fun AssistantPickerSheet(
                             )
                         }
                         // Crossfade between edit icon and loading spinner
-                        val showSpinner = transitioningAssistantId == assistant.id
+                        val showSpinner = (transitioningTarget as? ChatTarget.Assistant)?.assistantId == assistant.id
                         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                             Crossfade(
                                 targetState = showSpinner,
@@ -348,6 +382,148 @@ fun AssistantPickerSheet(
                                             contentDescription = null,
                                             tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (settings.groupChatTemplates.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.group_chat_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                        )
+                    }
+
+                    itemsIndexed(settings.groupChatTemplates, key = { _, item -> item.id }) { index, template ->
+                        val checked = currentTarget is ChatTarget.GroupChat && template.id == currentTarget.templateId
+                        val position = when {
+                            settings.groupChatTemplates.size == 1 -> "ONLY"
+                            index == 0 -> "FIRST"
+                            index == settings.groupChatTemplates.lastIndex -> "LAST"
+                            else -> "MIDDLE"
+                        }
+
+                        val topCorner by animateDpAsState(
+                            targetValue = if (checked) 50.dp else when (position) {
+                                "ONLY", "FIRST" -> 24.dp
+                                else -> 10.dp
+                            },
+                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+                            label = "groupTopCorner"
+                        )
+                        val bottomCorner by animateDpAsState(
+                            targetValue = if (checked) 50.dp else when (position) {
+                                "ONLY", "LAST" -> 24.dp
+                                else -> 10.dp
+                            },
+                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
+                            label = "groupBottomCorner"
+                        )
+
+                        val shape = RoundedCornerShape(
+                            topStart = topCorner, topEnd = topCorner,
+                            bottomStart = bottomCorner, bottomEnd = bottomCorner
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .animateItem()
+                                .fillMaxWidth()
+                                .clip(shape)
+                                .background(
+                                    color = if (checked) MaterialTheme.colorScheme.primaryContainer
+                                    else if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                                )
+                                .clickable(enabled = !isTransitioning) {
+                                    if (!checked) {
+                                        haptics.perform(HapticPattern.Pop)
+                                        transitioningTarget = ChatTarget.GroupChat(template.id)
+                                        onGroupChatSelected(template)
+                                        scope.launch {
+                                            transitioningTarget = null
+                                            sheetState.hide()
+                                            onNavigate()
+                                        }
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Group,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = template.name.ifBlank { defaultGroupChatName },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = stringResource(R.string.group_chat_members_count, template.seats.size),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+
+                            val showSpinner = (transitioningTarget as? ChatTarget.GroupChat)?.templateId == template.id
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                Crossfade(
+                                    targetState = showSpinner,
+                                    animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+                                    label = "group_edit_spinner"
+                                ) { transitioning ->
+                                    if (transitioning) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                            color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                if (!isTransitioning) {
+                                                    scope.launch {
+                                                        sheetState.hide()
+                                                        onDismiss()
+                                                        navController.navigate(Screen.GroupChatTemplateDetail(template.id.toString()))
+                                                    }
+                                                }
+                                            },
+                                            enabled = !isTransitioning
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Edit,
+                                                contentDescription = null,
+                                                tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }

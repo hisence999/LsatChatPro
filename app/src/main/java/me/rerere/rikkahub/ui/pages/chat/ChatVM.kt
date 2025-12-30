@@ -43,6 +43,7 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
@@ -167,15 +168,15 @@ class ChatVM(
     // 聊天列表 (使用 Paging 分页加载)
     val conversations: Flow<PagingData<ConversationListItem>> =
         combine(
-            settings.map { it.assistantId }.distinctUntilChanged(),
+            settings.map { it.chatTarget.id }.distinctUntilChanged(),
             _searchQuery
-        ) { assistantId, query -> assistantId to query }
-            .flatMapLatest { (assistantId, query) ->
+        ) { targetId, query -> targetId to query }
+            .flatMapLatest { (targetId, query) ->
                 // 根据搜索关键词决定使用哪个数据源
                 if (query.isBlank()) {
-                    conversationRepo.getConversationsOfAssistantPaging(assistantId)
+                    conversationRepo.getConversationsOfAssistantPaging(targetId)
                 } else {
-                    conversationRepo.searchConversationsOfAssistantPaging(assistantId, query)
+                    conversationRepo.searchConversationsOfAssistantPaging(targetId, query)
                 }
             }
             .map { pagingData ->
@@ -321,7 +322,12 @@ class ChatVM(
         chatService.setPendingUiWelcomePhraseForAppContext(_conversationId, welcomePhrase)
     }
 
-    fun handleMessageSend(content: List<UIMessagePart>, answer: Boolean = true, isTemporaryChat: Boolean = false) {
+    fun handleMessageSend(
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+        isTemporaryChat: Boolean = false,
+        groupChatSpeakerSeatIdsOverride: List<Uuid>? = null,
+    ) {
         if (content.isEmptyInputMessage()) return
         analytics.logEvent("ai_send_message", null)
 
@@ -346,7 +352,13 @@ class ChatVM(
             content
         }
 
-        chatService.sendMessage(_conversationId, processedContent, answer, isTemporaryChat)
+        chatService.sendMessage(
+            conversationId = _conversationId,
+            content = processedContent,
+            answer = answer,
+            isTemporaryChat = isTemporaryChat,
+            groupChatSpeakerSeatIdsOverride = groupChatSpeakerSeatIdsOverride,
+        )
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {

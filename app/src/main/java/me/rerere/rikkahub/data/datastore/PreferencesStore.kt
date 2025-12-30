@@ -33,6 +33,8 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.model.ChatTarget
+import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
@@ -94,10 +96,12 @@ class SettingsStore(
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
+        val CHAT_TARGET = stringPreferencesKey("chat_target")
         val ASSISTANTS = stringPreferencesKey("assistants")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
         val PROVIDER_TAGS = stringPreferencesKey("provider_tags")
         val RECENTLY_USED_ASSISTANTS = stringPreferencesKey("recently_used_assistants")
+        val GROUP_CHAT_TEMPLATES = stringPreferencesKey("group_chat_templates")
 
         // 搜索
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
@@ -164,6 +168,8 @@ class SettingsStore(
                 throw exception
             }
         }.map { preferences ->
+            val assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
+                ?: DEFAULT_ASSISTANT_ID
             Settings(
                 enableWebSearch = preferences[ENABLE_WEB_SEARCH] == true,
                 favoriteModels = preferences[FAVORITE_MODELS]?.let {
@@ -185,8 +191,10 @@ class SettingsStore(
                 ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 embeddingModelId = preferences[EMBEDDING_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
-                assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
-                    ?: DEFAULT_ASSISTANT_ID,
+                assistantId = assistantId,
+                chatTarget = preferences[CHAT_TARGET]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<ChatTarget>(raw) }.getOrNull()
+                } ?: ChatTarget.Assistant(assistantId),
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -197,6 +205,9 @@ class SettingsStore(
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
                 recentlyUsedAssistants = preferences[RECENTLY_USED_ASSISTANTS]?.let {
                     JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+                groupChatTemplates = preferences[GROUP_CHAT_TEMPLATES]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<GroupChatTemplate>>(raw) }.getOrNull()
                 } ?: emptyList(),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
@@ -264,6 +275,34 @@ class SettingsStore(
         .map { settings ->
             // 去重并清理无效引用
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
+            val dedupedAssistants = settings.assistants.distinctBy { it.id }.map { assistant ->
+                assistant.copy(
+                    mcpServers = assistant.mcpServers.filter { serverId ->
+                        serverId in validMcpServerIds
+                    }.toSet()
+                )
+            }
+            val validAssistantIds = dedupedAssistants.map { it.id }.toSet()
+            val dedupedGroupChats = settings.groupChatTemplates
+                .distinctBy { it.id }
+                .map { template ->
+                    template.copy(
+                        seats = template.seats
+                            .distinctBy { it.id }
+                            .filter { seat -> seat.assistantId in validAssistantIds }
+                    )
+                }
+            val sanitizedChatTarget = when (val target = settings.chatTarget) {
+                is ChatTarget.Assistant -> {
+                    val id = target.assistantId
+                    if (id in validAssistantIds) target else ChatTarget.Assistant(dedupedAssistants.first().id)
+                }
+
+                is ChatTarget.GroupChat -> {
+                    val id = target.templateId
+                    if (dedupedGroupChats.any { it.id == id }) target else ChatTarget.Assistant(dedupedAssistants.first().id)
+                }
+            }
             settings.copy(
                 providers = settings.providers.distinctBy { it.id }.map { provider ->
                     when (provider) {
@@ -288,6 +327,8 @@ class SettingsStore(
                         }.toSet()
                     )
                 },
+                groupChatTemplates = dedupedGroupChats,
+                chatTarget = sanitizedChatTarget,
                 ttsProviders = settings.ttsProviders.distinctBy { it.id },
                 favoriteModels = settings.favoriteModels.filter { uuid ->
                     settings.providers.flatMap { it.models }.any { it.id == uuid }
@@ -356,9 +397,11 @@ class SettingsStore(
 
             preferences[ASSISTANTS] = JsonInstant.encodeToString(finalSettingsToSave.assistants)
             preferences[SELECT_ASSISTANT] = finalSettingsToSave.assistantId.toString()
+            preferences[CHAT_TARGET] = JsonInstant.encodeToString(finalSettingsToSave.chatTarget)
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(finalSettingsToSave.assistantTags)
             preferences[PROVIDER_TAGS] = JsonInstant.encodeToString(finalSettingsToSave.providerTags)
             preferences[RECENTLY_USED_ASSISTANTS] = JsonInstant.encodeToString(finalSettingsToSave.recentlyUsedAssistants)
+            preferences[GROUP_CHAT_TEMPLATES] = JsonInstant.encodeToString(finalSettingsToSave.groupChatTemplates)
 
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(finalSettingsToSave.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(finalSettingsToSave.searchCommonOptions)
@@ -384,8 +427,15 @@ class SettingsStore(
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
+        updateChatTarget(ChatTarget.Assistant(assistantId))
+    }
+
+    suspend fun updateChatTarget(target: ChatTarget) {
         dataStore.edit { preferences ->
-            preferences[SELECT_ASSISTANT] = assistantId.toString()
+            preferences[CHAT_TARGET] = JsonInstant.encodeToString(target)
+            if (target is ChatTarget.Assistant) {
+                preferences[SELECT_ASSISTANT] = target.assistantId.toString()
+            }
         }
     }
 
@@ -436,11 +486,13 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val embeddingModelId: Uuid = Uuid.random(),
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
+    val chatTarget: ChatTarget = ChatTarget.Assistant(DEFAULT_ASSISTANT_ID),
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val providerTags: List<Tag> = emptyList(),
     val recentlyUsedAssistants: List<Uuid> = emptyList(), // For app shortcuts, max 3 items
+    val groupChatTemplates: List<GroupChatTemplate> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
@@ -684,6 +736,17 @@ fun Settings.sanitize(): Pair<Settings, me.rerere.rikkahub.data.sync.BackupClean
         }
     }
 
+    val validAssistantIds = cleanedAssistants.map { it.id }.toSet()
+    val cleanedGroupChats = groupChatTemplates
+        .distinctBy { it.id }
+        .map { template ->
+            template.copy(
+                seats = template.seats
+                    .distinctBy { it.id }
+                    .filter { seat -> seat.assistantId in validAssistantIds }
+            )
+        }
+
     // 3. Remove orphaned favorite model references
     val allModelIds = providers.flatMap { it.models.map { m -> m.id } }.toSet()
     val cleanedFavorites = favoriteModels.filter { it in allModelIds }
@@ -696,8 +759,25 @@ fun Settings.sanitize(): Pair<Settings, me.rerere.rikkahub.data.sync.BackupClean
         0
     }
 
+    val fallbackAssistantId = cleanedAssistants.firstOrNull()?.id ?: DEFAULT_ASSISTANT_ID
+    val sanitizedAssistantId = if (assistantId in validAssistantIds) assistantId else fallbackAssistantId
+    val sanitizedChatTarget = when (val target = chatTarget) {
+        is ChatTarget.Assistant -> {
+            val id = target.assistantId
+            if (id in validAssistantIds) target else ChatTarget.Assistant(sanitizedAssistantId)
+        }
+
+        is ChatTarget.GroupChat -> {
+            val id = target.templateId
+            if (cleanedGroupChats.any { it.id == id }) target else ChatTarget.Assistant(sanitizedAssistantId)
+        }
+    }
+
     val cleanedSettings = copy(
+        assistantId = sanitizedAssistantId,
+        chatTarget = sanitizedChatTarget,
         assistants = cleanedAssistants,
+        groupChatTemplates = cleanedGroupChats,
         favoriteModels = cleanedFavorites,
         searchServiceSelected = clampedSearchSelected,
     )

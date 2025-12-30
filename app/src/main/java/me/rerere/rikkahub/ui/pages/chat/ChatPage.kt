@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,17 +16,25 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PermanentNavigationDrawer
@@ -35,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +79,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddBox
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.History
@@ -84,18 +96,23 @@ import me.rerere.rikkahub.service.selectWelcomePhrase
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.RpStyleRule
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ChatInputUiMode
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
+import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberChatInputState
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.createChatFilesByContents
@@ -113,7 +130,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.layout
-
+import java.util.Locale
+ 
 private enum class EmptyChatOverlay {
     None,
     Welcome,
@@ -454,6 +472,7 @@ private fun ChatPageContent(
     val context = LocalContext.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
+    var mentionDisambiguationState by remember { mutableStateOf<GroupChatMentionDisambiguationState?>(null) }
     var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
     val currentConversationState = rememberUpdatedState(conversation)
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
@@ -728,6 +747,10 @@ private fun ChatPageContent(
                         )
                 )
 
+                val groupChatTemplate = remember(setting.groupChatTemplates, conversation.assistantId) {
+                    setting.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+                }
+                val isGroupChatTemplate = groupChatTemplate != null
                 ChatInput(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -736,6 +759,7 @@ private fun ChatPageContent(
                     settings = setting,
                     conversation = conversation,
                     mcpManager = vm.mcpManager,
+                    uiMode = if (isGroupChatTemplate) ChatInputUiMode.GroupChat else ChatInputUiMode.Normal,
                     chatSuggestions = conversation.chatSuggestions,
                     onClickSuggestion = { suggestion ->
                         if (currentChatModel != null) {
@@ -753,7 +777,7 @@ private fun ChatPageContent(
                     onCancelClick = {
                         loadingJob?.cancel()
                     },
-                    enableSearch = enableWebSearch,
+                    enableSearch = if (isGroupChatTemplate) false else enableWebSearch,
                     onToggleSearch = {
                         if (enableWebSearch) {
                             vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
@@ -774,14 +798,40 @@ private fun ChatPageContent(
                                 parts = inputState.getContents(),
                                 messageId = inputState.editingMessage!!,
                             )
+                            inputState.clearInput()
                         } else {
+                            val content = inputState.getContents()
+                            val groupTemplate = groupChatTemplate
+                            if (isGroupChatTemplate && groupTemplate != null) {
+                                val userText = content
+                                    .filterIsInstance<UIMessagePart.Text>()
+                                    .joinToString("\n") { it.text }
+                                    .trim()
+                                val analysis = analyzeGroupChatMentionText(
+                                    text = userText,
+                                    settings = setting,
+                                    template = groupTemplate,
+                                )
+                                if (analysis.ambiguousKeysInOrder.isNotEmpty()) {
+                                    mentionDisambiguationState = GroupChatMentionDisambiguationState(
+                                        template = groupTemplate,
+                                        analysis = analysis,
+                                        selectedSeatIdsByKey = analysis.ambiguousKeysInOrder.associateWith { key ->
+                                            analysis.keyToInfo[key]?.seatIds?.firstOrNull()?.let(::setOf).orEmpty()
+                                        },
+                                        pendingContent = content,
+                                        isTemporaryChat = isTemporaryChat,
+                                    )
+                                    return@ChatInput
+                                }
+                            }
 
-                            vm.handleMessageSend(inputState.getContents(), isTemporaryChat = isTemporaryChat)
+                            vm.handleMessageSend(content, isTemporaryChat = isTemporaryChat)
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
+                            inputState.clearInput()
                         }
-                        inputState.clearInput()
                     },
                     onLongSendClick = {
                         if (inputState.isEditing()) {
@@ -825,6 +875,304 @@ private fun ChatPageContent(
                         vm.handleMessageTruncate()
                     },
                 )
+
+                val disambiguationState = mentionDisambiguationState
+                if (disambiguationState != null) {
+                    GroupChatMentionDisambiguationSheet(
+                        settings = setting,
+                        state = disambiguationState,
+                        onUpdateState = { updated -> mentionDisambiguationState = updated },
+                        onConfirm = {
+                            val invalidKey = disambiguationState.analysis.ambiguousKeysInOrder.firstOrNull { key ->
+                                disambiguationState.selectedSeatIdsByKey[key].isNullOrEmpty()
+                            }
+                            if (invalidKey != null) {
+                                val keyLabel = disambiguationState.analysis.keyToInfo[invalidKey]?.displayName ?: invalidKey
+                                toaster.show(
+                                    message = context.getString(R.string.group_chat_mention_disambiguation_required, keyLabel),
+                                    type = ToastType.Warning,
+                                )
+                                return@GroupChatMentionDisambiguationSheet
+                            }
+
+                            val speakerSeatIds = resolveGroupChatMentionSeatOverride(disambiguationState)
+                            if (speakerSeatIds.isEmpty()) {
+                                toaster.show(
+                                    message = context.getString(R.string.group_chat_mention_disambiguation_empty),
+                                    type = ToastType.Warning,
+                                )
+                                return@GroupChatMentionDisambiguationSheet
+                            }
+
+                            vm.handleMessageSend(
+                                content = disambiguationState.pendingContent,
+                                isTemporaryChat = disambiguationState.isTemporaryChat,
+                                groupChatSpeakerSeatIdsOverride = speakerSeatIds,
+                            )
+                            scope.launch {
+                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                            }
+                            inputState.clearInput()
+                            mentionDisambiguationState = null
+                        },
+                        onDismiss = { mentionDisambiguationState = null },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class MentionKeyInfo(
+    val displayName: String,
+    val seatIds: List<Uuid>,
+)
+
+private data class GroupChatMentionAnalysis(
+    val mentionedKeysInOrder: List<String>,
+    val keyToInfo: Map<String, MentionKeyInfo>,
+    val ambiguousKeysInOrder: List<String>,
+)
+
+private data class GroupChatMentionDisambiguationState(
+    val template: GroupChatTemplate,
+    val analysis: GroupChatMentionAnalysis,
+    val selectedSeatIdsByKey: Map<String, Set<Uuid>>,
+    val pendingContent: List<UIMessagePart>,
+    val isTemporaryChat: Boolean,
+)
+
+private data class MutableMentionKeyInfo(
+    var displayName: String,
+    val seatIds: MutableList<Uuid>,
+)
+
+private fun analyzeGroupChatMentionText(
+    text: String,
+    settings: Settings,
+    template: GroupChatTemplate,
+): GroupChatMentionAnalysis {
+    if (text.isBlank() || !text.contains('@')) {
+        return GroupChatMentionAnalysis(
+            mentionedKeysInOrder = emptyList(),
+            keyToInfo = emptyMap(),
+            ambiguousKeysInOrder = emptyList(),
+        )
+    }
+
+    val tagNamesById = settings.assistantTags.associate { it.id to it.name }
+    val keyToInfo = mutableMapOf<String, MutableMentionKeyInfo>()
+
+    template.seats.forEach { seat ->
+        val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+        val keys = buildList {
+            assistant.name.trim().takeIf { it.isNotBlank() }?.let(::add)
+            assistant.tags.forEach { tagId ->
+                tagNamesById[tagId]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
+        keys.forEach { key ->
+            val normalized = key.lowercase(Locale.ROOT)
+            val info = keyToInfo.getOrPut(normalized) {
+                MutableMentionKeyInfo(displayName = key, seatIds = mutableListOf())
+            }
+            if (info.displayName.isBlank()) info.displayName = key
+            info.seatIds.add(seat.id)
+        }
+    }
+
+    if (keyToInfo.isEmpty()) {
+        return GroupChatMentionAnalysis(
+            mentionedKeysInOrder = emptyList(),
+            keyToInfo = emptyMap(),
+            ambiguousKeysInOrder = emptyList(),
+        )
+    }
+
+    val sortedKeys = keyToInfo.keys.sortedByDescending { it.length }
+    val lowerText = text.lowercase(Locale.ROOT)
+    val mentionedKeysInOrder = mutableListOf<String>()
+    val mentionedKeySet = mutableSetOf<String>()
+    val ambiguousKeysInOrder = mutableListOf<String>()
+    val ambiguousKeySet = mutableSetOf<String>()
+
+    var cursor = 0
+    while (true) {
+        val atIndex = lowerText.indexOf('@', startIndex = cursor)
+        if (atIndex < 0) break
+
+        val after = lowerText.substring(atIndex + 1)
+        val matchedKey = sortedKeys.firstOrNull { key -> after.startsWith(key) }
+        if (matchedKey != null) {
+            if (mentionedKeySet.add(matchedKey)) {
+                mentionedKeysInOrder.add(matchedKey)
+            }
+            val seats = keyToInfo[matchedKey]?.seatIds.orEmpty()
+            if (seats.size > 1 && ambiguousKeySet.add(matchedKey)) {
+                ambiguousKeysInOrder.add(matchedKey)
+            }
+            cursor = atIndex + 1 + matchedKey.length
+        } else {
+            cursor = atIndex + 1
+        }
+    }
+
+    val frozenKeyToInfo = keyToInfo.mapValues { (_, info) ->
+        MentionKeyInfo(
+            displayName = info.displayName,
+            seatIds = info.seatIds.distinct(),
+        )
+    }
+
+    return GroupChatMentionAnalysis(
+        mentionedKeysInOrder = mentionedKeysInOrder,
+        keyToInfo = frozenKeyToInfo,
+        ambiguousKeysInOrder = ambiguousKeysInOrder,
+    )
+}
+
+private fun resolveGroupChatMentionSeatOverride(
+    state: GroupChatMentionDisambiguationState,
+): List<Uuid> {
+    val validSeatIds = state.template.seats.map { it.id }.toSet()
+    val result = mutableListOf<Uuid>()
+
+    state.analysis.mentionedKeysInOrder.forEach { key ->
+        val info = state.analysis.keyToInfo[key] ?: return@forEach
+        val seatIds = if (info.seatIds.size <= 1) {
+            info.seatIds
+        } else {
+            val selected = state.selectedSeatIdsByKey[key].orEmpty()
+            info.seatIds.filter { seatId -> seatId in selected }
+        }
+
+        seatIds.forEach { seatId ->
+            if (seatId in validSeatIds && seatId !in result) {
+                result.add(seatId)
+            }
+        }
+    }
+
+    return result
+}
+
+@Composable
+private fun GroupChatMentionDisambiguationSheet(
+    settings: Settings,
+    state: GroupChatMentionDisambiguationState,
+    onUpdateState: (GroupChatMentionDisambiguationState) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.7f)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.group_chat_mention_disambiguation_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.group_chat_mention_disambiguation_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            val seatsById = remember(state.template) {
+                state.template.seats.associateBy { it.id }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                state.analysis.ambiguousKeysInOrder.forEach { key ->
+                    val info = state.analysis.keyToInfo[key] ?: return@forEach
+                    Text(
+                        text = "@${info.displayName}",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+
+                    val selectedSeatIds = state.selectedSeatIdsByKey[key].orEmpty()
+                    info.seatIds.forEach { seatId ->
+                        val seat = seatsById[seatId]
+                        val assistant = seat?.assistantId?.let(settings::getAssistantById)
+                        val assistantName = assistant?.name?.ifBlank { info.displayName } ?: info.displayName
+                        val resolvedModelId =
+                            seat?.overrides?.chatModelId ?: assistant?.chatModelId ?: settings.chatModelId
+                        val modelName = resolvedModelId
+                            ?.let(settings::findModelById)
+                            ?.displayName
+                            ?.ifBlank { resolvedModelId.toString().take(8) }
+                            ?: stringResource(R.string.group_chat_model_default)
+                        val seatIndex = state.template.seats.indexOfFirst { it.id == seatId }.takeIf { it >= 0 }?.plus(1)
+                        val subtitle = buildString {
+                            if (seatIndex != null) {
+                                append("Seat ")
+                                append(seatIndex)
+                                append(" · ")
+                            }
+                            append(modelName)
+                        }
+
+                        val checked = seatId in selectedSeatIds
+                        ListItem(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val current = state.selectedSeatIdsByKey[key].orEmpty()
+                                    val updated = if (checked) current - seatId else current + seatId
+                                    haptics.perform(HapticPattern.Pop)
+                                    onUpdateState(
+                                        state.copy(
+                                            selectedSeatIdsByKey = state.selectedSeatIdsByKey + (key to updated),
+                                        )
+                                    )
+                                },
+                            colors = ListItemDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            ),
+                            leadingContent = {
+                                Checkbox(
+                                    checked = checked,
+                                    onCheckedChange = null,
+                                )
+                            },
+                            headlineContent = { Text(assistantName) },
+                            supportingContent = {
+                                Text(
+                                    text = subtitle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Button(
+                onClick = {
+                    haptics.perform(HapticPattern.Pop)
+                    onConfirm()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = stringResource(R.string.send))
             }
         }
     }
@@ -853,6 +1201,9 @@ private fun TopBar(
     
     // State for assistant picker - must be at function level for proper recomposition
     var showAssistantPicker by remember { mutableStateOf(false) }
+    val groupChatTemplateForConversation = remember(settings.groupChatTemplates, conversation.assistantId) {
+        settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+    }
     val assistantForConversation = settings.getAssistantById(conversation.assistantId)
         ?: settings.getCurrentAssistant()
 
@@ -948,12 +1299,31 @@ private fun TopBar(
                                 modifier = Modifier.size(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                    value = assistantForConversation.avatar,
-                                    modifier = Modifier.size(32.dp),
-                                    onClick = { showAssistantPicker = true }
-                                )
+                                if (groupChatTemplateForConversation != null) {
+                                    Surface(
+                                        onClick = { showAssistantPicker = true },
+                                        modifier = Modifier.size(32.dp),
+                                        shape = androidx.compose.foundation.shape.CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        tonalElevation = 0.dp,
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Group,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                        name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                        value = assistantForConversation.avatar,
+                                        modifier = Modifier.size(32.dp),
+                                        onClick = { showAssistantPicker = true }
+                                    )
+                                }
                             }
                         }
                     }
@@ -970,12 +1340,31 @@ private fun TopBar(
                                 modifier = Modifier.size(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                    value = assistantForConversation.avatar,
-                                    modifier = Modifier.size(32.dp),
-                                    onClick = { showAssistantPicker = true }
-                                )
+                                if (groupChatTemplateForConversation != null) {
+                                    Surface(
+                                        onClick = { showAssistantPicker = true },
+                                        modifier = Modifier.size(32.dp),
+                                        shape = androidx.compose.foundation.shape.CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        tonalElevation = 0.dp,
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Group,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                        name = assistantForConversation.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                        value = assistantForConversation.avatar,
+                                        modifier = Modifier.size(32.dp),
+                                        onClick = { showAssistantPicker = true }
+                                    )
+                                }
                             }
                         }
                     }
@@ -1003,13 +1392,17 @@ private fun TopBar(
     
     // Assistant picker sheet - outside TopAppBar for proper state handling
     if (showAssistantPicker) {
-        val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(settings, onUpdateSettings)
+        val chatTargetState = me.rerere.rikkahub.ui.hooks.rememberChatTargetState(settings, onUpdateSettings)
         me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
             settings = settings,
-            currentAssistant = assistantForConversation,
+            currentTarget = chatTargetState.currentTarget,
             onAssistantSelected = { selectedAssistant ->
-                assistantState.setSelectAssistant(selectedAssistant)
+                chatTargetState.selectAssistant(selectedAssistant)
                 onSetConversationAssistant(selectedAssistant.id)
+                showAssistantPicker = false
+            },
+            onGroupChatSelected = { template ->
+                chatTargetState.selectGroupChat(template)
                 showAssistantPicker = false
             },
             onDismiss = { showAssistantPicker = false }
