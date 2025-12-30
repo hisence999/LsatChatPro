@@ -10,6 +10,8 @@ data class AIRequestLogEntity(
     val id: Long = 0,
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
+    @ColumnInfo(name = "latency_ms")
+    val latencyMs: Long?,
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long?,
     @ColumnInfo(name = "source")
@@ -28,11 +30,14 @@ data class AIRequestLogEntity(
     val paramsJson: String,
     @ColumnInfo(name = "request_messages_json")
     val requestMessagesJson: String,
+    @ColumnInfo(name = "request_url", defaultValue = "")
+    val requestUrl: String,
     @ColumnInfo(name = "request_preview")
     val requestPreview: String,
     @ColumnInfo(name = "response_preview")
     val responsePreview: String,
+    @ColumnInfo(name = "response_text", defaultValue = "")
+    val responseText: String,
     @ColumnInfo(name = "error")
     val error: String?,
 )
-

@@ -343,7 +343,7 @@ class GenerationHandler(
             try {
                 val queryText = recentMessagesForScan.takeLast(3).joinToString("\n")
                 if (queryText.isNotBlank()) {
-                    embeddingService.embed(queryText)
+                    embeddingService.embed(text = queryText)
                 } else null
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to compute query embedding for RAG", e)
@@ -659,6 +659,7 @@ class GenerationHandler(
                 stream = true
             ))
             val startAt = System.currentTimeMillis()
+            var firstChunkAt: Long? = null
             var failure: Throwable? = null
             try {
                 providerImpl.streamText(
@@ -666,6 +667,7 @@ class GenerationHandler(
                     messages = internalMessages,
                     params = params
                 ).collect {
+                    if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
                     messages = messages.handleMessageChunk(chunk = it, model = model)
                     it.usage?.let { usage ->
                         messages = messages.mapIndexed { index, message ->
@@ -689,6 +691,7 @@ class GenerationHandler(
                     requestMessages = internalMessages,
                     responseText = messages.lastOrNull()?.toContentText().orEmpty(),
                     stream = true,
+                    latencyMs = firstChunkAt?.let { it - startAt },
                     durationMs = (System.currentTimeMillis() - startAt),
                     error = failure,
                 )
@@ -732,6 +735,7 @@ class GenerationHandler(
                     requestMessages = internalMessages,
                     responseText = messages.lastOrNull()?.toContentText().orEmpty(),
                     stream = false,
+                    latencyMs = (System.currentTimeMillis() - startAt),
                     durationMs = (System.currentTimeMillis() - startAt),
                     error = failure,
                 )
@@ -936,6 +940,7 @@ class GenerationHandler(
             )
             val requestMessages = messages
             val startAt = System.currentTimeMillis()
+            var firstChunkAt: Long? = null
             var failure: Throwable? = null
             try {
                 providerHandler.streamText(
@@ -943,6 +948,7 @@ class GenerationHandler(
                     messages = messages,
                     params = params,
                 ).collect { chunk ->
+                    if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
                     messages = messages.handleMessageChunk(chunk)
                     translatedText = messages.lastOrNull()?.toContentText() ?: ""
 
@@ -962,6 +968,7 @@ class GenerationHandler(
                     requestMessages = requestMessages,
                     responseText = translatedText,
                     stream = true,
+                    latencyMs = firstChunkAt?.let { it - startAt },
                     durationMs = (System.currentTimeMillis() - startAt),
                     error = failure,
                 )
@@ -1007,6 +1014,7 @@ class GenerationHandler(
                     requestMessages = messages,
                     responseText = translatedText,
                     stream = false,
+                    latencyMs = (System.currentTimeMillis() - startAt),
                     durationMs = (System.currentTimeMillis() - startAt),
                     error = failure,
                 )

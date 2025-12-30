@@ -1173,4 +1173,6 @@
   <string name="export_format_sillytavern">SillyTavern</string>
   <string name="export_format_tavern">Tavern（兼容）</string>
   <string name="lorebook_import_success">已導入：%s</string>
+  <string name="request_log_detail_title">請求日誌</string>
+  <string name="request_log_field_latency">延遲</string>
 </resources>

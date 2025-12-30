@@ -1531,6 +1531,7 @@ class ChatService(
                     requestMessages = requestMessages,
                     responseText = titleText,
                     stream = false,
+                    latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,
                     error = failure,
                 )
@@ -1600,6 +1601,7 @@ class ChatService(
                     requestMessages = requestMessages,
                     responseText = rawSuggestions,
                     stream = false,
+                    latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,
                     error = failure,
                 )

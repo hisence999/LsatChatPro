@@ -6,6 +6,7 @@ enum class AIRequestSource {
     CHAT_SUGGESTION,
     WELCOME_PHRASES,
     MEMORY_CONSOLIDATION,
+    MEMORY_EMBEDDING,
     TRANSLATION,
     OCR,
     SCHEDULED_MESSAGE,
@@ -20,6 +21,7 @@ fun AIRequestSource.displayNameZh(): String {
         AIRequestSource.CHAT_SUGGESTION -> "聊天建议"
         AIRequestSource.WELCOME_PHRASES -> "欢迎词"
         AIRequestSource.MEMORY_CONSOLIDATION -> "记忆整合"
+        AIRequestSource.MEMORY_EMBEDDING -> "记忆嵌入"
         AIRequestSource.TRANSLATION -> "翻译"
         AIRequestSource.OCR -> "OCR"
         AIRequestSource.SCHEDULED_MESSAGE -> "定时消息"
@@ -27,4 +29,3 @@ fun AIRequestSource.displayNameZh(): String {
         AIRequestSource.OTHER -> "其他"
     }
 }
-

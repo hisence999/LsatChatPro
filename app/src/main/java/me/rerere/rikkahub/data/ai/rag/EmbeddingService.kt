@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.rag
 
 import me.rerere.ai.provider.ProviderManager
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -12,7 +14,8 @@ data class EmbeddingResult(
 
 class EmbeddingService(
     private val providerManager: ProviderManager,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val requestLogManager: AIRequestLogManager,
 ) {
     /**
      * Get the current embedding model ID for an assistant (or global if not set)
@@ -28,16 +31,28 @@ class EmbeddingService(
         return modelId.toString()
     }
 
-    suspend fun embed(text: String, assistantId: String? = null): List<Float> {
-        return embedBatch(listOf(text), assistantId).embeddings.first()
+    suspend fun embed(
+        text: String,
+        assistantId: String? = null,
+        source: AIRequestSource = AIRequestSource.OTHER,
+    ): List<Float> {
+        return embedBatch(listOf(text), assistantId, source).embeddings.first()
     }
 
-    suspend fun embedWithModelId(text: String, assistantId: String? = null): EmbeddingResult {
-        val result = embedBatch(listOf(text), assistantId)
+    suspend fun embedWithModelId(
+        text: String,
+        assistantId: String? = null,
+        source: AIRequestSource = AIRequestSource.OTHER,
+    ): EmbeddingResult {
+        val result = embedBatch(listOf(text), assistantId, source)
         return EmbeddingResult(result.embeddings, result.modelId)
     }
 
-    suspend fun embedBatch(texts: List<String>, assistantId: String? = null): EmbeddingResult {
+    suspend fun embedBatch(
+        texts: List<String>,
+        assistantId: String? = null,
+        source: AIRequestSource = AIRequestSource.OTHER,
+    ): EmbeddingResult {
         val settings = settingsStore.settingsFlow.value
         
         // Use assistant embedding model if available, otherwise use global
@@ -54,13 +69,31 @@ class EmbeddingService(
         val providerSetting = model.findProvider(settings.providers) ?: error("Provider not found for embedding model")
         val provider = providerManager.getProviderByType(providerSetting)
         
-        // Check if provider supports embeddings (OpenAI does, others may not)
-        val embeddingResult = provider.createEmbedding(providerSetting, texts, model)
-        if (embeddingResult.isEmpty() && texts.isNotEmpty()) {
-            error("Provider ${providerSetting::class.simpleName} does not support embeddings or returned empty result")
+        val startAt = System.currentTimeMillis()
+        var failure: Throwable? = null
+        var embeddingResult: List<List<Float>> = emptyList()
+        try {
+            // Check if provider supports embeddings (OpenAI does, others may not)
+            embeddingResult = provider.createEmbedding(providerSetting, texts, model)
+            if (embeddingResult.isEmpty() && texts.isNotEmpty()) {
+                error("Provider ${providerSetting::class.simpleName} does not support embeddings or returned empty result")
+            }
+            return EmbeddingResult(embeddingResult, modelId.toString())
+        } catch (t: Throwable) {
+            failure = t
+            throw t
+        } finally {
+            requestLogManager.logEmbedding(
+                source = source,
+                providerSetting = providerSetting,
+                model = model,
+                inputs = texts,
+                embeddingCount = embeddingResult.size.takeIf { it > 0 },
+                dimensions = embeddingResult.firstOrNull()?.size,
+                durationMs = System.currentTimeMillis() - startAt,
+                error = failure,
+            )
         }
-        
-        return EmbeddingResult(embeddingResult, modelId.toString())
     }
 }
 

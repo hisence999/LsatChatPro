@@ -433,7 +433,7 @@ fun SettingLorebookDetailPage(
                     val finalEntry = if (savedEntry.activationType == LorebookActivationType.RAG && savedEntry.prompt.isNotBlank()) {
                         try {
                             val embeddingResult = withContext(Dispatchers.IO) {
-                                embeddingService.embedWithModelId(savedEntry.prompt)
+                                embeddingService.embedWithModelId(text = savedEntry.prompt)
                             }
                             val embedding = embeddingResult.embeddings.firstOrNull()
                             savedEntry.copy(

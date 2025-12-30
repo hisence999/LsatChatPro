@@ -57,7 +57,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
-import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudUpload
@@ -65,6 +64,7 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.InvertColors
 import androidx.compose.material.icons.rounded.Public
@@ -108,20 +108,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 navigationIcon = {
                     BackButton()
                 },
-                actions = {
-                    if(settings.developerMode) {
-                        IconButton(
-                            onClick = {
-                                navController.navigate(Screen.Developer)
-                            }
-                        ) {
-                            Icon(
-                                Icons.Rounded.Build,
-                                contentDescription = stringResource(R.string.developer_page_tab_developer)
-                            )
-                        }
-                    }
-                }
+                actions = {}
             )
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -293,6 +280,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         onClick = { 
                             context.openUrl("https://buymeacoffee.com/cocolalilal")
                         }
+                    )
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.developer_page_tab_request_logs),
+                        subtitle = stringResource(R.string.setting_request_logs_desc),
+                        icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { navController.navigate(Screen.RequestLogs) }
                     )
                 }
             }

@@ -14,6 +14,9 @@ interface AIRequestLogDao {
     @Query("SELECT * FROM AIRequestLogEntity ORDER BY created_at DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<AIRequestLogEntity>>
 
+    @Query("SELECT * FROM AIRequestLogEntity WHERE id = :id LIMIT 1")
+    fun observeById(id: Long): Flow<AIRequestLogEntity?>
+
     @Query("DELETE FROM AIRequestLogEntity")
     fun clearAll()
 
@@ -29,4 +32,3 @@ interface AIRequestLogDao {
     )
     fun pruneKeepLatest(keep: Int)
 }
-

@@ -1069,6 +1069,25 @@
   <string name="developer_page_title">开发者页面</string>
   <string name="developer_page_tab_developer">开发者</string>
   <string name="developer_page_tab_request_logs">请求日志</string>
+  <string name="setting_request_logs_desc">查看 AI 请求日志。</string>
+  <string name="setting_request_logs_enable_developer_mode_first">需要先开启开发者模式。</string>
+  <string name="request_log_status_ok">成功</string>
+  <string name="request_log_status_error">错误</string>
+  <string name="request_log_empty_details">请选择一条日志查看详情</string>
+  <string name="request_log_request_details_title">请求详情</string>
+  <string name="request_log_response_details_title">响应</string>
+  <string name="request_log_section_basic">基础信息</string>
+  <string name="request_log_section_error">错误信息</string>
+  <string name="request_log_section_params">参数</string>
+  <string name="request_log_section_request_messages">请求消息</string>
+  <string name="request_log_section_response">响应内容</string>
+  <string name="request_log_field_time">时间</string>
+  <string name="request_log_field_source">来源</string>
+  <string name="request_log_field_provider">提供方</string>
+  <string name="request_log_field_model">模型</string>
+  <string name="request_log_field_duration">耗时</string>
+  <string name="request_log_field_stream">流式</string>
+  <string name="request_log_field_error">信息</string>
   <string name="a11y_messages">消息</string>
   <string name="a11y_chat_options">对话选项</string>
   <string name="a11y_make_normal_chat">转为普通对话</string>
@@ -1187,5 +1206,7 @@
     <string name="export_format_sillytavern">SillyTavern</string>
     <string name="export_format_tavern">Tavern（兼容）</string>
     <string name="lorebook_import_success">已导入：%s</string>
+  <string name="request_log_detail_title">请求日志</string>
+  <string name="request_log_field_latency">延迟</string>
 </resources>
 

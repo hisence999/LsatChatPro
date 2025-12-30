@@ -64,8 +64,9 @@ import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEdi
 import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
-import me.rerere.rikkahub.ui.pages.developer.DeveloperPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
+import me.rerere.rikkahub.ui.pages.logs.RequestLogDetailPage
+import me.rerere.rikkahub.ui.pages.logs.RequestLogsOverviewPage
 import me.rerere.rikkahub.ui.pages.menu.MenuPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
@@ -426,8 +427,13 @@ class RouteActivity : ComponentActivity() {
                         SettingLorebookDetailPage(id = route.id)
                     }
 
-                    composable<Screen.Developer> {
-                        DeveloperPage()
+                    composable<Screen.RequestLogs> {
+                        RequestLogsOverviewPage()
+                    }
+
+                    composable<Screen.RequestLogDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.RequestLogDetail>()
+                        RequestLogDetailPage(id = route.id)
                     }
 
                 }
@@ -517,6 +523,9 @@ sealed interface Screen {
     data class SettingLorebookDetail(val id: String) : Screen
 
     @Serializable
-    data object Developer : Screen
+    data object RequestLogs : Screen
+
+    @Serializable
+    data class RequestLogDetail(val id: Long) : Screen
 
 }

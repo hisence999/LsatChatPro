@@ -12,7 +12,7 @@ val repositoryModule = module {
     }
 
     single {
-        EmbeddingService(get(), get())
+        EmbeddingService(get(), get(), get())
     }
 
     single {

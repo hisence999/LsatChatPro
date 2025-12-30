@@ -6,8 +6,9 @@ import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEdi
 import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksVM
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.chat.ChatVM
-import me.rerere.rikkahub.ui.pages.developer.DeveloperVM
 import me.rerere.rikkahub.ui.pages.imggen.ImgGenVM
+import me.rerere.rikkahub.ui.pages.logs.RequestLogsVM
+import me.rerere.rikkahub.ui.pages.logs.RequestLogDetailVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerVM
 import me.rerere.rikkahub.ui.pages.menu.MenuVM
@@ -51,7 +52,13 @@ val viewModelModule = module {
     }
     viewModelOf(::BackupVM)
     viewModelOf(::ImgGenVM)
-    viewModelOf(::DeveloperVM)
+    viewModelOf(::RequestLogsVM)
+    viewModel<RequestLogDetailVM> {
+        RequestLogDetailVM(
+            id = it.get(),
+            requestLogManager = get(),
+        )
+    }
     viewModelOf(::MenuVM)
 
     viewModel<AssistantScheduledTasksVM> {

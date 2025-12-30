@@ -114,6 +114,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
                 requestMessages = requestMessages,
                 responseText = content,
                 stream = false,
+                latencyMs = System.currentTimeMillis() - startAt,
                 durationMs = System.currentTimeMillis() - startAt,
                 error = failure,
             )

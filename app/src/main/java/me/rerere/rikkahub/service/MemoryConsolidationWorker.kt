@@ -165,6 +165,7 @@ class MemoryConsolidationWorker(
                         requestMessages = requestMessages,
                         responseText = responseText,
                         stream = false,
+                        latencyMs = System.currentTimeMillis() - startAt,
                         durationMs = System.currentTimeMillis() - startAt,
                         error = failure,
                     )
@@ -188,7 +189,11 @@ class MemoryConsolidationWorker(
                 }
                 
                 // Generate embedding for the episode
-                val summaryEmbeddingResult = embeddingService.embedWithModelId(summary, assistantId)
+                val summaryEmbeddingResult = embeddingService.embedWithModelId(
+                    text = summary,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val summaryEmbedding = summaryEmbeddingResult.embeddings.firstOrNull()
                 val embeddingModelId = summaryEmbeddingResult.modelId
                 
@@ -311,6 +316,7 @@ class MemoryConsolidationWorker(
                                 requestMessages = requestMessages,
                                 responseText = scoreText,
                                 stream = false,
+                                latencyMs = System.currentTimeMillis() - startAt,
                                 durationMs = System.currentTimeMillis() - startAt,
                                 error = failure,
                             )
@@ -373,6 +379,7 @@ class MemoryConsolidationWorker(
                             requestMessages = requestMessages,
                             responseText = factsText,
                             stream = false,
+                            latencyMs = System.currentTimeMillis() - startAt,
                             durationMs = System.currentTimeMillis() - startAt,
                             error = failure,
                         )
@@ -398,7 +405,11 @@ class MemoryConsolidationWorker(
                             // Check for duplicates using embeddings
                             var isDuplicate = false
                             try {
-                                val factEmbedding = embeddingService.embed(fact, assistantId)
+                                val factEmbedding = embeddingService.embed(
+                                    text = fact,
+                                    assistantId = assistantId,
+                                    source = AIRequestSource.MEMORY_EMBEDDING,
+                                )
                                 if (factEmbedding != null) {
                                     // Check similarity against all existing core memories
                                     // Threshold 0.8 as requested
@@ -513,7 +524,11 @@ class MemoryConsolidationWorker(
                 }
             } else {
                 try {
-                    val newEmbedding = embeddingService.embed(memory.content, assistantId)
+                    val newEmbedding = embeddingService.embed(
+                        text = memory.content,
+                        assistantId = assistantId,
+                        source = AIRequestSource.MEMORY_EMBEDDING,
+                    )
                     newEmbedding
                 } catch (e: Exception) {
                     null
@@ -600,6 +615,7 @@ class MemoryConsolidationWorker(
                             requestMessages = requestMessages,
                             responseText = mergedText,
                             stream = false,
+                            latencyMs = System.currentTimeMillis() - startAt,
                             durationMs = System.currentTimeMillis() - startAt,
                             error = failure,
                         )

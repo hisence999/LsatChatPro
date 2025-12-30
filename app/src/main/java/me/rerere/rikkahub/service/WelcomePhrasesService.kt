@@ -287,6 +287,7 @@ class WelcomePhrasesService(
                     requestMessages = messages,
                     responseText = raw,
                     stream = false,
+                    latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,
                     error = failure,
                 )

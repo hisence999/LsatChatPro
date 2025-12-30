@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.ai.rag.VectorEngine
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
@@ -155,7 +156,11 @@ class MemoryRepository(
 
         // Generate new embedding
         return try {
-            val embedding = embeddingService.embed(content, assistantId)
+            val embedding = embeddingService.embed(
+                text = content,
+                assistantId = assistantId,
+                source = AIRequestSource.MEMORY_EMBEDDING,
+            )
             // Cache it
             embeddingCacheDAO.insertEmbedding(
                 EmbeddingCacheEntity(
@@ -222,7 +227,11 @@ class MemoryRepository(
 
     suspend fun addMemory(assistantId: String, content: String): AssistantMemory {
         val embeddingResult = try {
-            embeddingService.embedWithModelId(content, assistantId)
+            embeddingService.embedWithModelId(
+                text = content,
+                assistantId = assistantId,
+                source = AIRequestSource.MEMORY_EMBEDDING,
+            )
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -302,7 +311,11 @@ class MemoryRepository(
         includeEpisodes: Boolean = true
     ): List<Pair<AssistantMemory, Float>> {
         val queryEmbedding = try {
-            embeddingService.embed(query, assistantId)
+            embeddingService.embed(
+                text = query,
+                assistantId = assistantId,
+                source = AIRequestSource.MEMORY_EMBEDDING,
+            )
         } catch (e: Exception) {
             e.printStackTrace()
             return emptyList()
@@ -430,7 +443,11 @@ class MemoryRepository(
         memoriesNeedingEmbedding.forEach { memory ->
             current++
             try {
-                val embedding = embeddingService.embed(memory.content, assistantId)
+                val embedding = embeddingService.embed(
+                    text = memory.content,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val embeddingJson = JsonInstant.encodeToString(embedding)
                 // Store in entity for backward compatibility
                 memoryDAO.updateMemory(memory.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
@@ -455,7 +472,11 @@ class MemoryRepository(
         episodesNeedingEmbedding.forEach { episode ->
             current++
             try {
-                val embedding = embeddingService.embed(episode.content, assistantId)
+                val embedding = embeddingService.embed(
+                    text = episode.content,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val embeddingJson = JsonInstant.encodeToString(embedding)
                 // Store in entity for backward compatibility
                 chatEpisodeDAO.insertEpisode(episode.copy(embedding = embeddingJson, embeddingModelId = currentModelId))
@@ -505,7 +526,11 @@ class MemoryRepository(
         // Process Core Memories that need embedding
         memoriesNeedingEmbedding.forEach { memory ->
             try {
-                val embedding = embeddingService.embed(memory.content, assistantId)
+                val embedding = embeddingService.embed(
+                    text = memory.content,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val embeddingJson = JsonInstant.encodeToString(embedding)
                 memoryDAO.updateMemory(memory.copy(
                     embedding = embeddingJson,
@@ -530,7 +555,11 @@ class MemoryRepository(
         // Process Episodes that need embedding
         episodesNeedingEmbedding.forEach { episode ->
             try {
-                val embedding = embeddingService.embed(episode.content, assistantId)
+                val embedding = embeddingService.embed(
+                    text = episode.content,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val embeddingJson = JsonInstant.encodeToString(embedding)
                 chatEpisodeDAO.insertEpisode(episode.copy(
                     embedding = embeddingJson,
