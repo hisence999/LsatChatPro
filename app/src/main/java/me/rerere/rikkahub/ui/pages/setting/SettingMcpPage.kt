@@ -73,6 +73,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CommentsDisabled
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Terminal
 import kotlinx.coroutines.launch
@@ -408,11 +409,25 @@ private fun McpServerConfigModal(state: EditState<McpServerConfig>) {
     state.EditStateContent { config, updateValue ->
         val pagerState = rememberPagerState { 2 }
         val scope = rememberCoroutineScope()
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = {
                 state.dismiss()
             },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            sheetState = sheetState,
+            sheetGesturesEnabled = false,
+            dragHandle = {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            sheetState.hide()
+                            state.dismiss()
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
+            }
         ) {
             Column(
                 modifier = Modifier

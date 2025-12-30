@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ToggleOn
@@ -338,7 +339,7 @@ fun SettingLorebookDetailPage(
                 .fillMaxSize()
                 .consumeWindowInsets(contentPadding),
             state = lazyListState,
-            contentPadding = contentPadding + PaddingValues(16.dp),
+            contentPadding = contentPadding + PaddingValues(16.dp) + PaddingValues(bottom = 135.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Lorebook description (centered, no card)
@@ -660,6 +661,7 @@ private fun EntryEditorSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     // Capture entry ID and initial values ONCE at composition time
     // Using Unit as key means these values are captured only on first composition
@@ -731,7 +733,20 @@ private fun EntryEditorSheet(
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismiss()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
     ) {
         Column(
             modifier = Modifier
@@ -965,6 +980,7 @@ private fun LorebookEditorSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     var name by remember { mutableStateOf(lorebook.name) }
     var description by remember { mutableStateOf(lorebook.description) }
@@ -1208,10 +1224,25 @@ private fun AssistantLorebookToggleSheet(
     val cornerRadius = 28.dp
     val smallCorner = 8.dp
     val isDarkMode = LocalDarkMode.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismiss()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
     ) {
         Column(
             modifier = Modifier

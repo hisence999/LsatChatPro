@@ -35,6 +35,12 @@ import kotlinx.serialization.json.Json
 import me.rerere.ai.ui.UsedLorebookEntry
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -52,9 +58,25 @@ fun UsedLorebooksSheet(
     onEntryClick: (UsedLorebookEntry) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismissRequest()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
     ) {
         Column(
             modifier = Modifier

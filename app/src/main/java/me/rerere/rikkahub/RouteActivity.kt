@@ -378,21 +378,11 @@ class RouteActivity : ComponentActivity() {
                         SettingPromptInjectionsPage()
                     }
 
-                    composable<Screen.SettingModes>(
-                        enterTransition = { fadeIn(animationSpec = tween(300)) },
-                        exitTransition = { fadeOut(animationSpec = tween(300)) },
-                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
-                    ) {
+                    composable<Screen.SettingModes> {
                         SettingModesPage()
                     }
 
-                    composable<Screen.SettingLorebooks>(
-                        enterTransition = { fadeIn(animationSpec = tween(300)) },
-                        exitTransition = { fadeOut(animationSpec = tween(300)) },
-                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
-                    ) {
+                    composable<Screen.SettingLorebooks> {
                         SettingLorebooksPage()
                     }
 

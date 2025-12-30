@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -193,6 +194,19 @@ fun ModelSelector(
                 popup = false
             },
             sheetState = state,
+            sheetGesturesEnabled = false,
+            dragHandle = {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            state.hide()
+                            popup = false
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
+            }
         ) {
             Column(
                 modifier = Modifier

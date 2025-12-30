@@ -362,7 +362,8 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                     1 -> {
                         SettingProviderModelPage(
                             provider = provider,
-                            onEdit = onEdit
+                            onEdit = onEdit,
+                            contentPadding = contentPadding
                         )
                     }
 
@@ -375,22 +376,6 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
-            
-            // Bottom fade gradient for all pages
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
-            )
         }
     }
 }
@@ -486,11 +471,13 @@ private fun SettingProviderConfigPage(
 @Composable
 private fun SettingProviderModelPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit
+    onEdit: (ProviderSetting) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     ModelList(
         providerSetting = provider,
-        onUpdateProvider = onEdit
+        onUpdateProvider = onEdit,
+        contentPadding = contentPadding
     )
 }
 
@@ -717,7 +704,8 @@ private fun ConnectionTesterButton(
 @Composable
 private fun ModelList(
     providerSetting: ProviderSetting,
-    onUpdateProvider: (ProviderSetting) -> Unit
+    onUpdateProvider: (ProviderSetting) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val providerManager = koinInject<ProviderManager>()
     val modelList by produceState(emptyList(), providerSetting) {
@@ -795,7 +783,7 @@ private fun ModelList(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false },
                 ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + PaddingValues(bottom = 128.dp),
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp) + PaddingValues(bottom = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
             state = lazyListState
