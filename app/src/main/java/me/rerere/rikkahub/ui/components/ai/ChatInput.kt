@@ -56,6 +56,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -84,6 +85,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,11 +150,14 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -170,6 +175,8 @@ import me.rerere.rikkahub.utils.getFileNameFromUri
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
+import java.util.Locale
+import kotlinx.coroutines.flow.collect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
@@ -179,6 +186,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.PopupProperties
 
 enum class ExpandState {
     Collapsed,
@@ -188,6 +196,123 @@ enum class ExpandState {
 enum class ChatInputUiMode {
     Normal,
     GroupChat,
+}
+
+private data class GroupChatMentionKeySuggestion(
+    val normalizedKey: String,
+    val displayName: String,
+    val seatCount: Int,
+    val sampleAssistantId: Uuid?,
+)
+
+private data class ActiveMentionContext(
+    val atIndex: Int,
+    val cursor: Int,
+    val query: String,
+)
+
+private fun findActiveMentionContext(
+    text: String,
+    cursor: Int,
+): ActiveMentionContext? {
+    if (text.isBlank()) return null
+    val safeCursor = cursor.coerceIn(0, text.length)
+    if (safeCursor <= 0) return null
+
+    val atIndex = text.lastIndexOf('@', startIndex = safeCursor - 1)
+    if (atIndex < 0) return null
+
+    val query = text.substring(atIndex + 1, safeCursor)
+    if (query.any { it.isWhitespace() }) return null
+
+    return ActiveMentionContext(
+        atIndex = atIndex,
+        cursor = safeCursor,
+        query = query,
+    )
+}
+
+private fun findMentionTokenStartForAtomicBackspace(
+    text: String,
+    cursor: Int,
+    validMentionKeys: Set<String>,
+): Int? {
+    if (text.isBlank()) return null
+    val safeCursor = cursor.coerceIn(0, text.length)
+    if (safeCursor <= 0) return null
+
+    var scan = safeCursor
+    while (scan > 0 && text[scan - 1].isWhitespace()) {
+        scan -= 1
+    }
+    if (scan <= 0) return null
+
+    val atIndex = text.lastIndexOf('@', startIndex = scan - 1)
+    if (atIndex < 0) return null
+    if (atIndex > 0 && !text[atIndex - 1].isWhitespace()) return null
+
+    val normalizedKey = text.substring(atIndex + 1, scan)
+        .trim()
+        .lowercase(Locale.ROOT)
+    if (normalizedKey.isBlank() || normalizedKey !in validMentionKeys) return null
+
+    return atIndex
+}
+
+private fun buildGroupChatMentionKeySuggestions(
+    settings: Settings,
+    template: GroupChatTemplate,
+): List<GroupChatMentionKeySuggestion> {
+    if (template.seats.isEmpty()) return emptyList()
+
+    val tagNamesById = settings.assistantTags.associate { it.id to it.name }
+
+    val keyToSeatIds = mutableMapOf<String, MutableSet<Uuid>>()
+    val keyToDisplayName = mutableMapOf<String, String>()
+    val keyToSampleAssistantId = mutableMapOf<String, Uuid>()
+
+    template.seats.forEach { seat ->
+        val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+        val keys = buildList {
+            assistant.name.trim().takeIf { it.isNotBlank() }?.let(::add)
+            assistant.tags.forEach { tagId ->
+                tagNamesById[tagId]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
+
+        keys.forEach { key ->
+            val normalized = key.lowercase(Locale.ROOT)
+            keyToSeatIds.getOrPut(normalized) { mutableSetOf() }.add(seat.id)
+            keyToDisplayName.putIfAbsent(normalized, key)
+            keyToSampleAssistantId.putIfAbsent(normalized, assistant.id)
+        }
+    }
+
+    return keyToSeatIds
+        .map { (normalized, seatIds) ->
+            val displayName = keyToDisplayName[normalized].orEmpty().ifBlank { normalized }
+            GroupChatMentionKeySuggestion(
+                normalizedKey = normalized,
+                displayName = displayName,
+                seatCount = seatIds.size,
+                sampleAssistantId = keyToSampleAssistantId[normalized],
+            )
+        }
+        .sortedBy { it.displayName.lowercase(Locale.ROOT) }
+}
+
+private fun filterGroupChatMentionSuggestions(
+    suggestions: List<GroupChatMentionKeySuggestion>,
+    queryNormalized: String,
+): List<GroupChatMentionKeySuggestion> {
+    if (queryNormalized.isBlank()) return suggestions
+
+    val startsWith = suggestions.filter { it.normalizedKey.startsWith(queryNormalized) }
+    val contains = suggestions.filter {
+        it.normalizedKey.contains(queryNormalized) && !it.normalizedKey.startsWith(queryNormalized)
+    }
+
+    return startsWith + contains
 }
 
 @Composable
@@ -257,6 +382,25 @@ fun ChatInput(
 
     // Focus state for the text field
     var isFocused by remember { mutableStateOf(false) }
+
+    val groupChatTemplateForMentions = remember(
+        uiMode,
+        settings.groupChatTemplates,
+        conversation.assistantId,
+    ) {
+        if (uiMode != ChatInputUiMode.GroupChat) return@remember null
+        settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+    }
+
+    val groupChatMentionKeys = remember(
+        groupChatTemplateForMentions,
+        settings.assistants,
+        settings.assistantTags,
+    ) {
+        groupChatTemplateForMentions?.let { template ->
+            buildGroupChatMentionKeySuggestions(settings = settings, template = template)
+        }.orEmpty()
+    }
     
     // Expanded state logic: Expanded if focused OR text is not empty
     val isExpanded = isFocused || state.textContent.text.isNotEmpty()
@@ -459,6 +603,7 @@ fun ChatInput(
                                         context = context,
                                         isFocused = isFocused,
                                         onFocusChange = { isFocused = it },
+                                        groupChatMentionKeys = groupChatMentionKeys,
                                         trailingIcon = {
                                             // Crossfade between Model Picker and Send Button
                                             val showSendButton =
@@ -606,9 +751,11 @@ private fun TextInputRow(
     context: Context,
     isFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
+    groupChatMentionKeys: List<GroupChatMentionKeySuggestion> = emptyList(),
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
-    val assistant = LocalSettings.current.getCurrentAssistant()
+    val settings = LocalSettings.current
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -694,6 +841,129 @@ private fun TextInputRow(
                 ),
                 trailingIcon = trailingIcon
             )
+
+            val enableMentionSuggestions = groupChatMentionKeys.isNotEmpty()
+            if (enableMentionSuggestions) {
+                val validMentionKeySet = remember(groupChatMentionKeys) {
+                    groupChatMentionKeys.map { it.normalizedKey }.toSet()
+                }
+                val text = state.textContent.text.toString()
+                val selection = state.textContent.selection
+                val cursor = kotlin.math.max(selection.start, selection.end).coerceIn(0, text.length)
+
+                // Backspace UX: when deleting right after "@xxx", remove the whole mention token.
+                LaunchedEffect(enableMentionSuggestions, validMentionKeySet) {
+                    if (!enableMentionSuggestions) return@LaunchedEffect
+                    var previousText = state.textContent.text.toString()
+                    var previousSelection = state.textContent.selection
+                    var skipNext = false
+
+                    snapshotFlow { state.textContent.text.toString() to state.textContent.selection }
+                        .collect { (currentText, currentSelection) ->
+                            if (skipNext) {
+                                skipNext = false
+                                previousText = currentText
+                                previousSelection = currentSelection
+                                return@collect
+                            }
+
+                            val previousCursor =
+                                kotlin.math.max(previousSelection.start, previousSelection.end)
+                                    .coerceIn(0, previousText.length)
+                            val currentCursor =
+                                kotlin.math.max(currentSelection.start, currentSelection.end)
+                                    .coerceIn(0, currentText.length)
+
+                            val isBackspace = previousSelection.start == previousSelection.end &&
+                                currentSelection.start == currentSelection.end &&
+                                previousText.length == currentText.length + 1 &&
+                                currentCursor == previousCursor - 1
+
+                            if (isBackspace) {
+                                val mentionStart = findMentionTokenStartForAtomicBackspace(
+                                    text = previousText,
+                                    cursor = previousCursor,
+                                    validMentionKeys = validMentionKeySet,
+                                )
+                                if (mentionStart != null && mentionStart < currentCursor) {
+                                    skipNext = true
+                                    haptics.perform(HapticPattern.Pop)
+                                    state.replaceText(mentionStart, currentCursor, "")
+                                }
+                            }
+
+                            previousText = currentText
+                            previousSelection = currentSelection
+                        }
+                }
+
+                val activeMention = remember(text, cursor, selection) {
+                    if (selection.start != selection.end) return@remember null
+                    findActiveMentionContext(text = text, cursor = cursor)
+                }
+
+                val queryNormalized = remember(activeMention) {
+                    activeMention?.query?.lowercase(Locale.ROOT).orEmpty()
+                }
+
+                val filteredSuggestions = remember(groupChatMentionKeys, queryNormalized) {
+                    filterGroupChatMentionSuggestions(
+                        suggestions = groupChatMentionKeys,
+                        queryNormalized = queryNormalized,
+                    )
+                }
+
+                var menuExpanded by remember { mutableStateOf(false) }
+                LaunchedEffect(activeMention, isFocused, filteredSuggestions) {
+                    menuExpanded = isFocused && activeMention != null && filteredSuggestions.isNotEmpty()
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    properties = PopupProperties(focusable = false),
+                ) {
+                    filteredSuggestions.take(8).forEach { suggestion ->
+                        val suggestionAssistant = suggestion.sampleAssistantId
+                            ?.let(settings::getAssistantById)
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                suggestionAssistant?.let { assistant ->
+                                    UIAvatar(
+                                        name = assistant.name.ifBlank { suggestion.displayName },
+                                        value = assistant.avatar,
+                                        modifier = Modifier.size(28.dp),
+                                        loading = false,
+                                    )
+                                }
+                            },
+                            text = {
+                                Text(text = "@${suggestion.displayName}")
+                            },
+                            trailingIcon = {
+                                if (suggestion.seatCount > 1) {
+                                    Badge {
+                                        Text(suggestion.seatCount.toString())
+                                    }
+                                }
+                            },
+                            onClick = {
+                                val context = activeMention ?: return@DropdownMenuItem
+                                val needsTrailingSpace = cursor >= text.length || !text[cursor].isWhitespace()
+                                val replacement = buildString {
+                                    append('@')
+                                    append(suggestion.displayName)
+                                    if (needsTrailingSpace) append(' ')
+                                }
+                                haptics.perform(HapticPattern.Pop)
+                                state.replaceText(context.atIndex, context.cursor, replacement)
+                                menuExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
             if (isFullScreen) {
                 FullScreenEditor(state = state) {
                     isFullScreen = false

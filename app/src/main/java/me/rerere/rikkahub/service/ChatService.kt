@@ -1386,7 +1386,19 @@ class ChatService(
             model: Model,
             systemPromptSuffix: String? = null,
         ) {
-            val seatAssistant = applySeatOverrides(assistant, seat.overrides, systemPromptSuffix)
+            val groupContextSuffix = buildGroupChatContextSystemPromptSuffix(
+                settings = settings,
+                template = template,
+                seat = seat,
+                assistant = assistant,
+            )
+            val fullSystemPromptSuffix = buildString {
+                append(groupContextSuffix)
+                if (!systemPromptSuffix.isNullOrBlank()) {
+                    append(systemPromptSuffix)
+                }
+            }
+            val seatAssistant = applySeatOverrides(assistant, seat.overrides, fullSystemPromptSuffix)
             val seatModel = model.copy(tools = emptySet())
 
             val seatInputTransformers = buildList {
@@ -1398,10 +1410,18 @@ class ChatService(
                 add(templateTransformer)
             }
 
+            val promptMessages = buildGroupChatPromptMessagesForSeat(
+                messages = runningMessages,
+                settings = settings,
+                template = template,
+                seatId = seat.id,
+                selfAssistantId = assistant.id,
+            )
+
             generationHandler.generateText(
                 settings = settings,
                 model = seatModel,
-                messages = runningMessages,
+                messages = promptMessages,
                 assistant = seatAssistant,
                 memories = null,
                 tools = emptyList(),
@@ -1414,15 +1434,18 @@ class ChatService(
             ).collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
-                        val patchedMessages = patchGroupChatSpeaker(
-                            messages = chunk.messages,
+                        val generatedAssistantMessage = chunk.messages
+                            .lastOrNull { it.role == MessageRole.ASSISTANT }
+                            ?: return@collect
+                        val patchedAssistantMessage = patchGroupChatAssistantMessage(
+                            message = generatedAssistantMessage,
                             seat = seat,
                             assistant = assistant,
                             model = model,
                         )
 
                         val current = getConversationFlow(conversationId).value
-                        val updated = current.updateCurrentMessages(patchedMessages)
+                        val updated = current.updateCurrentMessages(runningMessages + patchedAssistantMessage)
                         updateConversation(conversationId, updated)
 
                         if (useLiveUpdate) {
@@ -1451,21 +1474,125 @@ class ChatService(
             speakersGenerated += seat
         }
 
-        // Assistant ↔ Assistant replies: simple deterministic chain, max 3 messages per round.
-        var remainingInterReplies = 3
-        for (i in 1 until speakersGenerated.size) {
-            if (remainingInterReplies <= 0) break
+        // Assistant ↔ Assistant replies: only when there's an explicit disagreement or someone gets called out.
+        val speakerIndexBySeatId = speakersGenerated
+            .mapIndexed { index, seat -> seat.id to index }
+            .toMap()
 
-            val speaker = speakersGenerated[i]
-            val replyTo = speakersGenerated[i - 1]
+        val speakerPrimaryTextBySeatId = speakersGenerated.associate { seat ->
+            val primaryMessage = runningMessages.lastOrNull { message ->
+                message.role == MessageRole.ASSISTANT && message.speakerSeatId == seat.id
+            }
+            seat.id to (primaryMessage?.toText()?.trim().orEmpty())
+        }
+
+        val disagreementMarkers = listOf(
+            "我不同意",
+            "不同意",
+            "不认同",
+            "反对",
+            "有误",
+            "不对",
+            "错误",
+            "不准确",
+            "i disagree",
+            "disagree with",
+            "that's wrong",
+            "that's incorrect",
+            "incorrect",
+            "not correct",
+        )
+        val otherAssistantReferenceMarkers = listOf(
+            "上面",
+            "前面",
+            "上一位",
+            "前一个",
+            "刚才",
+            "其他助手",
+            "另一位助手",
+            "another assistant",
+            "other assistant",
+            "previous assistant",
+            "above",
+        )
+
+        fun hasExplicitDisagreement(text: String): Boolean {
+            val normalized = text.lowercase(Locale.ROOT)
+            return disagreementMarkers.any { marker -> normalized.contains(marker) }
+        }
+
+        fun shouldInterReplyToPreviousSpeaker(
+            text: String,
+            previousSeat: GroupChatSeat,
+            mentionedSeatIds: Set<Uuid>,
+        ): Boolean {
+            if (!hasExplicitDisagreement(text)) return false
+            if (speakersGenerated.size <= 1) return false
+
+            if (previousSeat.id in mentionedSeatIds) return true
+
+            val previousName = settings.getAssistantById(previousSeat.assistantId)?.name?.trim().orEmpty()
+            val normalized = text.lowercase(Locale.ROOT)
+            if (previousName.isNotBlank() && normalized.contains(previousName.lowercase(Locale.ROOT))) return true
+
+            if (otherAssistantReferenceMarkers.any { marker -> normalized.contains(marker) }) return true
+
+            return false
+        }
+
+        val interReplyPairs = buildList {
+            for (index in 1 until speakersGenerated.size) {
+                if (size >= 3) break
+
+                val currentSeat = speakersGenerated[index]
+                val previousSeat = speakersGenerated[index - 1]
+                val currentText = speakerPrimaryTextBySeatId[currentSeat.id].orEmpty()
+                if (currentText.isBlank()) continue
+
+                val mentionedSeatIds = resolveMentionedSeatIds(
+                    text = currentText,
+                    settings = settings,
+                    template = template,
+                ).toSet()
+
+                // "Called out": only respond when a later speaker explicitly @-mentions an earlier speaker.
+                val calledOutSeatId = resolveMentionedSeatIds(
+                    text = currentText,
+                    settings = settings,
+                    template = template,
+                ).firstOrNull { seatId ->
+                    (speakerIndexBySeatId[seatId] ?: Int.MAX_VALUE) < index
+                }
+
+                val replySpeakerSeatId = when {
+                    calledOutSeatId != null -> calledOutSeatId
+                    shouldInterReplyToPreviousSpeaker(
+                        text = currentText,
+                        previousSeat = previousSeat,
+                        mentionedSeatIds = mentionedSeatIds,
+                    ) -> previousSeat.id
+
+                    else -> null
+                }
+
+                val replySpeakerSeat = replySpeakerSeatId?.let(seatsById::get) ?: continue
+                add(replySpeakerSeat to currentSeat)
+            }
+        }
+
+        var remainingInterReplies = 3
+        for ((speaker, replyTo) in interReplyPairs) {
+            if (remainingInterReplies <= 0) break
 
             val speakerAssistant = settings.getAssistantById(speaker.assistantId) ?: continue
             val replyToAssistant = settings.getAssistantById(replyTo.assistantId)
 
-            val speakerModelId = speaker.overrides.chatModelId ?: speakerAssistant.chatModelId ?: settings.chatModelId
+            val speakerModelId =
+                speaker.overrides.chatModelId ?: speakerAssistant.chatModelId ?: settings.chatModelId
             val speakerModel = settings.findModelById(speakerModelId) ?: continue
 
-            val replyToName = replyToAssistant?.name?.ifBlank { "another assistant" } ?: "another assistant"
+            val replyToName =
+                replyToAssistant?.name?.ifBlank { "another assistant" } ?: "another assistant"
             val suffix = buildString {
                 append("\n\n")
                 append("You are now replying to ")
@@ -1473,7 +1600,12 @@ class ChatService(
                 append(". Do not address the user. Keep it concise.")
             }
 
-            generateSeatReply(seat = speaker, assistant = speakerAssistant, model = speakerModel, systemPromptSuffix = suffix)
+            generateSeatReply(
+                seat = speaker,
+                assistant = speakerAssistant,
+                model = speakerModel,
+                systemPromptSuffix = suffix,
+            )
             remainingInterReplies -= 1
         }
     }
@@ -1499,25 +1631,135 @@ class ChatService(
         )
     }
 
-    private fun patchGroupChatSpeaker(
+    private fun buildGroupChatContextSystemPromptSuffix(
+        settings: Settings,
+        template: GroupChatTemplate,
+        seat: GroupChatSeat,
+        assistant: me.rerere.rikkahub.data.model.Assistant,
+    ): String {
+        val templateName = template.name.trim().ifBlank { "Group Chat" }
+        val memberNames = template.seats.mapNotNull { memberSeat ->
+            settings.getAssistantById(memberSeat.assistantId)?.name?.trim()?.takeIf { it.isNotBlank() }
+        }.distinct()
+
+        val membersLine = when {
+            memberNames.isEmpty() -> "unknown"
+            else -> memberNames.joinToString(", ")
+        }
+
+        val selfName = assistant.name.trim().ifBlank { "Assistant" }
+        val seatIndex = template.seats.indexOfFirst { it.id == seat.id }.takeIf { it >= 0 }?.plus(1)
+        val seatLabel = seatIndex?.let { index -> "Seat $index" } ?: "Seat"
+
+        return buildString {
+            append("\n\n")
+            appendLine("You are in a group chat.")
+            appendLine("Group: $templateName")
+            appendLine("Members: $membersLine")
+            appendLine("You are $selfName ($seatLabel).")
+            appendLine("Keep your own style/persona; do not imitate other assistants.")
+            appendLine("Messages from other assistants may be provided as USER messages prefixed with [Message from ...]. They are NOT from the human user; treat them as context only.")
+            appendLine("When generating a normal reply, address the human user (unless later instructions explicitly tell you to reply to another assistant).")
+        }
+    }
+
+    private fun buildGroupChatPromptMessagesForSeat(
         messages: List<UIMessage>,
+        settings: Settings,
+        template: GroupChatTemplate,
+        seatId: Uuid,
+        selfAssistantId: Uuid,
+    ): List<UIMessage> {
+        if (messages.isEmpty()) {
+            return listOf(
+                UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(UIMessagePart.Text("Please reply.")),
+                )
+            )
+        }
+
+        fun isSelfAssistantMessage(message: UIMessage): Boolean {
+            val speakerSeatId = message.speakerSeatId
+            val speakerAssistantId = message.speakerAssistantId
+            return when {
+                speakerSeatId != null -> speakerSeatId == seatId
+                speakerAssistantId != null -> speakerAssistantId == selfAssistantId
+                else -> false
+            }
+        }
+
+        val lastSelfIndex = messages.indexOfLast { message ->
+            message.role == MessageRole.ASSISTANT && isSelfAssistantMessage(message)
+        }
+
+        val transformed = messages.mapIndexed { index, message ->
+            if (message.role != MessageRole.ASSISTANT) return@mapIndexed message
+            if (isSelfAssistantMessage(message)) return@mapIndexed message
+
+            val isUnread = index > lastSelfIndex
+
+            val speakerName = resolveGroupChatMessageSpeakerName(
+                message = message,
+                settings = settings,
+                template = template,
+            )
+            val content = message.toText().trim().take(4000)
+            val prefix = when {
+                isUnread && speakerName.isNullOrBlank() -> "[Unread message from another assistant (assistant)]"
+                isUnread -> "[Unread message from $speakerName (assistant)]"
+                speakerName.isNullOrBlank() -> "[Message from another assistant (assistant)]"
+                else -> "[Message from $speakerName (assistant)]"
+            }
+
+            message.copy(
+                role = MessageRole.USER,
+                parts = listOf(
+                    UIMessagePart.Text(
+                        buildString {
+                            appendLine(prefix)
+                            append(content)
+                        }
+                    )
+                )
+            )
+        }
+
+        if (transformed.last().role != MessageRole.USER) {
+            return transformed + UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Text("Please reply.")),
+            )
+        }
+
+        return transformed
+    }
+
+    private fun resolveGroupChatMessageSpeakerName(
+        message: UIMessage,
+        settings: Settings,
+        template: GroupChatTemplate,
+    ): String? {
+        message.speakerAssistantId?.let { assistantId ->
+            return settings.getAssistantById(assistantId)?.name?.trim()
+        }
+
+        val seatId = message.speakerSeatId ?: return null
+        val seat = template.seats.firstOrNull { it.id == seatId } ?: return null
+        return settings.getAssistantById(seat.assistantId)?.name?.trim()
+    }
+
+    private fun patchGroupChatAssistantMessage(
+        message: UIMessage,
         seat: GroupChatSeat,
         assistant: me.rerere.rikkahub.data.model.Assistant,
         model: Model,
-    ): List<UIMessage> {
-        val index = messages.indexOfLast { it.role == MessageRole.ASSISTANT }
-        if (index !in messages.indices) return messages
-
-        val target = messages[index]
-        val patched = target.copy(
-            modelId = target.modelId ?: model.id,
+    ): UIMessage {
+        return message.copy(
+            modelId = message.modelId ?: model.id,
             speakerAssistantId = assistant.id,
             speakerSeatId = seat.id,
         )
-
-        return messages.toMutableList().apply {
-            this[index] = patched
-        }
     }
 
     private fun resolveMentionedSeatIds(

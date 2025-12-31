@@ -5,12 +5,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.toJavaLocalDateTime
@@ -24,6 +32,8 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toLocalString
 
@@ -76,64 +86,114 @@ fun ChatMessageAssistantAvatar(
     loading: Boolean,
     model: Model?,
     assistant: Assistant?,
+    onAvatarLongPress: ((Assistant) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
     val showIcon = settings.displaySetting.showModelIcon
-    if (message.role == MessageRole.ASSISTANT && previousRole != message.role && model != null) {
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    if (message.role == MessageRole.ASSISTANT && previousRole != message.role) {
         Row(
             modifier = modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Always use assistant avatar when available
-            if (assistant != null) {
-                if (showIcon) {
-                    UIAvatar(
-                        name = assistant.name,
-                        modifier = Modifier.size(36.dp),
-                        value = assistant.avatar,
-                        loading = loading,
+            when {
+                assistant != null -> {
+                    val enableMention = onAvatarLongPress != null
+                    val avatarInteractionSource = remember { MutableInteractionSource() }
+                    val isAvatarPressed by avatarInteractionSource.collectIsPressedAsState()
+                    val avatarScale by animateFloatAsState(
+                        targetValue = if (enableMention && isAvatarPressed) 0.85f else 1f,
+                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                        label = "assistant_message_avatar_scale",
                     )
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
+                    if (showIcon) {
+                        UIAvatar(
+                            name = assistant.name,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .graphicsLayer {
+                                    scaleX = avatarScale
+                                    scaleY = avatarScale
+                                }
+                                .combinedClickable(
+                                    interactionSource = avatarInteractionSource,
+                                    indication = null,
+                                    enabled = enableMention,
+                                    onClick = {},
+                                    onLongClick = {
+                                        haptics.perform(HapticPattern.Pop)
+                                        onAvatarLongPress?.invoke(assistant)
+                                    },
+                                ),
+                            value = assistant.avatar,
+                            loading = loading,
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (settings.displaySetting.showModelName) {
                             Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
+                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
+                                    .substring(0, 5), // HH:mm format
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalContentColor.current.copy(alpha = 0.8f),
                                 maxLines = 1,
                             )
-                        Text(
-                            text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                        )
+                            Text(
+                                text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
-            } else {
-                if (showIcon) {
-                    AutoAIIcon(
-                        name = model.modelId,
-                        modifier = Modifier.size(36.dp),
-                        loading = loading
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
+
+                model != null -> {
+                    if (showIcon) {
+                        AutoAIIcon(
+                            name = model.modelId,
+                            modifier = Modifier.size(36.dp),
+                            loading = loading
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (settings.displaySetting.showModelName) {
                             Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
+                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
+                                    .substring(0, 5), // HH:mm format
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalContentColor.current.copy(alpha = 0.8f)
                             )
-                        Text(
-                            text = model.displayName,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
+                            Text(
+                                text = model.displayName,
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (settings.displaySetting.showModelName) {
+                            Text(
+                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
+                                    .substring(0, 5), // HH:mm format
+                                style = MaterialTheme.typography.labelSmall,
+                                color = LocalContentColor.current.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                text = stringResource(R.string.assistant_page_default_assistant),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                        }
                     }
                 }
             }

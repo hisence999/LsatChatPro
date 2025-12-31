@@ -135,6 +135,7 @@ import java.util.Locale
 private enum class EmptyChatOverlay {
     None,
     Welcome,
+    GroupMembers,
     Temporary,
 }
 
@@ -568,6 +569,11 @@ private fun ChatPageContent(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                val groupChatTemplate = remember(setting.groupChatTemplates, conversation.assistantId) {
+                    setting.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+                }
+                val isGroupChatTemplate = groupChatTemplate != null
+
                 ChatList(
                     innerPadding = PaddingValues(bottom = chatListBottomPadding),
                     conversation = conversation,
@@ -576,6 +582,16 @@ private fun ChatPageContent(
                     previewMode = previewMode,
                     settings = setting,
                     recentlyRestoredNodeIds = vm.recentlyRestoredNodeIds.collectAsStateWithLifecycle().value,
+                    onAssistantAvatarLongPress = if (isGroupChatTemplate) {
+                        { assistant ->
+                            val name = assistant.name.trim()
+                            if (name.isNotBlank()) {
+                                inputState.insertTextAtCursor("@$name ")
+                            }
+                        }
+                    } else {
+                        null
+                    },
                     onRegenerate = {
                         vm.regenerateAtMessage(it)
                     },
@@ -629,26 +645,45 @@ private fun ChatPageContent(
 
                 val hasUserSentMessages =
                     conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
-                val assistantForConversation = setting.getAssistantById(conversation.assistantId)
-                    ?: setting.getCurrentAssistant()
-                val hasAnyPresetMessages = assistantForConversation.presetMessages.isNotEmpty()
+                val isEmptyConversation = conversation.messageNodes.isEmpty()
+                val groupChatMemberAssistants = remember(groupChatTemplate, setting.assistants) {
+                    groupChatTemplate
+                        ?.seats
+                        ?.mapNotNull { seat -> setting.getAssistantById(seat.assistantId) }
+                        ?.distinctBy { assistant -> assistant.id }
+                        .orEmpty()
+                }
 
-                val welcomeText = remember(assistantForConversation.id, assistantForConversation.welcomePhrases) {
-                    selectWelcomePhrase(assistantForConversation.welcomePhrases)
-                } ?: stringResource(R.string.welcome_phrases_fallback)
+                val assistantForConversation = if (isGroupChatTemplate) {
+                    null
+                } else {
+                    setting.getAssistantById(conversation.assistantId) ?: setting.getCurrentAssistant()
+                }
+                val hasAnyPresetMessages = assistantForConversation?.presetMessages?.isNotEmpty() == true
+
+                val welcomeText = assistantForConversation?.let { assistant ->
+                    remember(assistant.id, assistant.welcomePhrases) {
+                        selectWelcomePhrase(assistant.welcomePhrases)
+                    } ?: stringResource(R.string.welcome_phrases_fallback)
+                }.orEmpty()
 
                 val overlayState = remember(
                     conversationInitialized,
                     isTemporaryChat,
                     hasUserSentMessages,
                     hasAnyPresetMessages,
-                    assistantForConversation.enableWelcomePhrases,
+                    isEmptyConversation,
+                    isGroupChatTemplate,
+                    assistantForConversation?.enableWelcomePhrases,
                 ) {
                     when {
                         !conversationInitialized -> EmptyChatOverlay.None
                         isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages -> EmptyChatOverlay.Temporary
-                        assistantForConversation.enableWelcomePhrases && !isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages ->
-                            EmptyChatOverlay.Welcome
+                        isGroupChatTemplate && !isTemporaryChat && isEmptyConversation -> EmptyChatOverlay.GroupMembers
+                        assistantForConversation?.enableWelcomePhrases == true &&
+                            !isTemporaryChat &&
+                            !hasUserSentMessages &&
+                            !hasAnyPresetMessages -> EmptyChatOverlay.Welcome
 
                         else -> EmptyChatOverlay.None
                     }
@@ -680,11 +715,10 @@ private fun ChatPageContent(
                                     .padding(horizontal = 32.dp)
                                     .offset(y = EmptyChatOverlayContentYOffset),
                             ) {
+                                val assistant = assistantForConversation ?: return@Row
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = assistantForConversation.name.ifBlank {
-                                        stringResource(R.string.assistant_page_default_assistant)
-                                    },
-                                    value = assistantForConversation.avatar,
+                                    name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                    value = assistant.avatar,
                                     modifier = Modifier.size(64.dp),
                                 )
                                 val fontSizeRatio = setting.displaySetting.fontSizeRatio
@@ -693,12 +727,30 @@ private fun ChatPageContent(
                                     lineHeight = 34.sp * fontSizeRatio,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
-                                key(assistantForConversation.id) {
+                                key(assistant.id) {
                                     AnimatedWelcomeText(
                                         text = welcomeText,
                                         style = welcomeTextStyle,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         rpStyleRules = setting.displaySetting.rpStyleRules,
+                                    )
+                                }
+                            }
+                        }
+
+                        EmptyChatOverlay.GroupMembers -> {
+                            FlowRow(
+                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .padding(horizontal = 32.dp)
+                                    .offset(y = EmptyChatOverlayContentYOffset),
+                            ) {
+                                groupChatMemberAssistants.forEach { member ->
+                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                        name = member.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                        value = member.avatar,
+                                        modifier = Modifier.size(56.dp),
                                     )
                                 }
                             }
@@ -747,10 +799,6 @@ private fun ChatPageContent(
                         )
                 )
 
-                val groupChatTemplate = remember(setting.groupChatTemplates, conversation.assistantId) {
-                    setting.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
-                }
-                val isGroupChatTemplate = groupChatTemplate != null
                 ChatInput(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)

@@ -58,6 +58,22 @@ class ChatInputState {
         textContent.setTextAndPlaceCursorAtEnd(textContent.text.toString() + content)
     }
 
+    fun replaceText(start: Int, end: Int, replacement: String) {
+        textContent.edit {
+            val safeStart = start.coerceIn(0, length)
+            val safeEnd = end.coerceIn(safeStart, length)
+            replace(safeStart, safeEnd, replacement)
+        }
+    }
+
+    fun insertTextAtCursor(content: String) {
+        textContent.edit {
+            val rangeStart = kotlin.math.min(selection.start, selection.end).coerceIn(0, length)
+            val rangeEnd = kotlin.math.max(selection.start, selection.end).coerceIn(rangeStart, length)
+            replace(rangeStart, rangeEnd, content)
+        }
+    }
+
     fun setContents(contents: List<UIMessagePart>) {
         val text = contents.filterIsInstance<UIMessagePart.Text>().joinToString { it.text }
         textContent.setTextAndPlaceCursorAtEnd(text)

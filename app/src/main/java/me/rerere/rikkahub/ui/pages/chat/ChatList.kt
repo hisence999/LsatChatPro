@@ -96,6 +96,7 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
@@ -115,6 +116,20 @@ private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
 
+private data class MessageSpeakerIdentity(
+    val seatId: Uuid?,
+    val assistantId: Uuid?,
+    val modelId: Uuid?,
+)
+
+private fun UIMessage.speakerIdentity(): MessageSpeakerIdentity {
+    return MessageSpeakerIdentity(
+        seatId = speakerSeatId,
+        assistantId = speakerAssistantId,
+        modelId = modelId,
+    )
+}
+
 @Composable
 fun ChatList(
     innerPadding: PaddingValues,
@@ -124,6 +139,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -155,6 +171,7 @@ fun ChatList(
                     loading = loading,
                     settings = settings,
                     recentlyRestoredNodeIds = recentlyRestoredNodeIds,
+                    onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                     onRegenerate = onRegenerate,
                     onEdit = onEdit,
                     onForkMessage = onForkMessage,
@@ -175,6 +192,7 @@ private fun SharedTransitionScope.ChatListNormal(
     loading: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    onAssistantAvatarLongPress: ((Assistant) -> Unit)?,
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
@@ -294,7 +312,7 @@ private fun SharedTransitionScope.ChatListNormal(
                         val previousMessage = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
                         val speakerChanged = previousMessage?.role == MessageRole.ASSISTANT &&
                             message.role == MessageRole.ASSISTANT &&
-                            previousMessage.speakerAssistantId != message.speakerAssistantId
+                            previousMessage.speakerIdentity() != message.speakerIdentity()
                         val previousRole = if (speakerChanged) null else previousMessage?.role
                         val isLast = index == conversation.messageNodes.lastIndex
                         val assistantForMessage = message.speakerAssistantId
@@ -316,6 +334,7 @@ private fun SharedTransitionScope.ChatListNormal(
                             onCitationClick = onCitationClick,
                             model = message.modelId?.let { settings.findModelById(it) },
                             assistant = assistantForMessage,
+                            onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                             loading = loading && isLast,
                             isRecentlyRestored = node.id in recentlyRestoredNodeIds,
                             onRegenerate = {
