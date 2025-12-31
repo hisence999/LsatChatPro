@@ -707,6 +707,9 @@
   <string name="web_search_enabled">已啟用網頁搜尋</string>
     <string name="assistant_deleted">助手 %s 已刪除</string>
     <string name="assistant_page_search_placeholder">搜尋助手...</string>
+    <string name="group_chat_template_integration_model">整合模型</string>
+    <string name="group_chat_template_integration_model_desc">用於在執行「整合記憶」時，將群聊內容整合並寫入已開啟記憶的成員；不會發言</string>
+    <string name="group_chat_template_member_use_memory">使用記憶</string>
     <string name="conversation_deleted">對話已刪除</string>
     <string name="message_deleted">訊息已刪除</string>
     <string name="chat_page_consolidate">整合</string>

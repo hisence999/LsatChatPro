@@ -161,6 +161,25 @@ fun GroupChatTemplateDetailPage(
                 )
             }
 
+            SettingsGroup(title = stringResource(R.string.assistant_page_memory)) {
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_integration_model),
+                    subtitle = stringResource(R.string.group_chat_template_integration_model_desc),
+                    trailing = {
+                        ModelSelector(
+                            modelId = currentTemplate.integrationModelId,
+                            providers = settings.providers,
+                            type = ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                val shouldClear = model.displayName.isBlank() && model.modelId.isBlank()
+                                vm.updateIntegrationModel(if (shouldClear) null else model.id)
+                            },
+                        )
+                    }
+                )
+            }
+
             SettingsGroup(title = stringResource(R.string.group_chat_template_members)) {
                 currentTemplate.seats.forEach { seat ->
                     val assistant = settings.assistants.find { it.id == seat.assistantId }
@@ -407,6 +426,23 @@ private fun SeatOverridesEditor(
                     modifier = Modifier.width(120.dp),
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.auto)) },
+                )
+            }
+
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.group_chat_template_member_use_memory),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                HapticSwitch(
+                    checked = seat.overrides.memoryEnabled,
+                    onCheckedChange = { enabled ->
+                        onUpdateOverrides { it.copy(memoryEnabled = enabled) }
+                    }
                 )
             }
 

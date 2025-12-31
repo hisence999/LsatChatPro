@@ -49,6 +49,10 @@ class GroupChatTemplateDetailVM(
         updateTemplate { it.copy(hostModelId = modelId) }
     }
 
+    fun updateIntegrationModel(modelId: Uuid?) {
+        updateTemplate { it.copy(integrationModelId = modelId) }
+    }
+
     fun addSeat(assistantId: Uuid) {
         updateTemplate { template ->
             template.copy(seats = template.seats + GroupChatSeat(assistantId = assistantId))

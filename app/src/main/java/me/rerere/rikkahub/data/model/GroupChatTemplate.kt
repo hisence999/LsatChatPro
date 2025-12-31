@@ -8,6 +8,7 @@ data class GroupChatTemplate(
     val id: Uuid = Uuid.random(),
     val name: String = "",
     val hostModelId: Uuid? = null,
+    val integrationModelId: Uuid? = null,
     val seats: List<GroupChatSeat> = emptyList(),
 )
 
@@ -26,4 +27,5 @@ data class GroupChatSeatOverrides(
     val maxTokens: Int? = null,
     val searchEnabled: Boolean = false,
     val mcpEnabled: Boolean = false,
+    val memoryEnabled: Boolean = false,
 )

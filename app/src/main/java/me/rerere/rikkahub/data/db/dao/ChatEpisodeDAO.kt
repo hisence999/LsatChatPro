@@ -41,6 +41,9 @@ interface ChatEpisodeDAO {
     @Query("SELECT * FROM chatepisodeentity WHERE conversation_id = :conversationId LIMIT 1")
     suspend fun getEpisodeByConversationId(conversationId: String): ChatEpisodeEntity?
 
+    @Query("SELECT * FROM chatepisodeentity WHERE conversation_id = :conversationId AND assistant_id = :assistantId LIMIT 1")
+    suspend fun getEpisodeByConversationIdAndAssistantId(conversationId: String, assistantId: String): ChatEpisodeEntity?
+
     @Query("SELECT * FROM chatepisodeentity WHERE id = :id")
     suspend fun getEpisodeById(id: Int): ChatEpisodeEntity?
 }

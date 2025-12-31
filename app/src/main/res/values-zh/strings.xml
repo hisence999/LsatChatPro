@@ -758,6 +758,9 @@
   <string name="deselect_all">取消全选</string>
     <string name="assistant_deleted">助手 %s 已删除</string>
     <string name="assistant_page_search_placeholder">搜索助手...</string>
+    <string name="group_chat_template_integration_model">整合模型</string>
+    <string name="group_chat_template_integration_model_desc">用于在执行“整合记忆”时，将群聊内容整合并写入开启记忆的成员；不会发言</string>
+    <string name="group_chat_template_member_use_memory">使用记忆</string>
     <string name="conversation_deleted">会话已删除</string>
     <string name="message_deleted">消息已删除</string>
     <string name="chat_page_consolidate">整合</string>

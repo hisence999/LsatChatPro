@@ -79,7 +79,7 @@ import kotlin.uuid.Uuid
 fun AssistantPicker(
     settings: Settings,
     onUpdateSettings: (Settings) -> Unit,
-    onNavigate: () -> Unit = {},  // Called after panels close
+    onNavigate: (ChatTarget) -> Unit = {},  // Called after panels close
     modifier: Modifier = Modifier,
     onClickSetting: () -> Unit,
 ) {
@@ -156,10 +156,10 @@ fun AssistantPicker(
             currentTarget = state.currentTarget,
             onAssistantSelected = { assistant -> state.selectAssistant(assistant) },
             onGroupChatSelected = { template -> state.selectGroupChat(template) },
-            onNavigate = {
+            onNavigate = { target ->
                 // Navigation callback - called after animation
                 showPicker = false
-                onNavigate()
+                onNavigate(target)
             },
             onDismiss = {
                 showPicker = false
@@ -174,7 +174,7 @@ fun AssistantPickerSheet(
     currentTarget: ChatTarget,
     onAssistantSelected: (Assistant) -> Unit,
     onGroupChatSelected: (GroupChatTemplate) -> Unit,
-    onNavigate: () -> Unit = {},  // Called after animation completes
+    onNavigate: (ChatTarget) -> Unit = {},  // Called after animation completes
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -311,14 +311,15 @@ fun AssistantPickerSheet(
                             .clickable(enabled = !isTransitioning) {
                                 if (!checked) {
                                     haptics.perform(HapticPattern.Pop)
-                                    transitioningTarget = ChatTarget.Assistant(assistant.id)
+                                    val target = ChatTarget.Assistant(assistant.id)
+                                    transitioningTarget = target
                                     // Update settings immediately
                                     onAssistantSelected(assistant)
                                     // Close panels then navigate
                                     scope.launch {
                                         transitioningTarget = null
                                         sheetState.hide() // Animate sheet close
-                                        onNavigate() // drawer close + navigate
+                                        onNavigate(target) // drawer close + navigate
                                     }
                                 }
                             }
@@ -443,12 +444,13 @@ fun AssistantPickerSheet(
                                 .clickable(enabled = !isTransitioning) {
                                     if (!checked) {
                                         haptics.perform(HapticPattern.Pop)
-                                        transitioningTarget = ChatTarget.GroupChat(template.id)
+                                        val target = ChatTarget.GroupChat(template.id)
+                                        transitioningTarget = target
                                         onGroupChatSelected(template)
                                         scope.launch {
                                             transitioningTarget = null
                                             sheetState.hide()
-                                            onNavigate()
+                                            onNavigate(target)
                                         }
                                     }
                                 }
