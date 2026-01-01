@@ -16,6 +16,7 @@ data class GroupChatTemplate(
 data class GroupChatSeat(
     val id: Uuid = Uuid.random(),
     val assistantId: Uuid,
+    val instanceNumber: Int = 1,
     val overrides: GroupChatSeatOverrides = GroupChatSeatOverrides(),
     val defaultEnabled: Boolean = true,
 )
@@ -26,6 +27,8 @@ data class GroupChatSeatOverrides(
     val thinkingBudget: Int? = null,
     val maxTokens: Int? = null,
     val searchEnabled: Boolean = false,
-    val mcpEnabled: Boolean = false,
     val memoryEnabled: Boolean = false,
+    val searchMode: AssistantSearchMode = AssistantSearchMode.Off,
+    val preferBuiltInSearch: Boolean = false,
+    val mcpServerIds: Set<Uuid> = emptySet(),
 )

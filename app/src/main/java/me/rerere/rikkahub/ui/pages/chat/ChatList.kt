@@ -97,6 +97,7 @@ import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
@@ -205,6 +206,17 @@ private fun SharedTransitionScope.ChatListNormal(
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+    val groupChatTemplateForConversation = remember(settings.groupChatTemplates, conversation.assistantId) {
+        settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+    }
+    val assistantsById = remember(settings.assistants) { settings.assistants.associateBy { it.id } }
+    val seatDisplayNames = remember(groupChatTemplateForConversation, assistantsById, defaultAssistantName) {
+        groupChatTemplateForConversation?.buildSeatDisplayNames(
+            assistantsById = assistantsById,
+            defaultName = defaultAssistantName,
+        ).orEmpty()
+    }
 
     val currentConversationState = rememberUpdatedState(conversation)
     val onCitationClick = remember {
@@ -315,17 +327,22 @@ private fun SharedTransitionScope.ChatListNormal(
                             previousMessage.speakerIdentity() != message.speakerIdentity()
                         val previousRole = if (speakerChanged) null else previousMessage?.role
                         val isLast = index == conversation.messageNodes.lastIndex
-                        val assistantForMessage = message.speakerAssistantId
-                            ?.let { speakerId -> settings.getAssistantById(speakerId) }
-                            ?: message.speakerSeatId
-                                ?.let { seatId ->
-                                    settings.groupChatTemplates
-                                        .find { it.id == conversation.assistantId }
-                                        ?.seats
-                                        ?.find { it.id == seatId }
-                                        ?.assistantId
+                        val assistantForMessage = message.speakerSeatId
+                            ?.let { seatId ->
+                                groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
+                            }
+                            ?.let { seat ->
+                                assistantsById[seat.assistantId]?.let { resolved ->
+                                    val displayName = seatDisplayNames[seat.id]
+                                    if (displayName.isNullOrBlank() || displayName == resolved.name) {
+                                        resolved
+                                    } else {
+                                        resolved.copy(name = displayName)
+                                    }
                                 }
-                                ?.let { assistantId -> settings.getAssistantById(assistantId) }
+                            }
+                            ?: message.speakerAssistantId
+                                ?.let { speakerId -> settings.getAssistantById(speakerId) }
                             ?: settings.getAssistantById(conversation.assistantId)
                         ChatMessage(
                             node = node,

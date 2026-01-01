@@ -156,6 +156,7 @@ import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GroupChatTemplate
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
@@ -262,22 +263,24 @@ private fun findMentionTokenStartForAtomicBackspace(
 private fun buildGroupChatMentionKeySuggestions(
     settings: Settings,
     template: GroupChatTemplate,
+    defaultAssistantName: String,
 ): List<GroupChatMentionKeySuggestion> {
     if (template.seats.isEmpty()) return emptyList()
 
-    val tagNamesById = settings.assistantTags.associate { it.id to it.name }
+    val assistantsById = settings.assistants.associateBy { it.id }
+    val seatDisplayNames = template.buildSeatDisplayNames(
+        assistantsById = assistantsById,
+        defaultName = defaultAssistantName,
+    )
 
     val keyToSeatIds = mutableMapOf<String, MutableSet<Uuid>>()
     val keyToDisplayName = mutableMapOf<String, String>()
     val keyToSampleAssistantId = mutableMapOf<String, Uuid>()
 
     template.seats.forEach { seat ->
-        val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+        val assistant = assistantsById[seat.assistantId] ?: return@forEach
         val keys = buildList {
-            assistant.name.trim().takeIf { it.isNotBlank() }?.let(::add)
-            assistant.tags.forEach { tagId ->
-                tagNamesById[tagId]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
-            }
+            seatDisplayNames[seat.id]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
         }
 
         keys.forEach { key ->
@@ -340,6 +343,7 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -396,9 +400,14 @@ fun ChatInput(
         groupChatTemplateForMentions,
         settings.assistants,
         settings.assistantTags,
+        defaultAssistantName,
     ) {
         groupChatTemplateForMentions?.let { template ->
-            buildGroupChatMentionKeySuggestions(settings = settings, template = template)
+            buildGroupChatMentionKeySuggestions(
+                settings = settings,
+                template = template,
+                defaultAssistantName = defaultAssistantName,
+            )
         }.orEmpty()
     }
     

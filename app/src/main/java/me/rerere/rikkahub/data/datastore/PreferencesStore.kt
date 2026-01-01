@@ -38,6 +38,7 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.ensureSeatInstanceNumbers
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.toMutableStateFlow
@@ -290,7 +291,7 @@ class SettingsStore(
                         seats = template.seats
                             .distinctBy { it.id }
                             .filter { seat -> seat.assistantId in validAssistantIds }
-                    )
+                    ).ensureSeatInstanceNumbers()
                 }
             val sanitizedChatTarget = when (val target = settings.chatTarget) {
                 is ChatTarget.Assistant -> {

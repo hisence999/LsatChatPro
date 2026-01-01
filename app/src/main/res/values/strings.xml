@@ -217,6 +217,8 @@
     <string name="group_chat_template_add_member">Add member</string>
     <string name="group_chat_template_remove_member">Remove member</string>
     <string name="group_chat_template_member_use_memory">Use memory</string>
+    <string name="group_chat_template_member_enable_search">Enable search</string>
+    <string name="group_chat_template_member_enable_mcp">Enable MCP</string>
     <string name="group_chat_template_delete">Delete group chat</string>
     <string name="group_chat_template_create">New group chat</string>
     <string name="group_chat_mention_disambiguation_title">Resolve @ mention</string>

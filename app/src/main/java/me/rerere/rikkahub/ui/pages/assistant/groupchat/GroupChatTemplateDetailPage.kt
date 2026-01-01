@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -39,16 +40,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.GroupChatSeat
 import me.rerere.rikkahub.data.model.GroupChatSeatOverrides
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
+import me.rerere.rikkahub.ui.components.ai.McpPickerButton
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ai.SearchPickerButton
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.DebouncedTextField
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
@@ -59,7 +65,9 @@ import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.theme.AppShapes
+import me.rerere.search.SearchServiceOptions
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
 
@@ -76,6 +84,7 @@ fun GroupChatTemplateDetailPage(
 
     val haptics = rememberPremiumHaptics()
     val defaultName = stringResource(R.string.group_chat_default_name)
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAddMemberSheet by remember { mutableStateOf(false) }
@@ -144,46 +153,20 @@ fun GroupChatTemplateDetailPage(
                 )
             }
 
-            SettingsGroup(title = stringResource(R.string.group_chat_template_host_model)) {
-                SettingGroupItem(
-                    title = stringResource(R.string.group_chat_template_host_model),
-                    subtitle = stringResource(R.string.group_chat_template_host_model_desc),
-                    trailing = {
-                        ModelSelector(
-                            modelId = currentTemplate.hostModelId,
-                            providers = settings.providers,
-                            type = ModelType.CHAT,
-                            onSelect = { model ->
-                                vm.updateHostModel(model.id)
-                            },
-                        )
-                    }
-                )
-            }
-
-            SettingsGroup(title = stringResource(R.string.assistant_page_memory)) {
-                SettingGroupItem(
-                    title = stringResource(R.string.group_chat_template_integration_model),
-                    subtitle = stringResource(R.string.group_chat_template_integration_model_desc),
-                    trailing = {
-                        ModelSelector(
-                            modelId = currentTemplate.integrationModelId,
-                            providers = settings.providers,
-                            type = ModelType.CHAT,
-                            allowClear = true,
-                            onSelect = { model ->
-                                val shouldClear = model.displayName.isBlank() && model.modelId.isBlank()
-                                vm.updateIntegrationModel(if (shouldClear) null else model.id)
-                            },
-                        )
-                    }
-                )
-            }
-
             SettingsGroup(title = stringResource(R.string.group_chat_template_members)) {
+                val assistantsById = remember(settings.assistants) { settings.assistants.associateBy { it.id } }
+                val seatDisplayNames = remember(currentTemplate.seats, assistantsById, defaultAssistantName) {
+                    currentTemplate.buildSeatDisplayNames(
+                        assistantsById = assistantsById,
+                        defaultName = defaultAssistantName,
+                    )
+                }
+
                 currentTemplate.seats.forEach { seat ->
                     val assistant = settings.assistants.find { it.id == seat.assistantId }
-                    val seatTitle = assistant?.name?.ifBlank { defaultName } ?: defaultName
+                    val seatTitle = seatDisplayNames[seat.id]
+                        ?: assistant?.name?.ifBlank { defaultAssistantName }
+                        ?: defaultAssistantName
 
                     val effectiveModelId = seat.overrides.chatModelId
                         ?: assistant?.chatModelId
@@ -239,6 +222,42 @@ fun GroupChatTemplateDetailPage(
                     }
                 )
             }
+
+            SettingsGroup(title = stringResource(R.string.group_chat_template_host_model)) {
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_host_model),
+                    subtitle = stringResource(R.string.group_chat_template_host_model_desc),
+                    trailing = {
+                        ModelSelector(
+                            modelId = currentTemplate.hostModelId,
+                            providers = settings.providers,
+                            type = ModelType.CHAT,
+                            onSelect = { model ->
+                                vm.updateHostModel(model.id)
+                            },
+                        )
+                    }
+                )
+            }
+
+            SettingsGroup(title = stringResource(R.string.assistant_page_memory)) {
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_integration_model),
+                    subtitle = stringResource(R.string.group_chat_template_integration_model_desc),
+                    trailing = {
+                        ModelSelector(
+                            modelId = currentTemplate.integrationModelId,
+                            providers = settings.providers,
+                            type = ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                val shouldClear = model.displayName.isBlank() && model.modelId.isBlank()
+                                vm.updateIntegrationModel(if (shouldClear) null else model.id)
+                            },
+                        )
+                    }
+                )
+            }
         }
     }
 
@@ -288,7 +307,7 @@ fun GroupChatTemplateDetailPage(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 settings.assistants.forEach { assistant ->
-                    val assistantName = assistant.name.ifBlank { defaultName }
+                    val assistantName = assistant.name.ifBlank { defaultAssistantName }
                     Surface(
                         onClick = {
                             haptics.perform(HapticPattern.Pop)
@@ -334,9 +353,12 @@ private fun SeatOverridesEditor(
     onUpdateOverrides: ((GroupChatSeatOverrides) -> GroupChatSeatOverrides) -> Unit,
     onRemove: () -> Unit,
 ) {
+    val mcpManager = koinInject<me.rerere.rikkahub.data.ai.mcp.McpManager>()
+
     val defaultThinkingBudget = assistant?.thinkingBudget ?: 0
     val effectiveThinkingBudget = seat.overrides.thinkingBudget ?: defaultThinkingBudget
     val effectiveModelId = seat.overrides.chatModelId ?: assistant?.chatModelId ?: settings.chatModelId
+    val model = settings.findModelById(effectiveModelId)
 
     Surface(
         modifier = Modifier
@@ -427,6 +449,113 @@ private fun SeatOverridesEditor(
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.auto)) },
                 )
+            }
+
+            val offText = stringResource(R.string.off)
+            val builtInText = stringResource(R.string.built_in_search_title)
+            val providerIndex = (seat.overrides.searchMode as? AssistantSearchMode.Provider)?.index
+            val providerName = providerIndex?.let { index ->
+                val service = settings.searchServices.getOrNull(index)
+                val resolved = service?.let { options -> SearchServiceOptions.TYPES[options::class] }
+                resolved?.takeIf { it.isNotBlank() } ?: "Provider ${index + 1}"
+            }
+            val supportsBuiltInSearch = model != null && ModelRegistry.GEMINI_SERIES.match(model.modelId)
+            val searchSubtitle = when {
+                !seat.overrides.searchEnabled -> offText
+                seat.overrides.searchMode is AssistantSearchMode.BuiltIn -> builtInText
+                supportsBuiltInSearch && seat.overrides.preferBuiltInSearch -> builtInText
+                providerName != null -> providerName
+                else -> offText
+            }
+
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = stringResource(R.string.use_web_search),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                SearchPickerButton(
+                    enableSearch = seat.overrides.searchEnabled,
+                    settings = settings,
+                    shape = CircleShape,
+                    onToggleSearch = { enabled ->
+                        onUpdateOverrides { overrides ->
+                            if (!enabled) return@onUpdateOverrides overrides.copy(searchEnabled = false)
+                            val defaultProviderIndex = settings.searchServiceSelected
+                                .takeIf { it in settings.searchServices.indices }
+                                ?: 0
+                            val nextMode = when {
+                                overrides.searchMode is AssistantSearchMode.Off && settings.searchServices.isNotEmpty() ->
+                                    AssistantSearchMode.Provider(defaultProviderIndex)
+                                else -> overrides.searchMode
+                            }
+                            overrides.copy(searchEnabled = true, searchMode = nextMode)
+                        }
+                    },
+                    onUpdateSearchService = { index ->
+                        onUpdateOverrides { overrides ->
+                            overrides.copy(
+                                searchEnabled = true,
+                                searchMode = AssistantSearchMode.Provider(index),
+                            )
+                        }
+                    },
+                    model = model,
+                    selectedProviderIndex = providerIndex ?: -1,
+                    isBuiltInMode = seat.overrides.searchMode is AssistantSearchMode.BuiltIn,
+                    preferBuiltInSearch = seat.overrides.preferBuiltInSearch,
+                    onTogglePreferBuiltInSearch = { enabled ->
+                        onUpdateOverrides { overrides ->
+                            overrides.copy(
+                                searchEnabled = overrides.searchEnabled || enabled,
+                                preferBuiltInSearch = enabled,
+                            )
+                        }
+                    },
+                    contentColor = if (seat.overrides.searchEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    onlyIcon = true,
+                )
+            }
+
+            if (settings.mcpServers.isNotEmpty()) {
+                val mcpAssistant = (assistant ?: Assistant(id = seat.assistantId)).copy(
+                    id = assistant?.id ?: seat.assistantId,
+                    name = assistant?.name.orEmpty(),
+                    avatar = assistant?.avatar ?: me.rerere.rikkahub.data.model.Avatar.Dummy,
+                    mcpServers = seat.overrides.mcpServerIds,
+                )
+
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.mcp_picker_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    McpPickerButton(
+                        assistant = mcpAssistant,
+                        servers = settings.mcpServers,
+                        mcpManager = mcpManager,
+                        onUpdateAssistant = { updated ->
+                            onUpdateOverrides { it.copy(mcpServerIds = updated.mcpServers) }
+                        }
+                    )
+                }
             }
 
             Row(

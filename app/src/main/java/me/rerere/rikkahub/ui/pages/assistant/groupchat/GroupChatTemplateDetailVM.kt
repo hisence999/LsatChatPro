@@ -13,6 +13,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.GroupChatSeat
 import me.rerere.rikkahub.data.model.GroupChatSeatOverrides
 import me.rerere.rikkahub.data.model.GroupChatTemplate
+import me.rerere.rikkahub.data.model.ensureSeatInstanceNumbers
 import kotlin.uuid.Uuid
 
 class GroupChatTemplateDetailVM(
@@ -55,7 +56,18 @@ class GroupChatTemplateDetailVM(
 
     fun addSeat(assistantId: Uuid) {
         updateTemplate { template ->
-            template.copy(seats = template.seats + GroupChatSeat(assistantId = assistantId))
+            val nextInstanceNumber = (template.seats.asSequence()
+                .filter { seat -> seat.assistantId == assistantId }
+                .map { seat -> seat.instanceNumber }
+                .filter { number -> number >= 1 }
+                .maxOrNull() ?: 0) + 1
+
+            template.copy(
+                seats = template.seats + GroupChatSeat(
+                    assistantId = assistantId,
+                    instanceNumber = nextInstanceNumber,
+                )
+            ).ensureSeatInstanceNumbers()
         }
     }
 
@@ -98,7 +110,7 @@ class GroupChatTemplateDetailVM(
                 if (index < 0) return@update settings
 
                 val current = settings.groupChatTemplates[index]
-                val updated = transform(current)
+                val updated = transform(current).ensureSeatInstanceNumbers()
                 val newTemplates = settings.groupChatTemplates.toMutableList().apply {
                     this[index] = updated
                 }

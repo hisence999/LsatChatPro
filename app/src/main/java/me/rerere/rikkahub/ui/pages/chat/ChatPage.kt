@@ -103,6 +103,7 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GroupChatTemplate
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatInputUiMode
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -1008,16 +1009,17 @@ private fun analyzeGroupChatMentionText(
         )
     }
 
-    val tagNamesById = settings.assistantTags.associate { it.id to it.name }
+    val assistantsById = settings.assistants.associateBy { it.id }
+    val seatDisplayNames = template.buildSeatDisplayNames(
+        assistantsById = assistantsById,
+        defaultName = "Assistant",
+    )
     val keyToInfo = mutableMapOf<String, MutableMentionKeyInfo>()
 
     template.seats.forEach { seat ->
-        val assistant = settings.getAssistantById(seat.assistantId) ?: return@forEach
+        val assistant = assistantsById[seat.assistantId] ?: return@forEach
         val keys = buildList {
-            assistant.name.trim().takeIf { it.isNotBlank() }?.let(::add)
-            assistant.tags.forEach { tagId ->
-                tagNamesById[tagId]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
-            }
+            seatDisplayNames[seat.id]?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
         }
         keys.forEach { key ->
             val normalized = key.lowercase(Locale.ROOT)
@@ -1114,6 +1116,7 @@ private fun GroupChatMentionDisambiguationSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1139,6 +1142,13 @@ private fun GroupChatMentionDisambiguationSheet(
             val seatsById = remember(state.template) {
                 state.template.seats.associateBy { it.id }
             }
+            val assistantsById = remember(settings.assistants) { settings.assistants.associateBy { it.id } }
+            val seatDisplayNames = remember(state.template, assistantsById, defaultAssistantName) {
+                state.template.buildSeatDisplayNames(
+                    assistantsById = assistantsById,
+                    defaultName = defaultAssistantName,
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -1158,7 +1168,9 @@ private fun GroupChatMentionDisambiguationSheet(
                     info.seatIds.forEach { seatId ->
                         val seat = seatsById[seatId]
                         val assistant = seat?.assistantId?.let(settings::getAssistantById)
-                        val assistantName = assistant?.name?.ifBlank { info.displayName } ?: info.displayName
+                        val assistantName = seatDisplayNames[seatId]
+                            ?: assistant?.name?.ifBlank { info.displayName }
+                            ?: info.displayName
                         val resolvedModelId =
                             seat?.overrides?.chatModelId ?: assistant?.chatModelId ?: settings.chatModelId
                         val modelName = resolvedModelId
