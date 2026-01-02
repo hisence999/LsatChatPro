@@ -1097,6 +1097,16 @@ class ChatService(
                     appContextTransformer = appContextTransformer,
                     useLiveUpdate = useLiveUpdate,
                 )
+                if (useLiveUpdate) {
+                    liveUpdateStates.remove(conversationId)
+                    notifyLiveUpdate(
+                        conversationId = conversationId,
+                        state = ChatLiveUpdateState.DONE,
+                        settings = settings,
+                        force = true,
+                        error = null,
+                    )
+                }
                 return@runCatching
             }
 
@@ -1969,6 +1979,49 @@ class ChatService(
                     }
 
                     message.copy(parts = updatedParts)
+                }
+
+                MessageRole.TOOL -> {
+                    if (isSelfAssistantMessage(message)) return@mapIndexed message
+
+                    val isUnread = index > lastSelfIndex
+                    val speakerName = resolveGroupChatMessageSpeakerName(
+                        message = message,
+                        settings = settings,
+                        seatDisplayNames = seatDisplayNames,
+                    )
+                    val results = message.getToolResults()
+                    val content = results.joinToString("\n\n") { result ->
+                        val args = result.arguments.toString().trim()
+                        val output = result.content.toString().trim()
+                        buildString {
+                            appendLine("Tool: ${result.toolName}")
+                            if (args.isNotBlank() && args != "{}") {
+                                appendLine("Args: ${args.take(800)}")
+                            }
+                            if (output.isNotBlank()) {
+                                append("Result: ${output.take(2400)}")
+                            }
+                        }.trim()
+                    }.trim().take(4000)
+                    val prefix = when {
+                        isUnread && speakerName.isNullOrBlank() -> "[Unread tool result from another assistant (assistant)]"
+                        isUnread -> "[Unread tool result from $speakerName (assistant)]"
+                        speakerName.isNullOrBlank() -> "[Tool result from another assistant (assistant)]"
+                        else -> "[Tool result from $speakerName (assistant)]"
+                    }
+
+                    message.copy(
+                        role = MessageRole.USER,
+                        parts = listOf(
+                            UIMessagePart.Text(
+                                buildString {
+                                    appendLine(prefix)
+                                    append(content.ifBlank { "(No tool result)" })
+                                }
+                            )
+                        )
+                    )
                 }
 
                 else -> message
