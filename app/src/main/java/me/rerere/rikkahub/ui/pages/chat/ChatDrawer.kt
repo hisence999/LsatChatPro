@@ -50,14 +50,19 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Edit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.Greeting
@@ -217,35 +222,49 @@ fun ChatDrawerContent(
             )
 
             // 助手选择器
-            if (settings.assistants.size > 1) {
+            if (settings.assistants.size > 1 || settings.groupChatTemplates.isNotEmpty()) {
                 AssistantPicker(
                     settings = settings,
                     onUpdateSettings = { newSettings ->
                         // Just update settings - don't navigate yet
                         vm.updateSettings(newSettings)
                     },
-                    onNavigate = {
+                    onNavigate = { target ->
                         // Called after sheet closes - just close drawer and navigate
                         scope.launch {
                             // Close drawer with animation
                             drawerState?.close()
+
+                            // Avoid racing: wait until settings reflect the selected chat target.
+                            withTimeoutOrNull(1500) {
+                                vm.settings.first { settings -> !settings.init && settings.chatTarget == target }
+                            }
                             
                             // Navigate to new chat
                             val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
                                 Uuid.random()
                             } else {
-                                repo.getConversationsOfAssistant(settings.assistantId)
-                                    .first()
-                                    .firstOrNull()
-                                    ?.id ?: Uuid.random()
+                                withContext(Dispatchers.IO) {
+                                    repo.getConversationsOfAssistant(target.id)
+                                        .first()
+                                        .firstOrNull()
+                                        ?.id
+                                } ?: Uuid.random()
                             }
                             navigateToChatPage(navController = navController, chatId = id)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     onClickSetting = {
-                        val currentAssistantId = settings.assistantId
-                        navController.navigate(Screen.AssistantDetail(id = currentAssistantId.toString()))
+                        when (val target = settings.chatTarget) {
+                            is ChatTarget.Assistant -> {
+                                navController.navigate(Screen.AssistantDetail(id = target.assistantId.toString()))
+                            }
+
+                            is ChatTarget.GroupChat -> {
+                                navController.navigate(Screen.GroupChatTemplateDetail(id = target.templateId.toString()))
+                            }
+                        }
                     }
                 )
             }

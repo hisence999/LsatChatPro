@@ -88,6 +88,7 @@ import androidx.compose.material.icons.rounded.TouchApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -95,6 +96,8 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
@@ -114,6 +117,20 @@ private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
 
+private data class MessageSpeakerIdentity(
+    val seatId: Uuid?,
+    val assistantId: Uuid?,
+    val modelId: Uuid?,
+)
+
+private fun UIMessage.speakerIdentity(): MessageSpeakerIdentity {
+    return MessageSpeakerIdentity(
+        seatId = speakerSeatId,
+        assistantId = speakerAssistantId,
+        modelId = modelId,
+    )
+}
+
 @Composable
 fun ChatList(
     innerPadding: PaddingValues,
@@ -123,6 +140,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -154,6 +172,7 @@ fun ChatList(
                     loading = loading,
                     settings = settings,
                     recentlyRestoredNodeIds = recentlyRestoredNodeIds,
+                    onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                     onRegenerate = onRegenerate,
                     onEdit = onEdit,
                     onForkMessage = onForkMessage,
@@ -174,6 +193,7 @@ private fun SharedTransitionScope.ChatListNormal(
     loading: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    onAssistantAvatarLongPress: ((Assistant) -> Unit)?,
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
@@ -186,6 +206,17 @@ private fun SharedTransitionScope.ChatListNormal(
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+    val groupChatTemplateForConversation = remember(settings.groupChatTemplates, conversation.assistantId) {
+        settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+    }
+    val assistantsById = remember(settings.assistants) { settings.assistants.associateBy { it.id } }
+    val seatDisplayNames = remember(groupChatTemplateForConversation, assistantsById, defaultAssistantName) {
+        groupChatTemplateForConversation?.buildSeatDisplayNames(
+            assistantsById = assistantsById,
+            defaultName = defaultAssistantName,
+        ).orEmpty()
+    }
 
     val currentConversationState = rememberUpdatedState(conversation)
     val onCitationClick = remember {
@@ -275,6 +306,7 @@ private fun SharedTransitionScope.ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    val message = node.currentMessage
                     val isSelected by remember(node.id) {
                         derivedStateOf { selectedItems.contains(node.id) }
                     }
@@ -289,28 +321,50 @@ private fun SharedTransitionScope.ChatListNormal(
                         },
                         enabled = selecting,
                     ) {
-                        val previousRole = if (index > 0) conversation.messageNodes[index - 1].currentMessage.role else null
+                        val previousMessage = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
+                        val speakerChanged = previousMessage?.role == MessageRole.ASSISTANT &&
+                            message.role == MessageRole.ASSISTANT &&
+                            previousMessage.speakerIdentity() != message.speakerIdentity()
+                        val previousRole = if (speakerChanged) null else previousMessage?.role
                         val isLast = index == conversation.messageNodes.lastIndex
+                        val assistantForMessage = message.speakerSeatId
+                            ?.let { seatId ->
+                                groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
+                            }
+                            ?.let { seat ->
+                                assistantsById[seat.assistantId]?.let { resolved ->
+                                    val displayName = seatDisplayNames[seat.id]
+                                    if (displayName.isNullOrBlank() || displayName == resolved.name) {
+                                        resolved
+                                    } else {
+                                        resolved.copy(name = displayName)
+                                    }
+                                }
+                            }
+                            ?: message.speakerAssistantId
+                                ?.let { speakerId -> settings.getAssistantById(speakerId) }
+                            ?: settings.getAssistantById(conversation.assistantId)
                         ChatMessage(
                             node = node,
                             previousRole = previousRole,
                             isLast = isLast,
                             onCitationClick = onCitationClick,
-                            model = node.currentMessage.modelId?.let { settings.findModelById(it) },
-                            assistant = settings.getAssistantById(conversation.assistantId),
+                            model = message.modelId?.let { settings.findModelById(it) },
+                            assistant = assistantForMessage,
+                            onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                             loading = loading && isLast,
                             isRecentlyRestored = node.id in recentlyRestoredNodeIds,
                             onRegenerate = {
-                                onRegenerate(node.currentMessage)
+                                onRegenerate(message)
                             },
                             onEdit = {
-                                onEdit(node.currentMessage)
+                                onEdit(message)
                             },
                             onFork = {
-                                onForkMessage(node.currentMessage)
+                                onForkMessage(message)
                             },
                             onDelete = {
-                                onDelete(node.currentMessage)
+                                onDelete(message)
                             },
                             onShare = {
                                 selecting = true  // 使用 CoroutineScope 延迟状态更新

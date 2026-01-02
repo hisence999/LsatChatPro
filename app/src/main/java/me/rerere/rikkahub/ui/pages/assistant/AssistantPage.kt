@@ -70,6 +70,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.PowerOff
+import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -107,6 +108,7 @@ import me.rerere.rikkahub.ui.components.ui.PhysicsSwipeToDelete
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 
 
 @Composable
@@ -115,9 +117,11 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
     val createState = useEditState<Assistant> {
         vm.addAssistant(it)
     }
+    var showCreateSheet by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    val topBarHaptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
 
     // Search query state
     var searchQuery by remember { mutableStateOf("") }
@@ -144,6 +148,16 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         }
         
         result
+    }
+
+    val filteredGroupChats = remember(settings.groupChatTemplates, searchQuery) {
+        if (searchQuery.isBlank()) {
+            settings.groupChatTemplates
+        } else {
+            settings.groupChatTemplates.filter { template ->
+                template.name.contains(searchQuery, ignoreCase = true)
+            }
+        }
     }
     
     val isFiltering = selectedTagIds.isNotEmpty() || searchQuery.isNotBlank()
@@ -172,7 +186,8 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 actions = {
                     IconButton(
                         onClick = {
-                            createState.open(Assistant())
+                            topBarHaptics.perform(HapticPattern.Pop)
+                            showCreateSheet = true
                         }
                     ) {
                         Icon(Icons.Rounded.Add, stringResource(R.string.assistant_page_add))
@@ -355,12 +370,154 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                         }  // key(canDelete)
                     }  // ReorderableItem
                 }
+
+                // Group chat templates (shown below assistants)
+                item(key = "group_chat_header") {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.group_chat_title),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    )
+                }
+
+                if (filteredGroupChats.isEmpty()) {
+                    item(key = "group_chat_empty") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
+                            color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.group_chat_template_create),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .clickable {
+                                        topBarHaptics.perform(HapticPattern.Pop)
+                                        val newId = Uuid.random()
+                                        navController.navigate(Screen.GroupChatTemplateDetail(id = newId.toString()))
+                                    },
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredGroupChats, key = { it.id }) { template ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(me.rerere.rikkahub.ui.theme.AppShapes.CardMedium)
+                                .clickable {
+                                    topBarHaptics.perform(HapticPattern.Pop)
+                                    navController.navigate(Screen.GroupChatTemplateDetail(id = template.id.toString()))
+                                },
+                            color = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardMedium,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(me.rerere.rikkahub.ui.theme.AppShapes.IconButton)
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Group,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = template.name.ifBlank { stringResource(R.string.group_chat_default_name) },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.group_chat_members_count, template.seats.size),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
             }
-            
         }
     }
 
     AssistantCreationSheet(state = createState)
+
+    if (showCreateSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCreateSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.assistant_page_add),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+
+                SettingGroupItem(
+                    title = stringResource(R.string.assistant_page_title),
+                    icon = { Icon(imageVector = Icons.Rounded.Add, contentDescription = null) },
+                    onClick = {
+                        showCreateSheet = false
+                        createState.open(Assistant())
+                    }
+                )
+
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_create),
+                    icon = { Icon(imageVector = Icons.Rounded.Group, contentDescription = null) },
+                    onClick = {
+                        showCreateSheet = false
+                        val newId = Uuid.random()
+                        navController.navigate(Screen.GroupChatTemplateDetail(id = newId.toString()))
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable

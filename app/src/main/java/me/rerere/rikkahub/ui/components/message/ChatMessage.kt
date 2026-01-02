@@ -118,6 +118,7 @@ fun ChatMessage(
     isRecentlyRestored: Boolean = false,
     model: Model? = null,
     assistant: Assistant? = null,
+    onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -177,6 +178,7 @@ fun ChatMessage(
                     previousRole = previousRole,
                     model = model,
                     assistant = assistant,
+                    onAvatarLongPress = onAssistantAvatarLongPress,
                     loading = loading,
                     modifier = Modifier.weight(1f)
                 )

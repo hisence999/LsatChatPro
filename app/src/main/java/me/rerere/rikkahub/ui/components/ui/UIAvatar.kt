@@ -80,7 +80,7 @@ fun TextAvatar(
 fun UIAvatar(
     name: String,
     value: Avatar,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.size(32.dp),
     loading: Boolean = false,
     onUpdate: ((Avatar) -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -105,60 +105,118 @@ fun UIAvatar(
         }
     }
 
-    Surface(
-        shape = rememberAvatarShape(loading),
-        modifier = modifier.size(32.dp),
-        onClick = {
-            onClick?.invoke()
-            if (onUpdate != null) showPickOption = true
-        },
-        tonalElevation = 4.dp,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
+    val enableClick = onClick != null || onUpdate != null
+    if (enableClick) {
+        Surface(
+            shape = rememberAvatarShape(loading),
+            modifier = modifier,
+            onClick = {
+                onClick?.invoke()
+                if (onUpdate != null) showPickOption = true
+            },
+            tonalElevation = 4.dp,
+            color = MaterialTheme.colorScheme.secondaryContainer,
         ) {
-            when (value) {
-                is Avatar.Image -> {
-                    AsyncImage(
-                        model = value.url,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (value) {
+                    is Avatar.Image -> {
+                        AsyncImage(
+                            model = value.url,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
 
-                is Avatar.Emoji -> {
-                    Text(
-                        text = value.content,
-                        autoSize = TextAutoSize.StepBased(
-                            minFontSize = 15.sp,
-                            maxFontSize = 30.sp,
-                        ),
-                        lineHeight = 1.em,
-                        modifier = Modifier.padding(2.dp)
-                    )
-                }
+                    is Avatar.Emoji -> {
+                        Text(
+                            text = value.content,
+                            autoSize = TextAutoSize.StepBased(
+                                minFontSize = 15.sp,
+                                maxFontSize = 30.sp,
+                            ),
+                            lineHeight = 1.em,
+                            modifier = Modifier.padding(2.dp)
+                        )
+                    }
 
-                is Avatar.Resource -> {
-                    AsyncImage(
-                        model = value.id,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+                    is Avatar.Resource -> {
+                        AsyncImage(
+                            model = value.id,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
 
-                is Avatar.Dummy -> {
-                    Text(
-                        text = name
-                            .ifBlank { stringResource(R.string.user_default_name) }
-                            .takeIf { it.isNotEmpty() }
-                            ?.firstOrNull()?.toString()?.uppercase() ?: "A",
-                        fontSize = 20.sp,
-                        lineHeight = 1.em
-                    )
+                    is Avatar.Dummy -> {
+                        Text(
+                            text = name
+                                .ifBlank { stringResource(R.string.user_default_name) }
+                                .takeIf { it.isNotEmpty() }
+                                ?.firstOrNull()?.toString()?.uppercase() ?: "A",
+                            fontSize = 20.sp,
+                            lineHeight = 1.em
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        Surface(
+            shape = rememberAvatarShape(loading),
+            modifier = modifier,
+            tonalElevation = 4.dp,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (value) {
+                    is Avatar.Image -> {
+                        AsyncImage(
+                            model = value.url,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+
+                    is Avatar.Emoji -> {
+                        Text(
+                            text = value.content,
+                            autoSize = TextAutoSize.StepBased(
+                                minFontSize = 15.sp,
+                                maxFontSize = 30.sp,
+                            ),
+                            lineHeight = 1.em,
+                            modifier = Modifier.padding(2.dp)
+                        )
+                    }
+
+                    is Avatar.Resource -> {
+                        AsyncImage(
+                            model = value.id,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+
+                    is Avatar.Dummy -> {
+                        Text(
+                            text = name
+                                .ifBlank { stringResource(R.string.user_default_name) }
+                                .takeIf { it.isNotEmpty() }
+                                ?.firstOrNull()?.toString()?.uppercase() ?: "A",
+                            fontSize = 20.sp,
+                            lineHeight = 1.em
+                        )
+                    }
                 }
             }
         }
