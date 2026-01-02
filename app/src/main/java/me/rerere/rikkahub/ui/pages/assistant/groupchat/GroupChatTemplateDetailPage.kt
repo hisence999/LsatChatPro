@@ -32,6 +32,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -89,6 +90,7 @@ fun GroupChatTemplateDetailPage(
     )
     val settings by vm.settings.collectAsStateWithLifecycle()
     val template by vm.template.collectAsStateWithLifecycle()
+    val currentTemplate = template
     val navController = LocalNavController.current
     val context = LocalContext.current
 
@@ -99,6 +101,10 @@ fun GroupChatTemplateDetailPage(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAddMemberSheet by remember { mutableStateOf(false) }
     var expandedSeatId by remember(template?.id) { mutableStateOf<Uuid?>(null) }
+    var showIntroDialog by remember(template?.id) { mutableStateOf(false) }
+    var showHostPromptDialog by remember(template?.id) { mutableStateOf(false) }
+    var showSeatPromptDialog by remember(template?.id) { mutableStateOf(false) }
+    var seatPromptDialogSeatId by remember(template?.id) { mutableStateOf<Uuid?>(null) }
 
     Scaffold(
         topBar = {
@@ -136,7 +142,6 @@ fun GroupChatTemplateDetailPage(
                 .padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            val currentTemplate = template
             if (currentTemplate == null) {
                 Text(
                     text = "Template not found ($id)",
@@ -160,6 +165,11 @@ fun GroupChatTemplateDetailPage(
                             singleLine = true,
                         )
                     }
+                )
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_intro),
+                    subtitle = stringResource(R.string.assistant_page_system_prompt),
+                    onClick = { showIntroDialog = true },
                 )
             }
 
@@ -216,6 +226,10 @@ fun GroupChatTemplateDetailPage(
                             onUpdateOverrides = { transform ->
                                 vm.updateSeatOverrides(seat.id, transform)
                             },
+                            onEditPrompt = {
+                                seatPromptDialogSeatId = seat.id
+                                showSeatPromptDialog = true
+                            },
                             onRemove = {
                                 vm.removeSeat(seat.id)
                                 expandedSeatId = null
@@ -247,6 +261,11 @@ fun GroupChatTemplateDetailPage(
                             },
                         )
                     }
+                )
+                SettingGroupItem(
+                    title = stringResource(R.string.group_chat_template_host_system_prompt),
+                    subtitle = stringResource(R.string.assistant_page_system_prompt),
+                    onClick = { showHostPromptDialog = true },
                 )
             }
 
@@ -444,6 +463,118 @@ fun GroupChatTemplateDetailPage(
             }
         }
     }
+
+    if (showIntroDialog && currentTemplate != null) {
+        var localIntro by remember(currentTemplate.id) { mutableStateOf(currentTemplate.intro) }
+        AlertDialog(
+            onDismissRequest = { showIntroDialog = false },
+            title = { Text(stringResource(R.string.group_chat_template_intro)) },
+            text = {
+                TextField(
+                    value = localIntro,
+                    onValueChange = { localIntro = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 6,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.updateIntro(localIntro)
+                        showIntroDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showIntroDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showHostPromptDialog && currentTemplate != null) {
+        var localPrompt by remember(currentTemplate.id) { mutableStateOf(currentTemplate.hostSystemPrompt) }
+        AlertDialog(
+            onDismissRequest = { showHostPromptDialog = false },
+            title = { Text(stringResource(R.string.group_chat_template_host_system_prompt)) },
+            text = {
+                TextField(
+                    value = localPrompt,
+                    onValueChange = { localPrompt = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 6,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.updateHostSystemPrompt(localPrompt)
+                        showHostPromptDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHostPromptDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showSeatPromptDialog && currentTemplate != null) {
+        val seatId = seatPromptDialogSeatId
+        val seat = seatId?.let { id -> currentTemplate.seats.firstOrNull { it.id == id } }
+        val assistant = seat?.assistantId?.let { assistantId -> settings.assistants.firstOrNull { it.id == assistantId } }
+        val basePrompt = assistant?.systemPrompt.orEmpty()
+        val currentOverride = seat?.overrides?.systemPrompt
+        var localPrompt by remember(currentTemplate.id, seatId) { mutableStateOf(currentOverride ?: basePrompt) }
+
+        AlertDialog(
+            onDismissRequest = {
+                showSeatPromptDialog = false
+                seatPromptDialogSeatId = null
+            },
+            title = { Text(stringResource(R.string.group_chat_template_seat_system_prompt_edit)) },
+            text = {
+                TextField(
+                    value = localPrompt,
+                    onValueChange = { localPrompt = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 8,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val resolvedSeatId = seatId ?: return@TextButton
+                        val normalized = localPrompt.takeIf { it != basePrompt }
+                        vm.updateSeatOverrides(resolvedSeatId) { overrides ->
+                            overrides.copy(systemPrompt = normalized)
+                        }
+                        showSeatPromptDialog = false
+                        seatPromptDialogSeatId = null
+                    }
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showSeatPromptDialog = false
+                        seatPromptDialogSeatId = null
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -453,6 +584,7 @@ private fun SeatOverridesEditor(
     seat: GroupChatSeat,
     assistant: Assistant?,
     onUpdateOverrides: ((GroupChatSeatOverrides) -> GroupChatSeatOverrides) -> Unit,
+    onEditPrompt: () -> Unit,
     onRemove: () -> Unit,
 ) {
     val mcpManager = koinInject<me.rerere.rikkahub.data.ai.mcp.McpManager>()
@@ -677,11 +809,20 @@ private fun SeatOverridesEditor(
                 )
             }
 
-            TextButton(onClick = onRemove) {
-                Text(
-                    text = stringResource(R.string.group_chat_template_remove_member),
-                    color = MaterialTheme.colorScheme.error,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = onEditPrompt) {
+                    Text(text = stringResource(R.string.group_chat_template_seat_system_prompt_edit))
+                }
+
+                TextButton(onClick = onRemove) {
+                    Text(
+                        text = stringResource(R.string.group_chat_template_remove_member),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
     }

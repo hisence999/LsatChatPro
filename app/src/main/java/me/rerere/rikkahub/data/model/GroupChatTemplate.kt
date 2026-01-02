@@ -7,7 +7,9 @@ import kotlin.uuid.Uuid
 data class GroupChatTemplate(
     val id: Uuid = Uuid.random(),
     val name: String = "",
+    val intro: String = "",
     val hostModelId: Uuid? = null,
+    val hostSystemPrompt: String = "",
     val integrationModelId: Uuid? = null,
     val consolidationDelayMinutes: Int = 30,
     val seats: List<GroupChatSeat> = emptyList(),
@@ -25,6 +27,7 @@ data class GroupChatSeat(
 @Serializable
 data class GroupChatSeatOverrides(
     val chatModelId: Uuid? = null,
+    val systemPrompt: String? = null,
     val thinkingBudget: Int? = null,
     val maxTokens: Int? = null,
     val searchEnabled: Boolean = false,

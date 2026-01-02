@@ -46,8 +46,16 @@ class GroupChatTemplateDetailVM(
         updateTemplate { it.copy(name = name) }
     }
 
+    fun updateIntro(intro: String) {
+        updateTemplate { it.copy(intro = intro) }
+    }
+
     fun updateHostModel(modelId: Uuid?) {
         updateTemplate { it.copy(hostModelId = modelId) }
+    }
+
+    fun updateHostSystemPrompt(prompt: String) {
+        updateTemplate { it.copy(hostSystemPrompt = prompt) }
     }
 
     fun updateIntegrationModel(modelId: Uuid?) {

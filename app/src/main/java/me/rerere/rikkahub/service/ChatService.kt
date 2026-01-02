@@ -1732,9 +1732,10 @@ class ChatService(
         overrides: GroupChatSeatOverrides,
         systemPromptSuffix: String?,
     ): me.rerere.rikkahub.data.model.Assistant {
+        val basePrompt = overrides.systemPrompt ?: assistant.systemPrompt
         val updatedPrompt = systemPromptSuffix?.let { suffix ->
-            if (suffix.isBlank()) assistant.systemPrompt else assistant.systemPrompt + suffix
-        } ?: assistant.systemPrompt
+            if (suffix.isBlank()) basePrompt else basePrompt + suffix
+        } ?: basePrompt
 
         return assistant.copy(
             chatModelId = overrides.chatModelId ?: assistant.chatModelId,
@@ -1780,6 +1781,11 @@ class ChatService(
             append("\n\n")
             appendLine("You are in a group chat.")
             appendLine("Group: $templateName")
+            template.intro.trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { intro ->
+                    appendLine("Group intro: $intro")
+                }
             appendLine("Members: $membersLine")
             appendLine("You are $selfName ($seatLabel).")
             appendLine("Keep your own style/persona; do not imitate other assistants.")
@@ -2173,6 +2179,13 @@ class ChatService(
         val routerPrompt = buildString {
             appendLine("You are the host router for a group chat.")
             appendLine("You NEVER reply to the user. You ONLY output JSON.")
+            template.hostSystemPrompt.trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { extra ->
+                    appendLine()
+                    appendLine("Extra routing instructions:")
+                    appendLine(extra)
+                }
             appendLine()
             appendLine("Rules:")
             appendLine("- Choose 1 to 3 speakers from the seat list.")

@@ -772,6 +772,9 @@
     <string name="group_chat_template_member_use_memory">使用记忆</string>
     <string name="group_chat_template_member_enable_search">启用搜索</string>
     <string name="group_chat_template_member_enable_mcp">启用 MCP</string>
+    <string name="group_chat_template_intro">群聊简介</string>
+    <string name="group_chat_template_host_system_prompt">主持提示词</string>
+    <string name="group_chat_template_seat_system_prompt_edit">提示词修改</string>
     <string name="group_chat_template_delete">删除群聊</string>
     <string name="group_chat_template_create">新建群聊</string>
     <string name="group_chat_mention_disambiguation_title">解析 @ 提及</string>
