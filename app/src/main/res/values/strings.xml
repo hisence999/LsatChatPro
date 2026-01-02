@@ -212,7 +212,7 @@
     <string name="group_chat_template_host_model">Host model</string>
     <string name="group_chat_template_host_model_desc">Used only for routing; never replies</string>
     <string name="group_chat_template_integration_model">Integration model</string>
-    <string name="group_chat_template_integration_model_desc">Used when consolidating the group chat into memories for enabled members; never replies</string>
+    <string name="group_chat_template_integration_model_desc">Consolidates the group chat and writes memories into enabled members</string>
     <string name="group_chat_template_members">Members</string>
     <string name="group_chat_template_add_member">Add member</string>
     <string name="group_chat_template_remove_member">Remove member</string>
@@ -222,6 +222,7 @@
     <string name="group_chat_template_intro">Group intro</string>
     <string name="group_chat_template_host_system_prompt">Host instructions</string>
     <string name="group_chat_template_seat_system_prompt_edit">Edit prompt</string>
+    <string name="group_chat_template_system_prompt_suffix_optional">Appended to system prompt (optional)</string>
     <string name="group_chat_template_delete">Delete group chat</string>
     <string name="group_chat_template_create">New group chat</string>
     <string name="group_chat_mention_disambiguation_title">Resolve @ mention</string>

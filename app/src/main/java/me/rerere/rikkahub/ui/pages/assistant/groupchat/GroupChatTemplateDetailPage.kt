@@ -168,7 +168,7 @@ fun GroupChatTemplateDetailPage(
                 )
                 SettingGroupItem(
                     title = stringResource(R.string.group_chat_template_intro),
-                    subtitle = stringResource(R.string.assistant_page_system_prompt),
+                    subtitle = stringResource(R.string.group_chat_template_system_prompt_suffix_optional),
                     onClick = { showIntroDialog = true },
                 )
             }
@@ -264,7 +264,7 @@ fun GroupChatTemplateDetailPage(
                 )
                 SettingGroupItem(
                     title = stringResource(R.string.group_chat_template_host_system_prompt),
-                    subtitle = stringResource(R.string.assistant_page_system_prompt),
+                    subtitle = stringResource(R.string.group_chat_template_system_prompt_suffix_optional),
                     onClick = { showHostPromptDialog = true },
                 )
             }

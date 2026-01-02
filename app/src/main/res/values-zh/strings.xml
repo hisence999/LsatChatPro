@@ -768,13 +768,14 @@
     <string name="group_chat_template_host_model">主持模型</string>
     <string name="group_chat_template_host_model_desc">仅用于路由；不会发言</string>
     <string name="group_chat_template_integration_model">整合模型</string>
-    <string name="group_chat_template_integration_model_desc">用于在执行“整合记忆”时，将群聊内容整合并写入开启记忆的成员；不会发言</string>
+    <string name="group_chat_template_integration_model_desc">将群聊内容整合并写入开启记忆的成员</string>
     <string name="group_chat_template_member_use_memory">使用记忆</string>
     <string name="group_chat_template_member_enable_search">启用搜索</string>
     <string name="group_chat_template_member_enable_mcp">启用 MCP</string>
     <string name="group_chat_template_intro">群聊简介</string>
     <string name="group_chat_template_host_system_prompt">主持提示词</string>
     <string name="group_chat_template_seat_system_prompt_edit">提示词修改</string>
+    <string name="group_chat_template_system_prompt_suffix_optional">作为追加系统提示词(可选)</string>
     <string name="group_chat_template_delete">删除群聊</string>
     <string name="group_chat_template_create">新建群聊</string>
     <string name="group_chat_mention_disambiguation_title">解析 @ 提及</string>
