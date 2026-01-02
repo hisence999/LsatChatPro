@@ -181,7 +181,14 @@ class GenerationHandler(
                 runCatching {
                     val tool = toolsInternal.find { tool -> tool.name == toolCall.toolName }
                         ?: error("Tool ${toolCall.toolName} not found")
-                    val args = json.parseToJsonElement(toolCall.arguments.ifBlank { "{}" })
+                    val args = runCatching {
+                        json.parseToJsonElement(toolCall.arguments.ifBlank { "{}" })
+                    }.getOrElse {
+                        // Handle malformed JSON from model (e.g., multiple objects concatenated)
+                        Log.w(TAG, "Failed to parse tool arguments, attempting sanitization: ${it.message}")
+                        val sanitized = sanitizeToolCallArguments(toolCall.arguments)
+                        json.parseToJsonElement(sanitized)
+                    }
                     Log.i(TAG, "generateText: executing tool ${tool.name} with args: $args")
                     val result = tool.execute(args)
                     results += UIMessagePart.ToolResult(
@@ -980,4 +987,40 @@ class GenerationHandler(
             }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Attempts to sanitize malformed JSON from streamed tool call arguments.
+     * Handles cases where the model outputs content after a valid JSON object.
+     */
+    private fun sanitizeToolCallArguments(arguments: String): String {
+        if (arguments.isBlank()) return "{}"
+        val trimmed = arguments.trim()
+        
+        // Find the first complete JSON object
+        var braceCount = 0
+        var inString = false
+        var escape = false
+        
+        for ((index, char) in trimmed.withIndex()) {
+            if (escape) {
+                escape = false
+                continue
+            }
+            when (char) {
+                '\\' -> if (inString) escape = true
+                '"' -> inString = !inString
+                '{' -> if (!inString) braceCount++
+                '}' -> if (!inString) {
+                    braceCount--
+                    if (braceCount == 0) {
+                        // Found complete object, return it
+                        return trimmed.substring(0, index + 1)
+                    }
+                }
+            }
+        }
+        // Couldn't find complete object, return empty
+        Log.w(TAG, "Could not extract valid JSON object from: $trimmed")
+        return "{}"
+    }
 }

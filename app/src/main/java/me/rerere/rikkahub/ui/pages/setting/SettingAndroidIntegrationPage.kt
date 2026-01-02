@@ -244,22 +244,6 @@ fun SettingAndroidIntegrationPage(
 
                 item { Spacer(Modifier.height(80.dp)) }
             }
-            
-            // Bottom fade gradient
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
-            )
         }
     }
 
