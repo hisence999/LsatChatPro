@@ -16,6 +16,7 @@ import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
 import com.google.firebase.analytics.FirebaseAnalytics
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -418,66 +420,83 @@ class ChatVM(
     }
 
     suspend fun forkMessage(message: UIMessage): Conversation {
-        val node = conversation.value.getMessageNodeByMessage(message)
-        val nodes = conversation.value.messageNodes.subList(
-            0, conversation.value.messageNodes.indexOf(node) + 1
-        ).map { messageNode ->
-            messageNode.copy(
-                messages = messageNode.messages.map { msg ->
-                    msg.copy(
-                        parts = msg.parts.map { part ->
-                            when (part) {
-                                is UIMessagePart.Image -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
+        val sourceConversation = conversation.value
+        val forkEndIndex = sourceConversation.messageNodes
+            .indexOfFirst { node -> node.messages.any { it.id == message.id } }
+            .takeIf { it >= 0 }
+            ?: sourceConversation.messageNodes.lastIndex
 
-                                is UIMessagePart.Document -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                is UIMessagePart.Video -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                is UIMessagePart.Audio -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                else -> part
-                            }
-                        }
-                    )
-                }
-            )
+        val nodesToCopy = if (forkEndIndex >= 0) {
+            sourceConversation.messageNodes.subList(0, forkEndIndex + 1)
+        } else {
+            emptyList()
         }
+
+        val nodes = withContext(Dispatchers.IO) {
+            nodesToCopy.map { messageNode ->
+                messageNode.copy(
+                    messages = messageNode.messages.map { msg ->
+                        msg.copy(
+                            parts = msg.parts.map { part ->
+                                when (part) {
+                                    is UIMessagePart.Image -> {
+                                        val url = part.url
+                                        if (url.startsWith("file:")) {
+                                            val copied = context.createChatFilesByContents(
+                                                listOf(url.toUri())
+                                            ).firstOrNull()
+                                            if (copied != null) part.copy(url = copied.toString()) else part
+                                        } else part
+                                    }
+
+                                    is UIMessagePart.Document -> {
+                                        val url = part.url
+                                        if (url.startsWith("file:")) {
+                                            val copied = context.createChatFilesByContents(
+                                                listOf(url.toUri())
+                                            ).firstOrNull()
+                                            if (copied != null) part.copy(url = copied.toString()) else part
+                                        } else part
+                                    }
+
+                                    is UIMessagePart.Video -> {
+                                        val url = part.url
+                                        if (url.startsWith("file:")) {
+                                            val copied = context.createChatFilesByContents(
+                                                listOf(url.toUri())
+                                            ).firstOrNull()
+                                            if (copied != null) part.copy(url = copied.toString()) else part
+                                        } else part
+                                    }
+
+                                    is UIMessagePart.Audio -> {
+                                        val url = part.url
+                                        if (url.startsWith("file:")) {
+                                            val copied = context.createChatFilesByContents(
+                                                listOf(url.toUri())
+                                            ).firstOrNull()
+                                            if (copied != null) part.copy(url = copied.toString()) else part
+                                        } else part
+                                    }
+
+                                    else -> part
+                                }
+                            }
+                        )
+                    }
+                )
+            }
+        }
+
+        val sourceTitle = sourceConversation.title.ifBlank {
+            context.getString(R.string.chat_page_new_chat)
+        }
+        val forkTitle = context.getString(R.string.chat_page_fork_title, sourceTitle)
         val newConversation = Conversation(
             id = Uuid.random(),
-            assistantId = settings.value.assistantId,
-            messageNodes = nodes
+            assistantId = sourceConversation.assistantId,
+            title = forkTitle,
+            messageNodes = nodes,
         )
         chatService.saveConversation(newConversation.id, newConversation)
         return newConversation

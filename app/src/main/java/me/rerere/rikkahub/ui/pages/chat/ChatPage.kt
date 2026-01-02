@@ -635,7 +635,8 @@ private fun ChatPageContent(
                     },
                     onForkMessage = {
                         scope.launch {
-                            vm.forkMessage(it)
+                            val forkedConversation = vm.forkMessage(it)
+                            navController.navigate(Screen.Chat(forkedConversation.id.toString()))
                         }
                     },
                     onJumpToMessage = { nodeId ->

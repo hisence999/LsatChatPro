@@ -280,6 +280,7 @@
   <string name="copy">複製</string>
   <string name="copy_all">複製全部</string>
   <string name="create_fork">建立分支</string>
+  <string name="chat_page_fork_title">分支 · %1$s</string>
   <string name="deep_thinking">深度思考</string>
   <string name="delete">刪除</string>
   <string name="donate_page_afdian_desc">適用於🇨🇳用戶</string>

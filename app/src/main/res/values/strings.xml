@@ -351,6 +351,7 @@
     <string name="copy">Copy</string>
     <string name="copy_all">Copy All</string>
     <string name="create_fork">Create Fork</string>
+    <string name="chat_page_fork_title">Branch · %1$s</string>
     <string name="deep_thinking">Deep Thinking</string>
     <string name="delete">Delete</string>
     <string name="donate_page_afdian_desc">For 🇨🇳 Users</string>
