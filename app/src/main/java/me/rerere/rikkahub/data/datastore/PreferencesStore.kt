@@ -33,6 +33,7 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.TextSelectionConfig
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.toMutableStateFlow
@@ -117,6 +118,9 @@ class SettingsStore(
         // Prompt Injections
         val MODES = stringPreferencesKey("modes")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
+
+        // Android Integration
+        val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
     }
 
     private val dataStore = context.settingsStore
@@ -194,6 +198,9 @@ class SettingsStore(
                 lorebooks = preferences[LOREBOOKS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
+                textSelectionConfig = preferences[TEXT_SELECTION_CONFIG]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: TextSelectionConfig(),
             )
         }
         .map {
@@ -337,6 +344,7 @@ class SettingsStore(
 
             preferences[MODES] = JsonInstant.encodeToString(settingsToSave.modes)
             preferences[LOREBOOKS] = JsonInstant.encodeToString(settingsToSave.lorebooks)
+            preferences[TEXT_SELECTION_CONFIG] = JsonInstant.encodeToString(settingsToSave.textSelectionConfig)
         }
     }
 
@@ -414,6 +422,8 @@ data class Settings(
     // Prompt Injections
     val modes: List<Mode> = emptyList(),
     val lorebooks: List<Lorebook> = emptyList(),
+    // Android Integration
+    val textSelectionConfig: TextSelectionConfig = TextSelectionConfig(),
 ) {
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储

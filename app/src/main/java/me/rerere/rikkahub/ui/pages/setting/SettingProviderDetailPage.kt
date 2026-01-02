@@ -391,80 +391,98 @@ private fun SettingProviderConfigPage(
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding)
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(contentPadding)
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ProviderConfigure(
-                provider = internalProvider,
-                modifier = Modifier.padding(16.dp),
-                onEdit = {
-                    internalProvider = it
-                    // Auto-save immediately
-                    onEdit(it)
-                }
-            )
-        }
-        
-        // Tags section
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Card(
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             ) {
-                FormItem(
-                    label = {
-                        Text(stringResource(R.string.assistant_page_tags))
-                    },
+                ProviderConfigure(
+                    provider = internalProvider,
+                    modifier = Modifier.padding(16.dp),
+                    onEdit = {
+                        internalProvider = it
+                        // Auto-save immediately
+                        onEdit(it)
+                    }
+                )
+            }
+            
+            // Tags section
+            Card(
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TagsInput(
-                        value = internalProvider.tags,
-                        tags = providerTags,
-                        onValueChange = { tagIds, updatedTags ->
-                            // Update internal provider with new tag IDs
-                            val updatedProvider = internalProvider.copyProvider(tags = tagIds)
-                            internalProvider = updatedProvider
-                            // Update both provider and global tags
-                            onUpdateTags(updatedProvider, updatedTags)
+                    FormItem(
+                        label = {
+                            Text(stringResource(R.string.assistant_page_tags))
                         },
-                    )
+                    ) {
+                        TagsInput(
+                            value = internalProvider.tags,
+                            tags = providerTags,
+                            onValueChange = { tagIds, updatedTags ->
+                                // Update internal provider with new tag IDs
+                                val updatedProvider = internalProvider.copyProvider(tags = tagIds)
+                                internalProvider = updatedProvider
+                                // Update both provider and global tags
+                                onUpdateTags(updatedProvider, updatedTags)
+                            },
+                        )
+                    }
                 }
             }
-        }
 
-        if (internalProvider is ProviderSetting.OpenAI) {
-            SettingProviderBalanceOption(
-                provider = internalProvider,
-                balanceOption = internalProvider.balanceOption,
-                onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) }
-            )
-            ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
-        }
+            if (internalProvider is ProviderSetting.OpenAI) {
+                SettingProviderBalanceOption(
+                    provider = internalProvider,
+                    balanceOption = internalProvider.balanceOption,
+                    onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) }
+                )
+                ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
+            }
 
-        // SiliconFlow icon
-        if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
-            SiliconFlowPowerByIcon(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 16.dp)
-            )
+            // SiliconFlow icon
+            if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
+                SiliconFlowPowerByIcon(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 16.dp)
+                )
+            }
         }
+        
+        // Bottom fade gradient
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        )
     }
 }
 

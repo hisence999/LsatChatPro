@@ -123,6 +123,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    initialSearchQuery: String? = null,
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -145,6 +146,7 @@ fun ChatList(
                     settings = settings,
                     onJumpToMessage = onJumpToMessage,
                     animatedVisibilityScope = this@AnimatedContent,
+                    initialSearchQuery = initialSearchQuery,
                 )
             } else {
                 ChatListNormal(
@@ -531,11 +533,12 @@ private fun SharedTransitionScope.ChatListPreview(
     conversation: Conversation,
     settings: Settings,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onJumpToMessage: (Int) -> Unit
+    onJumpToMessage: (Int) -> Unit,
+    initialSearchQuery: String? = null,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialSearchQuery ?: "") }
 
-    // 过滤消息
+    // Filter messages
     val filteredMessages = remember(conversation.messageNodes, searchQuery) {
         if (searchQuery.isBlank()) {
             conversation.messageNodes

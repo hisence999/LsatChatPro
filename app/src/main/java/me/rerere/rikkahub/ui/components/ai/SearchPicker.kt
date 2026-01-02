@@ -28,6 +28,7 @@ import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,14 +87,29 @@ fun SearchPickerButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     onlyIcon: Boolean = false
 ) {
-    // Assuming LocalToaster is defined elsewhere and currentmember was a typo for current
-    // If LocalToaster is not defined, this line will cause a compilation error.
-    // As per instruction "Make sure to incorporate the change in a way so that the resulting file is syntactically correct."
-    // I'm correcting 'currentmember' to 'current' to ensure syntactic correctness of the access pattern.
-    val toaster = LocalToaster.current // { mutableStateOf(false) } - removed the lambda as it's not how current is typically used.
+    val toaster = LocalToaster.current
     var showSearchPicker by remember { mutableStateOf(false) }
-    // Use selectedProviderIndex if provided (>= 0), otherwise fall back to global setting
-    val effectiveProviderIndex = if (selectedProviderIndex >= 0) selectedProviderIndex else settings.searchServiceSelected
+    
+    // Track the last valid provider index locally to persist across on/off toggles
+    // This prevents "jumping" when toggling search off and back on
+    var lastValidProviderIndex by remember { mutableStateOf(
+        if (selectedProviderIndex >= 0) selectedProviderIndex 
+        else settings.searchServiceSelected.coerceIn(0, (settings.searchServices.size - 1).coerceAtLeast(0))
+    ) }
+    
+    // Update lastValidProviderIndex when a valid external index is provided
+    LaunchedEffect(selectedProviderIndex) {
+        if (selectedProviderIndex >= 0 && selectedProviderIndex < settings.searchServices.size) {
+            lastValidProviderIndex = selectedProviderIndex
+        }
+    }
+    
+    // Use the external index if valid, otherwise use our tracked last valid index
+    val effectiveProviderIndex = if (selectedProviderIndex >= 0 && selectedProviderIndex < settings.searchServices.size) {
+        selectedProviderIndex
+    } else {
+        lastValidProviderIndex.coerceIn(0, (settings.searchServices.size - 1).coerceAtLeast(0))
+    }
     val currentService = settings.searchServices.getOrNull(effectiveProviderIndex)
 
     ToggleSurface(
@@ -161,8 +177,15 @@ fun SearchPickerButton(
                 SearchPicker(
                     enableSearch = enableSearch,
                     settings = settings,
-                    onToggleSearch = onToggleSearch,
+                    onToggleSearch = { enabled ->
+                        if (enabled) {
+                            // When turning on, also set the provider to the last known valid index
+                            onUpdateSearchService(effectiveProviderIndex)
+                        }
+                        onToggleSearch(enabled)
+                    },
                     onUpdateSearchService = { index ->
+                        lastValidProviderIndex = index
                         onUpdateSearchService(index)
                     },
                     modifier = Modifier

@@ -144,7 +144,7 @@ class SpontaneousWorker(
                         val reason = json["reason"]?.jsonPrimitive?.contentOrNull ?: "No reason provided"
                         
                         if (content.isNotBlank()) {
-                            sendNotification(title, content)
+                            sendNotification(title, content, conversation.id)
                             
                             // Update assistant's last notification info (Full Reset)
                             val updatedAssistant = assistant.copy(
@@ -184,7 +184,7 @@ class SpontaneousWorker(
         }
     }
 
-    private fun sendNotification(title: String, content: String) {
+    private fun sendNotification(title: String, content: String, conversationId: kotlin.uuid.Uuid) {
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val channelId = "assistant_spontaneous"
         val channel = android.app.NotificationChannel(
@@ -194,12 +194,26 @@ class SpontaneousWorker(
         )
         notificationManager.createNotificationChannel(channel)
 
+        // Create pending intent to open the conversation when notification is clicked
+        val intent = android.content.Intent(applicationContext, me.rerere.rikkahub.RouteActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("conversationId", conversationId.toString())
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            applicationContext,
+            conversationId.hashCode(),
+            intent,
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(content))
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
             .build()
 
         if (androidx.core.app.ActivityCompat.checkSelfPermission(

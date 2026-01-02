@@ -806,6 +806,37 @@
     <string name="export_format_lastchat">LastChat (Full)</string>
     <string name="export_format_sillytavern">SillyTavern</string>
     <string name="export_format_tavern">Tavern (Compatible)</string>
+    
+    <!-- Text Selection Integration -->
+    <string name="text_selection_menu_label">Ask LastChat</string>
+    <string name="text_selection_translate">Translate</string>
+    <string name="text_selection_explain">Explain</string>
+    <string name="text_selection_summarize">Summarize</string>
+    <string name="text_selection_ask">Ask anything…</string>
+    <string name="text_selection_custom_placeholder">Ask a question about this text…</string>
+    <string name="text_selection_copy">Copy</string>
+    <string name="text_selection_continue_chat">Continue in App</string>
+    <string name="text_selection_generating">Generating…</string>
+
+    <!-- Android Integration Settings -->
+    <string name="setting_android_integration">Android Integration</string>
+    <string name="setting_android_integration_desc">Text selection popup settings</string>
+    <string name="text_selection_preview">Preview</string>
+    <string name="text_selection_assistant">Assistant</string>
+    <string name="text_selection_use_default">Use default assistant</string>
+    <string name="text_selection_translate_language">Translate to</string>
+    <string name="text_selection_edit_action">Edit Action</string>
+    <string name="text_selection_add_action">Add Action</string>
+    <string name="text_selection_action_name">Button Name</string>
+    <string name="text_selection_action_prompt">Prompt Template</string>
+    <string name="text_selection_actions">Quick Actions</string>
+    <string name="text_selection_action_delete">Delete Action</string>
+    <string name="text_selection_action_cannot_delete">Cannot delete this action</string>
+    <string name="reset">Reset</string>
+    <string name="text_selection_try_it">Try It</string>
+    <string name="text_selection_setup_instructions">Select text anywhere on your device, look for \"LastChat\" in the toolbar that appears, and tap it to use these features.</string>
+    <string name="text_selection_demo_text">This is sample text you can select! Try long-pressing to select these words, then look for \"LastChat\" in the selection toolbar. If you don\'t see it, you may need to tap the overflow menu (⋮) to find it.</string>
+    <string name="text_selection_demo_hint">👆 Long-press the text above to try selecting it</string>
 </resources>
 
 

@@ -265,7 +265,8 @@ class ChatCompletionsAPI(
 
             put("stream", stream)
             if (stream) {
-                if (host != "api.mistral.ai") { // mistral 不支持 stream_options
+                // Some providers don't support stream_options
+                if (host != "api.mistral.ai" && host != "open.bigmodel.cn") {
                     put("stream_options", buildJsonObject {
                         put("include_usage", true)
                     })
