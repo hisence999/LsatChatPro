@@ -20,12 +20,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,10 +39,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
@@ -51,6 +58,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.GroupChatSeat
 import me.rerere.rikkahub.data.model.GroupChatSeatOverrides
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
+import me.rerere.rikkahub.service.MemoryConsolidationWorker
 import me.rerere.rikkahub.ui.components.ai.McpPickerButton
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
@@ -65,6 +73,7 @@ import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.theme.AppShapes
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.search.SearchServiceOptions
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -81,6 +90,7 @@ fun GroupChatTemplateDetailPage(
     val settings by vm.settings.collectAsStateWithLifecycle()
     val template by vm.template.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
+    val context = LocalContext.current
 
     val haptics = rememberPremiumHaptics()
     val defaultName = stringResource(R.string.group_chat_default_name)
@@ -241,8 +251,20 @@ fun GroupChatTemplateDetailPage(
             }
 
             SettingsGroup(title = stringResource(R.string.assistant_page_memory)) {
+                val eligibleMemoryAssistantCount = currentTemplate.seats
+                    .asSequence()
+                    .filter { seat -> seat.overrides.memoryEnabled }
+                    .map { seat -> seat.assistantId }
+                    .distinct()
+                    .mapNotNull { assistantId ->
+                        val assistant = settings.assistants.firstOrNull { it.id == assistantId } ?: return@mapNotNull null
+                        assistant.takeIf { it.enableMemory && it.enableMemoryConsolidation }
+                    }
+                    .count()
+                val canConsolidateAll = currentTemplate.integrationModelId != null && eligibleMemoryAssistantCount > 0
+
                 SettingGroupItem(
-                    title = stringResource(R.string.group_chat_template_integration_model),
+                    title = stringResource(R.string.assistant_page_consolidation_summarizer_model),
                     subtitle = stringResource(R.string.group_chat_template_integration_model_desc),
                     trailing = {
                         ModelSelector(
@@ -257,6 +279,86 @@ fun GroupChatTemplateDetailPage(
                         )
                     }
                 )
+
+                Surface(
+                    color = if (LocalDarkMode.current) {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    shape = AppShapes.ListItem,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.assistant_page_consolidation_delay),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.assistant_page_minutes_format,
+                                    currentTemplate.consolidationDelayMinutes,
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.assistant_page_consolidation_delay_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Slider(
+                            value = currentTemplate.consolidationDelayMinutes.toFloat(),
+                            onValueChange = { minutes ->
+                                vm.updateConsolidationDelayMinutes(minutes.toInt())
+                            },
+                            valueRange = 0f..240f,
+                            steps = 23,
+                        )
+                    }
+                }
+
+                Surface(
+                    color = if (LocalDarkMode.current) {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    shape = AppShapes.ListItem,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = {
+                                haptics.perform(HapticPattern.Thud)
+                                val request = OneTimeWorkRequestBuilder<MemoryConsolidationWorker>()
+                                    .setInputData(
+                                        workDataOf(
+                                            "FULL_SCAN" to true,
+                                            "GROUP_CHAT_TEMPLATE_ID" to currentTemplate.id.toString(),
+                                        )
+                                    )
+                                    .build()
+                                WorkManager.getInstance(context).enqueue(request)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = canConsolidateAll,
+                        ) {
+                            Icon(Icons.Rounded.Psychology, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.assistant_page_memory_consolidate_now))
+                        }
+                    }
+                }
             }
         }
     }

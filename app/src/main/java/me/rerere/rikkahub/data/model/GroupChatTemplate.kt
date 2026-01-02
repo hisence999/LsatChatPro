@@ -9,6 +9,7 @@ data class GroupChatTemplate(
     val name: String = "",
     val hostModelId: Uuid? = null,
     val integrationModelId: Uuid? = null,
+    val consolidationDelayMinutes: Int = 30,
     val seats: List<GroupChatSeat> = emptyList(),
 )
 

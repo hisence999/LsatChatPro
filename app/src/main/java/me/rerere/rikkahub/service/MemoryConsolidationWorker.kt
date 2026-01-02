@@ -39,6 +39,12 @@ class MemoryConsolidationWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params), KoinComponent {
 
+    private companion object {
+        private const val INPUT_FULL_SCAN = "FULL_SCAN"
+        private const val INPUT_FORCE_CONVERSATION_ID = "FORCE_CONVERSATION_ID"
+        private const val INPUT_GROUP_CHAT_TEMPLATE_ID = "GROUP_CHAT_TEMPLATE_ID"
+    }
+
     private val conversationRepository: ConversationRepository by inject()
     private val memoryRepository: MemoryRepository by inject()
     private val chatEpisodeDAO: ChatEpisodeDAO by inject()
@@ -59,8 +65,9 @@ class MemoryConsolidationWorker(
 
     private suspend fun consolidateMemories() {
         val settings = settingsStore.settingsFlow.value
-        val isFullScan = inputData.getBoolean("FULL_SCAN", false)
-        val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
+        val isFullScan = inputData.getBoolean(INPUT_FULL_SCAN, false)
+        val forceConversationId = inputData.getString(INPUT_FORCE_CONVERSATION_ID)
+        val groupChatTemplateId = inputData.getString(INPUT_GROUP_CHAT_TEMPLATE_ID)
 
         if (forceConversationId != null) {
             val targetConversation = conversationRepository.getConversationById(
@@ -73,10 +80,36 @@ class MemoryConsolidationWorker(
                         settings = settings,
                         template = template,
                         conversation = targetConversation,
+                        isFullScan = isFullScan,
+                        now = System.currentTimeMillis(),
+                        isForced = true,
                     )
                     return
                 }
             }
+        }
+
+        if (groupChatTemplateId != null) {
+            val templateId = runCatching { kotlin.uuid.Uuid.parse(groupChatTemplateId) }.getOrNull()
+                ?: return
+            val template = settings.groupChatTemplates.find { it.id == templateId } ?: return
+            val conversationsToProcess = if (isFullScan) {
+                conversationRepository.getConversationsOfAssistant(templateId).first()
+            } else {
+                conversationRepository.getRecentConversations(templateId, 10)
+            }
+            val now = System.currentTimeMillis()
+            conversationsToProcess.forEach { conversation ->
+                consolidateGroupChatConversation(
+                    settings = settings,
+                    template = template,
+                    conversation = conversation,
+                    isFullScan = isFullScan,
+                    now = now,
+                    isForced = false,
+                )
+            }
+            return
         }
 
         val assistant = settings.getCurrentAssistant()
@@ -537,8 +570,18 @@ class MemoryConsolidationWorker(
         settings: me.rerere.rikkahub.data.datastore.Settings,
         template: GroupChatTemplate,
         conversation: me.rerere.rikkahub.data.model.Conversation,
+        isFullScan: Boolean,
+        now: Long,
+        isForced: Boolean,
     ) {
         if (conversation.messageNodes.size < 2) return
+        if (conversation.isConsolidated && !isFullScan && !isForced) return
+
+        val delayMs = template.consolidationDelayMinutes.coerceAtLeast(0) * 60 * 1000L
+        if (!isForced && !isFullScan && now - conversation.updateAt.toEpochMilli() < delayMs) {
+            Log.i("MemoryConsolidation", "Skipping group chat conversation ${conversation.id} (waiting for delay)")
+            return
+        }
 
         val integrationModelId = template.integrationModelId ?: return
         val model = settings.findModelById(integrationModelId) ?: return
@@ -548,8 +591,13 @@ class MemoryConsolidationWorker(
         val targetAssistantIds = template.seats
             .asSequence()
             .filter { seat -> seat.overrides.memoryEnabled }
-            .map { seat -> seat.assistantId.toString() }
+            .map { seat -> seat.assistantId }
             .distinct()
+            .mapNotNull { assistantId ->
+                val assistant = settings.assistants.firstOrNull { it.id == assistantId } ?: return@mapNotNull null
+                if (!assistant.enableMemory || !assistant.enableMemoryConsolidation) return@mapNotNull null
+                assistantId.toString()
+            }
             .toList()
         if (targetAssistantIds.isEmpty()) return
 
