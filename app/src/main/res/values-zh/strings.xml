@@ -438,7 +438,7 @@
   <string name="setting_display_page_notification_message_generated">生成消息后启用通知</string>
   <string name="setting_display_page_notification_message_generated_desc">当应用不在前台时，若生成消息则显示通知</string>
   <string name="setting_display_page_notification_live_update">Live Update 模式</string>
-  <string name="setting_display_page_notification_live_update_desc">关：普通通知；默认：Live Update；兼容：仅生成消息时保活</string>
+  <string name="setting_display_page_notification_live_update_desc">关：普通通知；默认：Live Update；兼容：生成消息时也推送普通通知</string>
   <string name="setting_live_update_mode_off">关</string>
   <string name="setting_live_update_mode_default">默认</string>
   <string name="setting_live_update_mode_compatibility">兼容</string>
@@ -895,6 +895,15 @@
     <string name="assistant_page_background_model_desc">用于后台任务（如自动通知）的模型。</string>
     <string name="assistant_page_prefer_built_in_search">优先使用内置搜索</string>
     <string name="assistant_page_prefer_built_in_search_desc">不支持时将回退到上方选择的提供商。</string>
+
+    <string name="assistant_page_tool_results_group_title">历史工具结果优化</string>
+    <string name="assistant_page_tool_results_mode_title">历史工具结果</string>
+    <string name="assistant_page_tool_results_mode_rag">RAG 检索</string>
+    <string name="assistant_page_tool_results_mode_rag_desc">超过 N 条用户消息后不发送给模型，并通过 RAG 召回相关结果。</string>
+    <string name="assistant_page_tool_results_mode_discard">直接丢弃</string>
+    <string name="assistant_page_tool_results_mode_discard_desc">超过 N 条用户消息后不发送给模型（仍保存在本地）。</string>
+    <string name="assistant_page_tool_results_keep_title">保留范围</string>
+    <string name="assistant_page_tool_results_keep_desc">超过 %d 条用户消息的结果将不发送给模型。</string>
     <string name="assistant_page_search_mode">搜索模式</string>
     <string name="assistant_page_search_mode_desc">为该助手配置网页搜索。</string>
     <string name="assistant_page_search_provider_fallback">提供商 %1$d</string>
@@ -1228,5 +1237,7 @@
     <string name="lorebook_import_success">已导入：%s</string>
   <string name="request_log_detail_title">请求日志</string>
   <string name="request_log_field_latency">延迟</string>
+    <string name="assistant_page_tool_results_mode_keep_all">全部保留</string>
+    <string name="assistant_page_tool_results_mode_keep_all_desc">不进行历史优化，完整工具结果会发送给模型。</string>
 </resources>
 

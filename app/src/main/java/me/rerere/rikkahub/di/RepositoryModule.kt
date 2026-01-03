@@ -4,11 +4,12 @@ import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import org.koin.dsl.module
 
 val repositoryModule = module {
     single {
-        ConversationRepository(get(), get(), get())
+        ConversationRepository(get(), get(), get(), get(), get())
     }
 
     single {
@@ -21,5 +22,9 @@ val repositoryModule = module {
 
     single {
         GenMediaRepository(get())
+    }
+
+    single {
+        ToolResultArchiveRepository(get(), get(), get())
     }
 }

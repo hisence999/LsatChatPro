@@ -82,6 +82,7 @@ val appModule = module {
             appScope = get(),
             settingsStore = get(),
             conversationRepo = get(),
+            toolResultArchiveRepository = get(),
             memoryRepository = get(),
             generationHandler = get(),
             requestLogManager = get(),

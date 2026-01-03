@@ -73,6 +73,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().toolResultArchiveDao()
+    }
+
+    single {
         get<AppDatabase>().aiRequestLogDao()
     }
 
@@ -93,6 +97,7 @@ val dataSourceModule = module {
             json = get(),
             memoryRepo = get(),
             conversationRepo = get(),
+            toolResultArchiveRepository = get(),
             aiLoggingManager = get(),
             requestLogManager = get(),
             embeddingService = get(),

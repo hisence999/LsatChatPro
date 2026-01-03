@@ -94,6 +94,7 @@ import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.applyPlaceholders
@@ -135,6 +136,7 @@ class ChatService(
     private val appScope: AppScope,
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
+    private val toolResultArchiveRepository: ToolResultArchiveRepository,
     private val memoryRepository: MemoryRepository,
     private val generationHandler: GenerationHandler,
     private val requestLogManager: AIRequestLogManager,
@@ -1049,6 +1051,16 @@ class ChatService(
                     it
                 }
             }
+
+            val persistentConversationId =
+                conversationId.takeIf { !temporaryConversations.contains(conversationId) }
+            persistentConversationId?.let { id ->
+                toolResultArchiveRepository.backfillFromMessages(
+                    conversationId = id.toString(),
+                    assistantId = conversation.assistantId.toString(),
+                    messages = baseMessages,
+                )
+            }
             val welcomePhraseForAppContext = pendingUiWelcomePhraseForAppContext[conversationId]
             val appContextTransformer = if (!welcomePhraseForAppContext.isNullOrBlank() && baseMessages.any { it.role == MessageRole.USER }) {
                 shouldConsumeWelcomePhraseAppContext = true
@@ -1126,6 +1138,7 @@ class ChatService(
                 settings = settings,
                 model = model,
                 messages = baseMessages,
+                conversationId = persistentConversationId,
                 assistant = settings.getCurrentAssistant(),
                 memories = if (settings.getCurrentAssistant().enableMemory && !temporaryConversations.contains(conversationId)) {
                     val assistant = settings.getCurrentAssistant()
@@ -1488,6 +1501,7 @@ class ChatService(
                 settings = settings,
                 model = seatModel,
                 messages = promptMessages,
+                conversationId = conversationId,
                 assistant = seatAssistant,
                 memories = null,
                 tools = seatTools,

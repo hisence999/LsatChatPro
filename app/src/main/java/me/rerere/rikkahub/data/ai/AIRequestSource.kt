@@ -7,6 +7,8 @@ enum class AIRequestSource {
     WELCOME_PHRASES,
     MEMORY_CONSOLIDATION,
     MEMORY_EMBEDDING,
+    TOOL_RESULT_EMBEDDING,
+    TOOL_RESULT_RAG,
     TRANSLATION,
     OCR,
     SCHEDULED_MESSAGE,
@@ -22,6 +24,8 @@ fun AIRequestSource.displayNameZh(): String {
         AIRequestSource.WELCOME_PHRASES -> "欢迎词"
         AIRequestSource.MEMORY_CONSOLIDATION -> "记忆整合"
         AIRequestSource.MEMORY_EMBEDDING -> "记忆嵌入"
+        AIRequestSource.TOOL_RESULT_EMBEDDING -> "工具结果嵌入"
+        AIRequestSource.TOOL_RESULT_RAG -> "工具结果检索"
         AIRequestSource.TRANSLATION -> "翻译"
         AIRequestSource.OCR -> "OCR"
         AIRequestSource.SCHEDULED_MESSAGE -> "定时消息"

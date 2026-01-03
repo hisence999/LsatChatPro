@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.datastore
 
 import android.content.Context
-import android.os.Build
 import android.util.Log
 import androidx.datastore.core.IOException
 import androidx.datastore.preferences.SharedPreferencesMigration
@@ -21,6 +20,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
@@ -38,9 +39,11 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.data.model.ensureSeatInstanceNumbers
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.rikkahub.utils.toMutableStateFlow
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
@@ -50,6 +53,30 @@ import org.koin.core.component.get
 import kotlin.uuid.Uuid
 
 private const val TAG = "PreferencesStore"
+
+private fun decodeDisplaySettingCompat(raw: String?): DisplaySetting {
+    if (raw.isNullOrBlank()) return DisplaySetting()
+
+    val decoded = runCatching { JsonInstant.decodeFromString<DisplaySetting>(raw) }
+        .getOrElse { return DisplaySetting() }
+
+    val legacyKeepAll = runCatching {
+        (JsonInstant.parseToJsonElement(raw) as? JsonObject)
+            ?.get("toolResultKeepAll")
+            ?.jsonPrimitiveOrNull
+            ?.booleanOrNull
+    }.getOrNull()
+
+    if (legacyKeepAll == true) {
+        return decoded.copy(toolResultHistoryMode = ToolResultHistoryMode.KEEP_ALL)
+    }
+
+    if (legacyKeepAll == false && decoded.toolResultHistoryMode == ToolResultHistoryMode.KEEP_ALL) {
+        return decoded.copy(toolResultHistoryMode = ToolResultHistoryMode.RAG)
+    }
+
+    return decoded
+}
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
@@ -133,8 +160,6 @@ class SettingsStore(
     init {
         scope.launch(Dispatchers.IO) {
             runCatching {
-                if (Build.VERSION.SDK_INT < 36) return@launch
-
                 val prefs = dataStore.data.first()
                 if (prefs[LIVE_UPDATE_DEFAULT_APPLIED] == true) return@launch
 
@@ -145,9 +170,7 @@ class SettingsStore(
                     return@launch
                 }
 
-                val currentDisplaySetting = rawDisplaySetting?.let {
-                    JsonInstant.decodeFromString<DisplaySetting>(it)
-                } ?: DisplaySetting()
+                val currentDisplaySetting = decodeDisplaySettingCompat(rawDisplaySetting)
 
                 dataStore.edit { preferences ->
                     preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(
@@ -165,9 +188,7 @@ class SettingsStore(
             runCatching {
                 val prefs = dataStore.data.first()
                 val rawDisplaySetting = prefs[DISPLAY_SETTING] ?: return@launch
-                val currentDisplaySetting = runCatching {
-                    JsonInstant.decodeFromString<DisplaySetting>(rawDisplaySetting)
-                }.getOrNull() ?: return@launch
+                val currentDisplaySetting = decodeDisplaySettingCompat(rawDisplaySetting)
 
                 val shouldMigrate = currentDisplaySetting.enableKeepAliveNotification &&
                     currentDisplaySetting.keepAliveMode == KeepAliveMode.ALWAYS &&
@@ -238,7 +259,7 @@ class SettingsStore(
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 developerMode = preferences[DEVELOPER_MODE] == true,
                 enableRagLogging = preferences[ENABLE_RAG_LOGGING] == true,
-                displaySetting = JsonInstant.decodeFromString(preferences[DISPLAY_SETTING] ?: "{}"),
+                displaySetting = decodeDisplaySettingCompat(preferences[DISPLAY_SETTING]),
                 searchServices = preferences[SEARCH_SERVICES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: listOf(SearchServiceOptions.DEFAULT),
@@ -598,6 +619,8 @@ data class DisplaySetting(
     val enableLiveUpdate: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
+    val toolResultHistoryMode: ToolResultHistoryMode = ToolResultHistoryMode.KEEP_ALL,
+    val toolResultKeepUserMessages: Int = 4,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode

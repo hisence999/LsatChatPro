@@ -44,6 +44,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
+import me.rerere.rikkahub.data.db.entity.ToolResultArchiveEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -52,8 +53,10 @@ import me.rerere.rikkahub.data.model.LorebookActivationType
 import me.rerere.rikkahub.data.model.LorebookEntry
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.ModeAttachmentType
+import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import kotlin.uuid.Uuid
@@ -74,6 +77,7 @@ class GenerationHandler(
     private val json: Json,
     private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
+    private val toolResultArchiveRepository: ToolResultArchiveRepository,
     private val aiLoggingManager: AILoggingManager,
     private val requestLogManager: AIRequestLogManager,
     private val embeddingService: EmbeddingService,
@@ -82,6 +86,7 @@ class GenerationHandler(
         settings: Settings,
         model: Model,
         messages: List<UIMessage>,
+        conversationId: Uuid? = null,
         inputTransformers: List<InputMessageTransformer> = emptyList(),
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
         assistant: Assistant,
@@ -124,6 +129,7 @@ class GenerationHandler(
                 assistant = assistant,
                 settings = settings,
                 messages = messages,
+                conversationId = conversationId,
                 onUpdateMessages = {
                     messages = it.transforms(
                         transformers = outputTransformers,
@@ -209,6 +215,18 @@ class GenerationHandler(
                     )
                 }
             }
+
+            conversationId?.let { id ->
+                if (results.isNotEmpty()) {
+                    val userTurnIndex = messages.count { it.role == MessageRole.USER }
+                    toolResultArchiveRepository.archiveToolResults(
+                        conversationId = id.toString(),
+                        assistantId = assistant.id.toString(),
+                        userTurnIndex = userTurnIndex,
+                        results = results,
+                    )
+                }
+            }
             messages = messages + UIMessage(
                 role = MessageRole.TOOL,
                 parts = results
@@ -231,15 +249,45 @@ class GenerationHandler(
         assistant: Assistant,
         settings: Settings,
         messages: List<UIMessage>,
+        conversationId: Uuid?,
         model: Model,
         tools: List<Tool>,
         memories: List<AssistantMemory>,
         truncateIndex: Int,
         enabledModeIds: Set<Uuid> = emptySet(),
     ): List<UIMessage> {
-        val contextMessages = messages
-            .truncate(truncateIndex)
+        val allMessages = messages.truncate(truncateIndex)
+        val rawContextMessages = allMessages
             .limitContext(assistant.contextMessageSize.coerceAtLeast(0))
+
+        val totalUserTurnCount = allMessages.count { it.role == MessageRole.USER }
+        val userTurnIndexByMessageId = buildMap<Uuid, Int> {
+            var currentTurn = 0
+            allMessages.forEach { message ->
+                if (message.role == MessageRole.USER) currentTurn++
+                put(message.id, currentTurn)
+            }
+        }
+
+        val toolResultHistoryMode = settings.displaySetting.toolResultHistoryMode
+        val keepUserMessages = settings.displaySetting.toolResultKeepUserMessages.coerceAtLeast(0)
+        val contextMessages = if (
+            conversationId != null &&
+            (toolResultHistoryMode == ToolResultHistoryMode.RAG ||
+                toolResultHistoryMode == ToolResultHistoryMode.DISCARD)
+        ) {
+            rawContextMessages.filterNot { message ->
+                val turnIndex = userTurnIndexByMessageId[message.id] ?: totalUserTurnCount
+                val isOld = (totalUserTurnCount - turnIndex) > keepUserMessages
+                if (!isOld) return@filterNot false
+
+                val hasExternalToolCall = message.getToolCalls().any { it.toolName !in MEMORY_TOOL_NAMES }
+                val hasExternalToolResult = message.getToolResults().any { it.toolName !in MEMORY_TOOL_NAMES }
+                hasExternalToolCall || hasExternalToolResult
+            }
+        } else {
+            rawContextMessages
+        }
 
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
@@ -321,6 +369,36 @@ class GenerationHandler(
 
         // Get recent message text for lorebook keyword scanning
         val recentMessagesForScan = contextMessages.takeLast(10).map { it.toText() }
+
+        val toolResultRagPrompt = run {
+            if (toolResultHistoryMode != ToolResultHistoryMode.RAG) return@run ""
+            val id = conversationId ?: return@run ""
+
+            val maxUserTurnIndexExclusive = (totalUserTurnCount - keepUserMessages).coerceAtLeast(0)
+            if (maxUserTurnIndexExclusive <= 0) return@run ""
+
+            val queryText = contextMessages.asReversed()
+                .asSequence()
+                .filter { it.role == MessageRole.USER }
+                .take(3)
+                .toList()
+                .asReversed()
+                .joinToString(separator = "\n") { it.toContentText() }
+                .trim()
+            if (queryText.isBlank()) return@run ""
+
+            val results = toolResultArchiveRepository.retrieveRelevantToolResultsWithScores(
+                conversationId = id.toString(),
+                assistantId = assistant.id.toString(),
+                query = queryText,
+                maxUserTurnIndexExclusive = maxUserTurnIndexExclusive,
+                limit = 6,
+                similarityThreshold = 0.35f,
+            )
+            if (results.isEmpty()) return@run ""
+
+            buildToolResultRagPrompt(results, maxChars = 6_000)
+        }
 
         // Collect enabled modes - use per-conversation enabledModeIds if provided, otherwise fall back to defaultEnabled
         val enabledModes = if (enabledModeIds.isNotEmpty()) {
@@ -587,6 +665,10 @@ class GenerationHandler(
                     appendLine()
                     append(memoryPrompt)
                 }
+                if (toolResultRagPrompt.isNotBlank()) {
+                    appendLine()
+                    append(toolResultRagPrompt)
+                }
             }
             if (finalSystemPrompt.isNotBlank()) {
                 add(UIMessage.system(finalSystemPrompt))
@@ -611,6 +693,7 @@ class GenerationHandler(
         assistant: Assistant,
         settings: Settings,
         messages: List<UIMessage>,
+        conversationId: Uuid?,
         onUpdateMessages: suspend (List<UIMessage>) -> Unit,
         transformers: List<MessageTransformer>,
         model: Model,
@@ -627,6 +710,7 @@ class GenerationHandler(
             assistant = assistant,
             settings = settings,
             messages = messages,
+            conversationId = conversationId,
             model = model,
             tools = tools,
             memories = memories,
@@ -819,6 +903,42 @@ class GenerationHandler(
             }
         )
     )
+
+    private fun buildToolResultRagPrompt(
+        results: List<Pair<ToolResultArchiveEntity, Float>>,
+        maxChars: Int,
+    ): String {
+        if (results.isEmpty()) return ""
+        val hardLimit = maxChars.coerceAtLeast(0)
+        if (hardLimit == 0) return ""
+
+        val builder = StringBuilder()
+        builder.appendLine("## Tool Results (RAG)")
+        builder.appendLine("Retrieved from archived tool calls in this conversation.")
+
+        val perItemSoftLimit = 1600
+        results.forEach { (entity, score) ->
+            if (builder.length >= hardLimit) return@forEach
+
+            val header = "- tool=${entity.toolName} tool_call_id=${entity.toolCallId} score=${
+                String.format(Locale.US, "%.3f", score)
+            }"
+            val headerLine = header.take((hardLimit - builder.length).coerceAtLeast(0))
+            if (headerLine.isBlank()) return@forEach
+            builder.appendLine(headerLine)
+
+            val snippet = entity.extractText.trim().take(perItemSoftLimit)
+            if (snippet.isNotBlank() && builder.length < hardLimit) {
+                val indented = snippet.prependIndent("  ")
+                val remaining = (hardLimit - builder.length).coerceAtLeast(0)
+                if (remaining > 0) {
+                    builder.appendLine(indented.take(remaining))
+                }
+            }
+        }
+
+        return builder.toString().trim().take(hardLimit)
+    }
 
     private suspend fun buildMemoryPrompt(
         model: Model,

@@ -209,6 +209,7 @@ class ScheduledTaskWorker(
                 settings = settings,
                 model = model,
                 messages = listOf(userMessage),
+                conversationId = conversationId,
                 assistant = assistantForRun,
                 memories = memories,
                 inputTransformers = inputTransformers,

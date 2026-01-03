@@ -27,4 +27,5 @@ data class MemoryEntity(
 object MemoryType {
     const val CORE = 0
     const val EPISODIC = 1
+    const val TOOL_RESULT = 2
 }

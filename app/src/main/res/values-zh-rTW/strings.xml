@@ -788,7 +788,7 @@
   <string name="notification_keep_alive_content_error">生成失敗</string>
   <string name="placeholder_location">位置</string>
   <string name="setting_display_page_notification_live_update">Live Update 模式</string>
-  <string name="setting_display_page_notification_live_update_desc">關：普通通知；預設：Live Update；兼容：僅在生成訊息時保活</string>
+  <string name="setting_display_page_notification_live_update_desc">關：普通通知；預設：Live Update；兼容：生成訊息時也推送普通通知</string>
   <string name="setting_live_update_mode_off">關</string>
   <string name="setting_live_update_mode_default">預設</string>
   <string name="setting_live_update_mode_compatibility">兼容</string>
@@ -897,6 +897,15 @@
   <string name="assistant_page_background_model_desc">用於後台任務（如自動通知）的模型。</string>
   <string name="assistant_page_prefer_built_in_search">優先使用內置搜索</string>
   <string name="assistant_page_prefer_built_in_search_desc">不支持時將回退到上方選擇的提供商。</string>
+
+  <string name="assistant_page_tool_results_group_title">歷史工具結果最佳化</string>
+  <string name="assistant_page_tool_results_mode_title">歷史工具結果</string>
+  <string name="assistant_page_tool_results_mode_rag">RAG 檢索</string>
+  <string name="assistant_page_tool_results_mode_rag_desc">超過 N 條使用者訊息後不傳送給模型，並透過 RAG 召回相關結果。</string>
+  <string name="assistant_page_tool_results_mode_discard">直接丟棄</string>
+  <string name="assistant_page_tool_results_mode_discard_desc">超過 N 條使用者訊息後不傳送給模型（仍會保存在本機）。</string>
+  <string name="assistant_page_tool_results_keep_title">保留範圍</string>
+  <string name="assistant_page_tool_results_keep_desc">超過 %d 條使用者訊息的結果將不傳送給模型。</string>
   <string name="assistant_page_search_mode">搜索模式</string>
   <string name="assistant_page_search_mode_desc">為該助手配置網頁搜索。</string>
   <string name="assistant_page_search_provider_fallback">提供商 %1$d</string>
@@ -1195,4 +1204,6 @@
   <string name="lorebook_import_success">已導入：%s</string>
   <string name="request_log_detail_title">請求日誌</string>
   <string name="request_log_field_latency">延遲</string>
+  <string name="assistant_page_tool_results_mode_keep_all">全部保留</string>
+  <string name="assistant_page_tool_results_mode_keep_all_desc">不進行歷史最佳化，完整工具結果會傳送給模型。</string>
 </resources>

@@ -44,6 +44,12 @@ interface EmbeddingCacheDAO {
      */
     @Query("DELETE FROM embedding_cache WHERE memory_id = :memoryId AND memory_type = :memoryType")
     suspend fun deleteByMemoryId(memoryId: Int, memoryType: Int)
+
+    /**
+     * Delete embeddings by a batch of memory IDs for a specific type.
+     */
+    @Query("DELETE FROM embedding_cache WHERE memory_type = :memoryType AND memory_id IN (:memoryIds)")
+    suspend fun deleteByMemoryIds(memoryType: Int, memoryIds: List<Int>)
     
     /**
      * Count embeddings for a specific model (for statistics).

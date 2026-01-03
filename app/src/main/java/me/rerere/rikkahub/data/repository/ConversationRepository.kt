@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
+import me.rerere.rikkahub.data.db.dao.ToolResultArchiveDao
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import kotlinx.serialization.json.JsonArray
@@ -29,6 +32,8 @@ class ConversationRepository(
     private val context: Context,
     private val conversationDAO: ConversationDAO,
     private val chatEpisodeDAO: me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO,
+    private val toolResultArchiveDao: ToolResultArchiveDao,
+    private val embeddingCacheDAO: EmbeddingCacheDAO,
 ) {
     companion object {
         private const val PAGE_SIZE = 20
@@ -164,6 +169,13 @@ class ConversationRepository(
             conversationToConversationEntity(conversation)
         )
         chatEpisodeDAO.deleteEpisodeByConversationId(conversation.id.toString())
+
+        val toolResultIds = toolResultArchiveDao.getIdsByConversationId(conversation.id.toString())
+        toolResultArchiveDao.deleteByConversationId(conversation.id.toString())
+        if (toolResultIds.isNotEmpty()) {
+            embeddingCacheDAO.deleteByMemoryIds(MemoryType.TOOL_RESULT, toolResultIds)
+        }
+
         if (deleteFiles) {
             context.deleteChatFiles(conversation.files)
         }

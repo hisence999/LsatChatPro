@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.KeepAliveMode
+import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -46,6 +47,8 @@ import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
@@ -73,6 +76,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var amoledDarkMode by rememberAmoledDarkMode()
+    val haptics = rememberPremiumHaptics()
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
@@ -250,7 +254,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                             LiveUpdateUiOption.COMPATIBILITY -> stringResource(R.string.setting_live_update_mode_compatibility)
                                         }
                                     },
-                                    modifier = Modifier.widthIn(min = 130.dp, max = 220.dp)
+                                    modifier = Modifier.widthIn(min = 64.dp, max = 120.dp)
                                 )
                             }
                         )
@@ -323,6 +327,85 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     )
+                }
+            }
+
+            // Tool Result History (prompt context optimization)
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.assistant_page_tool_results_group_title)
+                ) {
+                    data class ModeOption(
+                        val mode: ToolResultHistoryMode,
+                        val title: String,
+                        val subtitle: String,
+                    )
+
+                    val modeOptions = listOf(
+                        ModeOption(
+                            mode = ToolResultHistoryMode.KEEP_ALL,
+                            title = stringResource(R.string.assistant_page_tool_results_mode_keep_all),
+                            subtitle = stringResource(R.string.assistant_page_tool_results_mode_keep_all_desc),
+                        ),
+                        ModeOption(
+                            mode = ToolResultHistoryMode.DISCARD,
+                            title = stringResource(R.string.assistant_page_tool_results_mode_discard),
+                            subtitle = stringResource(R.string.assistant_page_tool_results_mode_discard_desc),
+                        ),
+                        ModeOption(
+                            mode = ToolResultHistoryMode.RAG,
+                            title = stringResource(R.string.assistant_page_tool_results_mode_rag),
+                            subtitle = stringResource(R.string.assistant_page_tool_results_mode_rag_desc),
+                        ),
+                    )
+
+                    val selectedMode = modeOptions.firstOrNull { it.mode == displaySetting.toolResultHistoryMode }
+                        ?: modeOptions.first()
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.assistant_page_tool_results_mode_title),
+                        subtitle = selectedMode.subtitle,
+                        trailing = {
+                            Select(
+                                options = modeOptions,
+                                selectedOption = selectedMode,
+                                onOptionSelected = { option ->
+                                    haptics.perform(HapticPattern.Pop)
+                                    updateDisplaySetting(displaySetting.copy(toolResultHistoryMode = option.mode))
+                                },
+                                optionToString = { it.title },
+                                modifier = Modifier.widthIn(min = 110.dp, max = 130.dp)
+                            )
+                        }
+                    )
+
+                    if (displaySetting.toolResultHistoryMode != ToolResultHistoryMode.KEEP_ALL) {
+                        data class KeepOption(val value: Int)
+                        val keepOptions = (1..20).map { KeepOption(it) }
+                        val keepUserMessages = displaySetting.toolResultKeepUserMessages.coerceIn(1, 20)
+                        val selectedKeep = keepOptions.firstOrNull { it.value == keepUserMessages }
+                            ?: KeepOption(keepUserMessages)
+
+                        SettingGroupItem(
+                            title = stringResource(R.string.assistant_page_tool_results_keep_title),
+                            subtitle = stringResource(
+                                R.string.assistant_page_tool_results_keep_desc,
+                                keepUserMessages,
+                            ),
+                            trailing = {
+                                Select(
+                                    options = keepOptions,
+                                    selectedOption = selectedKeep,
+                                    onOptionSelected = { option ->
+                                        haptics.perform(HapticPattern.Pop)
+                                        updateDisplaySetting(displaySetting.copy(toolResultKeepUserMessages = option.value))
+                                    },
+                                    optionToString = { it.value.toString() },
+                                    modifier = Modifier.widthIn(min = 80.dp, max = 120.dp)
+                                )
+                            }
+                        )
+                    }
                 }
             }
             

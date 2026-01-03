@@ -9,6 +9,18 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import kotlin.uuid.Uuid
 
 @Serializable
+enum class ToolResultHistoryMode {
+    @SerialName("keep_all")
+    KEEP_ALL,
+
+    @SerialName("rag")
+    RAG,
+
+    @SerialName("discard")
+    DISCARD,
+}
+
+@Serializable
 data class Assistant(
     val id: Uuid = Uuid.random(),
     val chatModelId: Uuid? = null, // 如果为null, 使用全局默认模型
