@@ -230,6 +230,44 @@ class WebdavSync(
                         "prepareBackupFile: Upload folder does not exist or is not a directory"
                     )
                 }
+
+                // 备份头像图片（用户/助手）
+                val avatarsFolder = File(context.filesDir, "avatars")
+                if (avatarsFolder.exists() && avatarsFolder.isDirectory) {
+                    Log.i(
+                        TAG,
+                        "prepareBackupFile: Backing up avatars from ${avatarsFolder.absolutePath}"
+                    )
+                    avatarsFolder.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            addFileToZip(zipOut, file, "avatars/${file.name}")
+                        }
+                    }
+                } else {
+                    Log.i(
+                        TAG,
+                        "prepareBackupFile: Avatars folder does not exist or is not a directory"
+                    )
+                }
+
+                // 备份图片文件（如图生图等）
+                val imagesFolder = File(context.filesDir, "images")
+                if (imagesFolder.exists() && imagesFolder.isDirectory) {
+                    Log.i(
+                        TAG,
+                        "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}"
+                    )
+                    imagesFolder.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            addFileToZip(zipOut, file, "images/${file.name}")
+                        }
+                    }
+                } else {
+                    Log.i(
+                        TAG,
+                        "prepareBackupFile: Images folder does not exist or is not a directory"
+                    )
+                }
             }
         }
 
@@ -248,6 +286,15 @@ class WebdavSync(
                 while (zipIn.nextEntry.also { entry = it } != null) {
                     entry?.let { zipEntry ->
                         Log.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
+
+                        if (zipEntry.isDirectory) {
+                            Log.i(
+                                TAG,
+                                "restoreFromBackupFile: Skipping directory entry ${zipEntry.name}"
+                            )
+                            zipIn.closeEntry()
+                            return@let
+                        }
 
                         when (zipEntry.name) {
                             "settings.json" -> {
@@ -315,52 +362,95 @@ class WebdavSync(
                             }
 
                             else -> {
-                                // 处理聊天文件
-                                if (webDavConfig.items.contains(WebDavConfig.BackupItem.FILES) && zipEntry.name.startsWith(
-                                        "upload/"
-                                    )
-                                ) {
-                                    val fileName = zipEntry.name.substringAfter("upload/")
-                                    if (fileName.isNotEmpty()) {
-                                        val uploadFolder = File(context.filesDir, "upload")
-                                        // 确保upload文件夹存在
-                                        if (!uploadFolder.exists()) {
-                                            uploadFolder.mkdirs()
-                                            Log.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Created upload directory"
-                                            )
-                                        }
-
-                                        val targetFile = File(uploadFolder, fileName)
-                                        Log.i(
-                                            TAG,
-                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
-                                        )
-
-                                        try {
-                                            FileOutputStream(targetFile).use { outputStream ->
-                                                zipIn.copyTo(outputStream)
-                                            }
-                                            Log.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                            )
-                                        } catch (e: Exception) {
-                                            Log.e(
-                                                TAG,
-                                                "restoreFromBackupFile: Failed to restore file ${zipEntry.name}",
-                                                e
-                                            )
-                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
-                                        }
-                                    }
-                                } else {
+                                fun skipEntry(reason: String) {
+                                    val size = zipEntry.size.coerceAtLeast(0)
                                     Log.i(
                                         TAG,
-                                        "restoreFromBackupFile: Skipping unsupported entry ${zipEntry.name} (${zipEntry.size} bytes)"
+                                        "restoreFromBackupFile: Skipping $reason entry ${zipEntry.name} (${size} bytes)"
                                     )
-                                    unsupportedZipEntriesBytes += zipEntry.size
+                                    unsupportedZipEntriesBytes += size
+                                }
+
+                                fun safeResolveTargetFile(baseDir: File, relativePath: String): File? {
+                                    val normalized = relativePath.replace('\\', '/').trimStart('/')
+                                    if (normalized.isBlank()) return null
+                                    val targetFile = File(baseDir, normalized)
+                                    val canonicalBase =
+                                        runCatching { baseDir.canonicalFile }.getOrNull() ?: return null
+                                    val canonicalTarget =
+                                        runCatching { targetFile.canonicalFile }.getOrNull() ?: return null
+
+                                    val basePath = canonicalBase.path.let { path ->
+                                        if (path.endsWith(File.separator)) path else path + File.separator
+                                    }
+                                    return canonicalTarget.takeIf { it.path.startsWith(basePath) }
+                                }
+
+                                fun restoreToFilesDirSubfolder(subfolder: String, prefix: String) {
+                                    val relativePath = zipEntry.name.removePrefix(prefix)
+                                    if (relativePath.isBlank()) return
+
+                                    val baseDir = File(context.filesDir, subfolder)
+                                    if (!baseDir.exists()) {
+                                        baseDir.mkdirs()
+                                        Log.i(TAG, "restoreFromBackupFile: Created $subfolder directory")
+                                    }
+
+                                    val targetFile = safeResolveTargetFile(baseDir, relativePath)
+                                    if (targetFile == null) {
+                                        Log.w(
+                                            TAG,
+                                            "restoreFromBackupFile: Skipping unsafe entry ${zipEntry.name}"
+                                        )
+                                        skipEntry(reason = "unsafe")
+                                        return
+                                    }
+
+                                    Log.i(
+                                        TAG,
+                                        "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
+                                    )
+
+                                    try {
+                                        targetFile.parentFile?.mkdirs()
+                                        FileOutputStream(targetFile).use { outputStream ->
+                                            zipIn.copyTo(outputStream)
+                                        }
+                                        Log.i(
+                                            TAG,
+                                            "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            TAG,
+                                            "restoreFromBackupFile: Failed to restore file ${zipEntry.name}",
+                                            e
+                                        )
+                                        throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
+                                    }
+                                }
+
+                                if (webDavConfig.items.contains(WebDavConfig.BackupItem.FILES)) {
+                                    when {
+                                        zipEntry.name.startsWith("upload/") -> restoreToFilesDirSubfolder(
+                                            subfolder = "upload",
+                                            prefix = "upload/"
+                                        )
+
+                                        zipEntry.name.startsWith("avatars/") -> restoreToFilesDirSubfolder(
+                                            subfolder = "avatars",
+                                            prefix = "avatars/"
+                                        )
+
+                                        zipEntry.name.startsWith("images/") -> restoreToFilesDirSubfolder(
+                                            subfolder = "images",
+                                            prefix = "images/"
+                                        )
+
+                                        else -> skipEntry(reason = "unsupported")
+                                    }
+                                } else {
+                                    skipEntry(reason = "unsupported")
                                 }
                             }
                         }

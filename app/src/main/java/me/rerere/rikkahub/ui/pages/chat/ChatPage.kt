@@ -838,8 +838,8 @@ private fun ChatPageContent(
                             }
                         }
                     },
-                    onSendClick = {
-                        if (currentChatModel == null) {
+                     onSendClick = {
+                        if (!isGroupChatTemplate && currentChatModel == null) {
                             toaster.show("Please select a model first", type = ToastType.Error)
                             return@ChatInput
                         }
