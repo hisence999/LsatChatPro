@@ -621,6 +621,7 @@ data class DisplaySetting(
     val codeBlockAutoCollapse: Boolean = true,
     val toolResultHistoryMode: ToolResultHistoryMode = ToolResultHistoryMode.KEEP_ALL,
     val toolResultKeepUserMessages: Int = 4,
+    val toolResultRagSimilarityThreshold: Float = 0.45f,
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode

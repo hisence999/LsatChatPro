@@ -951,6 +951,8 @@
     <string name="assistant_page_tool_results_mode_discard_desc">Drop from prompt after N user messages (still stored locally).</string>
     <string name="assistant_page_tool_results_keep_title">Keep range</string>
     <string name="assistant_page_tool_results_keep_desc">Results older than %d user messages won\'t be sent to the model.</string>
+    <string name="assistant_page_tool_results_similarity_threshold">Similarity Threshold</string>
+    <string name="assistant_page_tool_results_similarity_threshold_desc">Minimum similarity score (0.0 = include all, 1.0 = only perfect matches). Lower values include more tool results. Current: %1$s</string>
     <string name="assistant_page_search_mode">Search Mode</string>
     <string name="assistant_page_search_mode_desc">Configure web search for this assistant.</string>
     <string name="assistant_page_search_provider_title">Search Provider</string>

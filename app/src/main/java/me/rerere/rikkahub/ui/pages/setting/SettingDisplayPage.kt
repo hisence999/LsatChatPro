@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,12 +21,14 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,6 +57,7 @@ import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
@@ -406,9 +410,60 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             }
                         )
                     }
+
+                    if (displaySetting.toolResultHistoryMode == ToolResultHistoryMode.RAG) {
+                        Surface(
+                            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.assistant_page_tool_results_similarity_threshold),
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                var threshold by remember(displaySetting.toolResultRagSimilarityThreshold) {
+                                    mutableFloatStateOf(displaySetting.toolResultRagSimilarityThreshold.coerceIn(0f, 1f))
+                                }
+                                val currentThreshold = String.format("%.2f", threshold)
+                                Text(
+                                    text = stringResource(
+                                        R.string.assistant_page_tool_results_similarity_threshold_desc,
+                                        currentThreshold,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Slider(
+                                    value = threshold,
+                                    onValueChange = { newValue ->
+                                        threshold = newValue
+                                        updateDisplaySetting(displaySetting.copy(toolResultRagSimilarityThreshold = newValue))
+                                    },
+                                    valueRange = 0f..1f,
+                                    steps = 19, // 0.05 increments
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.assistant_page_rag_similarity_all),
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                    Text(
+                                        stringResource(R.string.assistant_page_rag_similarity_exact),
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            
+             
             // Message Jumper Settings
             item {
                 SettingsGroup(

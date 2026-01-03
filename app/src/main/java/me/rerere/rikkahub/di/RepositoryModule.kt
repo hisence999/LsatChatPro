@@ -9,7 +9,7 @@ import org.koin.dsl.module
 
 val repositoryModule = module {
     single {
-        ConversationRepository(get(), get(), get(), get(), get())
+        ConversationRepository(get(), get(), get(), get(), get(), get())
     }
 
     single {
@@ -25,6 +25,6 @@ val repositoryModule = module {
     }
 
     single {
-        ToolResultArchiveRepository(get(), get(), get())
+        ToolResultArchiveRepository(get(), get(), get(), get(), get())
     }
 }

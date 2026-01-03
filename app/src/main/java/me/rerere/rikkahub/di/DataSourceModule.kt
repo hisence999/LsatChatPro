@@ -77,6 +77,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().toolResultArchiveChunkDao()
+    }
+
+    single {
         get<AppDatabase>().aiRequestLogDao()
     }
 

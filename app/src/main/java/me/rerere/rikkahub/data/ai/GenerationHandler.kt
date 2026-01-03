@@ -45,6 +45,7 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.db.entity.ToolResultArchiveEntity
+import me.rerere.rikkahub.data.db.entity.ToolResultArchiveChunkEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -180,7 +181,10 @@ class GenerationHandler(
             }
             // handle tool calls
             val results = arrayListOf<UIMessagePart.ToolResult>()
-            toolCalls.forEach { toolCall ->
+            toolCalls.forEachIndexed { index, toolCall ->
+                val resolvedToolCallId = toolCall.toolCallId.ifBlank {
+                    "gen_${toolCall.toolName}_${index}_${Uuid.random()}"
+                }
                 runCatching {
                     val tool = toolsInternal.find { tool -> tool.name == toolCall.toolName }
                         ?: error("Tool ${toolCall.toolName} not found")
@@ -189,7 +193,7 @@ class GenerationHandler(
                     val result = tool.execute(args)
                     results += UIMessagePart.ToolResult(
                         toolName = toolCall.toolName,
-                        toolCallId = toolCall.toolCallId,
+                        toolCallId = resolvedToolCallId,
                         content = result,
                         arguments = args,
                         metadata = toolCall.metadata
@@ -198,7 +202,7 @@ class GenerationHandler(
                     it.printStackTrace()
                     results += UIMessagePart.ToolResult(
                         toolName = toolCall.toolName,
-                        toolCallId = toolCall.toolCallId,
+                        toolCallId = resolvedToolCallId,
                         metadata = toolCall.metadata,
                         content = buildJsonObject {
                             put(
@@ -271,6 +275,10 @@ class GenerationHandler(
 
         val toolResultHistoryMode = settings.displaySetting.toolResultHistoryMode
         val keepUserMessages = settings.displaySetting.toolResultKeepUserMessages.coerceAtLeast(0)
+        val toolResultRagSimilarityThreshold = settings.displaySetting.toolResultRagSimilarityThreshold
+            .takeIf { it.isFinite() }
+            ?.coerceIn(0f, 1f)
+            ?: 0.45f
         val contextMessages = if (
             conversationId != null &&
             (toolResultHistoryMode == ToolResultHistoryMode.RAG ||
@@ -372,7 +380,10 @@ class GenerationHandler(
 
         val toolResultRagPrompt = run {
             if (toolResultHistoryMode != ToolResultHistoryMode.RAG) return@run ""
-            val id = conversationId ?: return@run ""
+            val id = conversationId ?: run {
+                Log.w(TAG, "Tool result RAG enabled but conversationId is null; skipping archived retrieval (temporary chat?)")
+                return@run ""
+            }
 
             val maxUserTurnIndexExclusive = (totalUserTurnCount - keepUserMessages).coerceAtLeast(0)
             if (maxUserTurnIndexExclusive <= 0) return@run ""
@@ -387,17 +398,49 @@ class GenerationHandler(
                 .trim()
             if (queryText.isBlank()) return@run ""
 
-            val results = toolResultArchiveRepository.retrieveRelevantToolResultsWithScores(
+            val results = toolResultArchiveRepository.retrieveRelevantToolResultChunksWithScores(
                 conversationId = id.toString(),
                 assistantId = assistant.id.toString(),
                 query = queryText,
                 maxUserTurnIndexExclusive = maxUserTurnIndexExclusive,
                 limit = 6,
-                similarityThreshold = 0.35f,
+                similarityThreshold = toolResultRagSimilarityThreshold,
             )
-            if (results.isEmpty()) return@run ""
+            if (results.isEmpty()) {
+                val fallback = toolResultArchiveRepository.retrieveRelevantToolResultsWithScores(
+                    conversationId = id.toString(),
+                    assistantId = assistant.id.toString(),
+                    query = queryText,
+                    maxUserTurnIndexExclusive = maxUserTurnIndexExclusive,
+                    limit = 6,
+                    similarityThreshold = toolResultRagSimilarityThreshold,
+                )
+                if (fallback.isEmpty()) {
+                    Log.w(
+                        TAG,
+                        "Tool result RAG retrieved nothing (chunks=0, tools=0) beforeTurn<$maxUserTurnIndexExclusive>",
+                    )
+                    return@run ""
+                }
+                return@run buildToolResultRagPrompt(fallback, maxChars = 6_000)
+            }
 
-            buildToolResultRagPrompt(results, maxChars = 6_000)
+            if (settings.enableRagLogging) {
+                Log.d(
+                    "ToolRAG",
+                    "Retrieved ${results.size} chunks (beforeTurn<$maxUserTurnIndexExclusive threshold=$toolResultRagSimilarityThreshold) for query='${queryText.take(120)}'"
+                )
+                results.forEach { (chunk, score) ->
+                    Log.d(
+                        "ToolRAG",
+                        " - tool=${chunk.toolName} call=${chunk.toolCallId} chunk=${chunk.chunkIndex} score=${
+                            String.format(Locale.US, "%.3f", score)
+                        } text='${chunk.chunkText.trim().take(120)}'"
+                    )
+                }
+            }
+
+            buildToolResultChunkRagPrompt(results, maxChars = 6_000)
         }
 
         // Collect enabled modes - use per-conversation enabledModeIds if provided, otherwise fall back to defaultEnabled
@@ -928,6 +971,42 @@ class GenerationHandler(
             builder.appendLine(headerLine)
 
             val snippet = entity.extractText.trim().take(perItemSoftLimit)
+            if (snippet.isNotBlank() && builder.length < hardLimit) {
+                val indented = snippet.prependIndent("  ")
+                val remaining = (hardLimit - builder.length).coerceAtLeast(0)
+                if (remaining > 0) {
+                    builder.appendLine(indented.take(remaining))
+                }
+            }
+        }
+
+        return builder.toString().trim().take(hardLimit)
+    }
+
+    private fun buildToolResultChunkRagPrompt(
+        results: List<Pair<ToolResultArchiveChunkEntity, Float>>,
+        maxChars: Int,
+    ): String {
+        if (results.isEmpty()) return ""
+        val hardLimit = maxChars.coerceAtLeast(0)
+        if (hardLimit == 0) return ""
+
+        val builder = StringBuilder()
+        builder.appendLine("## Tool Results (RAG)")
+        builder.appendLine("Retrieved from archived tool call chunks in this conversation.")
+
+        val perItemSoftLimit = 1200
+        results.forEach { (chunk, score) ->
+            if (builder.length >= hardLimit) return@forEach
+
+            val header = "- tool=${chunk.toolName} tool_call_id=${chunk.toolCallId} chunk=${chunk.chunkIndex} score=${
+                String.format(Locale.US, "%.3f", score)
+            }"
+            val headerLine = header.take((hardLimit - builder.length).coerceAtLeast(0))
+            if (headerLine.isBlank()) return@forEach
+            builder.appendLine(headerLine)
+
+            val snippet = chunk.chunkText.trim().take(perItemSoftLimit)
             if (snippet.isNotBlank() && builder.length < hardLimit) {
                 val indented = snippet.prependIndent("  ")
                 val remaining = (hardLimit - builder.length).coerceAtLeast(0)

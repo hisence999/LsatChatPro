@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.map
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.ToolResultArchiveDao
+import me.rerere.rikkahub.data.db.dao.ToolResultArchiveChunkDao
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.Conversation
@@ -33,6 +34,7 @@ class ConversationRepository(
     private val conversationDAO: ConversationDAO,
     private val chatEpisodeDAO: me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO,
     private val toolResultArchiveDao: ToolResultArchiveDao,
+    private val toolResultArchiveChunkDao: ToolResultArchiveChunkDao,
     private val embeddingCacheDAO: EmbeddingCacheDAO,
 ) {
     companion object {
@@ -174,6 +176,12 @@ class ConversationRepository(
         toolResultArchiveDao.deleteByConversationId(conversation.id.toString())
         if (toolResultIds.isNotEmpty()) {
             embeddingCacheDAO.deleteByMemoryIds(MemoryType.TOOL_RESULT, toolResultIds)
+        }
+
+        val toolResultChunkIds = toolResultArchiveChunkDao.getIdsByConversationId(conversation.id.toString())
+        toolResultArchiveChunkDao.deleteByConversationId(conversation.id.toString())
+        if (toolResultChunkIds.isNotEmpty()) {
+            embeddingCacheDAO.deleteByMemoryIds(MemoryType.TOOL_RESULT_CHUNK, toolResultChunkIds)
         }
 
         if (deleteFiles) {
