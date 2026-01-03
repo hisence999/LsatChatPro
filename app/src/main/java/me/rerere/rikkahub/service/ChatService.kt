@@ -1930,10 +1930,10 @@ class ChatService(
             assistantsById = assistantsById,
             defaultName = "Assistant",
         )
-        val transformed = messages.mapIndexed { index, message ->
+        val transformed = messages.mapIndexedNotNull { index, message ->
             when (message.role) {
                 MessageRole.ASSISTANT -> {
-                    if (isSelfAssistantMessage(message)) return@mapIndexed message
+                    if (isSelfAssistantMessage(message)) return@mapIndexedNotNull message
 
                     val isUnread = index > lastSelfIndex
                     val speakerName = resolveGroupChatMessageSpeakerName(
@@ -1942,6 +1942,7 @@ class ChatService(
                         seatDisplayNames = seatDisplayNames,
                     )
                     val content = message.toText().trim().take(4000)
+                    if (content.isBlank()) return@mapIndexedNotNull null
                     val prefix = when {
                         isUnread && speakerName.isNullOrBlank() -> "[Unread message from another assistant (assistant)]"
                         isUnread -> "[Unread message from $speakerName (assistant)]"
@@ -1988,50 +1989,22 @@ class ChatService(
                 }
 
                 MessageRole.TOOL -> {
-                    if (isSelfAssistantMessage(message)) return@mapIndexed message
-
-                    val isUnread = index > lastSelfIndex
-                    val speakerName = resolveGroupChatMessageSpeakerName(
-                        message = message,
-                        settings = settings,
-                        seatDisplayNames = seatDisplayNames,
-                    )
-                    val results = message.getToolResults()
-                    val content = results.joinToString("\n\n") { result ->
-                        val args = result.arguments.toString().trim()
-                        val output = result.content.toString().trim()
-                        buildString {
-                            appendLine("Tool: ${result.toolName}")
-                            if (args.isNotBlank() && args != "{}") {
-                                appendLine("Args: ${args.take(800)}")
-                            }
-                            if (output.isNotBlank()) {
-                                append("Result: ${output.take(2400)}")
-                            }
-                        }.trim()
-                    }.trim().take(4000)
-                    val prefix = when {
-                        isUnread && speakerName.isNullOrBlank() -> "[Unread tool result from another assistant (assistant)]"
-                        isUnread -> "[Unread tool result from $speakerName (assistant)]"
-                        speakerName.isNullOrBlank() -> "[Tool result from another assistant (assistant)]"
-                        else -> "[Tool result from $speakerName (assistant)]"
-                    }
-
-                    message.copy(
-                        role = MessageRole.USER,
-                        parts = listOf(
-                            UIMessagePart.Text(
-                                buildString {
-                                    appendLine(prefix)
-                                    append(content.ifBlank { "(No tool result)" })
-                                }
-                            )
-                        )
-                    )
+                    if (isSelfAssistantMessage(message)) return@mapIndexedNotNull message
+                    // Token economy: tool results are only visible to the seat that invoked them.
+                    null
                 }
 
                 else -> message
             }
+        }
+
+        if (transformed.isEmpty()) {
+            return listOf(
+                UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(UIMessagePart.Text("Please reply.")),
+                )
+            )
         }
 
         if (transformed.last().role != MessageRole.USER) {
