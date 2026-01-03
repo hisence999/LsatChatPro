@@ -264,13 +264,13 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "Show Lorebook Stacks",
-                        subtitle = "Show lorebook entry covers in message toolbar",
+                        title = "Show Context Stacks",
+                        subtitle = "Show context sources (modes, memories, lorebooks) in message toolbar",
                         trailing = {
                             HapticSwitch(
-                                checked = displaySetting.showLorebookStacks,
+                                checked = displaySetting.showContextStacks,
                                 onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showLorebookStacks = it))
+                                    updateDisplaySetting(displaySetting.copy(showContextStacks = it))
                                 }
                             )
                         }

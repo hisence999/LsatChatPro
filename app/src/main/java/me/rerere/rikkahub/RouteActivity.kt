@@ -429,7 +429,12 @@ class RouteActivity : ComponentActivity() {
                     composable<Screen.AssistantDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.AssistantDetail>()
                         CompositionLocalProvider(LocalAnimatedVisibilityScope provides this@composable) {
-                            AssistantDetailPage(route.id)
+                            AssistantDetailPage(
+                                id = route.id,
+                                startRoute = route.startRoute,
+                                initialMemoryTab = route.initialMemoryTab,
+                                scrollToMemoryId = route.scrollToMemoryId
+                            )
                         }
                     }
 
@@ -500,8 +505,9 @@ class RouteActivity : ComponentActivity() {
                         SettingPromptInjectionsPage()
                     }
 
-                    composable<Screen.SettingModes> {
-                        SettingModesPage()
+                    composable<Screen.SettingModes> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.SettingModes>()
+                        SettingModesPage(scrollToModeId = route.scrollToModeId)
                     }
 
                     composable<Screen.SettingLorebooks> {
@@ -542,7 +548,12 @@ sealed interface Screen {
     data object Assistant : Screen
 
     @Serializable
-    data class AssistantDetail(val id: String) : Screen
+    data class AssistantDetail(
+        val id: String,
+        val startRoute: String? = null,  // Navigate directly to a sub-route (e.g., "memory")
+        val initialMemoryTab: Int? = null,  // 0 = Core, 1 = Episodic
+        val scrollToMemoryId: Int? = null  // Memory ID to scroll to
+    ) : Screen
 
     @Serializable
     data object Menu : Screen
@@ -593,7 +604,7 @@ sealed interface Screen {
     data object SettingPromptInjections : Screen
 
     @Serializable
-    data object SettingModes : Screen
+    data class SettingModes(val scrollToModeId: String? = null) : Screen
 
     @Serializable
     data object SettingLorebooks : Screen

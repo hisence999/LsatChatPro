@@ -60,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -133,7 +134,9 @@ fun AssistantMemorySettings(
     retrievalResults: List<Pair<AssistantMemory, Float>> = emptyList(),
     assistantDetailVM: AssistantDetailVM,
     estimatedMemoryCapacity: Int,
-    needsEmbeddingRegeneration: Boolean = false
+    needsEmbeddingRegeneration: Boolean = false,
+    initialMemoryTab: Int? = null,  // 0 = Core, 1 = Episodic
+    scrollToMemoryId: Int? = null
 ) {
     val memoryDialogState = useEditState<AssistantMemory> {
         if (it.id == 0) {
@@ -395,7 +398,9 @@ fun AssistantMemorySettings(
                 memorySearchQuery = memorySearchQuery,
                 onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
                 currentEmbeddingModelId = currentEmbeddingModelId,
-                showMemoryTypes = assistant.enableMemoryConsolidation
+                showMemoryTypes = assistant.enableMemoryConsolidation,
+                initialMemoryTab = initialMemoryTab,
+                scrollToMemoryId = scrollToMemoryId
             )
         }
 
@@ -839,11 +844,31 @@ private fun ManageMemoriesSection(
     memorySearchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     currentEmbeddingModelId: String,
-    showMemoryTypes: Boolean
+    showMemoryTypes: Boolean,
+    initialMemoryTab: Int? = null,
+    scrollToMemoryId: Int? = null
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Use initialMemoryTab if provided, otherwise default to 0
+    var selectedTab by remember { mutableIntStateOf(initialMemoryTab ?: 0) }
     var sortOrder by remember { mutableStateOf(MemorySortOrder.NEWEST_FIRST) }
     var showSortMenu by remember { mutableStateOf(false) }
+    
+    // Auto-select tab when navigating from context sources
+    LaunchedEffect(initialMemoryTab) {
+        if (initialMemoryTab != null) {
+            selectedTab = initialMemoryTab
+        }
+    }
+    
+    // Auto-open memory editor when navigating from context sources
+    LaunchedEffect(scrollToMemoryId, memories) {
+        if (scrollToMemoryId != null && memories.isNotEmpty()) {
+            val targetMemory = memories.find { it.id == scrollToMemoryId }
+            if (targetMemory != null) {
+                onEditMemory(targetMemory)
+            }
+        }
+    }
 
     val coreMemories = memories.filter { it.type == 0 }
     val episodicMemories = memories.filter { it.type == 1 }

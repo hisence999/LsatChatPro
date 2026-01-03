@@ -327,6 +327,22 @@ private fun SharedTransitionScope.ChatListNormal(
                             onEditLorebookEntry = { entry ->
                                 navController.navigate(Screen.SettingLorebookDetail(entry.lorebookId, entry.entryId))
                             },
+                            onModeClick = { mode ->
+                                // Navigate to Modes page and scroll to the specific mode
+                                navController.navigate(Screen.SettingModes(scrollToModeId = mode.modeId))
+                            },
+                            onMemoryClick = { memory ->
+                                // Navigate to AssistantDetail memory page
+                                // memoryType: 0 = CORE, 1 = EPISODIC
+                                navController.navigate(
+                                    Screen.AssistantDetail(
+                                        id = conversation.assistantId.toString(),
+                                        startRoute = "memory",
+                                        initialMemoryTab = memory.memoryType,
+                                        scrollToMemoryId = memory.memoryId
+                                    )
+                                )
+                            },
                         )
                     }
                     if (index == conversation.truncateIndex - 1) {

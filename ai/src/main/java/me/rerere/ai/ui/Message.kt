@@ -28,7 +28,9 @@ data class UIMessage(
     val usage: TokenUsage? = null,
     val translation: String? = null,
     val generationDurationMs: Long? = null, // Duration of AI generation in milliseconds
-    val usedLorebookEntries: List<UsedLorebookEntry>? = null // Lorebook entries used in this message
+    val usedLorebookEntries: List<UsedLorebookEntry>? = null, // Lorebook entries used in this message
+    val usedModes: List<UsedMode>? = null, // Modes used in this message
+    val usedMemories: List<UsedMemory>? = null // Memories used in this message
 ) {
     private fun appendChunk(chunk: MessageChunk): UIMessage {
         val choice = chunk.choices.getOrNull(0)
@@ -231,6 +233,30 @@ data class UsedLorebookEntry(
     val entryIndex: Int,  // Position in the lorebook's entry list
     val priority: Int = 0,  // Higher = more priority (for sorting display)
     val activationReason: String? = null // e.g. "Always Active", "Keywords: foo, bar", "RAG (0.85)"
+)
+
+/**
+ * Represents a mode that was used when generating a message.
+ */
+@Serializable
+data class UsedMode(
+    val modeId: String,  // UUID as string for serialization compatibility
+    val modeName: String,
+    val modeIcon: String? = null,  // Material icon name
+    val priority: Int = 0,  // Position in mode list (higher = more priority)
+    val activationReason: String? = null  // "Activated by user" or "Default enabled"
+)
+
+/**
+ * Represents a memory that was used when generating a message.
+ */
+@Serializable
+data class UsedMemory(
+    val memoryId: Int,  // Negative IDs for episodic memories
+    val memoryContent: String,  // First line/truncated content for display
+    val memoryType: Int,  // 0 = CORE, 1 = EPISODIC
+    val priority: Int = 0,
+    val activationReason: String? = null  // "Contextually relevant", "Always included", "Recent episode boost"
 )
 
 

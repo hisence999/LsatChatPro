@@ -65,6 +65,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -119,7 +120,10 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun SettingModesPage(vm: SettingVM = koinViewModel()) {
+fun SettingModesPage(
+    vm: SettingVM = koinViewModel(),
+    scrollToModeId: String? = null
+) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val lazyListState = rememberLazyListState()
@@ -133,6 +137,22 @@ fun SettingModesPage(vm: SettingVM = koinViewModel()) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingMode by remember { mutableStateOf<Mode?>(null) }
     var showAddLorebookDialog by remember { mutableStateOf(false) }
+    
+    // Auto-scroll to mode if ID is provided
+    LaunchedEffect(scrollToModeId, settings.modes) {
+        if (scrollToModeId != null && settings.modes.isNotEmpty()) {
+            val modeIndex = settings.modes.indexOfFirst { it.id.toString() == scrollToModeId }
+            if (modeIndex >= 0) {
+                // +1 to account for the description header
+                // Use scope.launch for the suspend function
+                scope.launch {
+                    lazyListState.animateScrollToItem(modeIndex + 1)
+                }
+                // Open the mode editor sheet
+                editingMode = settings.modes[modeIndex]
+            }
+        }
+    }
     
     // File picker for lorebook import
     val lorebookImportLauncher = rememberLauncherForActivityResult(
@@ -567,6 +587,7 @@ internal fun ModeEditorSheet(
     val context = LocalContext.current
     
     var name by remember(mode) { mutableStateOf(mode?.name ?: "") }
+    var icon by remember(mode) { mutableStateOf(mode?.icon) }
     var prompt by remember(mode) { mutableStateOf(mode?.prompt ?: "") }
     var defaultEnabled by remember(mode) { mutableStateOf(mode?.defaultEnabled ?: false) }
     var injectionPosition by remember(mode) { 
@@ -682,13 +703,42 @@ internal fun ModeEditorSheet(
             FormItem(
                 label = { Text(stringResource(R.string.modes_page_name)) }
             ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text(stringResource(R.string.modes_page_name_placeholder)) }
-                )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Icon selector (clickable box)
+                    Surface(
+                        onClick = {
+                            // Cycle through simple letters for now as icon placeholder
+                            // TODO: Implement full icon picker in future
+                        },
+                        modifier = Modifier.size(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Text(
+                                text = name.take(1).uppercase().ifBlank { "M" },
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                    
+                    // Name field
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.modes_page_name_placeholder)) }
+                    )
+                }
             }
 
             FormItem(
@@ -809,6 +859,7 @@ internal fun ModeEditorSheet(
                     onClick = {
                         val savedMode = (mode ?: Mode()).copy(
                             name = name,
+                            icon = icon,
                             prompt = prompt,
                             defaultEnabled = defaultEnabled,
                             injectionPosition = injectionPosition,

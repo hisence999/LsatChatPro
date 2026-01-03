@@ -60,11 +60,13 @@ import kotlin.uuid.Uuid
 private const val TAG = "GenerationHandler"
 
 /**
- * Result of building messages, includes both the messages and info about activated lorebook entries.
+ * Result of building messages, includes both the messages and info about activated context sources.
  */
 data class BuildMessagesResult(
     val messages: List<UIMessage>,
-    val activatedLorebookEntries: List<me.rerere.ai.ui.UsedLorebookEntry>
+    val activatedLorebookEntries: List<me.rerere.ai.ui.UsedLorebookEntry>,
+    val usedModes: List<me.rerere.ai.ui.UsedMode> = emptyList(),
+    val usedMemories: List<me.rerere.ai.ui.UsedMemory> = emptyList()
 )
 
 @Serializable
@@ -334,6 +336,22 @@ class GenerationHandler(
             settings.modes.filter { enabledModeIds.contains(it.id) }
         } else {
             settings.modes.filter { it.defaultEnabled }
+        }
+        
+        // Build UsedMode list for UI display
+        val usedModes = enabledModes.mapIndexed { index, mode ->
+            val reason = if (enabledModeIds.contains(mode.id)) {
+                "Activated by user"
+            } else {
+                "Default enabled"
+            }
+            me.rerere.ai.ui.UsedMode(
+                modeId = mode.id.toString(),
+                modeName = mode.name,
+                modeIcon = mode.icon,
+                priority = enabledModes.size - index,  // Higher priority for earlier modes
+                activationReason = reason
+            )
         }
 
         // Check if any lorebook entries use RAG activation
@@ -673,10 +691,27 @@ class GenerationHandler(
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
+        // Build UsedMemory list for UI display
+        val usedMemories = selectedMemories.mapIndexed { index, memory ->
+            val reason = when {
+                memory.id == -1 -> "Recent episode boost"  // Recent chat reference
+                assistant.useRagMemoryRetrieval -> "Contextually relevant"  // RAG mode
+                else -> "Always included"  // Basic mode
+            }
+            me.rerere.ai.ui.UsedMemory(
+                memoryId = memory.id,
+                memoryContent = memory.content.take(50) + if (memory.content.length > 50) "..." else "",
+                memoryType = memory.type,
+                priority = selectedMemories.size - index,  // Higher priority for earlier memories
+                activationReason = reason
+            )
+        }
         
         return BuildMessagesResult(
             messages = builtMessages,
-            activatedLorebookEntries = usedLorebookEntries
+            activatedLorebookEntries = usedLorebookEntries,
+            usedModes = usedModes,
+            usedMemories = usedMemories
         )
     }
 
@@ -707,6 +742,9 @@ class GenerationHandler(
         )
         val internalMessages = buildResult.messages.transforms(transformers, context, model, assistant)
         val usedLorebookEntries = buildResult.activatedLorebookEntries
+        val usedModes = buildResult.usedModes
+        val usedMemories = buildResult.usedMemories
+        val hasContextSources = usedLorebookEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(
@@ -749,11 +787,15 @@ class GenerationHandler(
                 }
                 onUpdateMessages(messages)
             }
-            // Attach usedLorebookEntries to the last assistant message after streaming completes
-            if (usedLorebookEntries.isNotEmpty()) {
+            // Attach all context sources to the last assistant message after streaming completes
+            if (hasContextSources) {
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
-                        message.copy(usedLorebookEntries = usedLorebookEntries)
+                        message.copy(
+                            usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                            usedModes = usedModes.ifEmpty { null },
+                            usedMemories = usedMemories.ifEmpty { null }
+                        )
                     } else {
                         message
                     }
@@ -784,11 +826,15 @@ class GenerationHandler(
                     }
                 }
             }
-            // Attach usedLorebookEntries to the last assistant message
-            if (usedLorebookEntries.isNotEmpty()) {
+            // Attach all context sources to the last assistant message
+            if (hasContextSources) {
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
-                        message.copy(usedLorebookEntries = usedLorebookEntries)
+                        message.copy(
+                            usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                            usedModes = usedModes.ifEmpty { null },
+                            usedMemories = usedMemories.ifEmpty { null }
+                        )
                     } else {
                         message
                     }

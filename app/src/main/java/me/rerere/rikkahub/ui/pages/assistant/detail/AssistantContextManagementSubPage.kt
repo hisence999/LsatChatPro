@@ -171,7 +171,7 @@ fun AssistantContextManagementSubPage(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingGroupItem(
                         title = "Auto-regenerate summary",
                         subtitle = "Automatically update summary after threshold messages",

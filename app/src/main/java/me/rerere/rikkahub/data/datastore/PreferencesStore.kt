@@ -485,7 +485,7 @@ data class DisplaySetting(
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
-    val showLorebookStacks: Boolean = true, // Show lorebook entry stacks in message toolbar
+    val showContextStacks: Boolean = true, // Show context sources (modes, memories, lorebooks) in message toolbar
 )
 
 @Serializable
@@ -557,7 +557,7 @@ fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySe
         fontSizeRatio = ui.fontSizeRatio ?: displaySetting.fontSizeRatio,
         codeBlockAutoWrap = ui.codeBlockAutoWrap ?: displaySetting.codeBlockAutoWrap,
         codeBlockAutoCollapse = ui.codeBlockAutoCollapse ?: displaySetting.codeBlockAutoCollapse,
-        showLorebookStacks = ui.showLorebookStacks ?: displaySetting.showLorebookStacks,
+        showContextStacks = ui.showContextStacks ?: displaySetting.showContextStacks,
     )
 }
 

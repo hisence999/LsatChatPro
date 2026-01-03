@@ -160,14 +160,14 @@ fun AssistantUISubPage(
             )
         }
 
-        // Lorebook Settings
-        SettingsGroup(title = "Lorebooks") {
+        // Context Sources Settings
+        SettingsGroup(title = "Context Sources") {
             TriStateSettingItem(
-                title = "Show Lorebook Stacks",
-                subtitle = "Show lorebook entry covers in message toolbar",
-                value = uiSettings.showLorebookStacks,
-                globalValue = settings.displaySetting.showLorebookStacks,
-                onValueChange = { updateUI(uiSettings.copy(showLorebookStacks = it)) }
+                title = "Show Context Stacks",
+                subtitle = "Show context sources (modes, memories, lorebooks) in message toolbar",
+                value = uiSettings.showContextStacks,
+                globalValue = settings.displaySetting.showContextStacks,
+                onValueChange = { updateUI(uiSettings.copy(showContextStacks = it)) }
             )
         }
 

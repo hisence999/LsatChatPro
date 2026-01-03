@@ -71,15 +71,20 @@ fun ColumnScope.ChatMessageActionButtons(
     onRegenerate: () -> Unit,
     onOpenActionSheet: () -> Unit,
     onEditLorebookEntry: ((UsedLorebookEntry) -> Unit)? = null,
+    onModeClick: ((me.rerere.ai.ui.UsedMode) -> Unit)? = null,
+    onMemoryClick: ((me.rerere.ai.ui.UsedMemory) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val settings = LocalSettings.current
     val effectiveDisplay = settings.getEffectiveDisplaySetting()
     var isPendingDelete by remember { mutableStateOf(false) }
-    var showLorebooksSheet by remember { mutableStateOf(false) }
+    var showContextSheet by remember { mutableStateOf(false) }
     
     val usedEntries = message.usedLorebookEntries ?: emptyList()
-    val showLorebookStacks = effectiveDisplay.showLorebookStacks && usedEntries.isNotEmpty()
+    val usedModes = message.usedModes ?: emptyList()
+    val usedMemories = message.usedMemories ?: emptyList()
+    val hasContextSources = usedEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
+    val showContextStacks = effectiveDisplay.showContextStacks && hasContextSources
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -88,15 +93,25 @@ fun ColumnScope.ChatMessageActionButtons(
         }
     }
     
-    // Lorebook entries sheet
-    if (showLorebooksSheet && usedEntries.isNotEmpty()) {
-        UsedLorebooksSheet(
+    // Context sources sheet
+    if (showContextSheet && hasContextSources) {
+        ContextSourcesSheet(
+            modes = usedModes,
+            memories = usedMemories,
             entries = usedEntries,
+            onModeClick = { mode ->
+                showContextSheet = false
+                onModeClick?.invoke(mode)
+            },
+            onMemoryClick = { memory ->
+                showContextSheet = false
+                onMemoryClick?.invoke(memory)
+            },
             onEntryClick = { entry ->
-                showLorebooksSheet = false
+                showContextSheet = false
                 onEditLorebookEntry?.invoke(entry)
             },
-            onDismissRequest = { showLorebooksSheet = false }
+            onDismissRequest = { showContextSheet = false }
         )
     }
 
@@ -104,11 +119,13 @@ fun ColumnScope.ChatMessageActionButtons(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        // Lorebook stack indicator at the start
-        if (showLorebookStacks) {
-            LorebookStackIndicator(
+        // Context stack indicator at the start
+        if (showContextStacks) {
+            ContextStackIndicator(
+                modes = usedModes,
+                memories = usedMemories,
                 entries = usedEntries,
-                onClick = { showLorebooksSheet = true },
+                onClick = { showContextSheet = true },
                 modifier = Modifier.padding(start = 4.dp)
             )
         }

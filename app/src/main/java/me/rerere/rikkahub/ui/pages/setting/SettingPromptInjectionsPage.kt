@@ -14,7 +14,7 @@ fun SettingPromptInjectionsPage() {
     val navController = LocalNavController.current
     
     LaunchedEffect(Unit) {
-        navController.navigate(Screen.SettingModes) {
+        navController.navigate(Screen.SettingModes()) {
             popUpTo(Screen.SettingPromptInjections) { inclusive = true }
         }
     }

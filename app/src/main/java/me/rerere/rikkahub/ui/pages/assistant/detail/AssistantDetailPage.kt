@@ -74,7 +74,12 @@ private object AssistantDetailRoutes {
 }
 
 @Composable
-fun AssistantDetailPage(id: String) {
+fun AssistantDetailPage(
+    id: String,
+    startRoute: String? = null,
+    initialMemoryTab: Int? = null,
+    scrollToMemoryId: Int? = null
+) {
     val vm: AssistantDetailVM = koinViewModel(
         parameters = {
             parametersOf(id)
@@ -96,6 +101,15 @@ fun AssistantDetailPage(id: String) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             vm.clearSnackbarMessage()
+        }
+    }
+    
+    // Auto-navigate to start route if specified (e.g., for deep linking to memory)
+    LaunchedEffect(startRoute) {
+        if (startRoute == AssistantDetailRoutes.MEMORY) {
+            navController.navigate(AssistantDetailRoutes.MEMORY) {
+                popUpTo(AssistantDetailRoutes.HOME) { inclusive = false }
+            }
         }
     }
 
@@ -248,7 +262,9 @@ fun AssistantDetailPage(id: String) {
                     retrievalResults = retrievalResults,
                     assistantDetailVM = vm,
                     estimatedMemoryCapacity = estimatedMemoryCapacity,
-                    needsEmbeddingRegeneration = needsEmbeddingRegeneration
+                    needsEmbeddingRegeneration = needsEmbeddingRegeneration,
+                    initialMemoryTab = initialMemoryTab,
+                    scrollToMemoryId = scrollToMemoryId
                 )
             }
 

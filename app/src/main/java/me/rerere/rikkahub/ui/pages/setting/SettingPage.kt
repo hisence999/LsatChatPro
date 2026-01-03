@@ -193,7 +193,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_page_prompt_injections),
                         subtitle = stringResource(R.string.setting_page_prompt_injections_desc),
                         icon = { Icon(Icons.Rounded.Code, null, modifier = Modifier.size(20.dp)) },
-                        onClick = { navController.navigate(Screen.SettingModes) }
+                        onClick = { navController.navigate(Screen.SettingModes()) }
                     )
                 }
             }

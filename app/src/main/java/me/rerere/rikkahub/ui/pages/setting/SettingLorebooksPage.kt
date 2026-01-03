@@ -181,7 +181,7 @@ fun SettingLorebooksPage(vm: SettingVM = koinViewModel()) {
                                 .clip(CircleShape)
                                 .clickable {
                                     haptics.perform(HapticPattern.Tick)
-                                    navController.navigate(Screen.SettingModes) {
+                                    navController.navigate(Screen.SettingModes()) {
                                         popUpTo(Screen.SettingLorebooks) { inclusive = true }
                                     }
                                 }

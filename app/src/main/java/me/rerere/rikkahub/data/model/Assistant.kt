@@ -22,7 +22,7 @@ data class AssistantUISettings(
     val fontSizeRatio: Float? = null,
     val codeBlockAutoWrap: Boolean? = null,
     val codeBlockAutoCollapse: Boolean? = null,
-    val showLorebookStacks: Boolean? = null,
+    val showContextStacks: Boolean? = null,
 )
 
 @Serializable
