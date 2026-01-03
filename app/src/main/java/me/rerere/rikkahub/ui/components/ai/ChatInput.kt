@@ -137,6 +137,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.ui.draw.rotate
 import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.components.crop.CropImageScreen
@@ -162,6 +163,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.hooks.HapticPattern
@@ -207,6 +209,7 @@ fun ChatInput(
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
     onNavigateToLorebook: (String) -> Unit = {},
+    onRefreshContext: suspend () -> ChatService.ContextRefreshResult = { ChatService.ContextRefreshResult(false, errorMessage = "Not configured") },
 ) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
@@ -585,6 +588,7 @@ fun ChatInput(
                             onUpdateAssistant = onUpdateAssistant,
                             onUpdateConversation = onUpdateConversation,
                             onNavigateToLorebook = onNavigateToLorebook,
+                            onRefreshContext = onRefreshContext,
                             onDismiss = { dismissExpand() }
                         )
                     }
@@ -988,6 +992,7 @@ private fun FilesPicker(
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateConversation: (Conversation) -> Unit,
     onNavigateToLorebook: (String) -> Unit,
+    onRefreshContext: suspend () -> ChatService.ContextRefreshResult,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -996,6 +1001,7 @@ private fun FilesPicker(
     
     val isDarkMode = LocalDarkMode.current
     val isKeyboardVisible = WindowInsets.isImeVisible
+    val showContextRefresh = assistant.enableContextRefresh && !isKeyboardVisible
     
     // Shapes for 3-button row - different based on keyboard visibility
     val topLeftShape = if (isKeyboardVisible) {
@@ -1009,9 +1015,16 @@ private fun FilesPicker(
     } else {
         RoundedCornerShape(topStart = 10.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
     }
-    // Shapes for modes/lorebooks row (attached below, bottom row)
-    val bottomLeftShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 10.dp)
-    val bottomRightShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 24.dp)
+    // Shapes for modes/lorebooks row - middle if context refresh enabled, bottom if not
+    val middleLeftShape = RoundedCornerShape(10.dp)
+    val middleRightShape = RoundedCornerShape(10.dp)
+    val bottomLeftShape = if (showContextRefresh) middleLeftShape else RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 10.dp)
+    val bottomRightShape = if (showContextRefresh) middleRightShape else RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 24.dp)
+    // Full-width bottom row shape for context refresh
+    val fullBottomShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+    
+    // State for context refresh dialog
+    var showContextRefreshDialog by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
@@ -1147,6 +1160,55 @@ private fun FilesPicker(
                     }
                 }
             }
+            
+            // Context Refresh button row - shown when enabled
+            if (showContextRefresh) {
+                val totalMessages = conversation.currentMessages.size
+                val lastSummaryIndex = conversation.contextSummaryUpToIndex
+                val hasPreviousSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+                val newMessageCount = if (hasPreviousSummary && lastSummaryIndex < totalMessages) {
+                    (totalMessages - lastSummaryIndex - 1).coerceAtLeast(0)
+                } else {
+                    totalMessages
+                }
+                
+                CompositionLocalProvider(LocalAbsoluteTonalElevation provides if(amoledMode && isDarkMode) 0.dp else LocalAbsoluteTonalElevation.current) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = fullBottomShape,
+                        color = if (amoledMode && isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = if (amoledMode && isDarkMode) 0.dp else 6.dp,
+                        onClick = { showContextRefreshDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.context_refresh_button),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (newMessageCount > 0) {
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "($newMessageCount)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Modes picker sheet
@@ -1170,6 +1232,15 @@ private fun FilesPicker(
                     onNavigateToLorebook(lorebookId)
                 },
                 onDismiss = { showLorebooksPicker = false }
+            )
+        }
+        
+        // Context Refresh confirmation dialog
+        if (showContextRefreshDialog) {
+            ContextRefreshDialog(
+                conversation = conversation,
+                onRefresh = onRefreshContext,
+                onDismiss = { showContextRefreshDialog = false }
             )
         }
     }

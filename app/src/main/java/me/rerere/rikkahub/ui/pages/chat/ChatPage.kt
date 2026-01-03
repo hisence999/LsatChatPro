@@ -547,6 +547,7 @@ private fun ChatPageContent(
                     onNavigateToLorebook = { lorebookId ->
                         navController.navigate(Screen.SettingLorebookDetail(lorebookId))
                     },
+                    onRefreshContext = { vm.refreshContext() },
                 )
             }
         }

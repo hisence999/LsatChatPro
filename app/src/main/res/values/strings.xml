@@ -798,6 +798,41 @@
     <string name="assistant_lorebooks_empty_hint">Create lorebooks in Settings → Prompt Injections → Lorebooks</string>
     <string name="assistant_lorebooks_enabled">%d enabled</string>
     
+    <!-- Context Management -->
+    <string name="context_management_title">Context Management</string>
+    <string name="context_management_desc">Lorebooks, message history, search results</string>
+    <string name="context_lorebooks_title">Lorebooks</string>
+    <string name="context_lorebooks_desc">Select which lorebooks to use with this assistant</string>
+    <string name="context_message_history_title">Message History</string>
+    <string name="context_max_messages">Maximum messages</string>
+    <string name="context_max_messages_desc">Limit messages sent to model (0 = unlimited)</string>
+    <string name="context_max_messages_value">%d messages</string>
+    <string name="context_max_messages_unlimited">Unlimited</string>
+    <string name="context_enable_summarization">Summarize older messages</string>
+    <string name="context_enable_summarization_desc">Generate summaries of pruned messages to preserve context</string>
+    <string name="context_search_results_title">Search Results</string>
+    <string name="context_max_search_results">Keep last N searches</string>
+    <string name="context_max_search_results_desc">Limit retained search results (0 = unlimited)</string>
+    <string name="context_max_search_results_value">%d searches</string>
+    <string name="context_max_search_results_unlimited">Unlimited</string>
+    
+    <!-- Context Refresh -->
+    <string name="context_refresh_title">Context Refresh</string>
+    <string name="context_refresh_button">Summarize &amp; Refresh</string>
+    <string name="context_refresh_desc">Compress conversation into a summary to free up context space</string>
+    <string name="context_refresh_enable">Enable Context Refresh</string>
+    <string name="context_refresh_enable_desc">Show refresh button in chat input</string>
+    <string name="context_refresh_messages">%d messages will be summarized</string>
+    <string name="context_refresh_tokens">~%d tokens estimated</string>
+    <string name="context_refresh_loading">Summarizing conversation…</string>
+    <string name="context_refresh_complete">Context refreshed!</string>
+    <string name="context_refresh_cleaned">Summarized %d messages</string>
+    <string name="context_refresh_last">Last refresh: %s</string>
+    <string name="context_refresh_never">Never refreshed</string>
+    <string name="context_refresh_no_summarizer">Configure a summarizer model in settings first</string>
+    <string name="context_refresh_confirm_title">Summarize &amp; Refresh?</string>
+    <string name="context_refresh_confirm_message">This will summarize your conversation history into a compact form. The AI will remember the key points but detailed messages will be replaced with a summary.</string>
+    
     <!-- Import/Export -->
     <string name="lorebook_import_success">Imported: %s</string>
     <string name="lorebook_export_success">Lorebook exported successfully</string>

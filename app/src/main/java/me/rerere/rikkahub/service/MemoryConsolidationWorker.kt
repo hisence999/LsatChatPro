@@ -114,10 +114,33 @@ class MemoryConsolidationWorker(
             }
 
             // Summarize into an episode with Significance Score
-            val messagesText = conversation.currentMessages.takeLast(30).joinToString("\n") { "${it.role}: ${it.toText()}" }
+            // Only process messages after the last summary index to avoid redundant processing
+            val allMessages = conversation.currentMessages
+            val lastSummaryIndex = conversation.contextSummaryUpToIndex
+            val hasSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+            
+            val messagesToProcess = if (hasSummary && lastSummaryIndex < allMessages.size) {
+                allMessages.subList((lastSummaryIndex + 1).coerceAtMost(allMessages.size), allMessages.size)
+            } else {
+                allMessages
+            }.takeLast(30) // Limit to last 30 for processing
+            
+            val messagesText = messagesToProcess.joinToString("\n") { "${it.role}: ${it.toText()}" }
+            
+            // Include context summary if available for better context
+            val contextSection = if (hasSummary) {
+                """
+                **Context Summary (from previous summarization):**
+                ${conversation.contextSummary}
+                
+                **New Messages (${messagesToProcess.size} since last summary):**
+                """.trimIndent()
+            } else ""
+            
             val prompt = """
                 Analyze the following conversation and create a "Memory Episode".
                 
+                $contextSection
                 1. **Summary**: Concise summary of what happened (under 100 words).
                 2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
                 

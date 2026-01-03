@@ -76,6 +76,14 @@ data class Assistant(
     val spontaneousPrompt: String = "", // 自发消息的Prompt
     val enabledLorebookIds: Set<Uuid> = emptySet(), // Lorebooks enabled for this assistant
 
+    // Context Management Settings
+    val maxHistoryMessages: Int? = null, // null = unlimited (use token budgeting only)
+    val enableHistorySummarization: Boolean = false, // Generate summaries of pruned messages
+    val maxSearchResultsRetained: Int? = null, // null = keep all, e.g. 2 = keep last 2 search results
+    val enableContextRefresh: Boolean = false, // Show Summarize & Refresh button in file picker
+    val autoRegenerateSummary: Boolean = false, // Automatically regenerate summary after threshold
+    val summaryRegenerateThreshold: Int = 10, // Messages since last summary before auto-regenerating
+
     // Memory System Configuration & Stats
     val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat
     val lastConsolidationTime: Long = 0L,

@@ -18,8 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
@@ -65,6 +65,7 @@ private object AssistantDetailRoutes {
     const val PROFILE = "profile"
     const val MODEL = "model"
     const val PROMPTS = "prompts"
+    const val CONTEXT_MANAGEMENT = "context_management"
     const val LOREBOOKS = "lorebooks"
     const val TOOLS = "tools"
     const val MEMORY = "memory"
@@ -164,7 +165,7 @@ fun AssistantDetailPage(id: String) {
                     onNavigateToProfile = { navController.navigate(AssistantDetailRoutes.PROFILE) },
                     onNavigateToModel = { navController.navigate(AssistantDetailRoutes.MODEL) },
                     onNavigateToPrompts = { navController.navigate(AssistantDetailRoutes.PROMPTS) },
-                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
+                    onNavigateToContextManagement = { navController.navigate(AssistantDetailRoutes.CONTEXT_MANAGEMENT) },
                     onNavigateToTools = { navController.navigate(AssistantDetailRoutes.TOOLS) },
                     onNavigateToMemory = { navController.navigate(AssistantDetailRoutes.MEMORY) },
                     onNavigateToUI = { navController.navigate(AssistantDetailRoutes.UI) },
@@ -200,7 +201,16 @@ fun AssistantDetailPage(id: String) {
                 )
             }
 
-            // Lorebooks
+            // Context Management
+            composable(AssistantDetailRoutes.CONTEXT_MANAGEMENT) {
+                AssistantContextManagementSubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) },
+                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) }
+                )
+            }
+
+            // Lorebooks (nested under Context Management)
             composable(AssistantDetailRoutes.LOREBOOKS) {
                 AssistantLorebooksSubPage(
                     assistant = assistant,
@@ -270,7 +280,7 @@ private fun AssistantDetailHome(
     onNavigateToProfile: () -> Unit,
     onNavigateToModel: () -> Unit,
     onNavigateToPrompts: () -> Unit,
-    onNavigateToLorebooks: () -> Unit,
+    onNavigateToContextManagement: () -> Unit,
     onNavigateToTools: () -> Unit,
     onNavigateToMemory: () -> Unit,
     onNavigateToUI: () -> Unit,
@@ -342,10 +352,10 @@ private fun AssistantDetailHome(
             )
 
             NavigationCard(
-                icon = Icons.Rounded.Book,
-                title = stringResource(R.string.assistant_lorebooks_title),
-                description = stringResource(R.string.assistant_lorebooks_desc),
-                onClick = onNavigateToLorebooks
+                icon = Icons.Rounded.DataObject,
+                title = stringResource(R.string.context_management_title),
+                description = stringResource(R.string.context_management_desc),
+                onClick = onNavigateToContextManagement
             )
 
             NavigationCard(

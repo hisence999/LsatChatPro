@@ -444,8 +444,44 @@ class GenerationHandler(
         currentTokens += estimateTokens(baseSystemPrompt)
 
         // 2. Prepare Candidates
+        // Apply message history limit if configured
+        val historyLimitedMessages = assistant.maxHistoryMessages?.let { limit ->
+            if (limit > 0) messages.limitContext(limit) else messages
+        } ?: messages
+        
+        // Prune search results if configured
+        val searchPrunedMessages = assistant.maxSearchResultsRetained?.let { maxSearches ->
+            if (maxSearches > 0) {
+                // Find all messages that contain search tool results
+                val searchResultIndices = historyLimitedMessages.mapIndexedNotNull { index, msg ->
+                    val hasSearchResult = msg.parts.any { part ->
+                        part is UIMessagePart.ToolResult && part.toolName == "search_web"
+                    }
+                    if (hasSearchResult) index else null
+                }
+                
+                // Keep only the last N search results
+                val indicesToPrune = searchResultIndices.dropLast(maxSearches).toSet()
+                
+                if (indicesToPrune.isNotEmpty()) {
+                    historyLimitedMessages.mapIndexed { index, msg ->
+                        if (index in indicesToPrune) {
+                            // Replace search result content with a minimal placeholder
+                            msg.copy(parts = msg.parts.map { part ->
+                                if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
+                                    part.copy(content = kotlinx.serialization.json.buildJsonObject {
+                                        put("note", kotlinx.serialization.json.JsonPrimitive("Earlier search results pruned to save context"))
+                                    })
+                                } else part
+                            })
+                        } else msg
+                    }
+                } else historyLimitedMessages
+            } else historyLimitedMessages
+        } ?: historyLimitedMessages
+        
         // Chat History (reverse order to prioritize recent)
-        val chatHistoryCandidates = messages.truncate(truncateIndex).reversed()
+        val chatHistoryCandidates = searchPrunedMessages.truncate(truncateIndex).reversed()
         
         // Memories (Prepare effective memories including recent chats if enabled)
         val effectiveMemoriesCandidates = if (assistant.enableMemory) {

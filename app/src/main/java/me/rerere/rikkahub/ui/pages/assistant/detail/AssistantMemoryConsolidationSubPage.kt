@@ -38,17 +38,11 @@ fun AssistantMemoryConsolidationSubPage(
     vm: AssistantDetailVM,
     assistant: Assistant,
     onUpdate: (Assistant) -> Unit,
-    allModels: List<Model>,
     onConsolidate: (Boolean) -> Unit
 ) {
     val episodes: List<ChatEpisodeEntity> by vm.episodes.collectAsStateWithLifecycle(initialValue = emptyList())
     val stats by vm.episodeStats.collectAsStateWithLifecycle()
     val snackbarMessage: String? by vm.snackbarMessage.collectAsStateWithLifecycle(initialValue = null)
-
-    // Prepare model selection options
-    val defaultModel = Model("default", "Default (Background Model)")
-    val modelOptions = listOf(defaultModel) + allModels
-    val selectedModel = allModels.find { it.id == assistant.summarizerModelId } ?: defaultModel
 
     LazyColumn(
         modifier = Modifier.padding(16.dp),
@@ -104,38 +98,6 @@ fun AssistantMemoryConsolidationSubPage(
                     }
 
                     if (assistant.enableMemory) {
-
-                        // Summarizer Model
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Summarizer Model",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Model used for memory consolidation tasks",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Select(
-                                options = modelOptions,
-                                selectedOption = selectedModel,
-                                onOptionSelected = { model ->
-                                    if (model.id.toString() == "default") {
-                                        onUpdate(assistant.copy(summarizerModelId = null))
-                                    } else {
-                                        onUpdate(assistant.copy(summarizerModelId = model.id))
-                                    }
-                                },
-                                optionToString = { it.displayName },
-                                modifier = Modifier.width(250.dp)
-                            )
-                        }
-
-    
-
                         // Consolidation Delay
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(

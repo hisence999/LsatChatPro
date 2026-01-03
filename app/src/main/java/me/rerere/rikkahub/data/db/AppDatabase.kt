@@ -27,7 +27,7 @@ import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
     entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class],
-    version = 20,
+    version = 21,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -45,6 +45,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 17, to = 18),
         AutoMigration(from = 18, to = 19),
         AutoMigration(from = 19, to = 20),
+        AutoMigration(from = 20, to = 21), // Adds context_summary, context_summary_up_to_index, last_prune_time, last_prune_message_count, last_refresh_time to ConversationEntity
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

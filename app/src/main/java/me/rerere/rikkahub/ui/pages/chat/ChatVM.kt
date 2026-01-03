@@ -589,6 +589,11 @@ class ChatVM(
         }
     }
 
+    // Context Refresh - summarize conversation and update context
+    suspend fun refreshContext(): ChatService.ContextRefreshResult {
+        return chatService.summarizeAndRefresh(_conversationId)
+    }
+
     private fun getDateLabel(date: LocalDate): String {
         val today = LocalDate.now()
         val yesterday = today.minusDays(1)

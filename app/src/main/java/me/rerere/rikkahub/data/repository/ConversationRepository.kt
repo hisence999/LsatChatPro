@@ -188,6 +188,11 @@ class ConversationRepository(
             isPinned = conversation.isPinned,
             isConsolidated = conversation.isConsolidated,
             enabledModeIds = JsonInstant.encodeToString(conversation.enabledModeIds.map { it.toString() }),
+            contextSummary = conversation.contextSummary ?: "",
+            contextSummaryUpToIndex = conversation.contextSummaryUpToIndex,
+            lastPruneTime = conversation.lastPruneTime,
+            lastPruneMessageCount = conversation.lastPruneMessageCount,
+            lastRefreshTime = conversation.lastRefreshTime,
         )
     }
 
@@ -214,6 +219,11 @@ class ConversationRepository(
             isPinned = conversationEntity.isPinned,
             isConsolidated = conversationEntity.isConsolidated,
             enabledModeIds = enabledModeIds,
+            contextSummary = conversationEntity.contextSummary.takeIf { it.isNotBlank() },
+            contextSummaryUpToIndex = conversationEntity.contextSummaryUpToIndex,
+            lastPruneTime = conversationEntity.lastPruneTime,
+            lastPruneMessageCount = conversationEntity.lastPruneMessageCount,
+            lastRefreshTime = conversationEntity.lastRefreshTime,
         )
     }
 
