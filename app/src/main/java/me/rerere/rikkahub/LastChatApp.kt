@@ -4,6 +4,14 @@ import android.app.Application
 import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -25,7 +33,6 @@ import org.koin.android.ext.koin.androidLogger
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -35,8 +42,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import me.rerere.rikkahub.service.MemoryConsolidationWorker
 import me.rerere.rikkahub.service.SpontaneousWorker
-import me.rerere.rikkahub.service.KeepAliveService
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRescheduleWorker
+import okhttp3.OkHttpClient
+import okio.Path.Companion.toOkioPath
 import java.util.concurrent.TimeUnit
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
@@ -45,9 +53,32 @@ private const val TAG = "LastChatApp"
 
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
-const val KEEP_ALIVE_NOTIFICATION_CHANNEL_ID = "keep_alive"
 
-class LastChatApp : Application() {
+class LastChatApp : Application(), SingletonImageLoader.Factory {
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val okHttpClient = runCatching { get<OkHttpClient>() }
+            .getOrElse { OkHttpClient.Builder().build() }
+
+        return ImageLoader.Builder(context)
+            .crossfade(true)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.filesDir.resolve("icon_cache").toOkioPath())
+                    .maxSizeBytes(50L * 1024 * 1024)
+                    .build()
+            }
+            .components {
+                add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
+                add(SvgDecoder.Factory(scaleToDensity = true))
+            }
+            .build()
+    }
+
     override fun onCreate() {
         super.onCreate()
         startKoin {
@@ -130,20 +161,6 @@ class LastChatApp : Application() {
                     }
                 }
         }
-
-        // Keep-alive notification (foreground service) controller
-        get<AppScope>().launch {
-            get<SettingsStore>().settingsFlow
-                .map { it.displaySetting.let { display -> display.enableKeepAliveNotification to display.keepAliveMode } }
-                .distinctUntilChanged()
-                .collect { (enabled, mode) ->
-                    when {
-                        !enabled -> KeepAliveService.stop(this@LastChatApp)
-                        mode == KeepAliveMode.ALWAYS -> KeepAliveService.startAlways(this@LastChatApp)
-                        else -> KeepAliveService.stopAlways(this@LastChatApp)
-                    }
-                }
-        }
     }
 
     private fun deleteTempFiles() {
@@ -173,18 +190,8 @@ class LastChatApp : Application() {
             .setName(getString(R.string.notification_channel_chat_live_update))
             .setVibrationEnabled(false)
             .build()
-        val keepAliveChannel = NotificationChannelCompat
-            .Builder(
-                KEEP_ALIVE_NOTIFICATION_CHANNEL_ID,
-                NotificationManagerCompat.IMPORTANCE_LOW
-            )
-            .setName(getString(R.string.notification_channel_keep_alive))
-            .setVibrationEnabled(false)
-            .setShowBadge(false)
-            .build()
         notificationManager.createNotificationChannel(chatCompletedChannel)
         notificationManager.createNotificationChannel(chatLiveUpdateChannel)
-        notificationManager.createNotificationChannel(keepAliveChannel)
     }
 
     override fun onTerminate() {

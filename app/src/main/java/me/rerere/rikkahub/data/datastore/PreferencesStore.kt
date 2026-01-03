@@ -159,6 +159,30 @@ class SettingsStore(
                 Log.w(TAG, "applyLiveUpdateDefaultIfNeeded failed: ${it.message}", it)
             }
         }
+
+        // Migrate legacy "keep alive: always" to the closest remaining behavior (during generation).
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val prefs = dataStore.data.first()
+                val rawDisplaySetting = prefs[DISPLAY_SETTING] ?: return@launch
+                val currentDisplaySetting = runCatching {
+                    JsonInstant.decodeFromString<DisplaySetting>(rawDisplaySetting)
+                }.getOrNull() ?: return@launch
+
+                val shouldMigrate = currentDisplaySetting.enableKeepAliveNotification &&
+                    currentDisplaySetting.keepAliveMode == KeepAliveMode.ALWAYS &&
+                    !currentDisplaySetting.enableLiveUpdate
+                if (!shouldMigrate) return@launch
+
+                dataStore.edit { preferences ->
+                    preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(
+                        currentDisplaySetting.copy(keepAliveMode = KeepAliveMode.GENERATION)
+                    )
+                }
+            }.onFailure {
+                Log.w(TAG, "migrateKeepAliveAlwaysToGeneration failed: ${it.message}", it)
+            }
+        }
     }
 
     val settingsFlowRaw = dataStore.data

@@ -34,15 +34,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import coil3.ImageLoader
-import coil3.compose.setSingletonImageLoaderFactory
-import coil3.disk.DiskCache
-import coil3.memory.MemoryCache
-import coil3.network.okhttp.OkHttpNetworkFetcherFactory
-import coil3.request.crossfade
-import coil3.svg.SvgDecoder
-import okhttp3.OkHttpClient
-import okio.Path.Companion.toOkioPath
 import me.rerere.rikkahub.ui.components.ui.AppToasterHost
 import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
 import kotlinx.serialization.Serializable
@@ -97,13 +88,7 @@ import kotlin.uuid.Uuid
 private const val TAG = "RouteActivity"
 
 class RouteActivity : ComponentActivity() {
-    companion object {
-        @Volatile
-        private var isSingletonImageLoaderFactorySet: Boolean = false
-    }
-
     private val highlighter by inject<Highlighter>()
-    private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
     private val welcomePhrasesService by inject<WelcomePhrasesService>()
     private var navStack by mutableStateOf<NavHostController?>(null)
@@ -124,29 +109,6 @@ class RouteActivity : ComponentActivity() {
             ShareHandler(navStack)
             AssistantShortcutHandler(navStack)
             RikkahubTheme {
-                if (!isSingletonImageLoaderFactorySet) {
-                    setSingletonImageLoaderFactory { context ->
-                        ImageLoader.Builder(context)
-                            .crossfade(true)
-                            .memoryCache {
-                                MemoryCache.Builder()
-                                    .maxSizePercent(context, 0.25) // Use 25% of app's memory for image cache
-                                    .build()
-                            }
-                            .diskCache {
-                                DiskCache.Builder()
-                                    .directory(context.filesDir.resolve("icon_cache").toOkioPath())
-                                    .maxSizeBytes(50L * 1024 * 1024) // 50 MB persistent disk cache for icons
-                                    .build()
-                            }
-                            .components {
-                                add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
-                                add(SvgDecoder.Factory(scaleToDensity = true))
-                            }
-                            .build()
-                    }
-                    isSingletonImageLoaderFactorySet = true
-                }
                 AppRoutes(navStack)
             }
         }

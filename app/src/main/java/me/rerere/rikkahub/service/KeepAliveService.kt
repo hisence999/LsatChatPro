@@ -10,13 +10,17 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
-import me.rerere.rikkahub.KEEP_ALIVE_NOTIFICATION_CHANNEL_ID
+import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
+
+private const val TAG = "KeepAliveService"
 
 class KeepAliveService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
@@ -24,21 +28,21 @@ class KeepAliveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == null) {
-            // If the service is restarted without an intent (process death / redelivery edge cases),
-            // stop immediately to avoid foreground-service startup timeout crashes.
-            stopSelf()
+            // If the service is restarted without an intent (e.g., process death and the service was sticky),
+            // we still MUST call startForeground() quickly or the system will crash the app process.
+            // Stop promptly to avoid resurrecting an always-on keep-alive after app updates.
+            startForegroundCompat(buildGeneratingNotification(activeCount = 1))
+            stopAll()
             return START_NOT_STICKY
         }
 
         when (action) {
-            ACTION_START_ALWAYS -> startAlways()
             ACTION_START_OR_UPDATE_GENERATION -> startOrUpdateGeneration(
                 activeCount = intent.getIntExtra(EXTRA_ACTIVE_COUNT, 1).coerceAtLeast(1)
             )
             ACTION_FINISH_GENERATION -> finishGeneration(
                 status = intent.getStringExtra(EXTRA_FINISH_STATUS)
             )
-            ACTION_STOP_ALWAYS -> stopAlwaysIfRunning()
             ACTION_STOP -> stopAll()
             else -> {
                 stopSelf()
@@ -46,14 +50,11 @@ class KeepAliveService : Service() {
             }
         }
         return when (action) {
-            ACTION_START_ALWAYS, ACTION_START_OR_UPDATE_GENERATION -> START_STICKY
+            // Redeliver the last intent on process death so we don't get restarted with a null intent
+            // (which can trigger foreground-service startup timeout crashes if not handled perfectly).
+            ACTION_START_OR_UPDATE_GENERATION -> START_REDELIVER_INTENT
             else -> START_NOT_STICKY
         }
-    }
-
-    private fun startAlways() {
-        currentMode = MODE_ALWAYS
-        startForegroundCompat(buildAlwaysNotification())
     }
 
     private fun startOrUpdateGeneration(activeCount: Int) {
@@ -63,26 +64,27 @@ class KeepAliveService : Service() {
 
     private fun finishGeneration(status: String?) {
         currentMode = null
-        val notification = when (status) {
-            FINISH_STATUS_ERROR -> buildGenerationFinishedNotification(
-                contentText = getString(R.string.notification_keep_alive_content_error)
-            )
-            FINISH_STATUS_CANCELLED -> buildGenerationFinishedNotification(
-                contentText = getString(R.string.notification_keep_alive_content_cancelled)
-            )
-            else -> buildGenerationFinishedNotification(
-                contentText = getString(R.string.notification_keep_alive_content_done)
-            )
+        when (status) {
+            FINISH_STATUS_ERROR -> {
+                val notification = buildGenerationFinishedNotification(
+                    contentText = getString(R.string.notification_keep_alive_content_error)
+                )
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+                NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+                stopSelf()
+            }
+
+            FINISH_STATUS_CANCELLED -> {
+                val notification = buildGenerationFinishedNotification(
+                    contentText = getString(R.string.notification_keep_alive_content_cancelled)
+                )
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+                NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+                stopSelf()
+            }
+
+            else -> stopAll()
         }
-
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
-        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
-        stopSelf()
-    }
-
-    private fun stopAlwaysIfRunning() {
-        if (currentMode != MODE_ALWAYS) return
-        stopAll()
     }
 
     private fun stopAll() {
@@ -92,14 +94,23 @@ class KeepAliveService : Service() {
         stopSelf()
     }
 
-    private fun startForegroundCompat(notification: Notification) {
-        if (!hasPostNotificationsPermission()) {
-            // Don't keep a foreground-service start pending without calling startForeground().
-            stopSelf()
-            return
-        }
+    private fun ensureNotificationChannel() {
+        val notificationManager = NotificationManagerCompat.from(this)
+        val channel = NotificationChannelCompat
+            .Builder(
+                CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
+                NotificationManagerCompat.IMPORTANCE_LOW
+            )
+            .setName(getString(R.string.notification_channel_chat_live_update))
+            .setVibrationEnabled(false)
+            .setShowBadge(false)
+            .build()
+        notificationManager.createNotificationChannel(channel)
+    }
 
-        runCatching {
+    private fun startForegroundCompat(notification: Notification) {
+        try {
+            ensureNotificationChannel()
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
@@ -110,30 +121,26 @@ class KeepAliveService : Service() {
                     0
                 }
             )
-        }.onFailure {
-            stopSelf()
+        } catch (t: Throwable) {
+            // Don't swallow the root cause: it helps debug OEM/permission/channel issues.
+            Log.e(TAG, "startForegroundCompat failed: ${t.message}", t)
+            // Try one more time with a minimal generation-notification.
+            runCatching {
+                ensureNotificationChannel()
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    buildGeneratingNotification(activeCount = 1),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    } else {
+                        0
+                    }
+                )
+            }.onFailure { retryError ->
+                Log.e(TAG, "startForegroundCompat retry failed: ${retryError.message}", retryError)
+            }
         }
-    }
-
-    private fun hasPostNotificationsPermission(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-        return ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun buildAlwaysNotification(): Notification {
-        return NotificationCompat.Builder(this, KEEP_ALIVE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_statusbar)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.notification_keep_alive_content_always))
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setContentIntent(mainPendingIntent())
-            .build()
     }
 
     private fun buildGeneratingNotification(activeCount: Int): Notification {
@@ -142,7 +149,7 @@ class KeepAliveService : Service() {
         } else {
             getString(R.string.notification_keep_alive_content_generating_multi, activeCount)
         }
-        return NotificationCompat.Builder(this, KEEP_ALIVE_NOTIFICATION_CHANNEL_ID)
+        return NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_statusbar)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(contentText)
@@ -156,7 +163,7 @@ class KeepAliveService : Service() {
     }
 
     private fun buildGenerationFinishedNotification(contentText: String): Notification {
-        return NotificationCompat.Builder(this, KEEP_ALIVE_NOTIFICATION_CHANNEL_ID)
+        return NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_statusbar)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(contentText)
@@ -187,14 +194,11 @@ class KeepAliveService : Service() {
         @Volatile
         private var currentMode: String? = null
 
-        private const val MODE_ALWAYS = "always"
         private const val MODE_GENERATION = "generation"
 
-        private const val ACTION_START_ALWAYS = "me.rerere.rikkahub.action.KEEP_ALIVE_START_ALWAYS"
         private const val ACTION_START_OR_UPDATE_GENERATION =
             "me.rerere.rikkahub.action.KEEP_ALIVE_START_OR_UPDATE_GENERATION"
         private const val ACTION_FINISH_GENERATION = "me.rerere.rikkahub.action.KEEP_ALIVE_FINISH_GENERATION"
-        private const val ACTION_STOP_ALWAYS = "me.rerere.rikkahub.action.KEEP_ALIVE_STOP_ALWAYS"
         private const val ACTION_STOP = "me.rerere.rikkahub.action.KEEP_ALIVE_STOP"
 
         private const val EXTRA_ACTIVE_COUNT = "activeCount"
@@ -204,28 +208,15 @@ class KeepAliveService : Service() {
         private const val FINISH_STATUS_CANCELLED = "cancelled"
         private const val FINISH_STATUS_ERROR = "error"
 
-        fun startAlways(context: Context) {
-            if (!context.hasPostNotificationsPermissionCompat()) return
-            context.startForegroundServiceBestEffort(
-                Intent(context, KeepAliveService::class.java).setAction(ACTION_START_ALWAYS)
-            )
-        }
-
         fun stop(context: Context) {
             context.startServiceBestEffort(
                 Intent(context, KeepAliveService::class.java).setAction(ACTION_STOP)
             )
         }
 
-        fun stopAlways(context: Context) {
-            context.startServiceBestEffort(
-                Intent(context, KeepAliveService::class.java).setAction(ACTION_STOP_ALWAYS)
-            )
-        }
-
         fun startOrUpdateGeneration(context: Context, activeCount: Int) {
             if (!context.hasPostNotificationsPermissionCompat()) return
-            context.startForegroundServiceBestEffort(
+            context.startServiceOrForegroundServiceBestEffort(
                 Intent(context, KeepAliveService::class.java)
                     .setAction(ACTION_START_OR_UPDATE_GENERATION)
                     .putExtra(EXTRA_ACTIVE_COUNT, activeCount)
@@ -268,6 +259,23 @@ private fun Context.startForegroundServiceBestEffort(intent: Intent) {
         } else {
             startService(intent)
         }
+    }
+}
+
+private fun Context.startServiceOrForegroundServiceBestEffort(intent: Intent) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+        startServiceBestEffort(intent)
+        return
+    }
+
+    try {
+        startService(intent)
+    } catch (e: IllegalStateException) {
+        // Background execution limits: fall back to foreground-service start.
+        startForegroundServiceBestEffort(intent)
+    } catch (t: Throwable) {
+        // KeepAlive is best-effort; don't crash the app on OEM/framework quirks.
+        Log.e(TAG, "startServiceOrForegroundServiceBestEffort failed: ${t.message}", t)
     }
 }
 
