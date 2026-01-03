@@ -80,9 +80,8 @@ data class Assistant(
     val maxHistoryMessages: Int? = null, // null = unlimited (use token budgeting only)
     val enableHistorySummarization: Boolean = false, // Generate summaries of pruned messages
     val maxSearchResultsRetained: Int? = null, // null = keep all, e.g. 2 = keep last 2 search results
-    val enableContextRefresh: Boolean = false, // Show Summarize & Refresh button in file picker
-    val autoRegenerateSummary: Boolean = false, // Automatically regenerate summary after threshold
-    val summaryRegenerateThreshold: Int = 10, // Messages since last summary before auto-regenerating
+    val enableContextRefresh: Boolean = false, // Show Summarize Messages button in chat input
+    val autoRegenerateSummary: Boolean = false, // Automatically summarize when maxHistoryMessages reached
 
     // Memory System Configuration & Stats
     val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat

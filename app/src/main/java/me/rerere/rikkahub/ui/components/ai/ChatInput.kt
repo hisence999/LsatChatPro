@@ -1166,10 +1166,13 @@ private fun FilesPicker(
                 val totalMessages = conversation.currentMessages.size
                 val lastSummaryIndex = conversation.contextSummaryUpToIndex
                 val hasPreviousSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+                val messagesToKeep = 2 // Keep last user+assistant exchange
                 val newMessageCount = if (hasPreviousSummary && lastSummaryIndex < totalMessages) {
-                    (totalMessages - lastSummaryIndex - 1).coerceAtLeast(0)
+                    // Messages after last summary, minus the ones we keep
+                    (totalMessages - lastSummaryIndex - 1 - messagesToKeep).coerceAtLeast(0)
                 } else {
-                    totalMessages
+                    // No previous summary - all messages minus kept ones
+                    (totalMessages - messagesToKeep).coerceAtLeast(0)
                 }
                 
                 CompositionLocalProvider(LocalAbsoluteTonalElevation provides if(amoledMode && isDarkMode) 0.dp else LocalAbsoluteTonalElevation.current) {

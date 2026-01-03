@@ -267,7 +267,7 @@ private fun ModeItem(
                     Text(
                         text = reason,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1
                     )
                 }
@@ -388,7 +388,7 @@ private fun MemoryItem(
                     Text(
                         text = reason,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1
                     )
                 }

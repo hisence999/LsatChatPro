@@ -163,21 +163,28 @@ fun ContextRefreshDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             
-                            // Calculate actual messages to summarize
-                            val messagesToSummarize = if (hasPreviousSummary && lastSummaryIndex >= 0) {
-                                messagesSinceSummary
+                            // Keep last 2 messages (user + assistant exchange)
+                            val messagesToKeep = 2
+                            val lastIndexToSummarize = (messageCount - messagesToKeep - 1).coerceAtLeast(0)
+                            
+                            // Calculate actual messages to summarize (excluding kept messages)
+                            val startIndex = if (hasPreviousSummary && lastSummaryIndex >= 0 && lastSummaryIndex < messageCount) {
+                                (lastSummaryIndex + 1).coerceAtMost(messageCount)
                             } else {
-                                messageCount
+                                0
+                            }
+                            
+                            val messagesToSummarize = if (startIndex <= lastIndexToSummarize) {
+                                lastIndexToSummarize - startIndex + 1
+                            } else {
+                                0
                             }
                             
                             // Calculate tokens for messages that will be summarized
-                            val messagesToProcess = if (hasPreviousSummary && lastSummaryIndex >= 0 && lastSummaryIndex < messageCount) {
-                                conversation.currentMessages.subList(
-                                    (lastSummaryIndex + 1).coerceAtMost(messageCount),
-                                    messageCount
-                                )
+                            val messagesToProcess = if (startIndex <= lastIndexToSummarize) {
+                                conversation.currentMessages.subList(startIndex, lastIndexToSummarize + 1)
                             } else {
-                                conversation.currentMessages
+                                emptyList()
                             }
                             val tokensToCleanUp = messagesToProcess.sumOf { msg ->
                                 msg.parts.sumOf { part ->

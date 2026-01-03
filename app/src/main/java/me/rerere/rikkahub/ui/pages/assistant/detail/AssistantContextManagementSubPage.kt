@@ -117,35 +117,7 @@ fun AssistantContextManagementSubPage(
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // SEARCH RESULTS
-        // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = stringResource(R.string.context_search_results_title)) {
-            val maxSearchResults = assistant.maxSearchResultsRetained ?: 0
-            var searchSliderValue by remember(maxSearchResults) { mutableFloatStateOf(maxSearchResults.toFloat()) }
-            
-            SliderSettingCard(
-                title = stringResource(R.string.context_max_search_results),
-                value = searchSliderValue,
-                valueText = if (searchSliderValue.roundToInt() == 0) {
-                    stringResource(R.string.context_max_search_results_unlimited)
-                } else {
-                    stringResource(R.string.context_max_search_results_value, searchSliderValue.roundToInt())
-                },
-                description = stringResource(R.string.context_max_search_results_desc),
-                onValueChange = { searchSliderValue = it },
-                onValueChangeFinished = {
-                    val newValue = searchSliderValue.roundToInt()
-                    onUpdate(assistant.copy(
-                        maxSearchResultsRetained = if (newValue == 0) null else newValue
-                    ))
-                },
-                valueRange = 0f..10f,
-                steps = 9
-            )
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // CONTEXT REFRESH
+        // MESSAGE SUMMARIZATION
         // ═══════════════════════════════════════════════════════════════════
         SettingsGroup(title = stringResource(R.string.context_refresh_title)) {
             // Enable Context Refresh toggle
@@ -171,49 +143,59 @@ fun AssistantContextManagementSubPage(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingGroupItem(
-                        title = "Auto-regenerate summary",
-                        subtitle = "Automatically update summary after threshold messages",
-                        trailing = {
-                            HapticSwitch(
-                                checked = assistant.autoRegenerateSummary,
-                                onCheckedChange = { enabled ->
-                                    onUpdate(assistant.copy(autoRegenerateSummary = enabled))
-                                }
-                            )
-                        },
-                        onClick = {
+                val maxMsgs = assistant.maxHistoryMessages
+                val autoSummarizeDesc = if (maxMsgs != null) {
+                    "Auto-summarize when $maxMsgs unsummarized messages are reached"
+                } else {
+                    "Set max history messages above to enable"
+                }
+                SettingGroupItem(
+                    title = "Auto-summarize messages",
+                    subtitle = autoSummarizeDesc,
+                    trailing = {
+                        HapticSwitch(
+                            checked = assistant.autoRegenerateSummary,
+                            enabled = maxMsgs != null,
+                            onCheckedChange = { enabled ->
+                                onUpdate(assistant.copy(autoRegenerateSummary = enabled))
+                            }
+                        )
+                    },
+                    onClick = {
+                        if (maxMsgs != null) {
                             onUpdate(assistant.copy(autoRegenerateSummary = !assistant.autoRegenerateSummary))
                         }
-                    )
-                    
-                    // Threshold slider (visible when auto-regenerate is enabled)
-                    AnimatedVisibility(
-                        visible = assistant.autoRegenerateSummary,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        val threshold = assistant.summaryRegenerateThreshold.toFloat()
-                        var thresholdSlider by remember(threshold) { mutableFloatStateOf(threshold) }
-                        
-                        SliderSettingCard(
-                            title = "Regeneration threshold",
-                            value = thresholdSlider,
-                            valueText = "${thresholdSlider.roundToInt()} messages",
-                            description = "New messages since last summary before auto-regenerating",
-                            onValueChange = { thresholdSlider = it },
-                            onValueChangeFinished = {
-                                onUpdate(assistant.copy(
-                                    summaryRegenerateThreshold = thresholdSlider.roundToInt()
-                                ))
-                            },
-                            valueRange = 5f..50f,
-                            steps = 8 // 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
-                        )
                     }
-                }
+                )
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SEARCH RESULTS
+        // ═══════════════════════════════════════════════════════════════════
+        SettingsGroup(title = stringResource(R.string.context_search_results_title)) {
+            val maxSearchResults = assistant.maxSearchResultsRetained ?: 0
+            var searchSliderValue by remember(maxSearchResults) { mutableFloatStateOf(maxSearchResults.toFloat()) }
+            
+            SliderSettingCard(
+                title = if (searchSliderValue.roundToInt() == 0) {
+                    stringResource(R.string.context_max_search_results_unlimited)
+                } else {
+                    stringResource(R.string.context_max_search_results, searchSliderValue.roundToInt())
+                },
+                value = searchSliderValue,
+                valueText = "", // Title already shows the value
+                description = stringResource(R.string.context_max_search_results_desc),
+                onValueChange = { searchSliderValue = it },
+                onValueChangeFinished = {
+                    val newValue = searchSliderValue.roundToInt()
+                    onUpdate(assistant.copy(
+                        maxSearchResultsRetained = if (newValue == 0) null else newValue
+                    ))
+                },
+                valueRange = 0f..50f,
+                steps = 49
+            )
         }
 
         Spacer(Modifier.height(32.dp))
@@ -245,11 +227,13 @@ private fun SliderSettingCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            if (valueText.isNotEmpty()) {
+                Text(
+                    text = valueText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Slider(
                 value = value,
                 onValueChange = onValueChange,

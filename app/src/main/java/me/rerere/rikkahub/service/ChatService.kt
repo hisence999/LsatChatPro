@@ -546,6 +546,11 @@ class ChatService(
                         }
                     }
                     launch { generateSuggestion(conversationId, finalConversation) }
+                    
+                    // Auto-summarization check
+                    launch {
+                        checkAndAutoSummarize(conversationId, finalConversation, settings)
+                    }
                 }
             }.invokeOnCompletion {
                 removeConversationReference(conversationId) // 移除引用
@@ -968,6 +973,52 @@ class ChatService(
         val errorMessage: String? = null
     )
 
+    // Check if auto-summarization threshold is reached and trigger if needed
+    private suspend fun checkAndAutoSummarize(
+        conversationId: Uuid,
+        conversation: Conversation,
+        settings: Settings
+    ) {
+        try {
+            val assistant = settings.getCurrentAssistant()
+            
+            // Check if auto-summarization is enabled
+            if (!assistant.enableContextRefresh || !assistant.autoRegenerateSummary) {
+                return
+            }
+            
+            // Get max history messages setting (null = unlimited, don't auto-summarize)
+            val maxMessages = assistant.maxHistoryMessages ?: return
+            
+            // Calculate new messages since last summary
+            val messages = conversation.currentMessages
+            val lastSummaryIndex = conversation.contextSummaryUpToIndex
+            val hasPreviousSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+            
+            val messagesToKeep = 2 // Keep last user+assistant exchange
+            val messagesToSummarizeCount = if (hasPreviousSummary && lastSummaryIndex < messages.size) {
+                // Messages after last summary, minus the ones we keep
+                (messages.size - lastSummaryIndex - 1 - messagesToKeep).coerceAtLeast(0)
+            } else {
+                // No previous summary - all messages minus kept ones
+                (messages.size - messagesToKeep).coerceAtLeast(0)
+            }
+            
+            // Check if we've reached the max history messages limit
+            if (messagesToSummarizeCount >= maxMessages) {
+                Log.i(TAG, "Auto-summarization triggered: $messagesToSummarizeCount messages >= max $maxMessages")
+                val result = summarizeAndRefresh(conversationId)
+                if (result.success) {
+                    Log.i(TAG, "Auto-summarization completed: ${result.messagesSummarized} messages summarized, ${result.tokensSaved} tokens saved")
+                } else {
+                    Log.w(TAG, "Auto-summarization failed: ${result.errorMessage}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "checkAndAutoSummarize failed", e)
+        }
+    }
+
     // Summarize and refresh context
     suspend fun summarizeAndRefresh(conversationId: Uuid): ContextRefreshResult = withContext(Dispatchers.IO) {
         try {
@@ -994,15 +1045,25 @@ class ChatService(
             val lastSummaryIndex = conversation.contextSummaryUpToIndex
             val hasPreviousSummary = !previousSummary.isNullOrBlank() && lastSummaryIndex >= 0
             
-            // Only get messages AFTER the last summary index
-            val messagesToSummarize = if (hasPreviousSummary && lastSummaryIndex < messages.size) {
-                messages.subList((lastSummaryIndex + 1).coerceAtMost(messages.size), messages.size)
+            // Keep the last 2 messages (user + assistant exchange) so the AI remembers what was just said
+            val messagesToKeep = 2
+            val lastIndexToSummarize = (messages.size - messagesToKeep - 1).coerceAtLeast(0)
+            
+            // Only get messages AFTER the last summary index, but before the last 2 messages
+            val startIndex = if (hasPreviousSummary && lastSummaryIndex < messages.size) {
+                (lastSummaryIndex + 1).coerceAtMost(messages.size)
             } else {
-                messages // No previous summary, summarize all
+                0 // No previous summary, summarize from beginning
+            }
+            
+            val messagesToSummarize = if (startIndex <= lastIndexToSummarize) {
+                messages.subList(startIndex, lastIndexToSummarize + 1)
+            } else {
+                emptyList()
             }
             
             if (messagesToSummarize.isEmpty()) {
-                return@withContext ContextRefreshResult(false, errorMessage = "No new messages to summarize")
+                return@withContext ContextRefreshResult(false, errorMessage = "No new messages to summarize (keeping last exchange)")
             }
 
             // Build summarization prompt - only include NEW messages
@@ -1073,7 +1134,7 @@ class ChatService(
             val now = System.currentTimeMillis()
             val updatedConversation = conversation.copy(
                 contextSummary = summary,
-                contextSummaryUpToIndex = messages.size - 1,
+                contextSummaryUpToIndex = lastIndexToSummarize, // Index of last message included in summary
                 lastRefreshTime = now
             )
 
