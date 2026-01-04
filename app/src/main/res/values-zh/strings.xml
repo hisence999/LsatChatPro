@@ -1147,6 +1147,8 @@
     <string name="assistant_page_tab_tools_search_desc">搜索提供商、本地工具、MCP</string>
     <string name="assistant_page_tab_advanced">高级设置</string>
     <string name="assistant_page_tab_advanced_desc">通知、自定义Header</string>
+    <string name="assistant_page_tab_ui_customization">界面自定义</string>
+    <string name="assistant_page_tab_ui_customization_desc">按助手单独的显示设置</string>
     <string name="assistant_page_group_configuration">配置</string>
     <string name="assistant_page_group_capabilities">功能与能力</string>
     <string name="assistant_page_group_other">其他</string>
@@ -1345,8 +1347,11 @@
     <string name="text_selection_edit_action">编辑操作</string>
     <string name="text_selection_add_action">添加操作</string>
     <string name="text_selection_action_name">按钮名称</string>
-    <string name="text_selection_action_prompt">提示词模板</string>
+    <string name="text_selection_action_prompt">Prompt Template</string>
     <string name="text_selection_actions">快捷操作</string>
+    <string name="text_selection_actions_reset_to_defaults_desc">恢复默认快捷操作</string>
+    <string name="text_selection_actions_reset_to_defaults_confirm">确定要恢复默认快捷操作吗？这将替换你所有自定义操作。</string>
+    <string name="text_selection_actions_reset_to_defaults">已恢复默认快捷操作</string>
     <string name="text_selection_action_delete">删除操作</string>
     <string name="text_selection_action_cannot_delete">无法删除此操作</string>
     <string name="reset">重置</string>

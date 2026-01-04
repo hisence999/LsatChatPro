@@ -1159,6 +1159,8 @@
     <string name="assistant_page_tab_tools_search_desc">Search providers, local tools, MCP</string>
     <string name="assistant_page_tab_advanced">Advanced</string>
     <string name="assistant_page_tab_advanced_desc">Notifications, custom headers</string>
+    <string name="assistant_page_tab_ui_customization">UI Customization</string>
+    <string name="assistant_page_tab_ui_customization_desc">Per-assistant display settings</string>
     <string name="assistant_page_group_configuration">Configuration</string>
     <string name="assistant_page_group_capabilities">Capabilities</string>
     <string name="assistant_page_group_other">Other</string>
@@ -1357,6 +1359,9 @@
     <string name="text_selection_action_name">Button Name</string>
     <string name="text_selection_action_prompt">Prompt Template</string>
     <string name="text_selection_actions">Quick Actions</string>
+    <string name="text_selection_actions_reset_to_defaults_desc">Restore default actions</string>
+    <string name="text_selection_actions_reset_to_defaults_confirm">Are you sure you want to restore default actions? This will replace all your custom actions.</string>
+    <string name="text_selection_actions_reset_to_defaults">Actions reset to defaults</string>
     <string name="text_selection_action_delete">Delete Action</string>
     <string name="text_selection_action_cannot_delete">Cannot delete this action</string>
     <string name="reset">Reset</string>

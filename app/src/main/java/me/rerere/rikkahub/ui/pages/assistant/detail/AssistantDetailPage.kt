@@ -401,8 +401,8 @@ private fun AssistantDetailHome(
         SettingsGroup(title = stringResource(R.string.assistant_page_group_other)) {
             NavigationCard(
                 icon = Icons.Rounded.Palette,
-                title = "UI Customization",
-                description = "Per-assistant display settings",
+                title = stringResource(R.string.assistant_page_tab_ui_customization),
+                description = stringResource(R.string.assistant_page_tab_ui_customization_desc),
                 onClick = onNavigateToUI
             )
 
