@@ -132,7 +132,7 @@ fun ContextRefreshDialog(
                     }
                     RefreshDialogState.ERROR -> {
                         Text(
-                            text = "Error",
+                            text = stringResource(R.string.context_refresh_error_title),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
@@ -196,7 +196,11 @@ fun ContextRefreshDialog(
                             }
                             
                             Text(
-                                text = "$messagesToSummarize messages will be summarized and ~$tokensToCleanUp tokens will be cleaned up.",
+                                text = stringResource(
+                                    R.string.context_refresh_summary_stats,
+                                    messagesToSummarize,
+                                    tokensToCleanUp
+                                ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -205,7 +209,7 @@ fun ContextRefreshDialog(
                             // Show previous summary if exists
                             if (hasPreviousSummary) {
                                 Text(
-                                    text = "Previous summary:",
+                                    text = stringResource(R.string.context_refresh_previous_summary_label),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Medium
@@ -256,7 +260,7 @@ fun ContextRefreshDialog(
                             )
                             if (tokensSaved > 0) {
                                 Text(
-                                    text = "~$tokensSaved tokens saved",
+                                    text = stringResource(R.string.context_refresh_tokens_saved, tokensSaved),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     textAlign = TextAlign.Center
@@ -330,7 +334,7 @@ fun ContextRefreshDialog(
                     }
                     RefreshDialogState.SUCCESS, RefreshDialogState.ERROR -> {
                         Button(onClick = onDismiss) {
-                            Text("OK")
+                            Text(stringResource(android.R.string.ok))
                         }
                     }
                     RefreshDialogState.LOADING -> {

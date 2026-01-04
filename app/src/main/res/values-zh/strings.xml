@@ -381,10 +381,14 @@
   <string name="setting_display_page_show_model_name_title">显示模型名称</string>
   <string name="setting_display_page_show_token_usage_desc">显示token用量和消息数量</string>
   <string name="setting_display_page_show_token_usage_title">显示Token和上下文统计</string>
+  <string name="setting_display_page_show_context_stacks_desc">在消息工具栏中显示上下文来源（模式、记忆、世界书）</string>
+  <string name="setting_display_page_show_context_stacks_title">显示上下文堆栈</string>
   <string name="setting_display_page_show_updates_desc">是否显示应用更新通知</string>
   <string name="setting_display_page_show_updates_title">显示更新</string>
   <string name="setting_display_page_show_user_avatar_desc">是否在聊天消息中显示用户头像</string>
   <string name="setting_display_page_show_user_avatar_title">显示用户头像</string>
+  <string name="setting_display_page_show_assistant_avatar_desc">在消息前显示助手头像</string>
+  <string name="setting_display_page_show_assistant_avatar_title">显示助手头像</string>
   <string name="setting_display_page_skip_crop_image_desc">导入图片或拍照后跳过裁剪界面</string>
   <string name="setting_display_page_skip_crop_image_title">跳过图片编辑</string>
   <string name="setting_display_page_title">显示设置</string>
@@ -877,7 +881,7 @@
     <string name="toast_failed_to_get_activity">获取 Activity 失败</string>
     <string name="toast_failed_to_open_url">打开链接失败：%1$s</string>
     <string name="toast_failed_to_write_clipboard">写入剪贴板失败</string>
-    <string name="tokens_format">%1$s tokens</string>
+    <string name="tokens_format">%1$s Token</string>
     <string name="translator_page_copy_translation">复制翻译</string>
     <string name="translator_page_paste_text">粘贴文本</string>
     <string name="update_download_notification_desc">正在下载 %1$s...</string>
@@ -958,8 +962,16 @@
     <string name="rp_optimizations_page_preview">预览</string>
     <string name="rp_optimizations_pattern_help_text">被 %1$stext%1$s 包裹的文本将应用样式</string>
     <string name="rp_optimizations_presets">预设</string>
+    <string name="assistant_ui_preview_title">预览</string>
+    <string name="assistant_ui_preview_sample_user_message">你好，最近怎么样？</string>
+    <string name="assistant_ui_preview_sample_assistant_message">我很好！今天有什么可以帮你？</string>
+    <string name="assistant_ui_preview_sample_reasoning">让我想想……用户在打招呼，所以我应该友好地回应。</string>
     <string name="save">保存</string>
+    <string name="on">开启</string>
     <string name="off">关闭</string>
+    <string name="global">全局</string>
+    <string name="custom">自定义</string>
+    <string name="global_value_format">全局（%s）</string>
     <string name="auto">自动</string>
     <string name="local">本地</string>
     <string name="setting_tts_page_delete_confirm">确定要删除此 TTS 服务吗？</string>
@@ -1084,6 +1096,7 @@
     <string name="lorebook_entry_prompt">内容</string>
     <string name="lorebook_entry_prompt_placeholder">输入要注入的内容...</string>
     <string name="lorebook_entry_injection_position">注入位置</string>
+    <string name="lorebook_entry_numbered">条目 #%d</string>
     <string name="lorebook_entry_activation_type">触发方式</string>
     <string name="lorebook_entry_keywords">关键词</string>
     <string name="lorebook_entry_keywords_placeholder">关键词1, 关键词2, 关键词3</string>
@@ -1116,5 +1129,98 @@
     <string name="widget_config_title">选择助手</string>
     <string name="widget_assistant_name">助手快捷方式</string>
     <string name="widget_assistant_description">快速进入与助手的对话</string>
+
+    <!-- Context Management -->
+    <string name="context_management_title">上下文管理</string>
+    <string name="context_management_desc">世界书、对话历史、搜索结果</string>
+    <string name="context_lorebooks_title">世界书</string>
+    <string name="context_lorebooks_desc">选择此助手要使用的世界书</string>
+    <string name="context_message_history_title">对话历史</string>
+    <string name="context_max_messages">最大消息数</string>
+    <string name="context_max_messages_desc">限制发送给模型的消息数量（0 = 无限制）</string>
+    <string name="context_max_messages_value">%d 条消息</string>
+    <string name="context_max_messages_unlimited">无限制</string>
+    <string name="context_enable_summarization">总结被裁剪的消息</string>
+    <string name="context_enable_summarization_desc">对被裁剪的消息生成摘要以保留上下文</string>
+    <string name="context_search_results_title">搜索结果</string>
+    <string name="context_max_search_results">保留最近 %d 次搜索</string>
+    <string name="context_max_search_results_desc">限制保留的搜索结果（0 = 无限制）</string>
+    <string name="context_max_search_results_value">%d 次搜索</string>
+    <string name="context_max_search_results_unlimited">无限制</string>
+
+    <!-- Context Refresh -->
+    <string name="context_refresh_title">对话摘要</string>
+    <string name="context_refresh_button">总结消息</string>
+    <string name="context_refresh_desc">将对话压缩为摘要以释放上下文空间</string>
+    <string name="context_refresh_enable">启用对话摘要</string>
+    <string name="context_refresh_enable_desc">在聊天输入框显示“总结消息”按钮</string>
+    <string name="context_refresh_messages">将总结 %d 条消息</string>
+    <string name="context_refresh_tokens">预计 ~%d Token</string>
+    <string name="context_refresh_loading">正在总结对话…</string>
+    <string name="context_refresh_complete">已生成摘要！</string>
+    <string name="context_refresh_cleaned">已总结 %d 条消息</string>
+    <string name="context_refresh_last">上次摘要：%s</string>
+    <string name="context_refresh_never">从未生成摘要</string>
+    <string name="context_refresh_no_summarizer">请先在设置中配置总结模型</string>
+    <string name="context_refresh_confirm_title">总结消息？</string>
+    <string name="context_refresh_confirm_message">这将把你的对话历史总结为更精简的形式。AI 会记住要点，但详细消息将被摘要替代。</string>
+    <string name="context_refresh_auto_summarize_title">自动总结消息</string>
+    <string name="context_refresh_auto_summarize_desc">当未总结消息达到 %d 条时自动总结</string>
+    <string name="context_refresh_auto_summarize_desc_disabled">请先在上方设置最大历史消息数以启用</string>
+    <string name="context_refresh_error_title">错误</string>
+    <string name="context_refresh_summary_stats">将总结 %1$d 条消息，并清理约 ~%2$d Token。</string>
+    <string name="context_refresh_previous_summary_label">之前的摘要：</string>
+    <string name="context_refresh_tokens_saved">节省 ~%d Token</string>
+    
+    <!-- Context Sources -->
+    <string name="context_sources_title">上下文来源</string>
+    <string name="context_sources_section_modes">模式</string>
+    <string name="context_sources_section_memories">记忆</string>
+    <string name="context_sources_section_lorebook_entries">世界书条目</string>
+    <string name="context_sources_mode_label">模式</string>
+    <string name="used_lorebooks_title">已使用的世界书条目</string>
+    <string name="memory_type_core">核心记忆</string>
+    <string name="memory_type_recent_chat">最近对话</string>
+    <string name="memory_type_episodic">情景记忆</string>
+
+    <!-- Lorebooks Picker -->
+    <string name="lorebooks_picker_title">世界书</string>
+    <string name="lorebooks_picker_none">未选择世界书</string>
+    <string name="lorebook_toggle_assistants">切换助手</string>
+    <string name="lorebook_select_to_toggle">选择要切换的世界书</string>
+    <string name="lorebook_search_entries_placeholder">搜索条目…</string>
+
+    <!-- Text Selection Integration -->
+    <string name="text_selection_menu_label">问问 LastChat</string>
+    <string name="text_selection_translate">翻译</string>
+    <string name="text_selection_explain">解释</string>
+    <string name="text_selection_summarize">总结</string>
+    <string name="text_selection_ask">任意提问…</string>
+    <string name="text_selection_custom_placeholder">就这段文本提问…</string>
+    <string name="text_selection_copy">复制</string>
+    <string name="text_selection_continue_chat">在应用中继续</string>
+    <string name="text_selection_generating">生成中…</string>
+    <string name="text_selection_preview">预览</string>
+    <string name="text_selection_assistant">助手</string>
+    <string name="text_selection_use_default">使用默认助手</string>
+    <string name="text_selection_translate_language">翻译为</string>
+    <string name="text_selection_edit_action">编辑操作</string>
+    <string name="text_selection_add_action">添加操作</string>
+    <string name="text_selection_action_name">按钮名称</string>
+    <string name="text_selection_action_prompt">提示词模板</string>
+    <string name="text_selection_actions">快捷操作</string>
+    <string name="text_selection_action_delete">删除操作</string>
+    <string name="text_selection_action_cannot_delete">无法删除此操作</string>
+    <string name="reset">重置</string>
+    <string name="text_selection_try_it">试一试</string>
+    <string name="text_selection_setup_instructions">在设备任意位置选择文本，在出现的工具栏中找到“LastChat”并点击即可使用这些功能。</string>
+    <string name="text_selection_demo_text">这是一段示例文本，可用于选择！试着长按选择这些文字，然后在选择工具栏中找到“LastChat”。如果没有看到它，可能需要点击更多菜单（?）才能找到。</string>
+    <string name="text_selection_demo_hint">长按上方文本试试选择</string>
+
+    <!-- Android Integration Settings -->
+    <string name="setting_android_integration">Android 集成</string>
+    <string name="setting_android_integration_desc">文本选择弹窗设置</string>
+
+    <string name="setting_provider_page_add_from_list">从列表添加</string>
 </resources>
 

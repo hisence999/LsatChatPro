@@ -27,12 +27,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import kotlinx.serialization.json.Json
 import me.rerere.ai.ui.UsedLorebookEntry
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import androidx.compose.material.icons.Icons
@@ -87,7 +89,7 @@ fun UsedLorebooksSheet(
         ) {
             // Header
             Text(
-                text = "Lorebook Entries Used",
+                text = stringResource(R.string.used_lorebooks_title),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 4.dp)
             )
@@ -173,6 +175,8 @@ private fun UsedLorebookEntryItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                val entryTitle = entry.entryName.takeIf(String::isNotBlank)
+                    ?: stringResource(R.string.lorebook_entry_numbered, entry.entryIndex + 1)
                 // Lorebook Name (above entry title)
                 Text(
                     text = entry.lorebookName,
@@ -184,16 +188,16 @@ private fun UsedLorebookEntryItem(
                 
                 // Entry Title
                 Text(
-                    text = entry.entryName.ifBlank { "Entry #${entry.entryIndex + 1}" },
+                    text = entryTitle,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 
                 // Activation Reason
-                if (!entry.activationReason.isNullOrBlank()) {
+                entry.activationReason?.takeIf(String::isNotBlank)?.let { reason ->
                     Text(
-                        text = entry.activationReason!!,
+                        text = reason,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,

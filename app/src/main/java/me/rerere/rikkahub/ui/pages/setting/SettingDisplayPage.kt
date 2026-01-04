@@ -232,8 +232,8 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "Show Assistant Avatar",
-                        subtitle = "Show the assistant's avatar before messages",
+                        title = stringResource(R.string.setting_display_page_show_assistant_avatar_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_assistant_avatar_desc),
                         trailing = {
                             HapticSwitch(
                                 checked = displaySetting.showModelIcon,
@@ -268,8 +268,8 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = "Show Context Stacks",
-                        subtitle = "Show context sources (modes, memories, lorebooks) in message toolbar",
+                        title = stringResource(R.string.setting_display_page_show_context_stacks_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_context_stacks_desc),
                         trailing = {
                             HapticSwitch(
                                 checked = displaySetting.showContextStacks,

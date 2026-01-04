@@ -399,10 +399,14 @@
     <string name="setting_display_page_show_model_name_title">Show Model Name</string>
     <string name="setting_display_page_show_token_usage_desc">Show token statistics below AI responses</string>
     <string name="setting_display_page_show_token_usage_title">Show Token Statistics</string>
+    <string name="setting_display_page_show_context_stacks_desc">Show context sources (modes, memories, lorebooks) in message toolbar</string>
+    <string name="setting_display_page_show_context_stacks_title">Show Context Stacks</string>
     <string name="setting_display_page_show_updates_desc">Show app update notifications</string>
     <string name="setting_display_page_show_updates_title">Show Updates</string>
     <string name="setting_display_page_show_user_avatar_desc">Show user avatar in chat messages</string>
     <string name="setting_display_page_show_user_avatar_title">Show User Avatar</string>
+    <string name="setting_display_page_show_assistant_avatar_desc">Show the assistant\'s avatar before messages</string>
+    <string name="setting_display_page_show_assistant_avatar_title">Show Assistant Avatar</string>
     <string name="setting_display_page_skip_crop_image_desc">Skip crop screen after picking image</string>
     <string name="setting_display_page_skip_crop_image_title">Skip Image Crop</string>
     <string name="setting_display_page_title">Display Settings</string>
@@ -982,8 +986,16 @@
     <string name="rp_optimizations_page_preview">Preview</string>
     <string name="rp_optimizations_pattern_help_text">Text wrapped like %1$stext%1$s will be styled</string>
     <string name="rp_optimizations_presets">Presets</string>
+    <string name="assistant_ui_preview_title">Preview</string>
+    <string name="assistant_ui_preview_sample_user_message">Hello, how are you?</string>
+    <string name="assistant_ui_preview_sample_assistant_message">I\'m doing great! How can I help you today?</string>
+    <string name="assistant_ui_preview_sample_reasoning">Let me think about this... The user is greeting me, so I should respond warmly.</string>
     <string name="save">Save</string>
+    <string name="on">On</string>
     <string name="off">Off</string>
+    <string name="global">Global</string>
+    <string name="custom">Custom</string>
+    <string name="global_value_format">Global (%s)</string>
     <string name="auto">Auto</string>
     <string name="local">Local</string>
     <string name="setting_tts_page_delete_confirm">Are you sure you want to delete this TTS service?</string>
@@ -1089,6 +1101,7 @@
     <string name="lorebook_entry_use_regex">Use Regex</string>
     <string name="lorebook_entry_scan_depth">Scan Depth</string>
     <string name="lorebook_entry_injection_position">Injection Position</string>
+    <string name="lorebook_entry_numbered">Entry #%d</string>
     <string name="lorebook_search_entries_placeholder">Search entries...</string>
     
     <!-- Activation Types -->
@@ -1155,6 +1168,24 @@
     <string name="context_refresh_no_summarizer">Configure a summarizer model in settings first</string>
     <string name="context_refresh_confirm_title">Summarize Messages?</string>
     <string name="context_refresh_confirm_message">This will summarize your conversation history into a compact form. The AI will remember the key points but detailed messages will be replaced with a summary.</string>
+    <string name="context_refresh_auto_summarize_title">Auto-summarize messages</string>
+    <string name="context_refresh_auto_summarize_desc">Auto-summarize when %d unsummarized messages are reached</string>
+    <string name="context_refresh_auto_summarize_desc_disabled">Set max history messages above to enable</string>
+    <string name="context_refresh_error_title">Error</string>
+    <string name="context_refresh_summary_stats">%1$d messages will be summarized and ~%2$d tokens will be cleaned up.</string>
+    <string name="context_refresh_previous_summary_label">Previous summary:</string>
+    <string name="context_refresh_tokens_saved">~%d tokens saved</string>
+    
+    <!-- Context Sources -->
+    <string name="context_sources_title">Context Sources</string>
+    <string name="context_sources_section_modes">Modes</string>
+    <string name="context_sources_section_memories">Memories</string>
+    <string name="context_sources_section_lorebook_entries">Lorebook Entries</string>
+    <string name="context_sources_mode_label">Mode</string>
+    <string name="used_lorebooks_title">Lorebook Entries Used</string>
+    <string name="memory_type_core">Core Memory</string>
+    <string name="memory_type_recent_chat">Recent Chat</string>
+    <string name="memory_type_episodic">Episodic Memory</string>
     
     <!-- Import/Export -->
     <string name="lorebook_import_success">Imported: %s</string>

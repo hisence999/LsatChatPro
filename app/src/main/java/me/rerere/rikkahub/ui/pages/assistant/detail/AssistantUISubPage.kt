@@ -77,7 +77,7 @@ fun AssistantUISubPage(
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         // Preview Section
-        SettingsGroup(title = "Preview") {
+        SettingsGroup(title = stringResource(R.string.assistant_ui_preview_title)) {
             ChatPreview(
                 assistant = assistant,
                 effectiveDisplay = effectiveDisplay,
@@ -98,8 +98,8 @@ fun AssistantUISubPage(
             )
 
             TriStateSettingItem(
-                title = "Show Assistant Avatar",
-                subtitle = "Show the assistant's avatar before messages",
+                title = stringResource(R.string.setting_display_page_show_assistant_avatar_title),
+                subtitle = stringResource(R.string.setting_display_page_show_assistant_avatar_desc),
                 value = uiSettings.showAssistantAvatar,
                 globalValue = settings.displaySetting.showModelIcon,
                 onValueChange = { updateUI(uiSettings.copy(showAssistantAvatar = it)) }
@@ -123,7 +123,7 @@ fun AssistantUISubPage(
         }
 
         // Message Jumper Settings
-        SettingsGroup(title = "Message Jumper") {
+        SettingsGroup(title = stringResource(R.string.setting_display_page_section_message_jumper)) {
             TriStateSettingItem(
                 title = stringResource(R.string.setting_display_page_show_message_jumper_title),
                 subtitle = stringResource(R.string.setting_display_page_show_message_jumper_desc),
@@ -142,7 +142,7 @@ fun AssistantUISubPage(
         }
 
         // Code Blocks Settings
-        SettingsGroup(title = "Code Blocks") {
+        SettingsGroup(title = stringResource(R.string.setting_display_page_section_code_blocks)) {
             TriStateSettingItem(
                 title = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
                 subtitle = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
@@ -161,10 +161,10 @@ fun AssistantUISubPage(
         }
 
         // Context Sources Settings
-        SettingsGroup(title = "Context Sources") {
+        SettingsGroup(title = stringResource(R.string.context_sources_title)) {
             TriStateSettingItem(
-                title = "Show Context Stacks",
-                subtitle = "Show context sources (modes, memories, lorebooks) in message toolbar",
+                title = stringResource(R.string.setting_display_page_show_context_stacks_title),
+                subtitle = stringResource(R.string.setting_display_page_show_context_stacks_desc),
                 value = uiSettings.showContextStacks,
                 globalValue = settings.displaySetting.showContextStacks,
                 onValueChange = { updateUI(uiSettings.copy(showContextStacks = it)) }
@@ -191,20 +191,23 @@ private fun ChatPreview(
     modifier: Modifier = Modifier
 ) {
     val settings = LocalSettings.current
-    val userNickname = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) }
+    val userNickname = settings.displaySetting.userNickname.takeIf(String::isNotBlank)
+        ?: stringResource(R.string.user_default_name)
     val userAvatar = settings.displaySetting.userAvatar
+    val previewUserMessageText = stringResource(R.string.assistant_ui_preview_sample_user_message)
+    val previewAssistantMessageText = stringResource(R.string.assistant_ui_preview_sample_assistant_message)
 
     // Create sample UIMessages for preview
-    val userMessage = remember {
+    val userMessage = remember(previewUserMessageText) {
         me.rerere.ai.ui.UIMessage(
             role = me.rerere.ai.core.MessageRole.USER,
-            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text("Hello, how are you?"))
+            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(previewUserMessageText))
         )
     }
-    val assistantMessage = remember {
+    val assistantMessage = remember(previewAssistantMessageText) {
         me.rerere.ai.ui.UIMessage(
             role = me.rerere.ai.core.MessageRole.ASSISTANT,
-            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text("I'm doing great! How can I help you today?")),
+            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(previewAssistantMessageText)),
             usage = me.rerere.ai.core.TokenUsage(promptTokens = 24, completionTokens = 42)
         )
     }
@@ -239,7 +242,7 @@ private fun ChatPreview(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     androidx.compose.material3.ProvideTextStyle(textStyle) {
-                        MarkdownBlock(content = "Hello, how are you?")
+                        MarkdownBlock(content = previewUserMessageText)
                     }
                 }
             }
@@ -263,9 +266,10 @@ private fun ChatPreview(
 
             // Reasoning example - uses actual ChatMessageReasoning component
             val now = Clock.System.now()
+            val previewReasoningText = stringResource(R.string.assistant_ui_preview_sample_reasoning)
             val sampleReasoning = remember(now) {
                 me.rerere.ai.ui.UIMessagePart.Reasoning(
-                    reasoning = "Let me think about this... The user is greeting me, so I should respond warmly.",
+                    reasoning = previewReasoningText,
                     createdAt = now,
                     finishedAt = now
                 )
@@ -278,7 +282,7 @@ private fun ChatPreview(
 
             // Assistant message (plain markdown matching actual implementation)
             androidx.compose.material3.ProvideTextStyle(textStyle) {
-                MarkdownBlock(content = "I'm doing great! How can I help you today?")
+                MarkdownBlock(content = previewAssistantMessageText)
             }
 
             // Token usage display
@@ -363,7 +367,7 @@ private fun TokenUsagePreview() {
                 tint = grayColor
             )
             Text(
-                text = "24 tokens",
+                text = stringResource(R.string.tokens_format, 24),
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -380,7 +384,7 @@ private fun TokenUsagePreview() {
                 tint = grayColor
             )
             Text(
-                text = "42 tokens",
+                text = stringResource(R.string.tokens_format, 42),
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -415,19 +419,23 @@ private fun TriStateSettingItem(
                     FilterChip(
                         selected = value == true,
                         onClick = { onValueChange(true) },
-                        label = { Text("On") }
+                        label = { Text(stringResource(R.string.on)) }
                     )
                     FilterChip(
                         selected = value == false,
                         onClick = { onValueChange(false) },
-                        label = { Text("Off") }
+                        label = { Text(stringResource(R.string.off)) }
                     )
                 }
                 // Global below, fills to match On/Off width
                 FilterChip(
                     selected = value == null,
                     onClick = { onValueChange(null) },
-                    label = { Text("Global (${if (globalValue) "On" else "Off"})") },
+                    label = {
+                        val globalValueLabel =
+                            if (globalValue) stringResource(R.string.on) else stringResource(R.string.off)
+                        Text(stringResource(R.string.global_value_format, globalValueLabel))
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -456,12 +464,12 @@ private fun FontSizeSettingItem(
             FilterChip(
                 selected = value == null,
                 onClick = { onValueChange(null) },
-                label = { Text("Global") }
+                label = { Text(stringResource(R.string.global)) }
             )
             FilterChip(
                 selected = value != null,
                 onClick = { if (value == null) onValueChange(1.0f) },
-                label = { Text("Custom") }
+                label = { Text(stringResource(R.string.custom)) }
             )
         }
 

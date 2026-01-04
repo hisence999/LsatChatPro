@@ -145,12 +145,12 @@ fun AssistantContextManagementSubPage(
             ) {
                 val maxMsgs = assistant.maxHistoryMessages
                 val autoSummarizeDesc = if (maxMsgs != null) {
-                    "Auto-summarize when $maxMsgs unsummarized messages are reached"
+                    stringResource(R.string.context_refresh_auto_summarize_desc, maxMsgs)
                 } else {
-                    "Set max history messages above to enable"
+                    stringResource(R.string.context_refresh_auto_summarize_desc_disabled)
                 }
                 SettingGroupItem(
-                    title = "Auto-summarize messages",
+                    title = stringResource(R.string.context_refresh_auto_summarize_title),
                     subtitle = autoSummarizeDesc,
                     trailing = {
                         HapticSwitch(
