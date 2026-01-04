@@ -124,6 +124,9 @@ fun ChatMessage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (MessageNode) -> Unit,
+    onEditLorebookEntry: ((me.rerere.ai.ui.UsedLorebookEntry) -> Unit)? = null,
+    onModeClick: ((me.rerere.ai.ui.UsedMode) -> Unit)? = null,
+    onMemoryClick: ((me.rerere.ai.ui.UsedMemory) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalSettings.current.displaySetting
@@ -256,6 +259,9 @@ fun ChatMessage(
                 onOpenActionSheet = {
                     showActionsSheet = true
                 },
+                onEditLorebookEntry = onEditLorebookEntry,
+                onModeClick = onModeClick,
+                onMemoryClick = onMemoryClick,
             )
         }
     }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.platform.LocalDensity
@@ -48,10 +50,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -82,6 +83,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -93,6 +95,7 @@ import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragIndicator
@@ -222,85 +225,155 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = pager.currentPage == 0,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
-                    icon = { Icon(Icons.Rounded.Settings, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(0)
+            val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+            // Floating tab bar overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+            ) {
+                // Centered floating tab bar
+                Surface(
+                    modifier = Modifier.align(Alignment.Center),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Configuration tab
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .then(
+                                    if (pager.currentPage == 0) 
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                    else Modifier.clickable {
+                                        haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Tick)
+                                        scope.launch { pager.animateScrollToPage(0) }
+                                    }
+                                )
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = stringResource(R.string.setting_provider_page_configuration),
+                                tint = if (pager.currentPage == 0) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer 
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        // Models tab
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .then(
+                                    if (pager.currentPage == 1) 
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                    else Modifier.clickable {
+                                        haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Tick)
+                                        scope.launch { pager.animateScrollToPage(1) }
+                                    }
+                                )
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ViewModule,
+                                contentDescription = stringResource(R.string.setting_provider_page_models),
+                                tint = if (pager.currentPage == 1) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer 
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        // Proxy tab
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .then(
+                                    if (pager.currentPage == 2) 
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                    else Modifier.clickable {
+                                        haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Tick)
+                                        scope.launch { pager.animateScrollToPage(2) }
+                                    }
+                                )
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Public,
+                                contentDescription = stringResource(R.string.setting_provider_page_network_proxy),
+                                tint = if (pager.currentPage == 2) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer 
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 1,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
-                    icon = { Icon(Icons.Rounded.ViewModule, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(1)
-                        }
-                    }
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 2,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_network_proxy)) },
-                    icon = { Icon(Icons.Rounded.Public, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(2)
-                        }
-                    }
-                )
+                }
             }
         }
-    ) {
-        HorizontalPager(
-            state = pager,
-            modifier = Modifier
-                .padding(it)
-                .consumeWindowInsets(it)
-        ) { page ->
-            when (page) {
-                0 -> {
-                    SettingProviderConfigPage(
-                        provider = provider,
-                        providerTags = settings.providerTags,
-                        onEdit = {
-                            onEdit(it)
-                        },
-                        onUpdateTags = { providerWithNewTags, updatedTags ->
-                            // Update the provider first
-                            val updatedProviders = settings.providers.map {
-                                if (it.id == providerWithNewTags.id) providerWithNewTags else it
-                            }
-                            
-                            // Auto-cleanup: Filter out tags that are no longer used by any provider
-                            val usedTagIds = updatedProviders.flatMap { it.tags }.toSet()
-                            val cleanedTags = updatedTags.filter { tag -> tag.id in usedTagIds }
-                            
-                            val newSettings = settings.copy(
-                                providers = updatedProviders,
-                                providerTags = cleanedTags
-                            )
-                            vm.updateSettings(newSettings)
-                        }
-                    )
-                }
+    ) { contentPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .consumeWindowInsets(contentPadding)
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        SettingProviderConfigPage(
+                            provider = provider,
+                            providerTags = settings.providerTags,
+                            onEdit = {
+                                onEdit(it)
+                            },
+                            onUpdateTags = { providerWithNewTags, updatedTags ->
+                                // Update the provider first
+                                val updatedProviders = settings.providers.map {
+                                    if (it.id == providerWithNewTags.id) providerWithNewTags else it
+                                }
+                                
+                                // Auto-cleanup: Filter out tags that are no longer used by any provider
+                                val usedTagIds = updatedProviders.flatMap { it.tags }.toSet()
+                                val cleanedTags = updatedTags.filter { tag -> tag.id in usedTagIds }
+                                
+                                val newSettings = settings.copy(
+                                    providers = updatedProviders,
+                                    providerTags = cleanedTags
+                                )
+                                vm.updateSettings(newSettings)
+                            },
+                            contentPadding = contentPadding
+                        )
+                    }
 
-                1 -> {
-                    SettingProviderModelPage(
-                        provider = provider,
-                        onEdit = onEdit
-                    )
-                }
+                    1 -> {
+                        SettingProviderModelPage(
+                            provider = provider,
+                            onEdit = onEdit,
+                            contentPadding = contentPadding
+                        )
+                    }
 
-                2 -> {
-                    SettingProviderProxyPage(
-                        provider = provider,
-                        onEdit = onEdit
-                    )
+                    2 -> {
+                        SettingProviderProxyPage(
+                            provider = provider,
+                            onEdit = onEdit,
+                            contentPadding = contentPadding
+                        )
+                    }
                 }
             }
         }
@@ -312,102 +385,125 @@ private fun SettingProviderConfigPage(
     provider: ProviderSetting,
     providerTags: List<DataTag>,
     onEdit: (ProviderSetting) -> Unit,
-    onUpdateTags: (ProviderSetting, List<DataTag>) -> Unit
+    onUpdateTags: (ProviderSetting, List<DataTag>) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(contentPadding)
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ProviderConfigure(
-                provider = internalProvider,
-                modifier = Modifier.padding(16.dp),
-                onEdit = {
-                    internalProvider = it
-                    // Auto-save immediately
-                    onEdit(it)
-                }
-            )
-        }
-        
-        // Tags section
-        Card(
-            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Card(
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             ) {
-                FormItem(
-                    label = {
-                        Text(stringResource(R.string.assistant_page_tags))
-                    },
+                ProviderConfigure(
+                    provider = internalProvider,
+                    modifier = Modifier.padding(16.dp),
+                    onEdit = {
+                        internalProvider = it
+                        // Auto-save immediately
+                        onEdit(it)
+                    }
+                )
+            }
+            
+            // Tags section
+            Card(
+                shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TagsInput(
-                        value = internalProvider.tags,
-                        tags = providerTags,
-                        onValueChange = { tagIds, updatedTags ->
-                            // Update internal provider with new tag IDs
-                            val updatedProvider = internalProvider.copyProvider(tags = tagIds)
-                            internalProvider = updatedProvider
-                            // Update both provider and global tags
-                            onUpdateTags(updatedProvider, updatedTags)
+                    FormItem(
+                        label = {
+                            Text(stringResource(R.string.assistant_page_tags))
                         },
-                    )
+                    ) {
+                        TagsInput(
+                            value = internalProvider.tags,
+                            tags = providerTags,
+                            onValueChange = { tagIds, updatedTags ->
+                                // Update internal provider with new tag IDs
+                                val updatedProvider = internalProvider.copyProvider(tags = tagIds)
+                                internalProvider = updatedProvider
+                                // Update both provider and global tags
+                                onUpdateTags(updatedProvider, updatedTags)
+                            },
+                        )
+                    }
                 }
             }
-        }
 
-        if (internalProvider is ProviderSetting.OpenAI) {
-            SettingProviderBalanceOption(
-                provider = internalProvider,
-                balanceOption = internalProvider.balanceOption,
-                onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) }
-            )
-            ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
-        }
+            if (internalProvider is ProviderSetting.OpenAI) {
+                SettingProviderBalanceOption(
+                    provider = internalProvider,
+                    balanceOption = internalProvider.balanceOption,
+                    onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) }
+                )
+                ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
+            }
 
-        // SiliconFlow icon
-        if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
-            SiliconFlowPowerByIcon(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 16.dp)
-            )
+            // SiliconFlow icon
+            if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
+                SiliconFlowPowerByIcon(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 16.dp)
+                )
+            }
         }
+        
+        // Bottom fade gradient
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        )
     }
 }
 
 @Composable
 private fun SettingProviderModelPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit
+    onEdit: (ProviderSetting) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     ModelList(
         providerSetting = provider,
-        onUpdateProvider = onEdit
+        onUpdateProvider = onEdit,
+        contentPadding = contentPadding
     )
 }
 
 @Composable
 private fun SettingProviderProxyPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit
+    onEdit: (ProviderSetting) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val toaster = LocalToaster.current
     val context = LocalContext.current
@@ -423,7 +519,8 @@ private fun SettingProviderProxyPage(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(contentPadding)
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SingleChoiceSegmentedButtonRow(
@@ -625,7 +722,8 @@ private fun ConnectionTesterButton(
 @Composable
 private fun ModelList(
     providerSetting: ProviderSetting,
-    onUpdateProvider: (ProviderSetting) -> Unit
+    onUpdateProvider: (ProviderSetting) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val providerManager = koinInject<ProviderManager>()
     val modelList by produceState(emptyList(), providerSetting) {
@@ -703,7 +801,7 @@ private fun ModelList(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false },
                 ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + PaddingValues(bottom = 128.dp),
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp) + PaddingValues(bottom = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
             state = lazyListState
@@ -828,13 +926,33 @@ private fun ModelList(
                 }
             }
         }
-        HorizontalFloatingToolbar(
-            expanded = expanded,
+        // Bottom fade gradient
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        )
+        
+        // Stacked FABs for adding models
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
                 .offset(y = -ScreenOffset),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AddModelButton(
+            // Model picker FAB (gray, like lorebook toggle button)
+            ModelPickerFab(
                 models = modelList,
                 selectedModels = providerSetting.models,
                 onAddModel = {
@@ -844,7 +962,6 @@ private fun ModelList(
                     onUpdateProvider(providerSetting.delModel(it))
                 },
                 onAddModels = { models ->
-                    // Bulk add: add all models in one update
                     var updated = providerSetting
                     models.forEach { model ->
                         updated = updated.addModel(model)
@@ -852,14 +969,20 @@ private fun ModelList(
                     onUpdateProvider(updated)
                 },
                 onRemoveModels = { models ->
-                    // Bulk remove: remove all models in one update  
                     var updated = providerSetting
                     models.forEach { model ->
                         updated = updated.delModel(model)
                     }
                     onUpdateProvider(updated)
                 },
-                expanded = expanded,
+                parentProvider = providerSetting
+            )
+            
+            // Main FAB for add new custom model
+            AddNewModelFab(
+                onAddModel = {
+                    onUpdateProvider(providerSetting.addModel(it))
+                },
                 parentProvider = providerSetting
             )
         }
@@ -1163,6 +1286,307 @@ private fun AddModelButton(
         }
     }
 
+    if (dialogState.isEditing) {
+        dialogState.currentState?.let { modelState ->
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = {
+                    dialogState.dismiss()
+                },
+                sheetState = sheetState,
+                sheetGesturesEnabled = false,
+                dragHandle = {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                sheetState.hide()
+                                dialogState.dismiss()
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Rounded.KeyboardArrowDown, null)
+                    }
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.95f)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_add_model),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        ModelSettingsForm(
+                            model = modelState,
+                            onModelChange = { dialogState.currentState = it },
+                            isEdit = false,
+                            parentProvider = parentProvider
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    ) {
+                        TextButton(
+                            onClick = {
+                                dialogState.dismiss()
+                            },
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                if (modelState.modelId.isNotBlank() && modelState.displayName.isNotBlank()) {
+                                    dialogState.confirm()
+                                }
+                            },
+                        ) {
+                            Text(stringResource(R.string.setting_provider_page_add))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelPickerFab(
+    models: List<Model>,
+    selectedModels: List<Model>,
+    onAddModel: (Model) -> Unit,
+    onRemoveModel: (Model) -> Unit,
+    onAddModels: (List<Model>) -> Unit,
+    onRemoveModels: (List<Model>) -> Unit,
+    parentProvider: ProviderSetting
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    FloatingActionButton(
+        onClick = { 
+            showPicker = true
+            haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Tick)
+        },
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        Icon(
+            Icons.Rounded.Widgets,
+            contentDescription = stringResource(R.string.setting_provider_page_add_from_list)
+        )
+    }
+    
+    if (showPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showPicker = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            var filterText by remember { mutableStateOf("") }
+            val filterKeywords = filterText.split(" ").filter { it.isNotBlank() }
+            val filteredModels = models.fastFilter {
+                if (filterKeywords.isEmpty()) {
+                    true
+                } else {
+                    filterKeywords.all { keyword ->
+                        it.modelId.contains(keyword, ignoreCase = true) ||
+                            it.displayName.contains(keyword, ignoreCase = true)
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(500.dp)
+                    .padding(8.dp)
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Select All / Deselect All - show only one based on selection state
+                val allFilteredSelected = filteredModels.isNotEmpty() && filteredModels.all { model ->
+                    selectedModels.any { it.modelId == model.modelId }
+                }
+                
+                if (allFilteredSelected) {
+                    // All filtered models are selected, show Deselect All
+                    TextButton(onClick = {
+                        val modelsToRemove = filteredModels.mapNotNull { model ->
+                            selectedModels.firstOrNull { it.modelId == model.modelId }
+                        }
+                        if (modelsToRemove.isNotEmpty()) {
+                            onRemoveModels(modelsToRemove)
+                        }
+                    }) {
+                        Text(stringResource(R.string.deselect_all))
+                    }
+                } else {
+                    // Not all selected, show Select All
+                    TextButton(onClick = {
+                        val modelsToAdd = filteredModels.filter { model ->
+                            !selectedModels.any { it.modelId == model.modelId }
+                        }.map { model ->
+                            val inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId)
+                            val outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId)
+                            val abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
+                            model.copy(
+                                inputModalities = inputModalities,
+                                outputModalities = outputModalities,
+                                abilities = abilities
+                            )
+                        }
+                        if (modelsToAdd.isNotEmpty()) {
+                            onAddModels(modelsToAdd)
+                        }
+                    }) {
+                        Text(stringResource(R.string.select_all))
+                    }
+                }
+                
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (filteredModels.isEmpty()) {
+                        item {
+                            val hasApiKey = when (parentProvider) {
+                                is ProviderSetting.OpenAI -> parentProvider.apiKey.isNotBlank()
+                                is ProviderSetting.Google -> parentProvider.apiKey.isNotBlank()
+                                is ProviderSetting.Claude -> parentProvider.apiKey.isNotBlank()
+                            }
+                            
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (hasApiKey) R.string.setting_provider_page_no_models_with_api_key
+                                        else R.string.setting_provider_page_no_models_no_api_key
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                            }
+                        }
+                    }
+                    items(filteredModels) { model ->
+                        val isSelected = selectedModels.any { it.modelId == model.modelId }
+                        Card(
+                            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                            ) {
+                                ModelIcon(
+                                    model = model,
+                                    provider = parentProvider,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(
+                                        text = model.modelId,
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        val modelMeta = remember(model) {
+                                            model.copy(
+                                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId),
+                                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId),
+                                                abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId),
+                                            )
+                                        }
+                                        ModelModalityTag(model = modelMeta)
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (isSelected) {
+                                            onRemoveModel(model)
+                                        } else {
+                                            val inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId)
+                                            val outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId)
+                                            val abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
+                                            onAddModel(
+                                                model.copy(
+                                                    inputModalities = inputModalities,
+                                                    outputModalities = outputModalities,
+                                                    abilities = abilities
+                                                )
+                                            )
+                                        }
+                                    }
+                                ) {
+                                    if (isSelected) {
+                                        Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                    } else {
+                                        Icon(Icons.Rounded.Add, null)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = filterText,
+                    onValueChange = { filterText = it },
+                    label = { Text(stringResource(R.string.setting_provider_page_filter_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.setting_provider_page_filter_example)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddNewModelFab(
+    onAddModel: (Model) -> Unit,
+    parentProvider: ProviderSetting
+) {
+    val dialogState = useEditState<Model> { onAddModel(it) }
+    val scope = rememberCoroutineScope()
+    val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
+    
+    FloatingActionButton(
+        onClick = { 
+            dialogState.open(Model())
+            haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)
+        },
+        shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge
+    ) {
+        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.setting_provider_page_add_model))
+    }
+    
     if (dialogState.isEditing) {
         dialogState.currentState?.let { modelState ->
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

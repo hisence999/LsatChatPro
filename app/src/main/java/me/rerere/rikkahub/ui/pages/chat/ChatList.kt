@@ -89,9 +89,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.message.ChatMessage
@@ -105,6 +107,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.utils.openUrl
 
 private const val TAG = "ChatList"
@@ -120,6 +123,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    initialSearchQuery: String? = null,
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -142,6 +146,7 @@ fun ChatList(
                     settings = settings,
                     onJumpToMessage = onJumpToMessage,
                     animatedVisibilityScope = this@AnimatedContent,
+                    initialSearchQuery = initialSearchQuery,
                 )
             } else {
                 ChatListNormal(
@@ -183,6 +188,7 @@ private fun SharedTransitionScope.ChatListNormal(
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
+    val navController = LocalNavController.current
 
     val currentConversationState = rememberUpdatedState(conversation)
     val onCitationClick = remember {
@@ -318,6 +324,25 @@ private fun SharedTransitionScope.ChatListNormal(
                             onUpdate = {
                                 onUpdateMessage(it)
                             },
+                            onEditLorebookEntry = { entry ->
+                                navController.navigate(Screen.SettingLorebookDetail(entry.lorebookId, entry.entryId))
+                            },
+                            onModeClick = { mode ->
+                                // Navigate to Modes page and scroll to the specific mode
+                                navController.navigate(Screen.SettingModes(scrollToModeId = mode.modeId))
+                            },
+                            onMemoryClick = { memory ->
+                                // Navigate to AssistantDetail memory page
+                                // memoryType: 0 = CORE, 1 = EPISODIC
+                                navController.navigate(
+                                    Screen.AssistantDetail(
+                                        id = conversation.assistantId.toString(),
+                                        startRoute = "memory",
+                                        initialMemoryTab = memory.memoryType,
+                                        scrollToMemoryId = memory.memoryId
+                                    )
+                                )
+                            },
                         )
                     }
                     if (index == conversation.truncateIndex - 1) {
@@ -440,11 +465,12 @@ private fun SharedTransitionScope.ChatListNormal(
             )
 
             val captureProgress = LocalScrollCaptureInProgress.current
+            val effectiveDisplay = settings.getEffectiveDisplaySetting()
 
             // 消息快速跳转
             MessageJumper(
-                show = isRecentScroll && !state.isScrollInProgress && settings.displaySetting.showMessageJumper && !captureProgress,
-                onLeft = settings.displaySetting.messageJumperOnLeft,
+                show = isRecentScroll && !state.isScrollInProgress && effectiveDisplay.showMessageJumper && !captureProgress,
+                onLeft = effectiveDisplay.messageJumperOnLeft,
                 scope = scope,
                 state = state
             )
@@ -523,11 +549,12 @@ private fun SharedTransitionScope.ChatListPreview(
     conversation: Conversation,
     settings: Settings,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onJumpToMessage: (Int) -> Unit
+    onJumpToMessage: (Int) -> Unit,
+    initialSearchQuery: String? = null,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialSearchQuery ?: "") }
 
-    // 过滤消息
+    // Filter messages
     val filteredMessages = remember(conversation.messageNodes, searchQuery) {
         if (searchQuery.isBlank()) {
             conversation.messageNodes

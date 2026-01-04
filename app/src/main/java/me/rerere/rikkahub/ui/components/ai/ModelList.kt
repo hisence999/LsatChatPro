@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -192,6 +194,19 @@ fun ModelSelector(
                 popup = false
             },
             sheetState = state,
+            sheetGesturesEnabled = false,
+            dragHandle = {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            state.hide()
+                            popup = false
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
+            }
         ) {
             Column(
                 modifier = Modifier
@@ -248,50 +263,94 @@ private fun ColumnScope.ModelList(
 
     var searchKeywords by remember { mutableStateOf("") }
 
-    // 计算当前选中模型的位置
-    val selectedModelPosition = remember(currentModel, favoriteModels, providers, modelType) {
+    // Build a flat list of items for the LazyColumn - this enables precise scrolling to any model
+    // Structure: [provider header, model, model, ...] for each provider
+    
+    val providerListItems = remember(providers, modelType, searchKeywords, settings.value.favoriteModels) {
+        buildList {
+            providers.forEach { providerSetting ->
+                val filteredModels = providerSetting.models.fastFilter {
+                    it.type == modelType && it.displayName.contains(searchKeywords, true)
+                }
+                
+                // Add provider header
+                add(ProviderListItem.Header(providerSetting))
+                
+                // Add each model as individual item
+                filteredModels.forEachIndexed { index, model ->
+                    val itemPosition = when {
+                        filteredModels.size == 1 -> ModelItemPosition.SINGLE
+                        index == 0 -> ModelItemPosition.FIRST
+                        index == filteredModels.size - 1 -> ModelItemPosition.LAST
+                        else -> ModelItemPosition.MIDDLE
+                    }
+                    add(ProviderListItem.ModelEntry(
+                        model = model,
+                        provider = providerSetting,
+                        position = itemPosition,
+                        isFavorite = settings.value.favoriteModels.contains(model.id)
+                    ))
+                }
+            }
+        }
+    }
+    
+    // Calculate position of selected model in the flat list
+    val selectedModelPosition = remember(currentModel, favoriteModels, providerListItems) {
         if (currentModel == null) return@remember 0
 
         var position = 0
 
-        // 跳过无providers提示
+        // Skip no-providers placeholder
         if (providers.isEmpty()) {
             position += 1
         }
 
-        // 检查是否在收藏列表中
+        // Check if in favorites list - favorites are individual items
         val favoriteIndex = favoriteModels.indexOfFirst { it.first.id == currentModel }
         if (favoriteIndex >= 0) {
             if (favoriteModels.isNotEmpty()) {
-                position += 1 // favorite header
+                position += 1 // favorite sticky header
             }
             position += favoriteIndex
             return@remember position
         }
 
-        // 跳过收藏列表
+        // Skip all favorites
         if (favoriteModels.isNotEmpty()) {
-            position += 1 // favorite header
+            position += 1 // favorite sticky header
             position += favoriteModels.size
         }
 
-        // 在providers中查找
-        for (provider in providers) {
-            position += 1 // provider header
-            val models = provider.models.filter { it.type == modelType }
-            val modelIndex = models.indexOfFirst { it.id == currentModel }
-            if (modelIndex >= 0) {
-                position += modelIndex
-                return@remember position
-            }
-            position += models.size
+        // Find the model in the flat provider list
+        val modelIndexInProviderList = providerListItems.indexOfFirst { item ->
+            item is ProviderListItem.ModelEntry && item.model.id == currentModel
+        }
+        if (modelIndexInProviderList >= 0) {
+            return@remember position + modelIndexInProviderList
         }
 
         0
     }
 
-    // Simple list state - always starts from top
+    // List state for scrolling
     val lazyListState = rememberLazyListState()
+    
+    // Get viewport height for centering calculation
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var viewportHeight by remember { mutableStateOf(0) }
+    
+    // Scroll to selected model centered on first composition
+    LaunchedEffect(currentModel, viewportHeight) {
+        if (currentModel != null && selectedModelPosition > 0 && viewportHeight > 0) {
+            // Small delay to ensure list is composed
+            delay(100)
+            // Scroll with negative offset to center the item (approximate item height ~60dp)
+            val itemHeightPx = with(density) { 60.dp.toPx().toInt() }
+            val centerOffset = -(viewportHeight / 2) + (itemHeightPx / 2)
+            lazyListState.animateScrollToItem(selectedModelPosition, centerOffset)
+        }
+    }
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         // 计算favorite models在列表中的位置偏移
         var favoriteStartIndex = 0
@@ -321,9 +380,8 @@ private fun ColumnScope.ModelList(
     }
     val haptics = rememberPremiumHaptics(enabled = settings.value.displaySetting.enableUIHaptics)
 
-    // Calculate the LazyColumn item index for each provider
-    // Structure: [no-providers-item?] [favorites-header?] [favorite items...] [provider items...]
-    val providerPositions = remember(providers, favoriteModels) {
+    // Calculate the LazyColumn item index for each provider header
+    val providerPositions = remember(providers, favoriteModels, providerListItems) {
         var baseIndex = 0
         if (providers.isEmpty()) {
             baseIndex = 1 // no providers item takes index 0
@@ -333,9 +391,14 @@ private fun ColumnScope.ModelList(
             baseIndex += favoriteModels.size // each favorite model is one item
         }
 
-        // Each provider is ONE item in the LazyColumn (contains header + all models inside)
-        providers.mapIndexed { index, provider ->
-            provider.id to (baseIndex + index)
+        // Find each provider header's position in the flat list
+        providers.mapNotNull { provider ->
+            val headerIndex = providerListItems.indexOfFirst { item ->
+                item is ProviderListItem.Header && item.provider.id == provider.id
+            }
+            if (headerIndex >= 0) {
+                provider.id to (baseIndex + headerIndex)
+            } else null
         }.toMap()
     }
 
@@ -372,10 +435,13 @@ private fun ColumnScope.ModelList(
             .weight(1f)
             .fillMaxWidth()
             .clipToBounds()
+            .onGloballyPositioned { coordinates ->
+                viewportHeight = coordinates.size.height
+            }
     ) {
         LazyColumn(
             state = lazyListState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             contentPadding = PaddingValues(16.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -459,110 +525,86 @@ private fun ColumnScope.ModelList(
                 }
             }
 
+            // Render flattened provider items - each model is its own item
             items(
-                items = providers,
-                key = { "provider:${it.id}" }
-            ) { providerSetting ->
-                Column(
-                    modifier = Modifier,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(bottom = 4.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = providerSetting.name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        ProviderBalanceText(
-                            providerSetting = providerSetting,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                items = providerListItems,
+                key = { item ->
+                    when (item) {
+                        is ProviderListItem.Header -> "provider-header:${item.provider.id}"
+                        is ProviderListItem.ModelEntry -> "provider-model:${item.provider.id}:${item.model.id}"
                     }
-
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val filteredModels = providerSetting.models.fastFilter {
-                            it.type == modelType && it.displayName.contains(
-                                searchKeywords,
-                                true
-                            )
-                        }
-                        
-                        if (filteredModels.isEmpty()) {
+                }
+            ) { item ->
+                when (item) {
+                    is ProviderListItem.Header -> {
+                        Row(
+                            modifier = Modifier
+                                .padding(bottom = 4.dp, top = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                text = stringResource(R.string.setting_provider_page_no_models),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.extendColors.gray6,
-                                modifier = Modifier.padding(16.dp)
+                                text = item.provider.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            ProviderBalanceText(
+                                providerSetting = item.provider,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
+                    }
+                    is ProviderListItem.ModelEntry -> {
+                        ModelItem(
+                            model = item.model,
+                            onSelect = onSelect,
+                            modifier = Modifier.animateItem(),
+                            providerSetting = item.provider,
+                            select = currentModel == item.model.id,
+                            inGroup = true,
+                            position = item.position,
+                            onDismiss = {
+                                onDismiss()
+                            },
+                            tail = {
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            settingsStore.update { settings ->
+                                                if (item.isFavorite) {
+                                                    settings.copy(
+                                                        favoriteModels = settings.favoriteModels.filter { it != item.model.id }
+                                                    )
 
-                        filteredModels.forEachIndexed { index, model ->
-                            val favorite = settings.value.favoriteModels.contains(model.id)
-                            // Calculate position for corner radius
-                            val itemPosition = when {
-                                filteredModels.size == 1 -> ModelItemPosition.SINGLE
-                                index == 0 -> ModelItemPosition.FIRST
-                                index == filteredModels.size - 1 -> ModelItemPosition.LAST
-                                else -> ModelItemPosition.MIDDLE
-                            }
-                            ModelItem(
-                                model = model,
-                                onSelect = onSelect,
-                                modifier = Modifier.animateItem(),
-                                providerSetting = providerSetting,
-                                select = currentModel == model.id,
-                                inGroup = true,
-                                position = itemPosition,
-                                onDismiss = {
-                                    onDismiss()
-                                },
-                                tail = {
-                                    IconButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                settingsStore.update { settings ->
-                                                    if (favorite) {
-                                                        settings.copy(
-                                                            favoriteModels = settings.favoriteModels.filter { it != model.id }
-                                                        )
-
-                                                    } else {
-                                                        settings.copy(
-                                                            favoriteModels = settings.favoriteModels + model.id
-                                                        )
-                                                    }
+                                                } else {
+                                                    settings.copy(
+                                                        favoriteModels = settings.favoriteModels + item.model.id
+                                                    )
                                                 }
                                             }
                                         }
-                                    ) {
-                                        if (favorite) {
-                                            Icon(
-                                                HeartIcon,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                        } else {
-                                            Icon(
-                                                Icons.Rounded.FavoriteBorder,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
+                                    }
+                                ) {
+                                    if (item.isFavorite) {
+                                        Icon(
+                                            HeartIcon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Rounded.FavoriteBorder,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }
@@ -628,6 +670,17 @@ private enum class ModelItemPosition {
     MIDDLE,  // All corners 10dp
     LAST,    // Bottom rounded (10dp top, 24dp bottom)
     SINGLE   // All corners 24dp (only item in group)
+}
+
+// Sealed class for flattened provider list items (enables precise scrolling)
+private sealed class ProviderListItem {
+    data class Header(val provider: ProviderSetting) : ProviderListItem()
+    data class ModelEntry(
+        val model: Model,
+        val provider: ProviderSetting,
+        val position: ModelItemPosition,
+        val isFavorite: Boolean
+    ) : ProviderListItem()
 }
 @Composable
 private fun ModelItem(

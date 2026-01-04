@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
@@ -103,6 +104,7 @@ import me.rerere.search.SearchServiceOptions
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlinx.coroutines.launch
 import kotlin.reflect.full.primaryConstructor
 
 /**
@@ -445,6 +447,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
     // Edit Search Service Bottom Sheet
     editingService?.let { service ->
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
         var currentService by remember(service) { mutableStateOf(service) }
 
         ModalBottomSheet(
@@ -452,8 +455,18 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                 editingService = null
             },
             sheetState = bottomSheetState,
+            sheetGesturesEnabled = false,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bottomSheetState.hide()
+                            editingService = null
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
             }
         ) {
             Column(
@@ -619,14 +632,25 @@ private fun AddSearchServiceButton(
 
     if (showBottomSheet) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
         
         ModalBottomSheet(
             onDismissRequest = {
                 showBottomSheet = false
             },
             sheetState = bottomSheetState,
+            sheetGesturesEnabled = false,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bottomSheetState.hide()
+                            showBottomSheet = false
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
             }
         ) {
             Column(

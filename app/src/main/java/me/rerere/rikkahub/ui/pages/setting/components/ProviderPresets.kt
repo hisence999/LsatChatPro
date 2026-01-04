@@ -296,6 +296,12 @@ val PROVIDER_PRESETS = listOf(
         type = ProviderSetting.OpenAI::class,
         baseUrl = "https://api.01.ai/v1"
     ),
+    ProviderPreset(
+        name = "Zhipu AI",
+        description = "GLM models with vision, tools, and reasoning",
+        type = ProviderSetting.OpenAI::class,
+        baseUrl = "https://open.bigmodel.cn/api/paas/v4"
+    ),
 )
 
 /**

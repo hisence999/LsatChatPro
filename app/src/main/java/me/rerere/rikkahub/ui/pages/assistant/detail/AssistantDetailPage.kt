@@ -18,9 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Tune
@@ -64,14 +65,21 @@ private object AssistantDetailRoutes {
     const val PROFILE = "profile"
     const val MODEL = "model"
     const val PROMPTS = "prompts"
+    const val CONTEXT_MANAGEMENT = "context_management"
     const val LOREBOOKS = "lorebooks"
     const val TOOLS = "tools"
     const val MEMORY = "memory"
+    const val UI = "ui"
     const val ADVANCED = "advanced"
 }
 
 @Composable
-fun AssistantDetailPage(id: String) {
+fun AssistantDetailPage(
+    id: String,
+    startRoute: String? = null,
+    initialMemoryTab: Int? = null,
+    scrollToMemoryId: Int? = null
+) {
     val vm: AssistantDetailVM = koinViewModel(
         parameters = {
             parametersOf(id)
@@ -93,6 +101,15 @@ fun AssistantDetailPage(id: String) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             vm.clearSnackbarMessage()
+        }
+    }
+    
+    // Auto-navigate to start route if specified (e.g., for deep linking to memory)
+    LaunchedEffect(startRoute) {
+        if (startRoute == AssistantDetailRoutes.MEMORY) {
+            navController.navigate(AssistantDetailRoutes.MEMORY) {
+                popUpTo(AssistantDetailRoutes.HOME) { inclusive = false }
+            }
         }
     }
 
@@ -156,16 +173,16 @@ fun AssistantDetailPage(id: String) {
                 ) + fadeOut(animationSpec = tween(300))
             }
         ) {
-            // Home - Card navigation
             composable(AssistantDetailRoutes.HOME) {
                 AssistantDetailHome(
                     assistant = assistant,
                     onNavigateToProfile = { navController.navigate(AssistantDetailRoutes.PROFILE) },
                     onNavigateToModel = { navController.navigate(AssistantDetailRoutes.MODEL) },
                     onNavigateToPrompts = { navController.navigate(AssistantDetailRoutes.PROMPTS) },
-                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
+                    onNavigateToContextManagement = { navController.navigate(AssistantDetailRoutes.CONTEXT_MANAGEMENT) },
                     onNavigateToTools = { navController.navigate(AssistantDetailRoutes.TOOLS) },
                     onNavigateToMemory = { navController.navigate(AssistantDetailRoutes.MEMORY) },
+                    onNavigateToUI = { navController.navigate(AssistantDetailRoutes.UI) },
                     onNavigateToAdvanced = { navController.navigate(AssistantDetailRoutes.ADVANCED) }
                 )
             }
@@ -198,7 +215,16 @@ fun AssistantDetailPage(id: String) {
                 )
             }
 
-            // Lorebooks
+            // Context Management
+            composable(AssistantDetailRoutes.CONTEXT_MANAGEMENT) {
+                AssistantContextManagementSubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) },
+                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) }
+                )
+            }
+
+            // Lorebooks (nested under Context Management)
             composable(AssistantDetailRoutes.LOREBOOKS) {
                 AssistantLorebooksSubPage(
                     assistant = assistant,
@@ -236,7 +262,17 @@ fun AssistantDetailPage(id: String) {
                     retrievalResults = retrievalResults,
                     assistantDetailVM = vm,
                     estimatedMemoryCapacity = estimatedMemoryCapacity,
-                    needsEmbeddingRegeneration = needsEmbeddingRegeneration
+                    needsEmbeddingRegeneration = needsEmbeddingRegeneration,
+                    initialMemoryTab = initialMemoryTab,
+                    scrollToMemoryId = scrollToMemoryId
+                )
+            }
+
+            // UI Customization
+            composable(AssistantDetailRoutes.UI) {
+                AssistantUISubPage(
+                    assistant = assistant,
+                    onUpdate = { onUpdate(it) }
                 )
             }
 
@@ -260,9 +296,10 @@ private fun AssistantDetailHome(
     onNavigateToProfile: () -> Unit,
     onNavigateToModel: () -> Unit,
     onNavigateToPrompts: () -> Unit,
-    onNavigateToLorebooks: () -> Unit,
+    onNavigateToContextManagement: () -> Unit,
     onNavigateToTools: () -> Unit,
     onNavigateToMemory: () -> Unit,
+    onNavigateToUI: () -> Unit,
     onNavigateToAdvanced: () -> Unit
 ) {
     Column(
@@ -331,10 +368,10 @@ private fun AssistantDetailHome(
             )
 
             NavigationCard(
-                icon = Icons.Rounded.Book,
-                title = stringResource(R.string.assistant_lorebooks_title),
-                description = stringResource(R.string.assistant_lorebooks_desc),
-                onClick = onNavigateToLorebooks
+                icon = Icons.Rounded.DataObject,
+                title = stringResource(R.string.context_management_title),
+                description = stringResource(R.string.context_management_desc),
+                onClick = onNavigateToContextManagement
             )
 
             NavigationCard(
@@ -362,6 +399,13 @@ private fun AssistantDetailHome(
         }
 
         SettingsGroup(title = stringResource(R.string.assistant_page_group_other)) {
+            NavigationCard(
+                icon = Icons.Rounded.Palette,
+                title = "UI Customization",
+                description = "Per-assistant display settings",
+                onClick = onNavigateToUI
+            )
+
             NavigationCard(
                 icon = Icons.Rounded.Tune,
                 title = stringResource(R.string.assistant_page_tab_advanced),

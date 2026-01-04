@@ -54,8 +54,11 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UsedLorebookEntry
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toLocalString
@@ -67,9 +70,21 @@ fun ColumnScope.ChatMessageActionButtons(
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
     onOpenActionSheet: () -> Unit,
+    onEditLorebookEntry: ((UsedLorebookEntry) -> Unit)? = null,
+    onModeClick: ((me.rerere.ai.ui.UsedMode) -> Unit)? = null,
+    onMemoryClick: ((me.rerere.ai.ui.UsedMemory) -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val settings = LocalSettings.current
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
     var isPendingDelete by remember { mutableStateOf(false) }
+    var showContextSheet by remember { mutableStateOf(false) }
+    
+    val usedEntries = message.usedLorebookEntries ?: emptyList()
+    val usedModes = message.usedModes ?: emptyList()
+    val usedMemories = message.usedMemories ?: emptyList()
+    val hasContextSources = usedEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
+    val showContextStacks = effectiveDisplay.showContextStacks && hasContextSources
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -77,11 +92,44 @@ fun ColumnScope.ChatMessageActionButtons(
             isPendingDelete = false
         }
     }
+    
+    // Context sources sheet
+    if (showContextSheet && hasContextSources) {
+        ContextSourcesSheet(
+            modes = usedModes,
+            memories = usedMemories,
+            entries = usedEntries,
+            onModeClick = { mode ->
+                showContextSheet = false
+                onModeClick?.invoke(mode)
+            },
+            onMemoryClick = { memory ->
+                showContextSheet = false
+                onMemoryClick?.invoke(memory)
+            },
+            onEntryClick = { entry ->
+                showContextSheet = false
+                onEditLorebookEntry?.invoke(entry)
+            },
+            onDismissRequest = { showContextSheet = false }
+        )
+    }
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
+        // Context stack indicator at the start
+        if (showContextStacks) {
+            ContextStackIndicator(
+                modes = usedModes,
+                memories = usedMemories,
+                entries = usedEntries,
+                onClick = { showContextSheet = true },
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        
         Icon(
             Icons.Rounded.ContentCopy, stringResource(R.string.copy), modifier = Modifier
                 .clip(CircleShape)

@@ -189,7 +189,10 @@ fun ChatDrawerContent(
                     .fillMaxWidth()
                     .weight(1f),
                 onClick = {
-                    navigateToChatPage(navController, it.id)
+                    // Only pass search query if the match was from message content (not title)
+                    // This scrolls to the matching message; for title matches, just open normally
+                    val titleMatches = searchQuery.isNotBlank() && it.title.contains(searchQuery, ignoreCase = true)
+                    navigateToChatPage(navController, it.id, searchQuery = if (titleMatches) null else searchQuery.ifBlank { null })
                 },
                 onRegenerateTitle = {
                     vm.generateTitle(it, true)
@@ -215,8 +218,8 @@ fun ChatDrawerContent(
                 onPin = {
                     vm.updatePinnedStatus(it)
                 },
-                showUnconsolidatedDot = settings.getCurrentAssistant().enableMemoryConsolidation,
-                showConsolidateOption = settings.getCurrentAssistant().enableMemoryConsolidation
+                showUnconsolidatedDot = settings.getCurrentAssistant().enableMemory && settings.getCurrentAssistant().enableMemoryConsolidation,
+                showConsolidateOption = settings.getCurrentAssistant().enableMemory && settings.getCurrentAssistant().enableMemoryConsolidation
             )
 
             // 助手选择器

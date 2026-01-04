@@ -67,6 +67,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.AlertDialog
@@ -808,14 +809,25 @@ private fun AddButton(
     // Provider selection bottom sheet
     if (showBottomSheet) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = rememberCoroutineScope()
         
         ModalBottomSheet(
             onDismissRequest = {
                 showBottomSheet = false
             },
             sheetState = bottomSheetState,
+            sheetGesturesEnabled = false,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bottomSheetState.hide()
+                            showBottomSheet = false
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
             }
         ) {
             Column(

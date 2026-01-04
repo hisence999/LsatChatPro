@@ -35,7 +35,10 @@ import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.VideoLibrary
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -107,10 +110,14 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun SettingLorebookDetailPage(
     id: String,
+    scrollToEntryId: String? = null,
     vm: SettingVM = koinViewModel()
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -129,11 +136,54 @@ fun SettingLorebookDetailPage(
     var showExportMenu by remember { mutableStateOf(false) }
     var pendingExportFormat by remember { mutableStateOf("") }
     var pendingExportContent by remember { mutableStateOf("") }
+    var showAssistantToggleSheet by remember { mutableStateOf(false) }
+    
+    // Search state
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Filter entries based on search query (name and keywords only)
+    val filteredEntries = remember(lorebook?.entries, searchQuery) {
+        val entries = lorebook?.entries ?: emptyList()
+        if (searchQuery.isBlank()) {
+            entries
+        } else {
+            entries.filter { entry ->
+                entry.name.contains(searchQuery, ignoreCase = true) ||
+                entry.keywords.any { it.contains(searchQuery, ignoreCase = true) }
+            }
+        }
+    }
+    val isFiltering = searchQuery.isNotBlank()
     
     // Track drag state for neighbor offset
     var draggingIndex by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableStateOf(0f) }
     var isUnlocked by remember { mutableStateOf(false) }
+    
+    // Scroll to specific entry if requested
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    LaunchedEffect(scrollToEntryId, lorebook) {
+        if (scrollToEntryId != null && lorebook != null) {
+            val entryIndex = lorebook.entries.indexOfFirst { it.id.toString() == scrollToEntryId }
+            if (entryIndex >= 0) {
+                // Collapse the top bar to give more space
+                if (scrollBehavior.state.heightOffsetLimit != -Float.MAX_VALUE) {
+                    scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+                }
+                
+                // Calculate offset to center the item (approximate)
+                // We want the item effectively in the middle of the screen
+                // scrollToItem's offset is "pixels from start of viewport"
+                // So we use a negative offset to push the item down
+                val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+                val targetOffset = -(screenHeightPx / 2.5f).toInt() // Slightly above center usually looks better
+                
+                // +1 for header item
+                lazyListState.animateScrollToItem(entryIndex + 1, scrollOffset = targetOffset)
+            }
+        }
+    }
     
     // Export file launcher
     val exportLauncher = rememberLauncherForActivityResult(
@@ -250,14 +300,36 @@ fun SettingLorebookDetailPage(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { 
-                    showAddEntrySheet = true
-                    haptics.perform(HapticPattern.Pop)
-                },
-                shape = AppShapes.CardLarge
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
+                // Toggle assistants FAB - same size as Add, gray like floating toolbar
+                FloatingActionButton(
+                    onClick = { 
+                        showAssistantToggleSheet = true
+                        haptics.perform(HapticPattern.Tick)
+                    },
+                    shape = AppShapes.CardLarge,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ) {
+                    Icon(
+                        Icons.Rounded.ToggleOn,
+                        contentDescription = stringResource(R.string.lorebook_toggle_assistants)
+                    )
+                }
+                
+                // Main FAB for add entry
+                FloatingActionButton(
+                    onClick = { 
+                        showAddEntrySheet = true
+                        haptics.perform(HapticPattern.Pop)
+                    },
+                    shape = AppShapes.CardLarge
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
+                }
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -267,23 +339,47 @@ fun SettingLorebookDetailPage(
                 .fillMaxSize()
                 .consumeWindowInsets(contentPadding),
             state = lazyListState,
-            contentPadding = contentPadding + PaddingValues(16.dp),
+            contentPadding = contentPadding + PaddingValues(16.dp) + PaddingValues(bottom = 135.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Lorebook description (centered, no card)
             item(key = "header") {
-                if (lorebook.description.isNotEmpty()) {
-                    Text(
-                        text = lorebook.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
+                Column {
+                    if (lorebook.description.isNotEmpty()) {
+                        Text(
+                            text = lorebook.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 8.dp)
+                        )
+                    }
+                    
+                    // Search bar
+                    if (lorebook.entries.isNotEmpty()) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text(stringResource(R.string.lorebook_search_entries_placeholder)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            shape = AppShapes.SearchField,
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                            trailingIcon = if (searchQuery.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                    }
+                                }
+                            } else null
+                        )
+                    }
                 }
             }
             
@@ -316,13 +412,13 @@ fun SettingLorebookDetailPage(
                 }
             } else {
                 itemsIndexed(
-                    items = lorebook.entries,
+                    items = filteredEntries,
                     key = { _, entry -> entry.id }
                 ) { index, entry ->
                     val position = when {
-                        lorebook.entries.size == 1 -> ItemPosition.ONLY
+                        filteredEntries.size == 1 -> ItemPosition.ONLY
                         index == 0 -> ItemPosition.FIRST
-                        index == lorebook.entries.lastIndex -> ItemPosition.LAST
+                        index == filteredEntries.lastIndex -> ItemPosition.LAST
                         else -> ItemPosition.MIDDLE
                     }
                     
@@ -377,21 +473,23 @@ fun SettingLorebookDetailPage(
                         ) {
                             EntryCard(
                                 entry = entry,
-                                priority = index + 1,
+                                priority = (lorebook.entries.indexOf(entry) + 1),
                                 onEdit = { editingEntry = entry },
                                 dragHandle = {
-                                    IconButton(
-                                        onClick = {},
-                                        modifier = Modifier.longPressDraggableHandle(
-                                            onDragStarted = {
-                                                haptics.perform(HapticPattern.Pop)
-                                            },
-                                            onDragStopped = {
-                                                haptics.perform(HapticPattern.Thud)
-                                            }
-                                        )
-                                    ) {
-                                        Icon(Icons.Rounded.DragIndicator, contentDescription = null)
+                                    if (!isFiltering) {
+                                        IconButton(
+                                            onClick = {},
+                                            modifier = Modifier.longPressDraggableHandle(
+                                                onDragStarted = {
+                                                    haptics.perform(HapticPattern.Pop)
+                                                },
+                                                onDragStopped = {
+                                                    haptics.perform(HapticPattern.Thud)
+                                                }
+                                            )
+                                        ) {
+                                            Icon(Icons.Rounded.DragIndicator, contentDescription = null)
+                                        }
                                     }
                                 }
                             )
@@ -411,6 +509,10 @@ fun SettingLorebookDetailPage(
                 editingEntry = null
             },
             onSave = { savedEntry ->
+                // Capture editing state before async work
+                val wasEditing = editingEntry != null
+                val currentLorebook = lorebook
+                
                 // Generate embedding for RAG entries
                 scope.launch {
                     val finalEntry = if (savedEntry.activationType == LorebookActivationType.RAG && savedEntry.prompt.isNotBlank()) {
@@ -430,13 +532,13 @@ fun SettingLorebookDetailPage(
                         savedEntry.copy(embedding = null, hasEmbedding = false, embeddingModelId = null)
                     }
                     
-                    if (editingEntry != null) {
-                        val updatedEntries = lorebook.entries.map {
+                    if (wasEditing) {
+                        val updatedEntries = currentLorebook.entries.map {
                             if (it.id == finalEntry.id) finalEntry else it
                         }
-                        updateLorebook(lorebook.copy(entries = updatedEntries))
+                        updateLorebook(currentLorebook.copy(entries = updatedEntries))
                     } else {
-                        updateLorebook(lorebook.copy(entries = lorebook.entries + finalEntry))
+                        updateLorebook(currentLorebook.copy(entries = currentLorebook.entries + finalEntry))
                     }
                 }
                 showAddEntrySheet = false
@@ -454,6 +556,22 @@ fun SettingLorebookDetailPage(
                 updateLorebook(updated)
                 showEditLorebookSheet = false
             }
+        )
+    }
+    
+    // Assistant Toggle Sheet
+    if (showAssistantToggleSheet) {
+        AssistantLorebookToggleSheet(
+            lorebook = lorebook,
+            assistants = settings.assistants,
+            onUpdateAssistant = { assistant ->
+                vm.updateSettings(settings.copy(
+                    assistants = settings.assistants.map { 
+                        if (it.id == assistant.id) assistant else it 
+                    }
+                ))
+            },
+            onDismiss = { showAssistantToggleSheet = false }
         )
     }
 }
@@ -543,18 +661,25 @@ private fun EntryEditorSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
-    var name by remember(entry) { mutableStateOf(entry?.name ?: "") }
-    var prompt by remember(entry) { mutableStateOf(entry?.prompt ?: "") }
-    var activationType by remember(entry) { mutableStateOf(entry?.activationType ?: LorebookActivationType.ALWAYS) }
-    var keywords by remember(entry) { mutableStateOf(entry?.keywords?.joinToString(", ") ?: "") }
-    var caseSensitive by remember(entry) { mutableStateOf(entry?.caseSensitive ?: false) }
-    var useRegex by remember(entry) { mutableStateOf(entry?.useRegex ?: false) }
-    var scanDepth by remember(entry) { mutableStateOf(entry?.scanDepth ?: 5) }
-    var injectionPosition by remember(entry) { 
+    // Capture entry ID and initial values ONCE at composition time
+    // Using Unit as key means these values are captured only on first composition
+    // and won't change even if parent recomposes
+    val entryId by remember { mutableStateOf(entry?.id) }
+    val isEditing by remember { mutableStateOf(entry != null) }
+    
+    var name by remember { mutableStateOf(entry?.name ?: "") }
+    var prompt by remember { mutableStateOf(entry?.prompt ?: "") }
+    var activationType by remember { mutableStateOf(entry?.activationType ?: LorebookActivationType.ALWAYS) }
+    var keywords by remember { mutableStateOf(entry?.keywords?.joinToString(", ") ?: "") }
+    var caseSensitive by remember { mutableStateOf(entry?.caseSensitive ?: false) }
+    var useRegex by remember { mutableStateOf(entry?.useRegex ?: false) }
+    var scanDepth by remember { mutableStateOf(entry?.scanDepth ?: 5) }
+    var injectionPosition by remember { 
         mutableStateOf(entry?.injectionPosition ?: InjectionPosition.AFTER_SYSTEM) 
     }
-    var attachments by remember(entry) { mutableStateOf(entry?.attachments ?: emptyList()) }
+    var attachments by remember { mutableStateOf(entry?.attachments ?: emptyList()) }
     
     // Image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -608,7 +733,20 @@ private fun EntryEditorSheet(
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismiss()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
     ) {
         Column(
             modifier = Modifier
@@ -810,7 +948,9 @@ private fun EntryEditorSheet(
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = {
-                        val savedEntry = (entry ?: LorebookEntry()).copy(
+                        // Use captured entryId - if editing, preserve ID; if new, create new ID
+                        val savedEntry = LorebookEntry(
+                            id = entryId ?: kotlin.uuid.Uuid.random(),
                             name = name,
                             prompt = prompt,
                             activationType = activationType,
@@ -840,6 +980,7 @@ private fun LorebookEditorSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     var name by remember { mutableStateOf(lorebook.name) }
     var description by remember { mutableStateOf(lorebook.description) }
@@ -1070,5 +1211,120 @@ private fun LorebookEntryAttachmentItem(
                 .background(MaterialTheme.colorScheme.secondary, CircleShape),
             tint = MaterialTheme.colorScheme.onSecondary
         )
+    }
+}
+
+@Composable
+private fun AssistantLorebookToggleSheet(
+    lorebook: Lorebook,
+    assistants: List<me.rerere.rikkahub.data.model.Assistant>,
+    onUpdateAssistant: (me.rerere.rikkahub.data.model.Assistant) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val cornerRadius = 28.dp
+    val smallCorner = 8.dp
+    val isDarkMode = LocalDarkMode.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismiss()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = lorebook.name.ifEmpty { stringResource(R.string.lorebooks_page_unnamed) },
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            assistants.forEachIndexed { index, assistant ->
+                val isEnabled = assistant.enabledLorebookIds.contains(lorebook.id)
+                
+                // Calculate position for connected card styling
+                val position = when {
+                    assistants.size == 1 -> ItemPosition.ONLY
+                    index == 0 -> ItemPosition.FIRST
+                    index == assistants.lastIndex -> ItemPosition.LAST
+                    else -> ItemPosition.MIDDLE
+                }
+                
+                // Calculate shape based on position (grouped cards)
+                val shape = when (position) {
+                    ItemPosition.ONLY -> androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
+                    ItemPosition.FIRST -> androidx.compose.foundation.shape.RoundedCornerShape(
+                        topStart = cornerRadius, topEnd = cornerRadius,
+                        bottomStart = smallCorner, bottomEnd = smallCorner
+                    )
+                    ItemPosition.MIDDLE -> androidx.compose.foundation.shape.RoundedCornerShape(smallCorner)
+                    ItemPosition.LAST -> androidx.compose.foundation.shape.RoundedCornerShape(
+                        topStart = smallCorner, topEnd = smallCorner,
+                        bottomStart = cornerRadius, bottomEnd = cornerRadius
+                    )
+                }
+                
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (LocalDarkMode.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    shape = shape
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Assistant avatar
+                        me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                            name = assistant.name,
+                            value = assistant.avatar,
+                            modifier = Modifier.size(40.dp)
+                        )
+
+                        Text(
+                            text = assistant.name.ifEmpty { "Assistant" },
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        HapticSwitch(
+                            checked = isEnabled,
+                            onCheckedChange = { newEnabled ->
+                                val newIds = if (newEnabled) {
+                                    assistant.enabledLorebookIds + lorebook.id
+                                } else {
+                                    assistant.enabledLorebookIds - lorebook.id
+                                }
+                                onUpdateAssistant(assistant.copy(enabledLorebookIds = newIds))
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }

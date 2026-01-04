@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.StopCircle
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import me.rerere.rikkahub.R
@@ -355,8 +356,18 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                 editingProvider = null
             },
             sheetState = bottomSheetState,
+            sheetGesturesEnabled = false,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bottomSheetState.hide()
+                            editingProvider = null
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
             }
         ) {
             Column(
@@ -458,9 +469,25 @@ private fun TtsTextFilterSettingsDialog(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<me.rerere.rikkahub.data.datastore.TtsTextFilterRule?>(null) }
     
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDismiss()
+                    }
+                }
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowDown, null)
+            }
+        }
     ) {
         Column(
             modifier = Modifier
@@ -788,13 +815,25 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
             }
         }
         
+        val scope = rememberCoroutineScope()
+        
         ModalBottomSheet(
             onDismissRequest = {
                 showBottomSheet = false
             },
             sheetState = bottomSheetState,
+            sheetGesturesEnabled = false,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bottomSheetState.hide()
+                            showBottomSheet = false
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, null)
+                }
             }
         ) {
             Column(

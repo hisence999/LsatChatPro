@@ -96,7 +96,7 @@ import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
 
 @Composable
-fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
+fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = null) {
     val vm: ChatVM = koinViewModel(
         parameters = {
             parametersOf(id.toString())
@@ -119,6 +119,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val currentSearchMode by vm.currentSearchMode.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -196,8 +197,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     vm = vm,
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
+                    currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
-                    bigScreen = true
+                    bigScreen = true,
+                    initialSearchQuery = searchQuery
                 )
             }
         }
@@ -225,8 +228,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     vm = vm,
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
+                    currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
-                    bigScreen = false
+                    bigScreen = false,
+                    initialSearchQuery = searchQuery
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -248,13 +253,40 @@ private fun ChatPageContent(
     vm: ChatVM,
     chatListState: LazyListState,
     enableWebSearch: Boolean,
+    currentSearchMode: me.rerere.rikkahub.data.model.AssistantSearchMode,
     currentChatModel: Model?,
+    initialSearchQuery: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val context = LocalContext.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
+    
+    // Auto-scroll to first matching message when opened from search
+    LaunchedEffect(initialSearchQuery, conversation.messageNodes) {
+        if (!initialSearchQuery.isNullOrBlank() && conversation.messageNodes.isNotEmpty()) {
+            // Find the first message containing the search query
+            val matchIndex = conversation.messageNodes.indexOfFirst { node ->
+                node.currentMessage.toText().contains(initialSearchQuery, ignoreCase = true)
+            }
+            if (matchIndex >= 0) {
+                // Small delay to let the UI settle
+                delay(100)
+                chatListState.animateScrollToItem(matchIndex)
+            }
+        }
+    }
+    
+    // Track the last selected search provider index so we can restore it when toggling on
+    var lastProviderIndex by rememberSaveable { mutableStateOf(0) }
+    
+    // Update lastProviderIndex whenever currentSearchMode is Provider
+    LaunchedEffect(currentSearchMode) {
+        if (currentSearchMode is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider) {
+            lastProviderIndex = currentSearchMode.index
+        }
+    }
 
 
 
@@ -311,6 +343,7 @@ private fun ChatPageContent(
                     previewMode = previewMode,
                     settings = setting,
                     recentlyRestoredNodeIds = vm.recentlyRestoredNodeIds.collectAsStateWithLifecycle().value,
+                    initialSearchQuery = initialSearchQuery,
                     onJumpToMessage = { index ->
                         previewMode = false
                         scope.launch {
@@ -442,9 +475,11 @@ private fun ChatPageContent(
                         if (enableWebSearch) {
                             vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
                         } else {
-                            // Turn on search - use first provider if available
+                            // Turn on search - restore last selected provider
                             if (setting.searchServices.isNotEmpty()) {
-                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(0))
+                                // Ensure index is valid (in case providers were removed)
+                                val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
+                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
                             }
                         }
                     },
@@ -509,6 +544,10 @@ private fun ChatPageContent(
                         vm.updateConversation(updatedConversation)
                         vm.saveConversationAsync()
                     },
+                    onNavigateToLorebook = { lorebookId ->
+                        navController.navigate(Screen.SettingLorebookDetail(lorebookId))
+                    },
+                    onRefreshContext = { vm.refreshContext() },
                 )
             }
         }

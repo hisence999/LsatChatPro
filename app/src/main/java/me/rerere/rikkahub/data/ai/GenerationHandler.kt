@@ -59,6 +59,16 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
+/**
+ * Result of building messages, includes both the messages and info about activated context sources.
+ */
+data class BuildMessagesResult(
+    val messages: List<UIMessage>,
+    val activatedLorebookEntries: List<me.rerere.ai.ui.UsedLorebookEntry>,
+    val usedModes: List<me.rerere.ai.ui.UsedMode> = emptyList(),
+    val usedMemories: List<me.rerere.ai.ui.UsedMemory> = emptyList()
+)
+
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
@@ -173,7 +183,14 @@ class GenerationHandler(
                 runCatching {
                     val tool = toolsInternal.find { tool -> tool.name == toolCall.toolName }
                         ?: error("Tool ${toolCall.toolName} not found")
-                    val args = json.parseToJsonElement(toolCall.arguments.ifBlank { "{}" })
+                    val args = runCatching {
+                        json.parseToJsonElement(toolCall.arguments.ifBlank { "{}" })
+                    }.getOrElse {
+                        // Handle malformed JSON from model (e.g., multiple objects concatenated)
+                        Log.w(TAG, "Failed to parse tool arguments, attempting sanitization: ${it.message}")
+                        val sanitized = sanitizeToolCallArguments(toolCall.arguments)
+                        json.parseToJsonElement(sanitized)
+                    }
                     Log.i(TAG, "generateText: executing tool ${tool.name} with args: $args")
                     val result = tool.execute(args)
                     results += UIMessagePart.ToolResult(
@@ -231,7 +248,7 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         truncateIndex: Int,
         enabledModeIds: Set<Uuid> = emptySet(),
-    ): List<UIMessage> {
+    ): BuildMessagesResult {
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
         fun estimateTokens(message: UIMessage) = estimateTokens(message.toText())
@@ -254,14 +271,14 @@ class GenerationHandler(
             return if (denominator == 0f) 0f else dotProduct / denominator
         }
         
-        // Helper to check if lorebook entry should be activated
-        fun isLorebookEntryActivated(entry: LorebookEntry, recentMessages: List<String>, queryEmbedding: List<Float>? = null): Boolean {
-            if (!entry.enabled) return false
+        // Helper to check if and why lorebook entry activated
+        fun getLorebookEntryActivationReason(entry: LorebookEntry, recentMessages: List<String>, queryEmbedding: List<Float>? = null): String? {
+            if (!entry.enabled) return null
             return when (entry.activationType) {
-                LorebookActivationType.ALWAYS -> true
+                LorebookActivationType.ALWAYS -> "Always Active"
                 LorebookActivationType.KEYWORDS -> {
                     val searchText = recentMessages.joinToString(" ")
-                    entry.keywords.any { keyword ->
+                    val matchingKeyword = entry.keywords.firstOrNull { keyword ->
                         if (entry.useRegex) {
                             try {
                                 val regex = if (entry.caseSensitive) {
@@ -282,24 +299,30 @@ class GenerationHandler(
                             }
                         }
                     }
+                    if (matchingKeyword != null) "Keyword: $matchingKeyword" else null
                 }
                 LorebookActivationType.RAG -> {
                     // RAG activation uses embedding similarity
                     if (entry.embedding == null || entry.embedding.isEmpty()) {
                         Log.d(TAG, "RAG entry '${entry.name}' has no embedding, skipping")
-                        false
+                        null
                     } else if (queryEmbedding == null) {
                         Log.d(TAG, "No query embedding available for RAG matching")
-                        false
+                        null
                     } else {
                         // Compute cosine similarity
                         val similarity = cosineSimilarity(entry.embedding, queryEmbedding)
                         val threshold = 0.7f // Similarity threshold for activation
                         val activated = similarity >= threshold
                         if (activated) {
+                            val scoreStr = try {
+                                "%.2f".format(similarity)
+                            } catch (e: Exception) {
+                                similarity.toString().take(4)
+                            }
                             Log.d(TAG, "RAG entry '${entry.name}' activated with similarity $similarity")
-                        }
-                        activated
+                            "RAG Match ($scoreStr)"
+                        } else null
                     }
                 }
             }
@@ -313,6 +336,22 @@ class GenerationHandler(
             settings.modes.filter { enabledModeIds.contains(it.id) }
         } else {
             settings.modes.filter { it.defaultEnabled }
+        }
+        
+        // Build UsedMode list for UI display
+        val usedModes = enabledModes.mapIndexed { index, mode ->
+            val reason = if (enabledModeIds.contains(mode.id)) {
+                "Activated by user"
+            } else {
+                "Default enabled"
+            }
+            me.rerere.ai.ui.UsedMode(
+                modeId = mode.id.toString(),
+                modeName = mode.name,
+                modeIcon = mode.icon,
+                priority = enabledModes.size - index,  // Higher priority for earlier modes
+                activationReason = reason
+            )
         }
 
         // Check if any lorebook entries use RAG activation
@@ -336,10 +375,42 @@ class GenerationHandler(
         } else null
 
         // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
-        val activatedEntries = lorebooksForAssistant
+        // Also track UsedLorebookEntry info for the UI display
+        // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
+        // Also track UsedLorebookEntry info for the UI display
+        data class ActivatedEntryWithLorebook(val lorebook: Lorebook, val entry: LorebookEntry, val entryIndex: Int, val reason: String)
+        val activatedEntriesWithLorebook = lorebooksForAssistant
             .flatMap { lorebook -> 
-                lorebook.entries.filter { entry -> isLorebookEntryActivated(entry, recentMessagesForScan, queryEmbedding) }
+                lorebook.entries.mapIndexedNotNull { index, entry ->
+                    val reason = getLorebookEntryActivationReason(entry, recentMessagesForScan, queryEmbedding)
+                    if (reason != null) {
+                        ActivatedEntryWithLorebook(lorebook, entry, index, reason)
+                    } else null
+                }
             }
+        val activatedEntries = activatedEntriesWithLorebook.map { it.entry }
+        
+        // Build UsedLorebookEntry list for UI display
+        val usedLorebookEntries = activatedEntriesWithLorebook.mapIndexed { priority, activated ->
+            // Serialize cover Avatar to JSON string for UI display
+            val coverJson = activated.lorebook.cover?.let { cover ->
+                try {
+                    json.encodeToString(me.rerere.rikkahub.data.model.Avatar.serializer(), cover)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            me.rerere.ai.ui.UsedLorebookEntry(
+                lorebookId = activated.lorebook.id.toString(),
+                lorebookName = activated.lorebook.name,
+                lorebookCover = coverJson,
+                entryId = activated.entry.id.toString(),
+                entryName = activated.entry.name,
+                entryIndex = activated.entryIndex,
+                priority = activatedEntriesWithLorebook.size - priority, // Higher priority for first entries
+                activationReason = activated.reason
+            )
+        }
 
         // Group injections by position
         val beforeSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
@@ -391,8 +462,44 @@ class GenerationHandler(
         currentTokens += estimateTokens(baseSystemPrompt)
 
         // 2. Prepare Candidates
+        // Apply message history limit if configured
+        val historyLimitedMessages = assistant.maxHistoryMessages?.let { limit ->
+            if (limit > 0) messages.limitContext(limit) else messages
+        } ?: messages
+        
+        // Prune search results if configured
+        val searchPrunedMessages = assistant.maxSearchResultsRetained?.let { maxSearches ->
+            if (maxSearches > 0) {
+                // Find all messages that contain search tool results
+                val searchResultIndices = historyLimitedMessages.mapIndexedNotNull { index, msg ->
+                    val hasSearchResult = msg.parts.any { part ->
+                        part is UIMessagePart.ToolResult && part.toolName == "search_web"
+                    }
+                    if (hasSearchResult) index else null
+                }
+                
+                // Keep only the last N search results
+                val indicesToPrune = searchResultIndices.dropLast(maxSearches).toSet()
+                
+                if (indicesToPrune.isNotEmpty()) {
+                    historyLimitedMessages.mapIndexed { index, msg ->
+                        if (index in indicesToPrune) {
+                            // Replace search result content with a minimal placeholder
+                            msg.copy(parts = msg.parts.map { part ->
+                                if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
+                                    part.copy(content = kotlinx.serialization.json.buildJsonObject {
+                                        put("note", kotlinx.serialization.json.JsonPrimitive("Earlier search results pruned to save context"))
+                                    })
+                                } else part
+                            })
+                        } else msg
+                    }
+                } else historyLimitedMessages
+            } else historyLimitedMessages
+        } ?: historyLimitedMessages
+        
         // Chat History (reverse order to prioritize recent)
-        val chatHistoryCandidates = messages.truncate(truncateIndex).reversed()
+        val chatHistoryCandidates = searchPrunedMessages.truncate(truncateIndex).reversed()
         
         // Memories (Prepare effective memories including recent chats if enabled)
         val effectiveMemoriesCandidates = if (assistant.enableMemory) {
@@ -561,7 +668,7 @@ class GenerationHandler(
         // Combine all context attachments
         val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
         
-        return buildList {
+        val builtMessages = buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
                 if (selectedMemories.isNotEmpty()) {
@@ -584,6 +691,28 @@ class GenerationHandler(
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
+        // Build UsedMemory list for UI display
+        val usedMemories = selectedMemories.mapIndexed { index, memory ->
+            val reason = when {
+                memory.id == -1 -> "Recent episode boost"  // Recent chat reference
+                assistant.useRagMemoryRetrieval -> "Contextually relevant"  // RAG mode
+                else -> "Always included"  // Basic mode
+            }
+            me.rerere.ai.ui.UsedMemory(
+                memoryId = memory.id,
+                memoryContent = memory.content.take(50) + if (memory.content.length > 50) "..." else "",
+                memoryType = memory.type,
+                priority = selectedMemories.size - index,  // Higher priority for earlier memories
+                activationReason = reason
+            )
+        }
+        
+        return BuildMessagesResult(
+            messages = builtMessages,
+            activatedLorebookEntries = usedLorebookEntries,
+            usedModes = usedModes,
+            usedMemories = usedMemories
+        )
     }
 
     private suspend fun generateInternal(
@@ -601,7 +730,7 @@ class GenerationHandler(
         stream: Boolean,
         enabledModeIds: Set<Uuid> = emptySet()
     ) {
-        val internalMessages = buildMessages(
+        val buildResult = buildMessages(
             assistant = assistant,
             settings = settings,
             messages = messages,
@@ -610,7 +739,12 @@ class GenerationHandler(
             memories = memories,
             truncateIndex = truncateIndex,
             enabledModeIds = enabledModeIds
-        ).transforms(transformers, context, model, assistant)
+        )
+        val internalMessages = buildResult.messages.transforms(transformers, context, model, assistant)
+        val usedLorebookEntries = buildResult.activatedLorebookEntries
+        val usedModes = buildResult.usedModes
+        val usedMemories = buildResult.usedMemories
+        val hasContextSources = usedLorebookEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(
@@ -653,6 +787,21 @@ class GenerationHandler(
                 }
                 onUpdateMessages(messages)
             }
+            // Attach all context sources to the last assistant message after streaming completes
+            if (hasContextSources) {
+                messages = messages.mapIndexed { index, message ->
+                    if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
+                        message.copy(
+                            usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                            usedModes = usedModes.ifEmpty { null },
+                            usedMemories = usedMemories.ifEmpty { null }
+                        )
+                    } else {
+                        message
+                    }
+                }
+                onUpdateMessages(messages)
+            }
         } else {
             aiLoggingManager.addLog(AILogging.Generation(
                 params = params,
@@ -671,6 +820,20 @@ class GenerationHandler(
                     if (index == messages.lastIndex) {
                         message.copy(
                             usage = message.usage.merge(usage)
+                        )
+                    } else {
+                        message
+                    }
+                }
+            }
+            // Attach all context sources to the last assistant message
+            if (hasContextSources) {
+                messages = messages.mapIndexed { index, message ->
+                    if (index == messages.lastIndex && message.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
+                        message.copy(
+                            usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                            usedModes = usedModes.ifEmpty { null },
+                            usedMemories = usedMemories.ifEmpty { null }
                         )
                     } else {
                         message
@@ -906,4 +1069,40 @@ class GenerationHandler(
             }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Attempts to sanitize malformed JSON from streamed tool call arguments.
+     * Handles cases where the model outputs content after a valid JSON object.
+     */
+    private fun sanitizeToolCallArguments(arguments: String): String {
+        if (arguments.isBlank()) return "{}"
+        val trimmed = arguments.trim()
+        
+        // Find the first complete JSON object
+        var braceCount = 0
+        var inString = false
+        var escape = false
+        
+        for ((index, char) in trimmed.withIndex()) {
+            if (escape) {
+                escape = false
+                continue
+            }
+            when (char) {
+                '\\' -> if (inString) escape = true
+                '"' -> inString = !inString
+                '{' -> if (!inString) braceCount++
+                '}' -> if (!inString) {
+                    braceCount--
+                    if (braceCount == 0) {
+                        // Found complete object, return it
+                        return trimmed.substring(0, index + 1)
+                    }
+                }
+            }
+        }
+        // Couldn't find complete object, return empty
+        Log.w(TAG, "Could not extract valid JSON object from: $trimmed")
+        return "{}"
+    }
 }

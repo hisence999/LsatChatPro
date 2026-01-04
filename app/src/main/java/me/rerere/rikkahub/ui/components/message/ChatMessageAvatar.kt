@@ -23,6 +23,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toLocalString
@@ -36,7 +37,8 @@ fun ChatMessageUserAvatar(
     modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
-    if (message.role == MessageRole.USER && previousRole != MessageRole.USER && !message.parts.isEmptyUIMessage() && settings.displaySetting.showUserAvatar) {
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
+    if (message.role == MessageRole.USER && previousRole != MessageRole.USER && !message.parts.isEmptyUIMessage() && effectiveDisplay.showUserAvatar) {
         Row(
             modifier = modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
@@ -79,62 +81,43 @@ fun ChatMessageAssistantAvatar(
     modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
-    val showIcon = settings.displaySetting.showModelIcon
-    if (message.role == MessageRole.ASSISTANT && previousRole != message.role && model != null) {
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
+    val showIcon = effectiveDisplay.showModelIcon
+    // Show when role is assistant, previous role is different, and we have either model or assistant info
+    if (message.role == MessageRole.ASSISTANT && previousRole != message.role && (model != null || assistant != null)) {
+        // Use assistant info when available, otherwise use model name but with UIAvatar (not model icon)
+        val defaultName = stringResource(R.string.assistant_page_default_assistant)
+        val avatarName = assistant?.name?.ifEmpty { null } ?: model?.displayName ?: defaultName
+        val avatarValue = assistant?.avatar ?: Avatar.Dummy
+        
         Row(
             modifier = modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Always use assistant avatar when available
-            if (assistant != null) {
-                if (showIcon) {
-                    UIAvatar(
-                        name = assistant.name,
-                        modifier = Modifier.size(36.dp),
-                        value = assistant.avatar,
-                        loading = loading,
+            if (showIcon) {
+                UIAvatar(
+                    name = avatarName,
+                    modifier = Modifier.size(36.dp),
+                    value = avatarValue,
+                    loading = loading,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                if(effectiveDisplay.showModelName) {
+                    Text(
+                        text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LocalContentColor.current.copy(alpha = 0.8f),
+                        maxLines = 1,
                     )
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f),
-                                maxLines = 1,
-                            )
-                        Text(
-                            text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            } else {
-                if (showIcon) {
-                    AutoAIIcon(
-                        name = model.modelId,
-                        modifier = Modifier.size(36.dp),
-                        loading = loading
+                    Text(
+                        text = avatarName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
                     )
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString().substring(0, 5), // HH:mm format
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f)
-                            )
-                        Text(
-                            text = model.displayName,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                    }
                 }
             }
         }

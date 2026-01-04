@@ -530,6 +530,7 @@
     <string name="setting_provider_page_add_model">Add Model</string>
     <string name="setting_provider_page_add_models_hint">Click button below to add models</string>
     <string name="setting_provider_page_add_new_model">Add New Model</string>
+    <string name="setting_provider_page_add_from_list">Add From List</string>
     <string name="setting_provider_page_add_provider">Add Provider</string>
     <string name="setting_provider_page_add_provider_override">Add Provider Override</string>
     <string name="setting_provider_page_advanced_settings">Advanced Settings</string>
@@ -1088,6 +1089,7 @@
     <string name="lorebook_entry_use_regex">Use Regex</string>
     <string name="lorebook_entry_scan_depth">Scan Depth</string>
     <string name="lorebook_entry_injection_position">Injection Position</string>
+    <string name="lorebook_search_entries_placeholder">Search entries...</string>
     
     <!-- Activation Types -->
     <string name="activation_always">Always Active</string>
@@ -1105,12 +1107,54 @@
     <string name="modes_page_default_enabled_desc">Automatically enable for new chats</string>
     <string name="lorebook_entry_deleted">Entry %s deleted</string>
     
+    <!-- Lorebooks Picker -->
+    <string name="lorebooks_picker_title">Lorebooks</string>
+    <string name="lorebooks_picker_none">No lorebooks</string>
+    <string name="lorebooks_section_available">Available Lorebooks</string>
+    <string name="lorebook_toggle_assistants">Toggle Assistants</string>
+    <string name="lorebook_select_to_toggle">Select a lorebook to toggle</string>
+    
     <!-- Assistant Lorebooks Selection -->
     <string name="assistant_lorebooks_title">Lorebooks</string>
     <string name="assistant_lorebooks_desc">Select which lorebooks to use with this assistant</string>
     <string name="assistant_lorebooks_empty">No lorebooks configured</string>
     <string name="assistant_lorebooks_empty_hint">Create lorebooks in Settings → Prompt Injections → Lorebooks</string>
     <string name="assistant_lorebooks_enabled">%d enabled</string>
+    
+    <!-- Context Management -->
+    <string name="context_management_title">Context Management</string>
+    <string name="context_management_desc">Lorebooks, message history, search results</string>
+    <string name="context_lorebooks_title">Lorebooks</string>
+    <string name="context_lorebooks_desc">Select which lorebooks to use with this assistant</string>
+    <string name="context_message_history_title">Message History</string>
+    <string name="context_max_messages">Maximum messages</string>
+    <string name="context_max_messages_desc">Limit messages sent to model (0 = unlimited)</string>
+    <string name="context_max_messages_value">%d messages</string>
+    <string name="context_max_messages_unlimited">Unlimited</string>
+    <string name="context_enable_summarization">Summarize older messages</string>
+    <string name="context_enable_summarization_desc">Generate summaries of pruned messages to preserve context</string>
+    <string name="context_search_results_title">Search Results</string>
+    <string name="context_max_search_results">Keep last %d searches</string>
+    <string name="context_max_search_results_desc">Limit retained search results (0 = unlimited)</string>
+    <string name="context_max_search_results_value">%d searches</string>
+    <string name="context_max_search_results_unlimited">Unlimited</string>
+    
+    <!-- Context Refresh -->
+    <string name="context_refresh_title">Message Summarization</string>
+    <string name="context_refresh_button">Summarize Messages</string>
+    <string name="context_refresh_desc">Compress conversation into a summary to free up context space</string>
+    <string name="context_refresh_enable">Enable Message Summarization</string>
+    <string name="context_refresh_enable_desc">Show summarize button in chat input</string>
+    <string name="context_refresh_messages">%d messages will be summarized</string>
+    <string name="context_refresh_tokens">~%d tokens estimated</string>
+    <string name="context_refresh_loading">Summarizing conversation…</string>
+    <string name="context_refresh_complete">Messages summarized!</string>
+    <string name="context_refresh_cleaned">Summarized %d messages</string>
+    <string name="context_refresh_last">Last summary: %s</string>
+    <string name="context_refresh_never">Never summarized</string>
+    <string name="context_refresh_no_summarizer">Configure a summarizer model in settings first</string>
+    <string name="context_refresh_confirm_title">Summarize Messages?</string>
+    <string name="context_refresh_confirm_message">This will summarize your conversation history into a compact form. The AI will remember the key points but detailed messages will be replaced with a summary.</string>
     
     <!-- Import/Export -->
     <string name="lorebook_import_success">Imported: %s</string>
@@ -1121,7 +1165,36 @@
     <string name="export_format_sillytavern">SillyTavern</string>
     <string name="export_format_tavern">Tavern (Compatible)</string>
     
-    <!-- Lorebook Sections -->
-    <string name="lorebooks_section_available">Available Lorebooks</string>
+    <!-- Text Selection Integration -->
+    <string name="text_selection_menu_label">Ask LastChat</string>
+    <string name="text_selection_translate">Translate</string>
+    <string name="text_selection_explain">Explain</string>
+    <string name="text_selection_summarize">Summarize</string>
+    <string name="text_selection_ask">Ask anything…</string>
+    <string name="text_selection_custom_placeholder">Ask a question about this text…</string>
+    <string name="text_selection_copy">Copy</string>
+    <string name="text_selection_continue_chat">Continue in App</string>
+    <string name="text_selection_generating">Generating…</string>
+
+    <!-- Android Integration Settings -->
+    <string name="setting_android_integration">Android Integration</string>
+    <string name="setting_android_integration_desc">Text selection popup settings</string>
+    <string name="text_selection_preview">Preview</string>
+    <string name="text_selection_assistant">Assistant</string>
+    <string name="text_selection_use_default">Use default assistant</string>
+    <string name="text_selection_translate_language">Translate to</string>
+    <string name="text_selection_edit_action">Edit Action</string>
+    <string name="text_selection_add_action">Add Action</string>
+    <string name="text_selection_action_name">Button Name</string>
+    <string name="text_selection_action_prompt">Prompt Template</string>
+    <string name="text_selection_actions">Quick Actions</string>
+    <string name="text_selection_action_delete">Delete Action</string>
+    <string name="text_selection_action_cannot_delete">Cannot delete this action</string>
+    <string name="reset">Reset</string>
+    <string name="text_selection_try_it">Try It</string>
+    <string name="text_selection_setup_instructions">Select text anywhere on your device, look for \"LastChat\" in the toolbar that appears, and tap it to use these features.</string>
+    <string name="text_selection_demo_text">This is sample text you can select! Try long-pressing to select these words, then look for \"LastChat\" in the selection toolbar. If you don\'t see it, you may need to tap the overflow menu (⋮) to find it.</string>
+    <string name="text_selection_demo_hint">👆 Long-press the text above to try selecting it</string>
 </resources>
+
 
