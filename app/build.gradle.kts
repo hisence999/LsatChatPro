@@ -24,7 +24,7 @@ android {
         minSdk = 31
         targetSdk = 36
         versionCode = ((System.currentTimeMillis() - 1577808000000) / 60000).toInt() // 基于 2020-01-01 00:00:00 UTC 的分钟数
-        versionName = "1.2.11build"
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -261,6 +261,9 @@ dependencies {
     // Paging3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
+
+    // Palette (for color extraction from images)
+    implementation(libs.androidx.palette.ktx)
 
     // WebDav
     implementation(libs.dav4jvm) {

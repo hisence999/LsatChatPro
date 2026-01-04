@@ -13,8 +13,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
-import me.rerere.rikkahub.data.ai.AIRequestLogManager
-import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -24,7 +22,6 @@ import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
-import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.utils.JsonInstant
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -39,19 +36,12 @@ class MemoryConsolidationWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params), KoinComponent {
 
-    private companion object {
-        private const val INPUT_FULL_SCAN = "FULL_SCAN"
-        private const val INPUT_FORCE_CONVERSATION_ID = "FORCE_CONVERSATION_ID"
-        private const val INPUT_GROUP_CHAT_TEMPLATE_ID = "GROUP_CHAT_TEMPLATE_ID"
-    }
-
     private val conversationRepository: ConversationRepository by inject()
     private val memoryRepository: MemoryRepository by inject()
     private val chatEpisodeDAO: ChatEpisodeDAO by inject()
     private val settingsStore: SettingsStore by inject()
     private val embeddingService: EmbeddingService by inject()
     private val providerManager: me.rerere.ai.provider.ProviderManager by inject()
-    private val requestLogManager: AIRequestLogManager by inject()
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -65,53 +55,6 @@ class MemoryConsolidationWorker(
 
     private suspend fun consolidateMemories() {
         val settings = settingsStore.settingsFlow.value
-        val isFullScan = inputData.getBoolean(INPUT_FULL_SCAN, false)
-        val forceConversationId = inputData.getString(INPUT_FORCE_CONVERSATION_ID)
-        val groupChatTemplateId = inputData.getString(INPUT_GROUP_CHAT_TEMPLATE_ID)
-
-        if (forceConversationId != null) {
-            val targetConversation = conversationRepository.getConversationById(
-                kotlin.uuid.Uuid.parse(forceConversationId)
-            )
-            if (targetConversation != null) {
-                val template = settings.groupChatTemplates.find { it.id == targetConversation.assistantId }
-                if (template != null) {
-                    consolidateGroupChatConversation(
-                        settings = settings,
-                        template = template,
-                        conversation = targetConversation,
-                        isFullScan = isFullScan,
-                        now = System.currentTimeMillis(),
-                        isForced = true,
-                    )
-                    return
-                }
-            }
-        }
-
-        if (groupChatTemplateId != null) {
-            val templateId = runCatching { kotlin.uuid.Uuid.parse(groupChatTemplateId) }.getOrNull()
-                ?: return
-            val template = settings.groupChatTemplates.find { it.id == templateId } ?: return
-            val conversationsToProcess = if (isFullScan) {
-                conversationRepository.getConversationsOfAssistant(templateId).first()
-            } else {
-                conversationRepository.getRecentConversations(templateId, 10)
-            }
-            val now = System.currentTimeMillis()
-            conversationsToProcess.forEach { conversation ->
-                consolidateGroupChatConversation(
-                    settings = settings,
-                    template = template,
-                    conversation = conversation,
-                    isFullScan = isFullScan,
-                    now = now,
-                    isForced = false,
-                )
-            }
-            return
-        }
-
         val assistant = settings.getCurrentAssistant()
         if (!assistant.enableMemory) return
         val summarizerModelId = assistant.summarizerModelId
@@ -125,6 +68,9 @@ class MemoryConsolidationWorker(
         // TRACK A: Episodic Memory Creation (Stream of Consciousness)
         // Only runs if enableMemoryConsolidation is true
         // =========================================================================================
+        val isFullScan = inputData.getBoolean("FULL_SCAN", false)
+        val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
+        
         var trackACount = 0
         val now = System.currentTimeMillis()
         
@@ -142,8 +88,7 @@ class MemoryConsolidationWorker(
             
             for (conversation in conversationsToProcess) {
             // Skip short conversations
-            // Allow single-round chats (2 messages) to be consolidated into an episode.
-            if (conversation.messageNodes.size < 2) continue
+            if (conversation.messageNodes.size < 4) continue
             
             // Check if already consolidated (unless forced or full scan)
             if (conversation.isConsolidated && !isFullScan && forceConversationId == null) continue
@@ -169,17 +114,35 @@ class MemoryConsolidationWorker(
             }
 
             // Summarize into an episode with Significance Score
-            val messagesText = conversation.currentMessages.takeLast(30).joinToString("\n") { "${it.role}: ${it.toText()}" }
+            // Only process messages after the last summary index to avoid redundant processing
+            val allMessages = conversation.currentMessages
+            val lastSummaryIndex = conversation.contextSummaryUpToIndex
+            val hasSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+            
+            val messagesToProcess = if (hasSummary && lastSummaryIndex < allMessages.size) {
+                allMessages.subList((lastSummaryIndex + 1).coerceAtMost(allMessages.size), allMessages.size)
+            } else {
+                allMessages
+            }.takeLast(30) // Limit to last 30 for processing
+            
+            val messagesText = messagesToProcess.joinToString("\n") { "${it.role}: ${it.toText()}" }
+            
+            // Include context summary if available for better context
+            val contextSection = if (hasSummary) {
+                """
+                **Context Summary (from previous summarization):**
+                ${conversation.contextSummary}
+                
+                **New Messages (${messagesToProcess.size} since last summary):**
+                """.trimIndent()
+            } else ""
+            
             val prompt = """
                 Analyze the following conversation and create a "Memory Episode".
                 
+                $contextSection
                 1. **Summary**: Concise summary of what happened (under 100 words).
                 2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
-                
-                Language requirement:
-                - Write the Summary in the same language as the conversation.
-                - If the conversation is mixed-language, use the dominant language.
-                - Do not translate proper nouns unless the conversation does.
                 
                 Conversation:
                 $messagesText
@@ -192,35 +155,12 @@ class MemoryConsolidationWorker(
             """.trimIndent()
             
             try {
-                val requestMessages = listOf(UIMessage.user(prompt))
-                val params = TextGenerationParams(model = model, temperature = 0.5f)
-                val startAt = System.currentTimeMillis()
-                var failure: Throwable? = null
-                var responseText = ""
-                try {
-                    val response = providerHandler.generateText(
-                        providerSetting = provider,
-                        messages = requestMessages,
-                        params = params,
-                    )
-                    responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
-                    if (responseText.isBlank()) continue
-                } catch (t: Throwable) {
-                    failure = t
-                    throw t
-                } finally {
-                    requestLogManager.logTextGeneration(
-                        source = AIRequestSource.MEMORY_CONSOLIDATION,
-                        providerSetting = provider,
-                        params = params,
-                        requestMessages = requestMessages,
-                        responseText = responseText,
-                        stream = false,
-                        latencyMs = System.currentTimeMillis() - startAt,
-                        durationMs = System.currentTimeMillis() - startAt,
-                        error = failure,
-                    )
-                }
+                val response = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = listOf(UIMessage.user(prompt)),
+                    params = TextGenerationParams(model = model, temperature = 0.5f)
+                )
+                val responseText = response.choices.firstOrNull()?.message?.toContentText() ?: continue
                 
                 var summary = responseText
                 var significance = 5
@@ -240,21 +180,13 @@ class MemoryConsolidationWorker(
                 }
                 
                 // Generate embedding for the episode
-                val summaryEmbeddingResult = embeddingService.embedWithModelId(
-                    text = summary,
-                    assistantId = assistantId,
-                    source = AIRequestSource.MEMORY_EMBEDDING,
-                )
+                val summaryEmbeddingResult = embeddingService.embedWithModelId(summary, assistantId)
                 val summaryEmbedding = summaryEmbeddingResult.embeddings.firstOrNull()
                 val embeddingModelId = summaryEmbeddingResult.modelId
                 
                 if (summaryEmbedding != null) {
                     // Check if an episode already exists for this conversation
-                    val conversationId = conversation.id.toString()
-                    val existingEpisode = chatEpisodeDAO.getEpisodeByConversationIdAndAssistantId(
-                        conversationId = conversationId,
-                        assistantId = assistantId,
-                    )
+                    val existingEpisode = chatEpisodeDAO.getEpisodeByConversationId(conversation.id.toString())
                     
                     if (existingEpisode != null) {
                         // Update existing episode
@@ -265,8 +197,7 @@ class MemoryConsolidationWorker(
                                 embeddingModelId = embeddingModelId,
                                 endTime = conversation.updateAt.toEpochMilli(),
                                 lastAccessedAt = System.currentTimeMillis(),
-                                significance = significance,
-                                conversationId = conversationId,
+                                significance = significance
                             )
                         )
                         Log.i("MemoryConsolidation", "Updated episode (sig=$significance) for conversation ${conversation.id}")
@@ -282,7 +213,7 @@ class MemoryConsolidationWorker(
                                 endTime = conversation.updateAt.toEpochMilli(),
                                 lastAccessedAt = System.currentTimeMillis(),
                                 significance = significance,
-                                conversationId = conversationId
+                                conversationId = conversation.id.toString()
                             )
                         )
                         Log.i("MemoryConsolidation", "Created episode (sig=$significance) for conversation ${conversation.id}")
@@ -315,212 +246,6 @@ class MemoryConsolidationWorker(
         } // End of enableMemoryConsolidation check
 
         // =========================================================================================
-        // TRACK B: Core Memory Extraction & Reflection
-        // =========================================================================================
-        // Only run if enabled AND enough time has passed
-        val humanMemoryIntervalMs = assistant.humanMemoryUpdateIntervalHours * 60 * 60 * 1000L
-        val timeSinceLastHumanUpdate = now - assistant.lastHumanMemoryUpdateTime
-        
-        if (assistant.enableHumanMemory && (timeSinceLastHumanUpdate > humanMemoryIntervalMs || isFullScan)) {
-            var newFactsCount = 0
-            
-            // =====================================================================================
-            // BACKFILL: Re-score episodes with default significance (5)
-            // This handles episodes created before reflection was enabled
-            // =====================================================================================
-            val allEpisodesForBackfill = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
-            val episodesNeedingScoring = allEpisodesForBackfill.filter { it.significance == 5 }
-            
-            if (episodesNeedingScoring.isNotEmpty()) {
-                Log.i("MemoryConsolidation", "Backfilling significance for ${episodesNeedingScoring.size} episodes")
-                
-                for (episode in episodesNeedingScoring.take(10)) { // Limit to 10 per run to avoid API spam
-                    try {
-                        val scorePrompt = """
-                            Rate the significance of this memory episode from 1-10:
-                            - 10: Life-changing event (marriage, major life decision, tragedy)
-                            - 7-9: Important emotional moment or revelation
-                            - 4-6: Interesting conversation worth remembering
-                            - 1-3: Trivial, mundane, or forgettable
-                            
-                            Episode: ${episode.content}
-                            
-                            Return ONLY a number from 1-10.
-                        """.trimIndent()
-                        
-                        val requestMessages = listOf(UIMessage.user(scorePrompt))
-                        val params = TextGenerationParams(model = model, temperature = 0.3f)
-                        val startAt = System.currentTimeMillis()
-                        var failure: Throwable? = null
-                        var scoreText = ""
-                        try {
-                            val scoreResponse = providerHandler.generateText(
-                                providerSetting = provider,
-                                messages = requestMessages,
-                                params = params,
-                            )
-                            scoreText = scoreResponse.choices.firstOrNull()?.message?.toContentText().orEmpty()
-                            if (scoreText.isBlank()) continue
-                        } catch (t: Throwable) {
-                            failure = t
-                            throw t
-                        } finally {
-                            requestLogManager.logTextGeneration(
-                                source = AIRequestSource.MEMORY_CONSOLIDATION,
-                                providerSetting = provider,
-                                params = params,
-                                requestMessages = requestMessages,
-                                responseText = scoreText,
-                                stream = false,
-                                latencyMs = System.currentTimeMillis() - startAt,
-                                durationMs = System.currentTimeMillis() - startAt,
-                                error = failure,
-                            )
-                        }
-                        val newSignificance = scoreText.trim().filter { it.isDigit() }.take(2).toIntOrNull()?.coerceIn(1, 10) ?: 5
-                        
-                        if (newSignificance != 5) {
-                            chatEpisodeDAO.insertEpisode(episode.copy(significance = newSignificance))
-                            Log.i("MemoryConsolidation", "Backfilled episode ${episode.id}: significance $newSignificance")
-                        }
-                    } catch (e: Exception) {
-                        Log.w("MemoryConsolidation", "Failed to backfill significance for episode ${episode.id}", e)
-                    }
-                }
-            }
-            
-            // Review recent episodes and extract permanent facts OR high-level insights
-            val episodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId).take(20) // Look at more episodes for reflection
-            if (episodes.isNotEmpty()) {
-                val episodesText = episodes.joinToString("\n") { "- [Sig: ${it.significance}] ${it.content}" }
-                
-                val prompt = """
-                    Reflect on the following recent memory episodes.
-                    1. Extract any new permanent facts about the user. ONLY extract facts that are likely to remain true for a long time (e.g., names, relationships, core preferences, life events). Do NOT extract temporary states or trivial details.
-                    2. Identify any high-level patterns or insights about the user's behavior or state of mind.
-                    
-                    Language requirement:
-                    - Write facts/insights in the same language as the episodes.
-                    - If episodes are mixed-language, use the dominant language.
-                    - Do not translate proper nouns unless the episodes do.
-                    
-                    Return a bulleted list of facts/insights. Return "NONE" if nothing new.
-                    
-                    Episodes:
-                    $episodesText
-                """.trimIndent()
-
-                try {
-                    val requestMessages = listOf(UIMessage.user(prompt))
-                    val params = TextGenerationParams(model = model, temperature = 0.3f)
-                    val startAt = System.currentTimeMillis()
-                    var failure: Throwable? = null
-                    var factsText = ""
-                    try {
-                        val response = providerHandler.generateText(
-                            providerSetting = provider,
-                            messages = requestMessages,
-                            params = params,
-                        )
-                        factsText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
-                        if (factsText.isBlank()) return
-                    } catch (t: Throwable) {
-                        failure = t
-                        throw t
-                    } finally {
-                        requestLogManager.logTextGeneration(
-                            source = AIRequestSource.MEMORY_CONSOLIDATION,
-                            providerSetting = provider,
-                            params = params,
-                            requestMessages = requestMessages,
-                            responseText = factsText,
-                            stream = false,
-                            latencyMs = System.currentTimeMillis() - startAt,
-                            durationMs = System.currentTimeMillis() - startAt,
-                            error = failure,
-                        )
-                    }
-                    
-                    if (factsText != "NONE" && factsText.isNotBlank()) {
-                        val facts = factsText.split("\n").map { it.trim().removePrefix("- ").trim() }.filter { it.isNotBlank() }
-                        
-                        // Pre-load existing embeddings for duplicate checking
-                        val existingMemories = memoryRepository.getMemoryEntitiesOfAssistant(assistantId)
-                            .filter { it.type == MemoryType.CORE }
-                        val existingEmbeddings = existingMemories.mapNotNull { mem ->
-                            mem.embedding?.let {
-                                try {
-                                    JsonInstant.decodeFromString<List<Float>>(it)
-                                } catch (e: Exception) {
-                                    null
-                                }
-                            }
-                        }
-
-                        for (fact in facts) {
-                            // Check for duplicates using embeddings
-                            var isDuplicate = false
-                            try {
-                                val factEmbedding = embeddingService.embed(
-                                    text = fact,
-                                    assistantId = assistantId,
-                                    source = AIRequestSource.MEMORY_EMBEDDING,
-                                )
-                                if (factEmbedding != null) {
-                                    // Check similarity against all existing core memories
-                                    // Threshold 0.8 as requested
-                                    isDuplicate = existingEmbeddings.any { existingEmb ->
-                                        VectorEngine.cosineSimilarity(factEmbedding, existingEmb) > 0.8
-                                    }
-                                } else {
-                                    // Fallback to simple word matching if embedding fails
-                                    isDuplicate = existingMemories.any { existing ->
-                                        val words = fact.lowercase().split(" ").filter { it.length > 4 }
-                                        words.isNotEmpty() && words.all { existing.content.lowercase().contains(it) }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.w("MemoryConsolidation", "Failed to generate embedding for duplicate check", e)
-                            }
-                            
-                            if (!isDuplicate) {
-                                memoryRepository.addMemory(assistantId, fact)
-                                newFactsCount++
-                                Log.i("MemoryConsolidation", "Extracted new core memory: $fact")
-                            } else {
-                                Log.i("MemoryConsolidation", "Skipped duplicate memory: $fact")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("MemoryConsolidation", "Failed to extract core memories", e)
-                }
-            }
-            
-            // Update Track B Stats
-            val resultMsg = if (newFactsCount > 0) "Extracted $newFactsCount new core memories" else "No new insights found"
-            settingsStore.update { currentSettings ->
-                currentSettings.copy(
-                    assistants = currentSettings.assistants.map { 
-                        if (it.id == settings.assistantId) {
-                            it.copy(
-                                lastHumanMemoryUpdateTime = now,
-                                lastHumanMemoryUpdateResult = resultMsg
-                            )
-                        } else it
-                    }
-                )
-            }
-
-            // Deduplicate Core Memories
-            try {
-                deduplicateMemories(assistantId, model, provider)
-            } catch (e: Exception) {
-                Log.e("MemoryConsolidation", "Error during deduplication", e)
-            }
-        }
-
-        // =========================================================================================
         // PRUNING: The "Throw Out" Mechanism
         // =========================================================================================
         val allEpisodes = chatEpisodeDAO.getEpisodesOfAssistant(assistantId)
@@ -530,16 +255,8 @@ class MemoryConsolidationWorker(
             val age = now - episode.startTime
             val timeSinceAccess = now - episode.lastAccessedAt
             
-            // Retention Policy based on Significance
-            val retentionDays = if (assistant.enableHumanMemory) {
-                when (episode.significance) {
-                    in 8..10 -> 365L * 10 // Practically forever
-                    in 5..7 -> 90L // 3 months
-                    else -> 14L // 2 weeks for trivial stuff
-                }
-            } else {
-                30L // Default 30 days
-            }
+            // Default 30 days retention
+            val retentionDays = 30L
             
             val retentionMs = retentionDays * 24 * 60 * 60 * 1000L
             
@@ -563,311 +280,6 @@ class MemoryConsolidationWorker(
             }
         } catch (e: Exception) {
             Log.e("MemoryConsolidation", "Error auto-embedding memories", e)
-        }
-    }
-
-    private suspend fun consolidateGroupChatConversation(
-        settings: me.rerere.rikkahub.data.datastore.Settings,
-        template: GroupChatTemplate,
-        conversation: me.rerere.rikkahub.data.model.Conversation,
-        isFullScan: Boolean,
-        now: Long,
-        isForced: Boolean,
-    ) {
-        if (conversation.messageNodes.size < 2) return
-        if (conversation.isConsolidated && !isFullScan && !isForced) return
-
-        val delayMs = template.consolidationDelayMinutes.coerceAtLeast(0) * 60 * 1000L
-        if (!isForced && !isFullScan && now - conversation.updateAt.toEpochMilli() < delayMs) {
-            Log.i("MemoryConsolidation", "Skipping group chat conversation ${conversation.id} (waiting for delay)")
-            return
-        }
-
-        val integrationModelId = template.integrationModelId ?: return
-        val model = settings.findModelById(integrationModelId) ?: return
-        val provider = model.findProvider(settings.providers) ?: return
-        val providerHandler = providerManager.getProviderByType(provider)
-
-        val targetAssistantIds = template.seats
-            .asSequence()
-            .filter { seat -> seat.overrides.memoryEnabled }
-            .map { seat -> seat.assistantId }
-            .distinct()
-            .mapNotNull { assistantId ->
-                val assistant = settings.assistants.firstOrNull { it.id == assistantId } ?: return@mapNotNull null
-                if (!assistant.enableMemory || !assistant.enableMemoryConsolidation) return@mapNotNull null
-                assistantId.toString()
-            }
-            .toList()
-        if (targetAssistantIds.isEmpty()) return
-
-        val templateName = template.name.trim().ifBlank { "Group Chat" }
-        val messagesText = conversation.currentMessages.takeLast(30).joinToString("\n") { message ->
-            val speakerName = when (message.role) {
-                me.rerere.ai.core.MessageRole.USER -> settings.displaySetting.userNickname.trim().ifBlank { "User" }
-                else -> resolveGroupChatSpeakerName(settings, template, message).ifBlank { "Assistant" }
-            }
-            "${message.role}($speakerName): ${message.toText()}"
-        }
-        val prompt = """
-            Analyze the following group chat conversation and create a "Memory Episode".
-
-            1. **Summary**: Concise summary of what happened (under 100 words).
-            2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
-
-            Language requirement:
-            - Write the Summary in the same language as the conversation.
-            - If the conversation is mixed-language, use the dominant language.
-            - Do not translate proper nouns unless the conversation does.
-
-            Group: $templateName
-
-            Conversation:
-            $messagesText
-
-            Output JSON format:
-            {
-                "summary": "...",
-                "significance": 5
-            }
-        """.trimIndent()
-
-        val requestMessages = listOf(UIMessage.user(prompt))
-        val params = TextGenerationParams(model = model, temperature = 0.5f)
-        val startAt = System.currentTimeMillis()
-        var failure: Throwable? = null
-        var responseText = ""
-        try {
-            val response = providerHandler.generateText(
-                providerSetting = provider,
-                messages = requestMessages,
-                params = params,
-            )
-            responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
-            if (responseText.isBlank()) return
-        } catch (t: Throwable) {
-            failure = t
-            throw t
-        } finally {
-            requestLogManager.logTextGeneration(
-                source = AIRequestSource.MEMORY_CONSOLIDATION,
-                providerSetting = provider,
-                params = params,
-                requestMessages = requestMessages,
-                responseText = responseText,
-                stream = false,
-                latencyMs = System.currentTimeMillis() - startAt,
-                durationMs = System.currentTimeMillis() - startAt,
-                error = failure,
-            )
-        }
-
-        var summary = responseText
-        var significance = 5
-        runCatching {
-            val jsonStart = responseText.indexOf("{")
-            val jsonEnd = responseText.lastIndexOf("}")
-            if (jsonStart != -1 && jsonEnd != -1) {
-                val jsonStr = responseText.substring(jsonStart, jsonEnd + 1)
-                val json = Json.parseToJsonElement(jsonStr).jsonObject
-                summary = json["summary"]?.jsonPrimitive?.content ?: summary
-                significance = json["significance"]?.jsonPrimitive?.intOrNull ?: 5
-            }
-        }
-
-        val now = System.currentTimeMillis()
-        val conversationId = conversation.id.toString()
-        targetAssistantIds.forEach { assistantId ->
-            val embeddingResult = runCatching {
-                embeddingService.embedWithModelId(
-                    text = summary,
-                    assistantId = assistantId,
-                    source = AIRequestSource.MEMORY_EMBEDDING,
-                )
-            }.getOrNull()
-            val embedding = embeddingResult?.embeddings?.firstOrNull()
-            val embeddingModelId = embeddingResult?.modelId
-
-            val existingEpisode = runCatching {
-                chatEpisodeDAO.getEpisodeByConversationIdAndAssistantId(
-                    conversationId = conversationId,
-                    assistantId = assistantId,
-                )
-            }.getOrNull()
-
-            if (existingEpisode != null) {
-                chatEpisodeDAO.insertEpisode(
-                    existingEpisode.copy(
-                        content = summary,
-                        embedding = embedding?.let { JsonInstant.encodeToString(it) },
-                        embeddingModelId = embeddingModelId,
-                        endTime = conversation.updateAt.toEpochMilli(),
-                        lastAccessedAt = now,
-                        significance = significance,
-                        conversationId = conversationId,
-                    )
-                )
-            } else {
-                chatEpisodeDAO.insertEpisode(
-                    ChatEpisodeEntity(
-                        assistantId = assistantId,
-                        content = summary,
-                        embedding = embedding?.let { JsonInstant.encodeToString(it) },
-                        embeddingModelId = embeddingModelId,
-                        startTime = conversation.createAt.toEpochMilli(),
-                        endTime = conversation.updateAt.toEpochMilli(),
-                        lastAccessedAt = now,
-                        significance = significance,
-                        conversationId = conversationId,
-                    )
-                )
-            }
-        }
-
-        conversationRepository.markAsConsolidated(conversation.id)
-    }
-
-    private fun resolveGroupChatSpeakerName(
-        settings: me.rerere.rikkahub.data.datastore.Settings,
-        template: GroupChatTemplate,
-        message: UIMessage,
-    ): String {
-        val assistantId = message.speakerAssistantId
-            ?: message.speakerSeatId
-                ?.let { seatId -> template.seats.firstOrNull { it.id == seatId }?.assistantId }
-        return assistantId
-            ?.let { id -> settings.assistants.firstOrNull { it.id == id }?.name }
-            ?.trim()
-            .orEmpty()
-    }
-
-    private suspend fun deduplicateMemories(assistantId: String, model: Model, provider: ProviderSetting) {
-        val memories = memoryRepository.getMemoryEntitiesOfAssistant(assistantId).filter { it.type == MemoryType.CORE }
-        if (memories.size < 2) return
-
-        // Ensure all memories have embeddings
-        val memoriesWithEmbeddings = memories.mapNotNull { memory ->
-            val embedding = if (memory.embedding != null) {
-                try {
-                    JsonInstant.decodeFromString<List<Float>>(memory.embedding)
-                } catch (e: Exception) {
-                    null
-                }
-            } else {
-                try {
-                    val newEmbedding = embeddingService.embed(
-                        text = memory.content,
-                        assistantId = assistantId,
-                        source = AIRequestSource.MEMORY_EMBEDDING,
-                    )
-                    newEmbedding
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            if (embedding != null) memory to embedding else null
-        }
-
-        val visited = mutableSetOf<Int>()
-        val providerHandler = providerManager.getProviderByType(provider)
-
-        // Find clusters of similar memories
-        for (i in memoriesWithEmbeddings.indices) {
-            val current = memoriesWithEmbeddings[i]
-            if (current.first.id in visited) continue
-
-            val cluster = mutableListOf(current)
-            visited.add(current.first.id)
-            
-            // Use a queue for BFS to find all connected components
-            val queue = ArrayDeque<Pair<MemoryEntity, List<Float>>>()
-            queue.add(current)
-            
-            while (queue.isNotEmpty()) {
-                val (nodeMem, nodeEmb) = queue.removeFirst()
-                
-                // Check all other nodes
-                for (j in memoriesWithEmbeddings.indices) {
-                    val neighbor = memoriesWithEmbeddings[j]
-                    if (neighbor.first.id !in visited) {
-                        val similarity = VectorEngine.cosineSimilarity(nodeEmb, neighbor.second)
-                        if (similarity >= 0.8) { // Threshold 0.8 as requested
-                            visited.add(neighbor.first.id)
-                            cluster.add(neighbor)
-                            queue.add(neighbor)
-                        }
-                    }
-                }
-            }
-
-            // If we found a cluster with more than 1 memory, merge them
-            if (cluster.size > 1) {
-                val memoriesToMerge = cluster.map { it.first }
-                val memoriesText = memoriesToMerge.mapIndexed { index, mem -> "${index + 1}. ${mem.content}" }.joinToString("\n")
-                
-                val prompt = """
-                    Here are ${cluster.size} memories about the user that are very similar:
-                    
-                    $memoriesText
-                    
-                    Please merge them into a single, concise memory that retains all key information from all of them.
-                    If they are not actually duplicates or related enough to merge, return "NO_MERGE".
-                    
-                    Language requirement:
-                    - Return the merged memory in the same language as the input memories.
-                    - If the memories are mixed-language, use the dominant language.
-                    - Do not translate proper nouns unless the memories do.
-                    
-                    Return ONLY the merged memory text or "NO_MERGE".
-                """.trimIndent()
-
-                try {
-                    val requestMessages = listOf(UIMessage.user(prompt))
-                    val params = TextGenerationParams(model = model, temperature = 0.1f)
-                    val startAt = System.currentTimeMillis()
-                    var failure: Throwable? = null
-                    var mergedText = ""
-                    try {
-                        val response = providerHandler.generateText(
-                            providerSetting = provider,
-                            messages = requestMessages,
-                            params = params,
-                        )
-                        mergedText = response.choices.firstOrNull()?.message?.toContentText()?.trim().orEmpty()
-                        if (mergedText.isBlank()) continue
-                    } catch (t: Throwable) {
-                        failure = t
-                        throw t
-                    } finally {
-                        requestLogManager.logTextGeneration(
-                            source = AIRequestSource.MEMORY_CONSOLIDATION,
-                            providerSetting = provider,
-                            params = params,
-                            requestMessages = requestMessages,
-                            responseText = mergedText,
-                            stream = false,
-                            latencyMs = System.currentTimeMillis() - startAt,
-                            durationMs = System.currentTimeMillis() - startAt,
-                            error = failure,
-                        )
-                    }
-
-                    if (mergedText != "NO_MERGE" && mergedText.isNotBlank() && mergedText.length > 5) {
-                        Log.i("MemoryConsolidation", "Merging ${cluster.size} memories: ${memoriesToMerge.map { it.id }}")
-                        
-                        // Update the first memory with the merged text
-                        val primaryMemory = memoriesToMerge.first()
-                        memoryRepository.updateContent(primaryMemory.id, mergedText)
-                        
-                        // Delete the rest
-                        for (k in 1 until memoriesToMerge.size) {
-                            memoryRepository.deleteMemory(memoriesToMerge[k].id)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("MemoryConsolidation", "Failed to merge cluster", e)
-                }
-            }
         }
     }
 }

@@ -27,6 +27,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
@@ -46,7 +47,8 @@ fun ChatMessageUserAvatar(
     modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
-    if (message.role == MessageRole.USER && previousRole != MessageRole.USER && !message.parts.isEmptyUIMessage() && settings.displaySetting.showUserAvatar) {
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
+    if (message.role == MessageRole.USER && previousRole != MessageRole.USER && !message.parts.isEmptyUIMessage() && effectiveDisplay.showUserAvatar) {
         Row(
             modifier = modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
@@ -90,8 +92,9 @@ fun ChatMessageAssistantAvatar(
     modifier: Modifier = Modifier,
 ) {
     val settings = LocalSettings.current
-    val showIcon = settings.displaySetting.showModelIcon
-    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    val effectiveDisplay = settings.getEffectiveDisplaySetting(assistant)
+    val showIcon = effectiveDisplay.showModelIcon
+    val haptics = rememberPremiumHaptics(enabled = effectiveDisplay.enableUIHaptics)
     if (message.role == MessageRole.ASSISTANT && previousRole != message.role) {
         Row(
             modifier = modifier.padding(vertical = 8.dp),
@@ -135,7 +138,7 @@ fun ChatMessageAssistantAvatar(
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        if (settings.displaySetting.showModelName) {
+                        if (effectiveDisplay.showModelName) {
                             Text(
                                 text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
                                     .substring(0, 5), // HH:mm format
@@ -163,7 +166,7 @@ fun ChatMessageAssistantAvatar(
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        if (settings.displaySetting.showModelName) {
+                        if (effectiveDisplay.showModelName) {
                             Text(
                                 text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
                                     .substring(0, 5), // HH:mm format
@@ -182,7 +185,7 @@ fun ChatMessageAssistantAvatar(
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        if (settings.displaySetting.showModelName) {
+                        if (effectiveDisplay.showModelName) {
                             Text(
                                 text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
                                     .substring(0, 5), // HH:mm format

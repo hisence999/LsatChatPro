@@ -91,9 +91,11 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.Assistant
@@ -111,6 +113,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.utils.openUrl
 
 private const val TAG = "ChatList"
@@ -140,6 +143,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
+    initialSearchQuery: String? = null,
     onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
@@ -163,6 +167,7 @@ fun ChatList(
                     settings = settings,
                     onJumpToMessage = onJumpToMessage,
                     animatedVisibilityScope = this@AnimatedContent,
+                    initialSearchQuery = initialSearchQuery,
                 )
             } else {
                 ChatListNormal(
@@ -206,6 +211,7 @@ private fun SharedTransitionScope.ChatListNormal(
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
+    val navController = LocalNavController.current
     val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
     val groupChatTemplateForConversation = remember(settings.groupChatTemplates, conversation.assistantId) {
         settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
@@ -291,7 +297,7 @@ private fun SharedTransitionScope.ChatListNormal(
 
         LazyColumn(
             state = state,
-            contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 32.dp) + innerPadding + androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues(),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp) + PaddingValues(bottom = 32.dp) + innerPadding + androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier
@@ -374,6 +380,25 @@ private fun SharedTransitionScope.ChatListNormal(
                             },
                             onUpdate = {
                                 onUpdateMessage(it)
+                            },
+                            onEditLorebookEntry = { entry ->
+                                navController.navigate(Screen.SettingLorebookDetail(entry.lorebookId, entry.entryId))
+                            },
+                            onModeClick = { mode ->
+                                // Navigate to Modes page and scroll to the specific mode
+                                navController.navigate(Screen.SettingModes(scrollToModeId = mode.modeId))
+                            },
+                            onMemoryClick = { memory ->
+                                // Navigate to AssistantDetail memory page
+                                // memoryType: 0 = CORE, 1 = EPISODIC
+                                navController.navigate(
+                                    Screen.AssistantDetail(
+                                        id = conversation.assistantId.toString(),
+                                        startRoute = "memory",
+                                        initialMemoryTab = memory.memoryType,
+                                        scrollToMemoryId = memory.memoryId
+                                    )
+                                )
                             },
                         )
                     }
@@ -497,11 +522,12 @@ private fun SharedTransitionScope.ChatListNormal(
             )
 
             val captureProgress = LocalScrollCaptureInProgress.current
+            val effectiveDisplay = settings.getEffectiveDisplaySetting()
 
             // 消息快速跳转
             MessageJumper(
-                show = isRecentScroll && !state.isScrollInProgress && settings.displaySetting.showMessageJumper && !captureProgress,
-                onLeft = settings.displaySetting.messageJumperOnLeft,
+                show = isRecentScroll && !state.isScrollInProgress && effectiveDisplay.showMessageJumper && !captureProgress,
+                onLeft = effectiveDisplay.messageJumperOnLeft,
                 scope = scope,
                 state = state
             )
@@ -580,13 +606,14 @@ private fun SharedTransitionScope.ChatListPreview(
     conversation: Conversation,
     settings: Settings,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onJumpToMessage: (Uuid) -> Unit
+    onJumpToMessage: (Uuid) -> Unit,
+    initialSearchQuery: String? = null,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialSearchQuery ?: "") }
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptics = rememberPremiumHaptics()
 
-    // 过滤消息
+    // Filter messages
     val filteredMessages = remember(conversation.messageNodes, searchQuery) {
         if (searchQuery.isBlank()) {
             conversation.messageNodes

@@ -28,6 +28,7 @@ fun navigateToChatPage(
     chatId: Uuid = Uuid.random(),
     initText: String? = null,
     initFiles: List<Uri> = emptyList(),
+    searchQuery: String? = null,
 ) {
     Log.i(TAG, "navigateToChatPage: navigate to $chatId")
     navController.navigate(
@@ -35,6 +36,7 @@ fun navigateToChatPage(
             id = chatId.toString(),
             text = initText,
             files = initFiles.map { it.toString() },
+            searchQuery = searchQuery,
         ),
     ) {
         popUpTo(0) {

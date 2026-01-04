@@ -39,6 +39,11 @@ data class Conversation(
     @Serializable(with = InstantSerializer::class)
     val updateAt: Instant = Instant.now(),
     val isConsolidated: Boolean = false,
+    val contextSummary: String? = null, // Summary of pruned messages
+    val contextSummaryUpToIndex: Int = -1, // Messages 0..N were summarized into contextSummary
+    val lastPruneTime: Long = 0L, // Timestamp of last auto-prune
+    val lastPruneMessageCount: Int = 0, // Messages pruned in last auto-prune
+    val lastRefreshTime: Long = 0L, // Timestamp of last manual refresh
 ) {
     val files: List<Uri>
         get() {

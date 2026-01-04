@@ -90,11 +90,25 @@ class LocalTools(private val context: Context) {
                     )
                     notificationManager.createNotificationChannel(channel)
                     
+                    // Create pending intent to open the conversation when notification is clicked
+                    val intent = android.content.Intent(context, me.rerere.rikkahub.RouteActivity::class.java).apply {
+                        flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("conversationId", conversationId.toString())
+                    }
+                    val pendingIntent = android.app.PendingIntent.getActivity(
+                        context,
+                        conversationId.hashCode(),
+                        intent,
+                        android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+
                     val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
                         .setSmallIcon(me.rerere.rikkahub.R.drawable.ic_notification)
                         .setContentTitle(title)
                         .setContentText(content)
                         .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
                         .build()
                         
                     if (androidx.core.app.ActivityCompat.checkSelfPermission(

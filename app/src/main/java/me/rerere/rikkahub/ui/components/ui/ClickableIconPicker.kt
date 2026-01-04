@@ -174,7 +174,7 @@ fun ClickableIconPicker(
                             imagePickerLauncher.launch("image/*")
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         androidx.compose.foundation.layout.Row(
@@ -194,7 +194,7 @@ fun ClickableIconPicker(
                             showLobeHubSearch = true
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         androidx.compose.foundation.layout.Row(
@@ -321,7 +321,7 @@ private fun LobeHubIconItem(
     Surface(
         onClick = onSelect,
         modifier = Modifier.size(56.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         AsyncImage(

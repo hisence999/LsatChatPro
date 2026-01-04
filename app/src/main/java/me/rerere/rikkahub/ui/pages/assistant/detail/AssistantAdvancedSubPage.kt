@@ -185,7 +185,7 @@ fun AssistantAdvancedSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     CustomHeaders(
@@ -202,7 +202,7 @@ fun AssistantAdvancedSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     CustomBodies(

@@ -39,8 +39,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.Screen
 import kotlin.uuid.Uuid
 
 @Composable
@@ -51,6 +53,7 @@ fun AssistantLorebooksSubPage(
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val lorebooks = settings.lorebooks
+    val navController = LocalNavController.current
     
     if (lorebooks.isEmpty()) {
         Box(
@@ -137,6 +140,7 @@ fun AssistantLorebooksSubPage(
                     lorebook = lorebook,
                     isEnabled = isEnabled,
                     position = position,
+                    onClick = { navController.navigate(Screen.SettingLorebookDetail(lorebook.id.toString())) },
                     onToggle = { enabled ->
                         val newIds = if (enabled) {
                             assistant.enabledLorebookIds + lorebook.id
@@ -156,6 +160,7 @@ private fun LorebookSelectionCard(
     lorebook: Lorebook,
     isEnabled: Boolean,
     position: me.rerere.rikkahub.ui.components.ui.ItemPosition,
+    onClick: () -> Unit,
     onToggle: (Boolean) -> Unit
 ) {
     // Calculate shape based on position for connected look (matching Lorebooks settings page)
@@ -178,7 +183,8 @@ private fun LorebookSelectionCard(
         colors = CardDefaults.cardColors(
             containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        shape = shape
+        shape = shape,
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier
@@ -188,8 +194,23 @@ private fun LorebookSelectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Book cover or placeholder
+            val bookShape = when (position) {
+                me.rerere.rikkahub.ui.components.ui.ItemPosition.ONLY -> RoundedCornerShape(
+                    topStart = 16.dp, topEnd = 6.dp,
+                    bottomStart = 16.dp, bottomEnd = 6.dp
+                )
+                me.rerere.rikkahub.ui.components.ui.ItemPosition.FIRST -> RoundedCornerShape(
+                    topStart = 16.dp, topEnd = 6.dp,
+                    bottomStart = 6.dp, bottomEnd = 6.dp
+                )
+                me.rerere.rikkahub.ui.components.ui.ItemPosition.MIDDLE -> RoundedCornerShape(6.dp)
+                me.rerere.rikkahub.ui.components.ui.ItemPosition.LAST -> RoundedCornerShape(
+                    topStart = 6.dp, topEnd = 6.dp,
+                    bottomStart = 16.dp, bottomEnd = 6.dp
+                )
+            }
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = bookShape,
                 color = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.size(width = 50.dp, height = 70.dp)
             ) {

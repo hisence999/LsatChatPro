@@ -738,4 +738,127 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
 
         ImageGenerationResult(items = items)
     }
+
+    override suspend fun createEmbedding(
+        providerSetting: ProviderSetting.Google,
+        input: List<String>,
+        model: Model
+    ): List<List<Float>> = withContext(Dispatchers.IO) {
+        if (input.isEmpty()) {
+            return@withContext emptyList()
+        }
+
+        Log.d(TAG, "createEmbedding: model=${model.modelId}, inputSize=${input.size}")
+
+        // For single input, use embedContent endpoint
+        // For multiple inputs, use batchEmbedContents endpoint
+        if (input.size == 1) {
+            val requestBody = buildJsonObject {
+                put("model", "models/${model.modelId}")
+                put("content", buildJsonObject {
+                    putJsonArray("parts") {
+                        add(buildJsonObject {
+                            put("text", input.first())
+                        })
+                    }
+                })
+            }
+
+            val url = buildUrl(
+                providerSetting = providerSetting,
+                path = if (providerSetting.vertexAI) {
+                    "publishers/google/models/${model.modelId}:embedContent"
+                } else {
+                    "models/${model.modelId}:embedContent"
+                }
+            )
+
+            Log.d(TAG, "createEmbedding: url=$url")
+            Log.d(TAG, "createEmbedding: requestBody=${json.encodeToString(requestBody)}")
+
+            val request = transformRequest(
+                providerSetting = providerSetting,
+                request = Request.Builder()
+                    .url(url)
+                    .addHeader("Content-Type", "application/json")
+                    .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
+                    .build()
+            )
+
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            val bodyStr = response.body?.string() ?: ""
+            
+            Log.d(TAG, "createEmbedding: responseCode=${response.code}")
+            Log.d(TAG, "createEmbedding: responseBody=$bodyStr")
+            
+            if (!response.isSuccessful) {
+                error("Failed to create embedding: ${response.code} $bodyStr")
+            }
+
+            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+            val embedding = bodyJson["embedding"]?.jsonObject
+                ?: error("No embedding in response: $bodyStr")
+            val values = embedding["values"]?.jsonArray
+                ?: error("No values in embedding response: $bodyStr")
+
+            listOf(values.map { it.jsonPrimitive.content.toFloat() })
+        } else {
+            // Batch embedding
+            val requestBody = buildJsonObject {
+                putJsonArray("requests") {
+                    input.forEach { text ->
+                        add(buildJsonObject {
+                            put("model", "models/${model.modelId}")
+                            put("content", buildJsonObject {
+                                putJsonArray("parts") {
+                                    add(buildJsonObject {
+                                        put("text", text)
+                                    })
+                                }
+                            })
+                        })
+                    }
+                }
+            }
+
+            val url = buildUrl(
+                providerSetting = providerSetting,
+                path = if (providerSetting.vertexAI) {
+                    "publishers/google/models/${model.modelId}:batchEmbedContents"
+                } else {
+                    "models/${model.modelId}:batchEmbedContents"
+                }
+            )
+
+            Log.d(TAG, "createEmbedding batch: url=$url")
+
+            val request = transformRequest(
+                providerSetting = providerSetting,
+                request = Request.Builder()
+                    .url(url)
+                    .addHeader("Content-Type", "application/json")
+                    .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
+                    .build()
+            )
+
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            val bodyStr = response.body?.string() ?: ""
+            
+            Log.d(TAG, "createEmbedding batch: responseCode=${response.code}")
+            
+            if (!response.isSuccessful) {
+                error("Failed to create batch embedding: ${response.code} $bodyStr")
+            }
+
+            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+            val embeddings = bodyJson["embeddings"]?.jsonArray
+                ?: error("No embeddings in batch response: $bodyStr")
+
+            embeddings.map { embeddingObj ->
+                val values = embeddingObj.jsonObject["values"]?.jsonArray
+                    ?: error("No values in embedding")
+                values.map { it.jsonPrimitive.content.toFloat() }
+            }
+        }
+    }
 }

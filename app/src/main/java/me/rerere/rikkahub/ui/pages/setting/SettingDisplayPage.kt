@@ -296,8 +296,8 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
-                        subtitle = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
+                        title = stringResource(R.string.setting_display_page_show_assistant_avatar_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_assistant_avatar_desc),
                         trailing = {
                             HapticSwitch(
                                 checked = displaySetting.showModelIcon,
@@ -327,6 +327,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 checked = displaySetting.autoCloseThinking,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_context_stacks_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_context_stacks_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.showContextStacks,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showContextStacks = it))
                                 }
                             )
                         }

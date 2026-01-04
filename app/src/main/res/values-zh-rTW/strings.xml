@@ -1208,4 +1208,152 @@
   <string name="request_log_field_latency">延遲</string>
   <string name="assistant_page_tool_results_mode_keep_all">全部保留</string>
   <string name="assistant_page_tool_results_mode_keep_all_desc">不進行歷史最佳化，完整工具結果會傳送給模型。</string>
+
+  <!-- Assistant UI Preview -->
+  <string name="assistant_ui_preview_title">預覽</string>
+  <string name="assistant_ui_preview_sample_user_message">你好，最近怎麼樣？</string>
+  <string name="assistant_ui_preview_sample_assistant_message">我很好！今天我能怎麼幫你？</string>
+  <string name="assistant_ui_preview_sample_reasoning">讓我想一下……使用者在打招呼，所以我應該溫暖地回覆。</string>
+
+  <!-- Display -->
+  <string name="setting_display_page_show_context_stacks_title">顯示上下文堆疊</string>
+  <string name="setting_display_page_show_context_stacks_desc">在消息工具列顯示上下文來源（模式、記憶、世界書）</string>
+  <string name="setting_display_page_show_assistant_avatar_title">顯示助手頭像</string>
+  <string name="setting_display_page_show_assistant_avatar_desc">在消息前顯示助手的頭像</string>
+
+  <!-- Developer / Request Logs -->
+  <string name="developer_page_tab_request_logs">請求日誌</string>
+  <string name="setting_request_logs_desc">查看 AI 請求日誌。</string>
+  <string name="setting_request_logs_enable_developer_mode_first">需要先啟用開發者模式。</string>
+  <string name="request_logs_empty">還沒有請求日誌</string>
+  <string name="request_logs_filter_all">全部</string>
+  <string name="request_log_not_found">未找到日誌</string>
+  <string name="request_log_status_ok">成功</string>
+  <string name="request_log_status_error">錯誤</string>
+  <string name="request_log_empty_details">請選擇一條日誌查看詳情</string>
+  <string name="request_log_request_details_title">請求詳情</string>
+  <string name="request_log_response_details_title">回應</string>
+  <string name="request_log_section_basic">基礎資訊</string>
+  <string name="request_log_section_error">錯誤資訊</string>
+  <string name="request_log_section_params">參數</string>
+  <string name="request_log_section_request_messages">請求消息</string>
+  <string name="request_log_section_response">回應內容</string>
+  <string name="request_log_field_time">時間</string>
+  <string name="request_log_field_source">來源</string>
+  <string name="request_log_field_provider">提供方</string>
+  <string name="request_log_field_model">模型</string>
+  <string name="request_log_field_duration">耗時</string>
+  <string name="request_log_field_stream">串流</string>
+  <string name="request_log_field_url">URL</string>
+  <string name="request_log_field_error">訊息</string>
+
+  <!-- Provider -->
+  <string name="setting_provider_page_select_icon">選擇圖示</string>
+  <string name="setting_provider_page_pick_from_gallery">從相簿選擇</string>
+  <string name="setting_provider_page_search_lobehub">搜尋 LobeHub 圖示</string>
+  <string name="setting_provider_page_add_from_list">從清單新增</string>
+
+  <!-- Shortcuts / Widgets -->
+  <string name="shortcut_chat_with">與 %s 聊天</string>
+  <string name="widget_config_title">選擇助手</string>
+  <string name="widget_assistant_name">助手捷徑</string>
+  <string name="widget_assistant_description">快速進入與助手的對話</string>
+
+  <!-- Lorebooks Picker -->
+  <string name="lorebooks_picker_title">世界書</string>
+  <string name="lorebooks_picker_none">未選擇世界書</string>
+  <string name="lorebook_toggle_assistants">切換助手</string>
+  <string name="lorebook_select_to_toggle">選擇要切換的世界書</string>
+  <string name="lorebook_search_entries_placeholder">搜尋條目…</string>
+  <string name="lorebook_entry_numbered">條目 #%d</string>
+
+  <!-- Context Management -->
+  <string name="context_management_title">上下文管理</string>
+  <string name="context_management_desc">世界書、對話歷史、搜尋結果</string>
+  <string name="context_lorebooks_title">世界書</string>
+  <string name="context_lorebooks_desc">選擇此助手要使用的世界書</string>
+  <string name="context_message_history_title">對話歷史</string>
+  <string name="context_max_messages">最大消息數</string>
+  <string name="context_max_messages_desc">限制傳送給模型的消息數量（0 = 無限制）</string>
+  <string name="context_max_messages_value">%d 條消息</string>
+  <string name="context_max_messages_unlimited">無限制</string>
+  <string name="context_enable_summarization">總結被裁剪的消息</string>
+  <string name="context_enable_summarization_desc">對被裁剪的消息生成摘要以保留上下文</string>
+  <string name="context_search_results_title">搜尋結果</string>
+  <string name="context_max_search_results">保留最近 %d 次搜尋</string>
+  <string name="context_max_search_results_desc">限制保留的搜尋結果（0 = 無限制）</string>
+  <string name="context_max_search_results_value">%d 次搜尋</string>
+  <string name="context_max_search_results_unlimited">無限制</string>
+
+  <!-- Context Refresh -->
+  <string name="context_refresh_title">對話摘要</string>
+  <string name="context_refresh_button">總結消息</string>
+  <string name="context_refresh_desc">將對話壓縮為摘要以釋放上下文空間</string>
+  <string name="context_refresh_enable">啟用對話摘要</string>
+  <string name="context_refresh_enable_desc">在聊天輸入框顯示「總結消息」按鈕</string>
+  <string name="context_refresh_messages">將總結 %d 條消息</string>
+  <string name="context_refresh_tokens">預估 ~%d Token</string>
+  <string name="context_refresh_loading">正在總結對話…</string>
+  <string name="context_refresh_complete">已生成摘要！</string>
+  <string name="context_refresh_cleaned">已總結 %d 條消息</string>
+  <string name="context_refresh_last">上次摘要：%s</string>
+  <string name="context_refresh_never">從未生成摘要</string>
+  <string name="context_refresh_no_summarizer">請先在設定中設定摘要模型</string>
+  <string name="context_refresh_confirm_title">總結消息？</string>
+  <string name="context_refresh_confirm_message">這將把你的對話歷史總結為更精簡的形式。AI 會記住要點，但詳細消息將被摘要替代。</string>
+  <string name="context_refresh_auto_summarize_title">自動總結消息</string>
+  <string name="context_refresh_auto_summarize_desc">當未總結消息達到 %d 條時自動總結</string>
+  <string name="context_refresh_auto_summarize_desc_disabled">請先在上方設定最大歷史消息數以啟用</string>
+  <string name="context_refresh_error_title">錯誤</string>
+  <string name="context_refresh_summary_stats">將總結 %1$d 條消息，並清理約 ~%2$d Token。</string>
+  <string name="context_refresh_previous_summary_label">之前的摘要：</string>
+  <string name="context_refresh_tokens_saved">節省 ~%d Token</string>
+
+  <!-- Context Sources -->
+  <string name="context_sources_title">上下文來源</string>
+  <string name="context_sources_section_modes">模式</string>
+  <string name="context_sources_section_memories">記憶</string>
+  <string name="context_sources_section_lorebook_entries">世界書條目</string>
+  <string name="context_sources_mode_label">模式</string>
+  <string name="used_lorebooks_title">已使用的世界書條目</string>
+  <string name="memory_type_core">核心記憶</string>
+  <string name="memory_type_recent_chat">最近對話</string>
+  <string name="memory_type_episodic">情境記憶</string>
+
+  <!-- Text Selection Integration -->
+  <string name="text_selection_menu_label">問問 LastChat</string>
+  <string name="text_selection_translate">翻譯</string>
+  <string name="text_selection_explain">解釋</string>
+  <string name="text_selection_summarize">總結</string>
+  <string name="text_selection_ask">任意提問…</string>
+  <string name="text_selection_custom_placeholder">就這段文字提問…</string>
+  <string name="text_selection_copy">複製</string>
+  <string name="text_selection_continue_chat">在應用中繼續</string>
+  <string name="text_selection_generating">生成中…</string>
+  <string name="text_selection_preview">預覽</string>
+  <string name="text_selection_assistant">助手</string>
+  <string name="text_selection_use_default">使用預設助手</string>
+  <string name="text_selection_translate_language">翻譯為</string>
+  <string name="text_selection_edit_action">編輯操作</string>
+  <string name="text_selection_add_action">新增操作</string>
+  <string name="text_selection_action_name">按鈕名稱</string>
+  <string name="text_selection_action_prompt">提示詞模板</string>
+  <string name="text_selection_actions">快捷操作</string>
+  <string name="text_selection_action_delete">刪除操作</string>
+  <string name="text_selection_action_cannot_delete">無法刪除此操作</string>
+  <string name="reset">重置</string>
+  <string name="text_selection_try_it">試一試</string>
+  <string name="text_selection_setup_instructions">在裝置任意位置選取文字，在出現的工具列中找到「LastChat」並點擊即可使用這些功能。</string>
+  <string name="text_selection_demo_text">這是一段示例文字，可用於選取！試著長按選取這些文字，然後在選取工具列中找到「LastChat」。如果沒有看到它，可能需要點擊更多選單（⋮）才能找到。</string>
+  <string name="text_selection_demo_hint">👆 長按上方文字試試選取</string>
+
+  <!-- Android Integration Settings -->
+  <string name="setting_android_integration">Android 整合</string>
+  <string name="setting_android_integration_desc">文字選取彈窗設定</string>
+
+  <!-- Common -->
+  <string name="on">開啟</string>
+  <string name="global">全域</string>
+  <string name="custom">自訂</string>
+  <string name="global_value_format">全域（%s）</string>
 </resources>

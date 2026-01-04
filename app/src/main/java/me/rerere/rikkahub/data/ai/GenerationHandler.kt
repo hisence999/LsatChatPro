@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,6 +31,9 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.UsedLorebookEntry
+import me.rerere.ai.ui.UsedMemory
+import me.rerere.ai.ui.UsedMode
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
 import me.rerere.ai.ui.truncate
@@ -55,6 +59,7 @@ import me.rerere.rikkahub.data.model.LorebookEntry
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.ModeAttachmentType
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
@@ -64,6 +69,16 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 private val MEMORY_TOOL_NAMES = setOf("create_memory", "edit_memory", "delete_memory")
+
+/**
+ * Result of building messages, includes both the messages and info about activated context sources.
+ */
+data class BuildMessagesResult(
+    val messages: List<UIMessage>,
+    val usedLorebookEntries: List<UsedLorebookEntry> = emptyList(),
+    val usedModes: List<UsedMode> = emptyList(),
+    val usedMemories: List<UsedMemory> = emptyList(),
+)
 
 @Serializable
 sealed interface GenerationChunk {
@@ -259,9 +274,13 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         truncateIndex: Int,
         enabledModeIds: Set<Uuid> = emptySet(),
-    ): List<UIMessage> {
+    ): BuildMessagesResult {
         val allMessages = messages.truncate(truncateIndex)
-        val rawContextMessages = allMessages
+        val historyLimitedMessages = assistant.maxHistoryMessages?.let { limit ->
+            if (limit > 0) allMessages.limitContext(limit) else allMessages
+        } ?: allMessages
+
+        val rawContextMessages = historyLimitedMessages
             .limitContext(assistant.contextMessageSize.coerceAtLeast(0))
 
         val totalUserTurnCount = allMessages.count { it.role == MessageRole.USER }
@@ -297,6 +316,47 @@ class GenerationHandler(
             rawContextMessages
         }
 
+        val effectiveContextMessages = assistant.maxSearchResultsRetained?.let { maxSearches ->
+            if (maxSearches > 0) {
+                val searchResultIndices = contextMessages.mapIndexedNotNull { index, msg ->
+                    val hasSearchResult = msg.parts.any { part ->
+                        part is UIMessagePart.ToolResult && part.toolName == "search_web"
+                    }
+                    if (hasSearchResult) index else null
+                }
+
+                val indicesToPrune = searchResultIndices.dropLast(maxSearches).toSet()
+                if (indicesToPrune.isNotEmpty()) {
+                    contextMessages.mapIndexed { index, msg ->
+                        if (index in indicesToPrune) {
+                            msg.copy(
+                                parts = msg.parts.map { part ->
+                                    if (part is UIMessagePart.ToolResult && part.toolName == "search_web") {
+                                        part.copy(
+                                            content = buildJsonObject {
+                                                put(
+                                                    "note",
+                                                    JsonPrimitive("Earlier search results pruned to save context"),
+                                                )
+                                            },
+                                        )
+                                    } else {
+                                        part
+                                    }
+                                },
+                            )
+                        } else {
+                            msg
+                        }
+                    }
+                } else {
+                    contextMessages
+                }
+            } else {
+                contextMessages
+            }
+        } ?: contextMessages
+
         // Token estimator (rough estimate: 4 chars per token)
         fun estimateTokens(text: String) = text.length / 4
         fun estimateTokens(message: UIMessage) = estimateTokens(message.toText())
@@ -319,18 +379,18 @@ class GenerationHandler(
             return if (denominator == 0f) 0f else dotProduct / denominator
         }
 
-        // Helper to check if lorebook entry should be activated
-        fun isLorebookEntryActivated(
+        // Helper to check if and why lorebook entry activated
+        fun getLorebookEntryActivationReason(
             entry: LorebookEntry,
             recentMessages: List<String>,
             queryEmbedding: List<Float>? = null,
-        ): Boolean {
-            if (!entry.enabled) return false
+        ): String? {
+            if (!entry.enabled) return null
             return when (entry.activationType) {
-                LorebookActivationType.ALWAYS -> true
+                LorebookActivationType.ALWAYS -> "Always Active"
                 LorebookActivationType.KEYWORDS -> {
                     val searchText = recentMessages.joinToString(" ")
-                    entry.keywords.any { keyword ->
+                    val matchingKeyword = entry.keywords.firstOrNull { keyword ->
                         if (entry.useRegex) {
                             try {
                                 val regex = if (entry.caseSensitive) {
@@ -351,32 +411,39 @@ class GenerationHandler(
                             }
                         }
                     }
+                    if (matchingKeyword != null) "Keyword: $matchingKeyword" else null
                 }
 
                 LorebookActivationType.RAG -> {
                     // RAG activation uses embedding similarity
                     if (entry.embedding.isNullOrEmpty()) {
                         Log.d(TAG, "RAG entry '${entry.name}' has no embedding, skipping")
-                        false
+                        null
                     } else if (queryEmbedding == null) {
                         Log.d(TAG, "No query embedding available for RAG matching")
-                        false
+                        null
                     } else {
                         // Compute cosine similarity
                         val similarity = cosineSimilarity(entry.embedding, queryEmbedding)
                         val threshold = 0.7f // Similarity threshold for activation
                         val activated = similarity >= threshold
                         if (activated) {
+                            val scoreStr = runCatching {
+                                "%.2f".format(Locale.US, similarity)
+                            }.getOrElse {
+                                similarity.toString().take(4)
+                            }
                             Log.d(TAG, "RAG entry '${entry.name}' activated with similarity $similarity")
+                            "RAG Match ($scoreStr)"
                         }
-                        activated
+                        else null
                     }
                 }
             }
         }
 
         // Get recent message text for lorebook keyword scanning
-        val recentMessagesForScan = contextMessages.takeLast(10).map { it.toText() }
+        val recentMessagesForScan = effectiveContextMessages.takeLast(10).map { it.toText() }
 
         val toolResultRagPrompt = run {
             if (toolResultHistoryMode != ToolResultHistoryMode.RAG) return@run ""
@@ -388,7 +455,7 @@ class GenerationHandler(
             val maxUserTurnIndexExclusive = (totalUserTurnCount - keepUserMessages).coerceAtLeast(0)
             if (maxUserTurnIndexExclusive <= 0) return@run ""
 
-            val queryText = contextMessages.asReversed()
+            val queryText = effectiveContextMessages.asReversed()
                 .asSequence()
                 .filter { it.role == MessageRole.USER }
                 .take(3)
@@ -450,6 +517,21 @@ class GenerationHandler(
             settings.modes.filter { it.defaultEnabled }
         }
 
+        val usedModes = enabledModes.mapIndexed { index, mode ->
+            val reason = if (enabledModeIds.contains(mode.id)) {
+                "Activated by user"
+            } else {
+                "Default enabled"
+            }
+            UsedMode(
+                modeId = mode.id.toString(),
+                modeName = mode.name,
+                modeIcon = mode.icon,
+                priority = enabledModes.size - index,
+                activationReason = reason,
+            )
+        }
+
         // Collect enabled lorebooks assigned to this assistant
         val lorebooksForAssistant = settings.lorebooks
             .filter { it.enabled && assistant.enabledLorebookIds.contains(it.id) }
@@ -472,13 +554,41 @@ class GenerationHandler(
             }
         } else null
 
-        // Collect activated lorebook entries from enabled lorebooks assigned to this assistant
-        val activatedEntries = lorebooksForAssistant
+        data class ActivatedEntryWithLorebook(
+            val lorebook: Lorebook,
+            val entry: LorebookEntry,
+            val entryIndex: Int,
+            val reason: String,
+        )
+
+        val activatedEntriesWithLorebook = lorebooksForAssistant
             .flatMap { lorebook ->
-                lorebook.entries.filter { entry ->
-                    isLorebookEntryActivated(entry, recentMessagesForScan, queryEmbedding)
+                lorebook.entries.mapIndexedNotNull { index, entry ->
+                    val reason = getLorebookEntryActivationReason(entry, recentMessagesForScan, queryEmbedding)
+                    if (reason != null) {
+                        ActivatedEntryWithLorebook(lorebook, entry, index, reason)
+                    } else {
+                        null
+                    }
                 }
             }
+        val activatedEntries = activatedEntriesWithLorebook.map { it.entry }
+
+        val usedLorebookEntries = activatedEntriesWithLorebook.mapIndexed { priority, activated ->
+            val coverJson = activated.lorebook.cover?.let { cover ->
+                runCatching { json.encodeToString(Avatar.serializer(), cover) }.getOrNull()
+            }
+            UsedLorebookEntry(
+                lorebookId = activated.lorebook.id.toString(),
+                lorebookName = activated.lorebook.name,
+                lorebookCover = coverJson,
+                entryId = activated.entry.id.toString(),
+                entryName = activated.entry.name,
+                entryIndex = activated.entryIndex,
+                priority = activatedEntriesWithLorebook.size - priority,
+                activationReason = activated.reason,
+            )
+        }
 
         val beforeSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
         val afterSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.AFTER_SYSTEM }
@@ -519,14 +629,14 @@ class GenerationHandler(
 
         tools.forEach { tool ->
             baseSystemPromptBuilder.appendLine()
-            baseSystemPromptBuilder.append(tool.systemPrompt(model, contextMessages))
+            baseSystemPromptBuilder.append(tool.systemPrompt(model, effectiveContextMessages))
         }
         val baseSystemPrompt = baseSystemPromptBuilder.toString()
         currentTokens += estimateTokens(baseSystemPrompt)
 
         // 2. Prepare Candidates
         // Chat History (reverse order to prioritize recent)
-        val chatHistoryCandidates = contextMessages.reversed()
+        val chatHistoryCandidates = effectiveContextMessages.reversed()
         
         // Memories (Prepare effective memories including recent chats if enabled)
         val effectiveMemoriesCandidates = if (assistant.enableMemory) {
@@ -695,7 +805,7 @@ class GenerationHandler(
         // Combine all context attachments
         val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
 
-        return buildList {
+        val builtMessages = buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
                 val includeMemoryToolInstructions = tools.any { it.name in MEMORY_TOOL_NAMES }
@@ -730,6 +840,28 @@ class GenerationHandler(
             // Restore chat history order
             addAll(selectedMessages.sortedBy { messages.indexOf(it) })
         }
+
+        val usedMemories = selectedMemories.mapIndexed { index, memory ->
+            val reason = when {
+                memory.id == -1 -> "Recent episode boost"
+                assistant.useRagMemoryRetrieval -> "Contextually relevant"
+                else -> "Always included"
+            }
+            UsedMemory(
+                memoryId = memory.id,
+                memoryContent = memory.content.take(50) + if (memory.content.length > 50) "..." else "",
+                memoryType = memory.type,
+                priority = selectedMemories.size - index,
+                activationReason = reason,
+            )
+        }
+
+        return BuildMessagesResult(
+            messages = builtMessages,
+            usedLorebookEntries = usedLorebookEntries,
+            usedModes = usedModes,
+            usedMemories = usedMemories,
+        )
     }
 
     private suspend fun generateInternal(
@@ -749,7 +881,7 @@ class GenerationHandler(
         enabledModeIds: Set<Uuid> = emptySet(),
         source: AIRequestSource,
     ) {
-        val internalMessages = buildMessages(
+        val buildResult = buildMessages(
             assistant = assistant,
             settings = settings,
             messages = messages,
@@ -759,7 +891,12 @@ class GenerationHandler(
             memories = memories,
             truncateIndex = truncateIndex,
             enabledModeIds = enabledModeIds,
-        ).transforms(transformers, context, model, assistant)
+        )
+        val internalMessages = buildResult.messages.transforms(transformers, context, model, assistant)
+        val usedLorebookEntries = buildResult.usedLorebookEntries
+        val usedModes = buildResult.usedModes
+        val usedMemories = buildResult.usedMemories
+        val hasContextSources = usedLorebookEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(
@@ -807,6 +944,21 @@ class GenerationHandler(
                     }
                     onUpdateMessages(messages)
                 }
+
+                if (hasContextSources) {
+                    messages = messages.mapIndexed { index, message ->
+                        if (index == messages.lastIndex && message.role == MessageRole.ASSISTANT) {
+                            message.copy(
+                                usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                                usedModes = usedModes.ifEmpty { null },
+                                usedMemories = usedMemories.ifEmpty { null },
+                            )
+                        } else {
+                            message
+                        }
+                    }
+                    onUpdateMessages(messages)
+                }
             } catch (t: Throwable) {
                 failure = t
                 throw t
@@ -844,6 +996,20 @@ class GenerationHandler(
                         if (index == messages.lastIndex) {
                             message.copy(
                                 usage = message.usage.merge(usage)
+                            )
+                        } else {
+                            message
+                        }
+                    }
+                }
+
+                if (hasContextSources) {
+                    messages = messages.mapIndexed { index, message ->
+                        if (index == messages.lastIndex && message.role == MessageRole.ASSISTANT) {
+                            message.copy(
+                                usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                                usedModes = usedModes.ifEmpty { null },
+                                usedMemories = usedMemories.ifEmpty { null },
                             )
                         } else {
                             message

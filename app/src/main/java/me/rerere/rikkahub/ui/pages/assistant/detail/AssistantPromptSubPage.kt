@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -155,6 +156,15 @@ fun AssistantPromptSubPage(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.secondary
                         )
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            onClick = {
+                                isFullScreen = !isFullScreen
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Rounded.Fullscreen, null)
+                        }
                     }
 
                     // Initialize state with current system prompt. Key on assistant.id to reset when switching assistants.
@@ -196,17 +206,7 @@ fun AssistantPromptSubPage(
                             .onFocusChanged {
                                 isFocused = it.isFocused
                             },
-                        trailingIcon = {
-                            if (isFocused) {
-                                IconButton(
-                                    onClick = {
-                                        isFullScreen = !isFullScreen
-                                    }
-                                ) {
-                                    Icon(Icons.Rounded.Fullscreen, null)
-                                }
-                            }
-                        },
+                        trailingIcon = null,
                         lineLimits = TextFieldLineLimits.MultiLine(
                             minHeightInLines = 5,
                             maxHeightInLines = 10,
@@ -453,7 +453,7 @@ fun AssistantPromptSubPage(
                         // Each preset message in its own card
                         Surface(
                             color = MaterialTheme.colorScheme.background,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -616,7 +616,7 @@ private fun AssistantRegexCard(
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.background
     ) {
         Column(

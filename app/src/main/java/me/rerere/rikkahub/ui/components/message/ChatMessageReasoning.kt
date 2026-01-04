@@ -71,6 +71,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractGeminiThinkingTitle
@@ -95,6 +96,7 @@ fun ChatMessageReasoning(
     var expandState by remember { mutableStateOf(ReasoningCardState.Collapsed) }
     val scrollState = rememberScrollState()
     val settings = LocalSettings.current
+    val effectiveDisplay = settings.getEffectiveDisplaySetting()
     val loading = reasoning.finishedAt == null
 
     LaunchedEffect(reasoning.reasoning, loading) {
@@ -103,7 +105,7 @@ fun ChatMessageReasoning(
             scrollState.animateScrollTo(scrollState.maxValue)
         } else {
             if (expandState.expanded) {
-                expandState = if (settings.displaySetting.autoCloseThinking) {
+                expandState = if (effectiveDisplay.autoCloseThinking) {
                     ReasoningCardState.Collapsed
                 } else {
                     ReasoningCardState.Expanded

@@ -20,6 +20,23 @@ enum class ToolResultHistoryMode {
     DISCARD,
 }
 
+/**
+ * Per-assistant UI settings. All nullable - null means "use global setting".
+ */
+@Serializable
+data class AssistantUISettings(
+    val showUserAvatar: Boolean? = null,
+    val showAssistantAvatar: Boolean? = null,
+    val showTokenUsage: Boolean? = null,
+    val autoCloseThinking: Boolean? = null,
+    val showMessageJumper: Boolean? = null,
+    val messageJumperOnLeft: Boolean? = null,
+    val fontSizeRatio: Float? = null,
+    val codeBlockAutoWrap: Boolean? = null,
+    val codeBlockAutoCollapse: Boolean? = null,
+    val showContextStacks: Boolean? = null,
+)
+
 @Serializable
 data class Assistant(
     val id: Uuid = Uuid.random(),
@@ -50,7 +67,6 @@ data class Assistant(
     val ragIncludeCore: Boolean = true, // Include core memories in RAG
     val enableRagLogging: Boolean = false, // Enable detailed RAG logging
     val enableMemoryConsolidation: Boolean = false, // Enable episodic memory creation from chats (requires RAG)
-    val enableHumanMemory: Boolean = false, // Enable reflection features (significance scoring, core memory extraction)
 
     // Spontaneous Notification Settings
     val notificationStartHour: Int = 7, // Hour when notifications can start (0-23)
@@ -79,13 +95,20 @@ data class Assistant(
     val spontaneousPrompt: String = "", // 自发消息的Prompt
     val enabledLorebookIds: Set<Uuid> = emptySet(), // Lorebooks enabled for this assistant
 
+    // Context Management Settings
+    val maxHistoryMessages: Int? = null, // null = unlimited (use token budgeting only)
+    val enableHistorySummarization: Boolean = false, // Generate summaries of pruned messages
+    val maxSearchResultsRetained: Int? = null, // null = keep all, e.g. 2 = keep last 2 search results
+    val enableContextRefresh: Boolean = false, // Show Summarize Messages button in chat input
+    val autoRegenerateSummary: Boolean = false, // Automatically summarize when maxHistoryMessages reached
+
     // Memory System Configuration & Stats
     val consolidationDelayMinutes: Int = 30, // Wait time before consolidating a chat
     val lastConsolidationTime: Long = 0L,
     val lastConsolidationResult: String = "",
-    val humanMemoryUpdateIntervalHours: Int = 24, // Interval for core memory reflection
-    val lastHumanMemoryUpdateTime: Long = 0L,
-    val lastHumanMemoryUpdateResult: String = "",
+
+    // Per-assistant UI customization (null = use global setting)
+    val uiSettings: AssistantUISettings = AssistantUISettings(),
 )
 
 @Serializable

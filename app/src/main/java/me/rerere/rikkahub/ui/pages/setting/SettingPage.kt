@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudUpload
@@ -64,13 +65,14 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.InvertColors
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -108,7 +110,20 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 navigationIcon = {
                     BackButton()
                 },
-                actions = {}
+                actions = {
+                    if(settings.developerMode) {
+                        IconButton(
+                            onClick = {
+                                navController.navigate(Screen.Developer)
+                            }
+                        ) {
+                            Icon(
+                                Icons.Rounded.Build,
+                                contentDescription = stringResource(R.string.developer_page_tab_developer)
+                            )
+                        }
+                    }
+                }
             )
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -182,7 +197,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.setting_page_prompt_injections),
                         subtitle = stringResource(R.string.setting_page_prompt_injections_desc),
                         icon = { Icon(Icons.Rounded.Code, null, modifier = Modifier.size(20.dp)) },
-                        onClick = { navController.navigate(Screen.SettingModes) }
+                        onClick = { navController.navigate(Screen.SettingModes()) }
                     )
                 }
             }
@@ -225,6 +240,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         subtitle = stringResource(R.string.setting_page_mcp_desc),
                         icon = { Icon(Icons.Rounded.Code, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingMcp) }
+                    )
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_android_integration),
+                        subtitle = stringResource(R.string.setting_android_integration_desc),
+                        icon = { Icon(Icons.Rounded.PhoneAndroid, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { navController.navigate(Screen.SettingAndroidIntegration) }
                     )
                 }
             }
@@ -286,7 +308,17 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.developer_page_tab_request_logs),
                         subtitle = stringResource(R.string.setting_request_logs_desc),
                         icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(20.dp)) },
-                        onClick = { navController.navigate(Screen.RequestLogs) }
+                        onClick = {
+                            if (settings.developerMode) {
+                                navController.navigate(Screen.RequestLogs)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.setting_request_logs_enable_developer_mode_first),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     )
                 }
             }

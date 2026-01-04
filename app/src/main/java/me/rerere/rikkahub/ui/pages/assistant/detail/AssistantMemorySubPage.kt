@@ -60,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -98,7 +99,6 @@ import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 private fun getMemoryMode(assistant: Assistant): MemoryMode {
     return when {
         !assistant.enableMemory -> MemoryMode.OFF
-        assistant.enableHumanMemory -> MemoryMode.ADVANCED_REFLECTION
         assistant.enableMemoryConsolidation -> MemoryMode.ADVANCED
         assistant.useRagMemoryRetrieval -> MemoryMode.BASIC_RAG
         assistant.enableRecentChatsReference -> MemoryMode.BASIC_RECENT
@@ -106,13 +106,15 @@ private fun getMemoryMode(assistant: Assistant): MemoryMode {
     }
 }
 
-private enum class MemoryMode(@androidx.annotation.StringRes val titleRes: Int, @androidx.annotation.StringRes val descriptionRes: Int) {
+private enum class MemoryMode(
+    @androidx.annotation.StringRes val titleRes: Int,
+    @androidx.annotation.StringRes val descriptionRes: Int,
+) {
     OFF(R.string.assistant_page_memory_mode_off_name, R.string.assistant_page_memory_mode_off_desc),
     BASIC(R.string.assistant_page_memory_mode_basic_name, R.string.assistant_page_memory_mode_basic_desc),
     BASIC_RECENT(R.string.assistant_page_memory_mode_basic_recent_name, R.string.assistant_page_memory_mode_basic_recent_desc),
     BASIC_RAG(R.string.assistant_page_memory_mode_basic_rag_name, R.string.assistant_page_memory_mode_basic_rag_desc),
     ADVANCED(R.string.assistant_page_memory_mode_advanced_name, R.string.assistant_page_memory_mode_advanced_desc),
-    ADVANCED_REFLECTION(R.string.assistant_page_memory_mode_advanced_reflection_name, R.string.assistant_page_memory_mode_advanced_reflection_desc)
 }
 
 @Composable
@@ -129,7 +131,9 @@ fun AssistantMemorySettings(
     retrievalResults: List<Pair<AssistantMemory, Float>> = emptyList(),
     assistantDetailVM: AssistantDetailVM,
     estimatedMemoryCapacity: Int,
-    needsEmbeddingRegeneration: Boolean = false
+    needsEmbeddingRegeneration: Boolean = false,
+    initialMemoryTab: Int? = null,  // 0 = Core, 1 = Episodic
+    scrollToMemoryId: Int? = null
 ) {
     val memoryDialogState = useEditState<AssistantMemory> {
         if (it.id == 0) {
@@ -280,8 +284,7 @@ fun AssistantMemorySettings(
                                 if (!enabled) {
                                     onUpdateAssistant(assistant.copy(
                                         useRagMemoryRetrieval = false,
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
+                                        enableMemoryConsolidation = false
                                     ))
                                 } else {
                                     onUpdateAssistant(assistant.copy(useRagMemoryRetrieval = true))
@@ -301,15 +304,14 @@ fun AssistantMemorySettings(
                 MemorySettingsItem(
                     title = stringResource(R.string.assistant_page_rag_advanced_memory_title),
                     subtitle = stringResource(R.string.assistant_page_rag_advanced_memory_desc),
-                    position = if (!assistant.enableMemoryConsolidation) "LAST" else "MIDDLE",
+                    position = "LAST",
                     trailing = {
                         HapticSwitch(
                             checked = assistant.enableMemoryConsolidation,
                             onCheckedChange = { enabled ->
                                 if (!enabled) {
                                     onUpdateAssistant(assistant.copy(
-                                        enableMemoryConsolidation = false,
-                                        enableHumanMemory = false
+                                        enableMemoryConsolidation = false
                                     ))
                                 } else {
                                     onUpdateAssistant(assistant.copy(
@@ -318,25 +320,6 @@ fun AssistantMemorySettings(
                                     ))
                                 }
                             }
-                        )
-                    }
-                )
-            }
-
-            // Human-like Memory Toggle (requires Consolidation)
-            AnimatedVisibility(
-                visible = assistant.enableMemory && assistant.enableMemoryConsolidation,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                MemorySettingsItem(
-                    title = stringResource(R.string.assistant_page_rag_reflection_title),
-                    subtitle = stringResource(R.string.assistant_page_rag_reflection_desc),
-                    position = "LAST",
-                    trailing = {
-                        HapticSwitch(
-                            checked = assistant.enableHumanMemory,
-                            onCheckedChange = { onUpdateAssistant(assistant.copy(enableHumanMemory = it)) }
                         )
                     }
                 )
@@ -378,22 +361,7 @@ fun AssistantMemorySettings(
         }
 
         // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-        // REFLECTION SETTINGS (when human memory is enabled)
         // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-        AnimatedVisibility(
-            visible = assistant.enableMemory && assistant.enableHumanMemory,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsGroupHeader(title = stringResource(R.string.assistant_page_reflexion_settings_title))
-                ReflectionSettingsCard(
-                    assistant = assistant,
-                    onUpdateAssistant = onUpdateAssistant
-                )
-            }
-        }
-
         // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
         // MEMORY STATISTICS (when memory is enabled)
         // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
@@ -429,7 +397,8 @@ fun AssistantMemorySettings(
                 onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
                 currentEmbeddingModelId = currentEmbeddingModelId,
                 showMemoryTypes = assistant.enableMemoryConsolidation,
-                showSignificanceSort = assistant.enableHumanMemory
+                initialMemoryTab = initialMemoryTab,
+                scrollToMemoryId = scrollToMemoryId
             )
         }
 
@@ -614,11 +583,10 @@ private fun MemoryModeIndicator(mode: MemoryMode) {
     }
 }
 
-private enum class MemorySortOrder(@androidx.annotation.StringRes val displayNameRes: Int, val episodicOnly: Boolean = false) {
+private enum class MemorySortOrder(@androidx.annotation.StringRes val displayNameRes: Int) {
     NEWEST_FIRST(R.string.assistant_page_sort_newest),
     OLDEST_FIRST(R.string.assistant_page_sort_oldest),
     ALPHABETICAL(R.string.assistant_page_sort_alphabetical),
-    MOST_SIGNIFICANT(R.string.assistant_page_sort_most_significant, episodicOnly = true) // Only for episodic memories with reflection enabled
 }
 
 @Composable
@@ -710,7 +678,7 @@ private fun ConsolidationSettingsCard(
         // Consolidation Delay
         Surface(
             color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -765,56 +733,6 @@ private fun ConsolidationSettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReflectionSettingsCard(
-    assistant: Assistant,
-    onUpdateAssistant: (Assistant) -> Unit
-) {
-    Surface(
-        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(stringResource(R.string.assistant_page_consolidation_reflection_interval), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = stringResource(R.string.assistant_page_hours_format, assistant.humanMemoryUpdateIntervalHours),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                text = stringResource(R.string.assistant_page_consolidation_reflection_interval_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Slider(
-                value = assistant.humanMemoryUpdateIntervalHours.toFloat(),
-                onValueChange = { onUpdateAssistant(assistant.copy(humanMemoryUpdateIntervalHours = it.toInt())) },
-                valueRange = 1f..72f,
-                steps = 70,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (assistant.lastHumanMemoryUpdateTime > 0) {
-                val time = java.time.Instant.ofEpochMilli(assistant.lastHumanMemoryUpdateTime)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .toLocalDateTime()
-                    .toLocalString()
-                Text(
-                    text = stringResource(R.string.assistant_page_memory_last_reflection, time),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
             }
         }
     }
@@ -931,11 +849,30 @@ private fun ManageMemoriesSection(
     onSearchQueryChange: (String) -> Unit,
     currentEmbeddingModelId: String,
     showMemoryTypes: Boolean,
-    showSignificanceSort: Boolean = false // Only show when reflection is enabled
+    initialMemoryTab: Int? = null,
+    scrollToMemoryId: Int? = null
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Use initialMemoryTab if provided, otherwise default to 0
+    var selectedTab by remember { mutableIntStateOf(initialMemoryTab ?: 0) }
     var sortOrder by remember { mutableStateOf(MemorySortOrder.NEWEST_FIRST) }
     var showSortMenu by remember { mutableStateOf(false) }
+    
+    // Auto-select tab when navigating from context sources
+    LaunchedEffect(initialMemoryTab) {
+        if (initialMemoryTab != null) {
+            selectedTab = initialMemoryTab
+        }
+    }
+    
+    // Auto-open memory editor when navigating from context sources
+    LaunchedEffect(scrollToMemoryId, memories) {
+        if (scrollToMemoryId != null && memories.isNotEmpty()) {
+            val targetMemory = memories.find { it.id == scrollToMemoryId }
+            if (targetMemory != null) {
+                onEditMemory(targetMemory)
+            }
+        }
+    }
 
     val coreMemories = memories.filter { it.type == 0 }
     val episodicMemories = memories.filter { it.type == 1 }
@@ -955,17 +892,6 @@ private fun ManageMemoriesSection(
             MemorySortOrder.NEWEST_FIRST -> list.sortedByDescending { it.timestamp }
             MemorySortOrder.OLDEST_FIRST -> list.sortedBy { it.timestamp }
             MemorySortOrder.ALPHABETICAL -> list.sortedBy { it.content.lowercase() }
-            MemorySortOrder.MOST_SIGNIFICANT -> list.sortedByDescending { it.significance ?: 0 }
-        }
-    }
-    
-    // Filter sort options based on current context
-    val availableSortOptions = MemorySortOrder.entries.filter { order ->
-        if (order.episodicOnly) {
-            // Only show significance sort on episodic tab when reflection is enabled
-            showSignificanceSort && showMemoryTypes && selectedTab == 1
-        } else {
-            true
         }
     }
 
@@ -992,7 +918,7 @@ private fun ManageMemoriesSection(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false }
                     ) {
-                        availableSortOptions.forEach { order ->
+                        MemorySortOrder.entries.forEach { order ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(order.displayNameRes)) },
                                 onClick = {
@@ -1029,7 +955,7 @@ private fun ManageMemoriesSection(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                modifier = Modifier.clip(RoundedCornerShape(10.dp))
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -1293,7 +1219,7 @@ private fun MemoryDebugger(
                     placeholder = { Text(stringResource(R.string.assistant_page_debugger_query_placeholder)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
@@ -1320,7 +1246,7 @@ private fun MemoryDebugger(
                     retrievalResults.forEachIndexed { index, (memory, score) ->
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(

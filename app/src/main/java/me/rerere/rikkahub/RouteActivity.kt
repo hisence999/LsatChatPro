@@ -34,6 +34,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import coil3.ImageLoader
+import coil3.compose.setSingletonImageLoaderFactory
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import okio.Path.Companion.toOkioPath
 import me.rerere.rikkahub.ui.components.ui.AppToasterHost
 import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
 import kotlinx.serialization.Serializable
@@ -57,42 +65,62 @@ import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTaskEdi
 import me.rerere.rikkahub.ui.pages.assistant.scheduled.AssistantScheduledTasksPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
+import me.rerere.rikkahub.ui.pages.developer.DeveloperPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.logs.RequestLogDetailPage
 import me.rerere.rikkahub.ui.pages.logs.RequestLogsOverviewPage
 import me.rerere.rikkahub.ui.pages.menu.MenuPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
-import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
+
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
-import me.rerere.rikkahub.ui.pages.setting.SettingModesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPromptInjectionsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
 import me.rerere.rikkahub.ui.pages.setting.SettingRpOptimizationsPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPromptInjectionsPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModesPage
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
+import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
+import me.rerere.rikkahub.ui.pages.setting.SettingAndroidIntegrationPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
-import me.rerere.rikkahub.service.WelcomePhrasesService
+import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import me.rerere.rikkahub.utils.fileSizeToString
+import me.rerere.rikkahub.utils.base64Encode
 import kotlin.uuid.Uuid
 
 private const val TAG = "RouteActivity"
 
+/**
+ * Data class to hold text selection intent data for navigation
+ */
+data class TextSelectionData(
+    val navigateTo: String?,
+    val selectedText: String?,
+    val aiResponse: String?,
+    val userPrompt: String?,
+    val translatorInput: String?,
+    val translatorOutput: String?,
+    val selectionAssistantId: String?
+)
+
 class RouteActivity : ComponentActivity() {
     private val highlighter by inject<Highlighter>()
+    private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
-    private val welcomePhrasesService by inject<WelcomePhrasesService>()
+    private val chatService by inject<me.rerere.rikkahub.service.ChatService>()
     private var navStack by mutableStateOf<NavHostController?>(null)
     private var pendingAssistantId by mutableStateOf<String?>(null)
+    private var pendingTextSelection by mutableStateOf<TextSelectionData?>(null)
+    private var pendingConversationId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -102,13 +130,53 @@ class RouteActivity : ComponentActivity() {
         
         // Check for assistant shortcut intent
         pendingAssistantId = intent?.getStringExtra("assistantId")
-
+        
+        // Check for notification intent with conversation ID
+        pendingConversationId = intent?.getStringExtra("conversationId")
+        
+        // Check for text selection intent
+        val navigateTo = intent?.getStringExtra("navigate_to")
+        val continueConversation = intent?.getBooleanExtra("continue_conversation", false) ?: false
+        if (navigateTo == "translator" || continueConversation) {
+            pendingTextSelection = TextSelectionData(
+                navigateTo = navigateTo,
+                selectedText = intent?.getStringExtra("selected_text"),
+                aiResponse = intent?.getStringExtra("ai_response"),
+                userPrompt = intent?.getStringExtra("user_prompt"),
+                translatorInput = intent?.getStringExtra("translator_input"),
+                translatorOutput = intent?.getStringExtra("translator_output"),
+                selectionAssistantId = intent?.getStringExtra("selection_assistant_id")
+            )
+        }
+        
         setContent {
             val navStack = rememberNavController()
             this.navStack = navStack
             ShareHandler(navStack)
             AssistantShortcutHandler(navStack)
+            TextSelectionHandler(navStack)
+            NotificationHandler(navStack)
             RikkahubTheme {
+                setSingletonImageLoaderFactory { context ->
+                    ImageLoader.Builder(context)
+                        .crossfade(true)
+                        .memoryCache {
+                            MemoryCache.Builder()
+                                .maxSizePercent(context, 0.25) // Use 25% of app's memory for image cache
+                                .build()
+                        }
+                        .diskCache {
+                            DiskCache.Builder()
+                                .directory(context.filesDir.resolve("icon_cache").toOkioPath())
+                                .maxSizeBytes(50 * 1024 * 1024) // 50 MB persistent disk cache for icons
+                                .build()
+                        }
+                        .components {
+                            add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
+                            add(SvgDecoder.Factory(scaleToDensity = true))
+                        }
+                        .build()
+                }
                 AppRoutes(navStack)
             }
         }
@@ -125,20 +193,18 @@ class RouteActivity : ComponentActivity() {
         val assistantIdStr = pendingAssistantId
         LaunchedEffect(assistantIdStr) {
             if (assistantIdStr != null) {
+                pendingAssistantId = null
                 try {
                     val assistantId = Uuid.parse(assistantIdStr)
                     // Update the selected assistant
                     settingsStore.updateAssistant(assistantId)
                     // Mark as recently used
                     settingsStore.markAssistantUsed(assistantId)
-                    welcomePhrasesService.enqueueAutoRefreshForAssistantIfNeeded(this@RouteActivity, assistantId)
-                    pendingAssistantId = null
                     // Navigate to a new chat
                     navBackStack.navigate(Screen.Chat(Uuid.random().toString())) {
                         popUpTo(0) { inclusive = true }
                     }
                 } catch (e: Exception) {
-                    pendingAssistantId = null
                     e.printStackTrace()
                 }
             }
@@ -164,6 +230,89 @@ class RouteActivity : ComponentActivity() {
         }
     }
 
+    @Composable
+    private fun NotificationHandler(navBackStack: NavHostController) {
+        val conversationIdStr = pendingConversationId
+        LaunchedEffect(conversationIdStr) {
+            if (conversationIdStr != null) {
+                pendingConversationId = null
+                navBackStack.navigate(Screen.Chat(conversationIdStr))
+            }
+        }
+    }
+
+    @Composable
+    private fun TextSelectionHandler(navBackStack: NavHostController) {
+        val data = pendingTextSelection
+        val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+        
+        
+        LaunchedEffect(data) {
+            if (data != null) {
+                pendingTextSelection = null
+                try {
+                    when (data.navigateTo) {
+                        "translator" -> {
+                            // Navigate to Translator page
+                            navBackStack.navigate(Screen.Translator)
+                        }
+                        else -> {
+                            // Create a new conversation with pre-existing messages
+                            val conversationId = Uuid.random()
+                            
+                            // Create user message with selected text
+                            val userContent = buildString {
+                                if (!data.selectedText.isNullOrBlank()) {
+                                    append(data.selectedText)
+                                }
+                                if (!data.userPrompt.isNullOrBlank()) {
+                                    append("\n\n")
+                                    append(data.userPrompt)
+                                }
+                            }
+                            
+                            val messages = mutableListOf<me.rerere.rikkahub.data.model.MessageNode>()
+                            
+                            // Add user message if there's content
+                            if (userContent.isNotBlank()) {
+                                val userMessage = me.rerere.ai.ui.UIMessage.user(userContent.trim())
+                                messages.add(me.rerere.rikkahub.data.model.MessageNode.of(userMessage))
+                            }
+                            
+                            // Add AI response message if available
+                            if (!data.aiResponse.isNullOrBlank()) {
+                                val assistantMessage = me.rerere.ai.ui.UIMessage.assistant(data.aiResponse)
+                                messages.add(me.rerere.rikkahub.data.model.MessageNode.of(assistantMessage))
+                            }
+                            
+                            if (messages.isNotEmpty()) {
+                                // Use the assistant from text selection config if available
+                                val assistantId = data.selectionAssistantId?.let { 
+                                    Uuid.parse(it) 
+                                } ?: settings.assistantId
+                                
+                                // Create the conversation with messages
+                                val conversation = me.rerere.rikkahub.data.model.Conversation.ofId(
+                                    id = conversationId,
+                                    assistantId = assistantId,
+                                    messages = messages
+                                )
+                                
+                                // Save to database
+                                chatService.saveConversation(conversationId, conversation)
+                                
+                                // Navigate to the conversation
+                                navBackStack.navigate(Screen.Chat(id = conversationId.toString()))
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Navigate to the chat screen if a conversation ID is provided
@@ -181,13 +330,6 @@ class RouteActivity : ComponentActivity() {
         val toastState = rememberAppToasterState()
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
         val tts = rememberCustomTtsState()
-
-        LaunchedEffect(settings.init, settings.assistantId, pendingAssistantId) {
-            if (!settings.init && pendingAssistantId == null) {
-                welcomePhrasesService.enqueueAutoRefreshForCurrentAssistantIfNeeded(this@RouteActivity)
-            }
-        }
-
         SharedTransitionLayout {
             CompositionLocalProvider(
                 LocalNavController provides navBackStack,
@@ -266,7 +408,8 @@ class RouteActivity : ComponentActivity() {
                         ChatPage(
                             id = Uuid.parse(route.id),
                             text = route.text,
-                            files = route.files.map { it.toUri() }
+                            files = route.files.map { it.toUri() },
+                            searchQuery = route.searchQuery
                         )
                     }
 
@@ -291,7 +434,12 @@ class RouteActivity : ComponentActivity() {
                     composable<Screen.AssistantDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.AssistantDetail>()
                         CompositionLocalProvider(LocalAnimatedVisibilityScope provides this@composable) {
-                            AssistantDetailPage(route.id)
+                            AssistantDetailPage(
+                                id = route.id,
+                                startRoute = route.startRoute,
+                                initialMemoryTab = route.initialMemoryTab,
+                                scrollToMemoryId = route.scrollToMemoryId
+                            )
                         }
                     }
 
@@ -380,27 +528,18 @@ class RouteActivity : ComponentActivity() {
                         SettingPromptInjectionsPage()
                     }
 
-                    composable<Screen.SettingModes>(
-                        enterTransition = { fadeIn(animationSpec = tween(300)) },
-                        exitTransition = { fadeOut(animationSpec = tween(300)) },
-                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
-                    ) {
-                        SettingModesPage()
+                    composable<Screen.SettingModes> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.SettingModes>()
+                        SettingModesPage(scrollToModeId = route.scrollToModeId)
                     }
 
-                    composable<Screen.SettingLorebooks>(
-                        enterTransition = { fadeIn(animationSpec = tween(300)) },
-                        exitTransition = { fadeOut(animationSpec = tween(300)) },
-                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
-                    ) {
+                    composable<Screen.SettingLorebooks> {
                         SettingLorebooksPage()
                     }
 
                     composable<Screen.SettingLorebookDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.SettingLorebookDetail>()
-                        SettingLorebookDetailPage(id = route.id)
+                        SettingLorebookDetailPage(id = route.id, scrollToEntryId = route.scrollToEntryId)
                     }
 
                     composable<Screen.RequestLogs> {
@@ -410,6 +549,14 @@ class RouteActivity : ComponentActivity() {
                     composable<Screen.RequestLogDetail> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.RequestLogDetail>()
                         RequestLogDetailPage(id = route.id)
+                    }
+
+                    composable<Screen.Developer> {
+                        DeveloperPage()
+                    }
+
+                    composable<Screen.SettingAndroidIntegration> {
+                        SettingAndroidIntegrationPage()
                     }
 
                 }
@@ -423,7 +570,7 @@ class RouteActivity : ComponentActivity() {
 
 sealed interface Screen {
     @Serializable
-    data class Chat(val id: String, val text: String? = null, val files: List<String> = emptyList()) : Screen
+    data class Chat(val id: String, val text: String? = null, val files: List<String> = emptyList(), val searchQuery: String? = null) : Screen
 
     @Serializable
     data class ShareHandler(val text: String, val streamUri: String? = null) : Screen
@@ -433,7 +580,12 @@ sealed interface Screen {
     data object Assistant : Screen
 
     @Serializable
-    data class AssistantDetail(val id: String) : Screen
+    data class AssistantDetail(
+        val id: String,
+        val startRoute: String? = null,  // Navigate directly to a sub-route (e.g., "memory")
+        val initialMemoryTab: Int? = null,  // 0 = Core, 1 = Episodic
+        val scrollToMemoryId: Int? = null  // Memory ID to scroll to
+    ) : Screen
 
     @Serializable
     data class GroupChatTemplateDetail(val id: String) : Screen
@@ -493,18 +645,24 @@ sealed interface Screen {
     data object SettingPromptInjections : Screen
 
     @Serializable
-    data object SettingModes : Screen
+    data class SettingModes(val scrollToModeId: String? = null) : Screen
 
     @Serializable
     data object SettingLorebooks : Screen
 
     @Serializable
-    data class SettingLorebookDetail(val id: String) : Screen
+    data class SettingLorebookDetail(val id: String, val scrollToEntryId: String? = null) : Screen
 
     @Serializable
     data object RequestLogs : Screen
 
     @Serializable
     data class RequestLogDetail(val id: Long) : Screen
+
+    @Serializable
+    data object Developer : Screen
+
+    @Serializable
+    data object SettingAndroidIntegration : Screen
 
 }

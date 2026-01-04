@@ -61,6 +61,7 @@ data class ModeAttachment(
 data class Mode(
     val id: Uuid = Uuid.random(),
     val name: String = "",
+    val icon: String? = null,  // Material You icon name, e.g. "auto_fix_high"
     val prompt: String = "",
     val defaultEnabled: Boolean = false,  // Default state for new chats
     val injectionPosition: InjectionPosition = InjectionPosition.AFTER_SYSTEM,

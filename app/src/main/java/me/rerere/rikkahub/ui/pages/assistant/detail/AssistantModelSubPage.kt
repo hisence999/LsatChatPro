@@ -69,7 +69,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -101,7 +101,7 @@ fun AssistantModelSubPage(
                     MaterialTheme.colorScheme.surfaceContainerLow 
                 else 
                     MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -122,6 +122,38 @@ fun AssistantModelSubPage(
                         providers = providers,
                         type = ModelType.CHAT,
                         onSelect = { onUpdate(assistant.copy(backgroundModelId = it.id)) },
+                    )
+                }
+            }
+            
+            // Summarizer Model
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = if (LocalDarkMode.current) 
+                    MaterialTheme.colorScheme.surfaceContainerLow 
+                else 
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Summarizer Model",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "For memory consolidation and context refresh",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ModelSelector(
+                        modelId = assistant.summarizerModelId,
+                        providers = providers,
+                        type = ModelType.CHAT,
+                        onSelect = { onUpdate(assistant.copy(summarizerModelId = it.id)) },
                     )
                 }
             }
@@ -173,7 +205,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(
@@ -232,7 +264,7 @@ fun AssistantModelSubPage(
                         MaterialTheme.colorScheme.surfaceContainerLow 
                     else 
                         MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Slider(

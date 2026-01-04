@@ -315,7 +315,7 @@ private fun AnimatedWelcomeText(
 }
 
 @Composable
-fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
+fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = null) {
     val vm: ChatVM = koinViewModel(
         parameters = {
             parametersOf(id.toString())
@@ -338,6 +338,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val currentSearchMode by vm.currentSearchMode.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -415,8 +416,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     vm = vm,
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
+                    currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
-                    bigScreen = true
+                    bigScreen = true,
+                    initialSearchQuery = searchQuery
                 )
             }
         }
@@ -444,8 +447,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     vm = vm,
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
+                    currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
-                    bigScreen = false
+                    bigScreen = false,
+                    initialSearchQuery = searchQuery
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -467,7 +472,9 @@ private fun ChatPageContent(
     vm: ChatVM,
     chatListState: LazyListState,
     enableWebSearch: Boolean,
+    currentSearchMode: me.rerere.rikkahub.data.model.AssistantSearchMode,
     currentChatModel: Model?,
+    initialSearchQuery: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -517,6 +524,28 @@ private fun ChatPageContent(
             }
         } finally {
             pendingJumpNodeId = null
+        }
+    }
+
+    // Auto-scroll to first matching message when opened from search
+    LaunchedEffect(initialSearchQuery, conversation.messageNodes, previewMode) {
+        if (!previewMode && !initialSearchQuery.isNullOrBlank() && conversation.messageNodes.isNotEmpty()) {
+            val matchIndex = conversation.messageNodes.indexOfFirst { node ->
+                node.currentMessage.toText().contains(initialSearchQuery, ignoreCase = true)
+            }
+            if (matchIndex >= 0) {
+                delay(100)
+                chatListState.animateScrollToItem(matchIndex)
+            }
+        }
+    }
+
+    // Track the last selected search provider index so we can restore it when toggling on
+    var lastProviderIndex by rememberSaveable { mutableStateOf(0) }
+
+    LaunchedEffect(currentSearchMode) {
+        if (currentSearchMode is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider) {
+            lastProviderIndex = currentSearchMode.index
         }
     }
 
@@ -583,6 +612,7 @@ private fun ChatPageContent(
                     previewMode = previewMode,
                     settings = setting,
                     recentlyRestoredNodeIds = vm.recentlyRestoredNodeIds.collectAsStateWithLifecycle().value,
+                    initialSearchQuery = initialSearchQuery,
                     onAssistantAvatarLongPress = if (isGroupChatTemplate) {
                         { assistant ->
                             val name = assistant.name.trim()
@@ -832,9 +862,11 @@ private fun ChatPageContent(
                         if (enableWebSearch) {
                             vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
                         } else {
-                            // Turn on search - use first provider if available
+                            // Turn on search - restore last selected provider
                             if (setting.searchServices.isNotEmpty()) {
-                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(0))
+                                // Ensure index is valid (in case providers were removed)
+                                val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
+                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
                             }
                         }
                     },
@@ -913,9 +945,6 @@ private fun ChatPageContent(
                             )
                         )
                     },
-                    onUpdateConversation = { updatedConversation ->
-                        vm.updateConversation(updatedConversation)
-                    },
                     onUpdateSearchService = { index ->
                         // Only persist the selection to the assistant's searchMode to avoid double-update flicker
                         // The global setting 'searchServiceSelected' is deprecated in favor of assistant-specific settings
@@ -924,6 +953,14 @@ private fun ChatPageContent(
                     onClearContext = {
                         vm.handleMessageTruncate()
                     },
+                    onUpdateConversation = { updatedConversation ->
+                        vm.updateConversation(updatedConversation)
+                        vm.saveConversationAsync()
+                    },
+                    onNavigateToLorebook = { lorebookId ->
+                        navController.navigate(Screen.SettingLorebookDetail(lorebookId))
+                    },
+                    onRefreshContext = { vm.refreshContext() },
                 )
 
                 val disambiguationState = mentionDisambiguationState

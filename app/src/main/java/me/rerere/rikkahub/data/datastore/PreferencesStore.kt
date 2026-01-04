@@ -39,6 +39,7 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.TextSelectionConfig
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.data.model.ensureSeatInstanceNumbers
 import me.rerere.rikkahub.ui.theme.PresetThemes
@@ -153,6 +154,9 @@ class SettingsStore(
         // Prompt Injections
         val MODES = stringPreferencesKey("modes")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
+
+        // Android Integration
+        val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
     }
 
     private val dataStore = context.settingsStore
@@ -260,6 +264,9 @@ class SettingsStore(
                 developerMode = preferences[DEVELOPER_MODE] == true,
                 enableRagLogging = preferences[ENABLE_RAG_LOGGING] == true,
                 displaySetting = decodeDisplaySettingCompat(preferences[DISPLAY_SETTING]),
+                textSelectionConfig = preferences[TEXT_SELECTION_CONFIG]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: TextSelectionConfig(),
                 searchServices = preferences[SEARCH_SERVICES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: listOf(SearchServiceOptions.DEFAULT),
@@ -423,6 +430,7 @@ class SettingsStore(
             preferences[DEVELOPER_MODE] = finalSettingsToSave.developerMode
             preferences[ENABLE_RAG_LOGGING] = finalSettingsToSave.enableRagLogging
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(finalSettingsToSave.displaySetting)
+            preferences[TEXT_SELECTION_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.textSelectionConfig)
 
             preferences[ENABLE_WEB_SEARCH] = finalSettingsToSave.enableWebSearch
             preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(finalSettingsToSave.favoriteModels)
@@ -517,6 +525,7 @@ data class Settings(
     val developerMode: Boolean = false,
     val enableRagLogging: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
+    val textSelectionConfig: TextSelectionConfig = TextSelectionConfig(),
     val enableWebSearch: Boolean = false,
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
@@ -625,6 +634,7 @@ data class DisplaySetting(
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
+    val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
 )
 
 fun DisplaySetting.coerceForConflicts(): DisplaySetting {
@@ -686,6 +696,26 @@ fun Settings.getCurrentAssistant(): Assistant {
 
 fun Settings.getAssistantById(id: Uuid): Assistant? {
     return this.assistants.find { it.id == id }
+}
+
+/**
+ * Get effective display settings by merging assistant's UI overrides with global display settings.
+ * Per-assistant settings take precedence when set (non-null).
+ */
+fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySetting {
+    val ui = (assistant ?: getCurrentAssistant()).uiSettings
+    return displaySetting.copy(
+        showUserAvatar = ui.showUserAvatar ?: displaySetting.showUserAvatar,
+        showModelIcon = ui.showAssistantAvatar ?: displaySetting.showModelIcon,
+        showTokenUsage = ui.showTokenUsage ?: displaySetting.showTokenUsage,
+        autoCloseThinking = ui.autoCloseThinking ?: displaySetting.autoCloseThinking,
+        showMessageJumper = ui.showMessageJumper ?: displaySetting.showMessageJumper,
+        messageJumperOnLeft = ui.messageJumperOnLeft ?: displaySetting.messageJumperOnLeft,
+        fontSizeRatio = ui.fontSizeRatio ?: displaySetting.fontSizeRatio,
+        codeBlockAutoWrap = ui.codeBlockAutoWrap ?: displaySetting.codeBlockAutoWrap,
+        codeBlockAutoCollapse = ui.codeBlockAutoCollapse ?: displaySetting.codeBlockAutoCollapse,
+        showContextStacks = ui.showContextStacks ?: displaySetting.showContextStacks,
+    )
 }
 
 fun Settings.getSelectedTTSProvider(): TTSProviderSetting? {

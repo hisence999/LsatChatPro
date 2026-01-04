@@ -33,4 +33,14 @@ data class ConversationEntity(
     val isConsolidated: Boolean = false,
     @ColumnInfo(name = "enabled_mode_ids", defaultValue = "[]")
     val enabledModeIds: String = "[]",
+    @ColumnInfo(name = "context_summary", defaultValue = "''")
+    val contextSummary: String = "",
+    @ColumnInfo(name = "context_summary_up_to_index", defaultValue = "-1")
+    val contextSummaryUpToIndex: Int = -1,
+    @ColumnInfo(name = "last_prune_time", defaultValue = "0")
+    val lastPruneTime: Long = 0L,
+    @ColumnInfo(name = "last_prune_message_count", defaultValue = "0")
+    val lastPruneMessageCount: Int = 0,
+    @ColumnInfo(name = "last_refresh_time", defaultValue = "0")
+    val lastRefreshTime: Long = 0L,
 )
