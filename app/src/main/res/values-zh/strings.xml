@@ -438,9 +438,9 @@
   <string name="setting_display_page_notification_message_generated">生成消息后启用通知</string>
   <string name="setting_display_page_notification_message_generated_desc">当应用不在前台时，若生成消息则显示通知</string>
   <string name="setting_display_page_notification_live_update">Live Update 模式</string>
-  <string name="setting_display_page_notification_live_update_desc">关：普通通知；默认：Live Update；兼容：生成消息时也推送普通通知</string>
-  <string name="setting_live_update_mode_off">关</string>
-  <string name="setting_live_update_mode_default">默认</string>
+  <string name="setting_display_page_notification_live_update_desc">开启后，生成消息期间将推送通知。如不生效，请选择兼容模式。</string>
+  <string name="setting_live_update_mode_off">关闭</string>
+  <string name="setting_live_update_mode_default">开启</string>
   <string name="setting_live_update_mode_compatibility">兼容</string>
   <string name="setting_display_page_show_message_jumper_desc">在滚动聊天列表时，在右侧显示快速跳转按钮</string>
   <string name="setting_display_page_show_message_jumper_title">消息导航按钮</string>
@@ -904,7 +904,7 @@
     <string name="assistant_page_tool_results_mode_title">历史工具结果</string>
     <string name="assistant_page_tool_results_mode_rag">RAG 检索</string>
     <string name="assistant_page_tool_results_mode_rag_desc">超过 N 条用户消息后不发送给模型，并通过 RAG 召回相关结果。</string>
-    <string name="assistant_page_tool_results_mode_discard">直接丢弃</string>
+    <string name="assistant_page_tool_results_mode_discard">丢弃</string>
     <string name="assistant_page_tool_results_mode_discard_desc">超过 N 条用户消息后不发送给模型（仍保存在本地）。</string>
     <string name="assistant_page_tool_results_keep_title">保留范围</string>
     <string name="assistant_page_tool_results_keep_desc">超过 %d 条用户消息的结果将不发送给模型。</string>

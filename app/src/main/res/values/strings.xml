@@ -507,9 +507,9 @@
     <string name="setting_display_page_notification_message_generated">Notification on Completion</string>
     <string name="setting_display_page_notification_message_generated_desc">Show notification when message generation completes in background</string>
     <string name="setting_display_page_notification_live_update">Live Update Mode</string>
-    <string name="setting_display_page_notification_live_update_desc">Off: normal notification. Default: Live Update. Compatibility: also post normal notifications during generation.</string>
+    <string name="setting_display_page_notification_live_update_desc">Notifications will be pushed during message generation after enabling. If it does not take effect, please select Compatibility Mode.</string>
     <string name="setting_live_update_mode_off">Off</string>
-    <string name="setting_live_update_mode_default">Default</string>
+    <string name="setting_live_update_mode_default">On</string>
     <string name="setting_live_update_mode_compatibility">Compatibility</string>
     <string name="setting_display_page_show_message_jumper_desc">Show quick jump button when scrolling chat</string>
     <string name="setting_display_page_show_message_jumper_title">Message Jumper</string>
@@ -952,7 +952,7 @@
     <string name="assistant_page_tool_results_mode_keep_all_desc">Keep complete tool results in prompt context (no optimization).</string>
     <string name="assistant_page_tool_results_mode_rag">RAG retrieval</string>
     <string name="assistant_page_tool_results_mode_rag_desc">Drop from prompt after N user messages, and retrieve relevant results via RAG.</string>
-    <string name="assistant_page_tool_results_mode_discard">Direct discard</string>
+    <string name="assistant_page_tool_results_mode_discard">Discard</string>
     <string name="assistant_page_tool_results_mode_discard_desc">Drop from prompt after N user messages (still stored locally).</string>
     <string name="assistant_page_tool_results_keep_title">Keep range</string>
     <string name="assistant_page_tool_results_keep_desc">Results older than %d user messages won\'t be sent to the model.</string>

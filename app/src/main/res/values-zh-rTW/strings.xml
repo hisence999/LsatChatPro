@@ -788,9 +788,9 @@
   <string name="notification_keep_alive_content_error">生成失敗</string>
   <string name="placeholder_location">位置</string>
   <string name="setting_display_page_notification_live_update">Live Update 模式</string>
-  <string name="setting_display_page_notification_live_update_desc">關：普通通知；預設：Live Update；兼容：生成訊息時也推送普通通知</string>
-  <string name="setting_live_update_mode_off">關</string>
-  <string name="setting_live_update_mode_default">預設</string>
+  <string name="setting_display_page_notification_live_update_desc">啟用後，產生訊息期間將推送通知。如未生效，請選擇相容模式。</string>
+  <string name="setting_live_update_mode_off">關閉</string>
+  <string name="setting_live_update_mode_default">開啟</string>
   <string name="setting_live_update_mode_compatibility">兼容</string>
   <string name="setting_display_page_check_updates_desc">自動從 GitHub 檢查新版本</string>
   <string name="setting_display_page_check_updates_title">檢查更新</string>
@@ -902,7 +902,7 @@
   <string name="assistant_page_tool_results_mode_title">歷史工具結果</string>
   <string name="assistant_page_tool_results_mode_rag">RAG 檢索</string>
   <string name="assistant_page_tool_results_mode_rag_desc">超過 N 條使用者訊息後不傳送給模型，並透過 RAG 召回相關結果。</string>
-  <string name="assistant_page_tool_results_mode_discard">直接丟棄</string>
+  <string name="assistant_page_tool_results_mode_discard">丟棄</string>
   <string name="assistant_page_tool_results_mode_discard_desc">超過 N 條使用者訊息後不傳送給模型（仍會保存在本機）。</string>
   <string name="assistant_page_tool_results_keep_title">保留範圍</string>
   <string name="assistant_page_tool_results_keep_desc">超過 %d 條使用者訊息的結果將不傳送給模型。</string>

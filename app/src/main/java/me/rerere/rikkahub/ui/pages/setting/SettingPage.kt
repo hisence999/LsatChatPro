@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -309,15 +308,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         subtitle = stringResource(R.string.setting_request_logs_desc),
                         icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(20.dp)) },
                         onClick = {
-                            if (settings.developerMode) {
-                                navController.navigate(Screen.RequestLogs)
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.setting_request_logs_enable_developer_mode_first),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                            navController.navigate(Screen.RequestLogs)
                         }
                     )
                 }
