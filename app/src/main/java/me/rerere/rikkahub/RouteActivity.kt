@@ -282,8 +282,8 @@ class RouteActivity : ComponentActivity() {
                             
                             if (messages.isNotEmpty()) {
                                 // Use the assistant from text selection config if available
-                                val assistantId = data.selectionAssistantId?.let { 
-                                    Uuid.parse(it) 
+                                val assistantId = data.selectionAssistantId?.takeIf { it.isNotBlank() }?.let { 
+                                    try { Uuid.parse(it) } catch (e: Exception) { null }
                                 } ?: settings.assistantId
                                 
                                 // Create the conversation with messages

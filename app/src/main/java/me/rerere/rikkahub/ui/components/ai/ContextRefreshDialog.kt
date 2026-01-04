@@ -181,8 +181,8 @@ fun ContextRefreshDialog(
                             }
                             
                             // Calculate tokens for messages that will be summarized
-                            val messagesToProcess = if (startIndex <= lastIndexToSummarize) {
-                                conversation.currentMessages.subList(startIndex, lastIndexToSummarize + 1)
+                            val messagesToProcess = if (startIndex <= lastIndexToSummarize && lastIndexToSummarize < conversation.currentMessages.size) {
+                                conversation.currentMessages.subList(startIndex, (lastIndexToSummarize + 1).coerceAtMost(conversation.currentMessages.size))
                             } else {
                                 emptyList()
                             }

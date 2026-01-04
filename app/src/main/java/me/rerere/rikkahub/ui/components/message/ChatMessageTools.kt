@@ -121,7 +121,7 @@ fun ToolCallItem(
                         "delete_memory" -> stringResource(R.string.chat_message_tool_delete_memory)
                         "search_web" -> stringResource(
                             R.string.chat_message_tool_search_web,
-                            arguments.jsonObject["query"]?.jsonPrimitiveOrNull?.contentOrNull
+                            (arguments as? JsonObject)?.get("query")?.jsonPrimitiveOrNull?.contentOrNull
                                 ?: ""
                         )
                         "scrape_web" -> stringResource(R.string.chat_message_tool_scrape_web)
@@ -135,7 +135,7 @@ fun ToolCallItem(
                     modifier = Modifier.shimmer(isLoading = loading),
                 )
                 if (toolName == "create_memory" || toolName == "edit_memory") {
-                    val content = content?.jsonObject["content"]?.jsonPrimitiveOrNull?.contentOrNull
+                    val content = (content as? JsonObject)?.get("content")?.jsonPrimitiveOrNull?.contentOrNull
                     if (content != null) {
                         Text(
                             text = content,
@@ -148,7 +148,7 @@ fun ToolCallItem(
                     }
                 }
                 if (toolName == "search_web") {
-                    val answer = content?.jsonObject["answer"]?.jsonPrimitiveOrNull?.contentOrNull
+                    val answer = (content as? JsonObject)?.get("answer")?.jsonPrimitiveOrNull?.contentOrNull
                     if (answer != null) {
                         Text(
                             text = answer,
@@ -159,7 +159,7 @@ fun ToolCallItem(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    val items = content?.jsonObject["items"]?.jsonArray ?: emptyList()
+                    val items = (content as? JsonObject)?.get("items")?.jsonArray ?: emptyList()
                     if (items.isNotEmpty()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -167,7 +167,7 @@ fun ToolCallItem(
                         ) {
                             FaviconRow(
                                 urls = items.mapNotNull {
-                                    it.jsonObject["url"]?.jsonPrimitiveOrNull?.contentOrNull
+                                    (it as? JsonObject)?.get("url")?.jsonPrimitiveOrNull?.contentOrNull
                                 },
                                 size = 18.dp,
                             )
@@ -180,7 +180,7 @@ fun ToolCallItem(
                     }
                 }
                 if(toolName == "scrape_web") {
-                    val url = arguments.jsonObject["url"]?.jsonPrimitiveOrNull?.contentOrNull ?: ""
+                    val url = (arguments as? JsonObject)?.get("url")?.jsonPrimitiveOrNull?.contentOrNull ?: ""
                     Text(
                         text = url,
                         style = MaterialTheme.typography.labelSmall,
@@ -235,11 +235,12 @@ private fun ToolCallPreviewSheet(
                         Text(
                             stringResource(
                                 R.string.chat_message_tool_search_prefix,
-                                arguments.jsonObject["query"]?.jsonPrimitiveOrNull?.contentOrNull ?: ""
+                                (arguments as? JsonObject)?.get("query")?.jsonPrimitiveOrNull?.contentOrNull ?: ""
                             )
                         )
-                        val items = content.jsonObject["items"]?.jsonArray ?: emptyList()
-                        val answer = content.jsonObject["answer"]?.jsonPrimitive?.contentOrNull
+                        val contentObj = content as? JsonObject
+                        val items = contentObj?.get("items")?.jsonArray ?: emptyList()
+                        val answer = contentObj?.get("answer")?.jsonPrimitive?.contentOrNull
                         if (items.isNotEmpty()) {
                             LazyColumn(
                                 modifier = Modifier
@@ -265,15 +266,14 @@ private fun ToolCallPreviewSheet(
                                     }
                                 }
 
-                                items(items) {
-                                    val url =
-                                        it.jsonObject["url"]?.jsonPrimitive?.content ?: return@items
+                                items(items.size, key = { index -> "search_item_$index" }) { index ->
+                                    val it = items[index]
+                                    val itemObj = it as? JsonObject ?: return@items
+                                    val url = itemObj["url"]?.jsonPrimitive?.content ?: return@items
                                     val title =
-                                        it.jsonObject["title"]?.jsonPrimitive?.content
+                                        itemObj["title"]?.jsonPrimitive?.content
                                             ?: return@items
-                                    val text =
-                                        it.jsonObject["text"]?.jsonPrimitive?.content
-                                            ?: return@items
+                                    val text = itemObj["text"]?.jsonPrimitive?.content ?: return@items
                                     Card(
                                         onClick = {
                                             navController.navigate(Screen.WebView(url = url))
@@ -327,11 +327,11 @@ private fun ToolCallPreviewSheet(
                     }
 
                     "scrape_web" -> {
-                        val urls = content.jsonObject["urls"]?.jsonArray ?: emptyList()
+                        val urls = (content as? JsonObject)?.get("urls")?.jsonArray ?: emptyList()
                         Text(
                             text = stringResource(
                                 R.string.chat_message_tool_scrape_prefix,
-                                urls.joinToString(", ") { it.jsonObject["url"]?.jsonPrimitiveOrNull?.contentOrNull ?: "" }),
+                                urls.joinToString(", ") { (it as? JsonObject)?.get("url")?.jsonPrimitiveOrNull?.contentOrNull ?: "" }),
                         )
                         LazyColumn(
                             modifier = Modifier
@@ -339,21 +339,22 @@ private fun ToolCallPreviewSheet(
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(urls) { url ->
-                                val urlObject = url.jsonObject
+                            items(urls.size, key = { index -> "scrape_url_$index" }) { index ->
+                                val url = urls[index]
+                                val urlObject = url as? JsonObject
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
                                     Text(
-                                        text = urlObject["url"]?.jsonPrimitive?.content ?: "",
+                                        text = urlObject?.get("url")?.jsonPrimitive?.content ?: "",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Card {
                                         MarkdownBlock(
-                                            content = urlObject["content"]?.jsonPrimitive?.content ?: "",
+                                            content = urlObject?.get("content")?.jsonPrimitive?.content ?: "",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(

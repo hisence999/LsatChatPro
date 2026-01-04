@@ -91,7 +91,25 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.i(TAG, "migrate: start migrate from 12 to 13")
-                db.execSQL("ALTER TABLE ChatEpisodeEntity ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0")
+                // Check if table exists before altering (table is created in MIGRATION_11_12)
+                val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='ChatEpisodeEntity'")
+                val tableExists = cursor.count > 0
+                cursor.close()
+                if (tableExists) {
+                    // Check if column already exists
+                    val columnCursor = db.query("PRAGMA table_info(ChatEpisodeEntity)")
+                    var hasColumn = false
+                    while (columnCursor.moveToNext()) {
+                        if (columnCursor.getString(1) == "last_accessed_at") {
+                            hasColumn = true
+                            break
+                        }
+                    }
+                    columnCursor.close()
+                    if (!hasColumn) {
+                        db.execSQL("ALTER TABLE ChatEpisodeEntity ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
             }
         }
 
