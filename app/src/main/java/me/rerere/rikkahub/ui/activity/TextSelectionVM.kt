@@ -133,7 +133,12 @@ class TextSelectionVM(
                 val assistant = assistantId?.let { settings.getAssistantById(it) }
                 val assistantPrompt = assistant?.systemPrompt ?: ""
 
-                val systemPrompt = buildSystemPrompt(action, customPrompt, assistantPrompt)
+                val systemPrompt = buildSystemPrompt(
+                    action = action,
+                    customPrompt = customPrompt,
+                    assistantPrompt = assistantPrompt,
+                    translationTargetLanguage = settings.textSelectionConfig.translateLanguage,
+                )
                 val userMessage = UIMessage.user(selectedText)
                 
                 messages.add(UIMessage.system(systemPrompt))
@@ -188,11 +193,17 @@ class TextSelectionVM(
         )
     }
 
-    private fun buildSystemPrompt(action: QuickAction, customPrompt: String, assistantPrompt: String): String {
+    private fun buildSystemPrompt(
+        action: QuickAction,
+        customPrompt: String,
+        assistantPrompt: String,
+        translationTargetLanguage: String,
+    ): String {
         // For Translate, use only the action prompt (no assistant personality)
         if (action == QuickAction.TRANSLATE) {
+            val language = translationTargetLanguage.trim()
             return """
-                You are a translator. Translate the user's text to their device language.
+                You are a translator. Translate the user's text to ${if (language.isBlank()) "their device language" else language}.
                 Only output the translation, nothing else. Do not include any explanations or notes.
             """.trimIndent()
         }
