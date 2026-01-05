@@ -63,9 +63,9 @@ fun RequestLogsOverviewPage(vm: RequestLogsVM = koinViewModel()) {
         LazyListState()
     }
 
-    val logs by vm.logs.collectAsStateWithLifecycle(initialValue = emptyList())
+    val logs by vm.logs.collectAsStateWithLifecycle()
     val sourceFilter by vm.sourceFilter.collectAsStateWithLifecycle()
-    val sources by vm.availableSources.collectAsStateWithLifecycle(initialValue = emptyList())
+    val sources by vm.availableSources.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
