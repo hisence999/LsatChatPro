@@ -314,7 +314,7 @@ class MemoryRepository(
             embeddingService.embed(
                 text = query,
                 assistantId = assistantId,
-                source = AIRequestSource.MEMORY_EMBEDDING,
+                source = AIRequestSource.MEMORY_RETRIEVAL,
             )
         } catch (e: Exception) {
             e.printStackTrace()

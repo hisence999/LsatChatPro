@@ -22,13 +22,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonElement
 import me.rerere.highlight.HighlightText
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.AIRequestSource
-import me.rerere.rikkahub.data.ai.displayNameZh
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
@@ -187,9 +188,31 @@ fun formatLogTime(createdAt: Long, pattern: String): String {
         .format(DateTimeFormatter.ofPattern(pattern))
 }
 
+@Composable
+fun AIRequestSource.displayName(): String {
+    return when (this) {
+        AIRequestSource.CHAT -> stringResource(R.string.request_log_source_chat)
+        AIRequestSource.TITLE_SUMMARY -> stringResource(R.string.request_log_source_title_summary)
+        AIRequestSource.CHAT_SUGGESTION -> stringResource(R.string.request_log_source_chat_suggestion)
+        AIRequestSource.GROUP_CHAT_ROUTING -> stringResource(R.string.request_log_source_group_chat_routing)
+        AIRequestSource.WELCOME_PHRASES -> stringResource(R.string.request_log_source_welcome_phrases)
+        AIRequestSource.MEMORY_CONSOLIDATION -> stringResource(R.string.request_log_source_memory_consolidation)
+        AIRequestSource.MEMORY_EMBEDDING -> stringResource(R.string.request_log_source_memory_embedding)
+        AIRequestSource.MEMORY_RETRIEVAL -> stringResource(R.string.request_log_source_memory_retrieval)
+        AIRequestSource.TOOL_RESULT_EMBEDDING -> stringResource(R.string.request_log_source_tool_result_embedding)
+        AIRequestSource.TOOL_RESULT_RAG -> stringResource(R.string.request_log_source_tool_result_rag)
+        AIRequestSource.TRANSLATION -> stringResource(R.string.request_log_source_translation)
+        AIRequestSource.OCR -> stringResource(R.string.request_log_source_ocr)
+        AIRequestSource.SCHEDULED_MESSAGE -> stringResource(R.string.request_log_source_scheduled_message)
+        AIRequestSource.SPONTANEOUS -> stringResource(R.string.request_log_source_spontaneous)
+        AIRequestSource.OTHER -> stringResource(R.string.request_log_source_other)
+    }
+}
+
+@Composable
 fun resolveSourceLabel(raw: String): String {
     val source = runCatching { AIRequestSource.valueOf(raw) }.getOrNull()
-    return source?.displayNameZh() ?: raw
+    return source?.displayName() ?: raw
 }
 
 private fun formatJsonOrRaw(raw: String): String {

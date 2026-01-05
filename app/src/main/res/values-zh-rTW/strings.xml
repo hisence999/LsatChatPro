@@ -1250,6 +1250,21 @@
   <string name="request_log_field_stream">串流</string>
   <string name="request_log_field_url">URL</string>
   <string name="request_log_field_error">訊息</string>
+  <string name="request_log_source_chat">聊天</string>
+  <string name="request_log_source_title_summary">標題總結</string>
+  <string name="request_log_source_chat_suggestion">聊天建議</string>
+  <string name="request_log_source_group_chat_routing">群聊路由</string>
+  <string name="request_log_source_welcome_phrases">歡迎詞</string>
+  <string name="request_log_source_memory_consolidation">記憶整合</string>
+  <string name="request_log_source_memory_embedding">記憶嵌入</string>
+  <string name="request_log_source_memory_retrieval">記憶檢索</string>
+  <string name="request_log_source_tool_result_embedding">工具結果嵌入</string>
+  <string name="request_log_source_tool_result_rag">工具結果檢索</string>
+  <string name="request_log_source_translation">翻譯</string>
+  <string name="request_log_source_ocr">OCR</string>
+  <string name="request_log_source_scheduled_message">定時訊息</string>
+  <string name="request_log_source_spontaneous">主動通知</string>
+  <string name="request_log_source_other">其他</string>
 
   <!-- Provider -->
   <string name="setting_provider_page_select_icon">選擇圖示</string>

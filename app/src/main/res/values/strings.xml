@@ -35,6 +35,22 @@
     <string name="request_log_field_stream">Stream</string>
     <string name="request_log_field_url">URL</string>
     <string name="request_log_field_error">Message</string>
+
+    <string name="request_log_source_chat">Chat</string>
+    <string name="request_log_source_title_summary">Title Summary</string>
+    <string name="request_log_source_chat_suggestion">Chat Suggestion</string>
+    <string name="request_log_source_group_chat_routing">Group Chat Routing</string>
+    <string name="request_log_source_welcome_phrases">Welcome Phrases</string>
+    <string name="request_log_source_memory_consolidation">Memory Consolidation</string>
+    <string name="request_log_source_memory_embedding">Memory Embedding</string>
+    <string name="request_log_source_memory_retrieval">Memory Retrieval</string>
+    <string name="request_log_source_tool_result_embedding">Tool Result Embedding</string>
+    <string name="request_log_source_tool_result_rag">Tool Result Retrieval</string>
+    <string name="request_log_source_translation">Translation</string>
+    <string name="request_log_source_ocr">OCR</string>
+    <string name="request_log_source_scheduled_message">Scheduled Message</string>
+    <string name="request_log_source_spontaneous">Spontaneous</string>
+    <string name="request_log_source_other">Other</string>
     <string name="app_name">LastChat Plus</string>
     <string name="assistant_importer_import_failed">Import Failed</string>
     <string name="assistant_importer_import_tavern_json">Import Tavern Card (JSON)</string>

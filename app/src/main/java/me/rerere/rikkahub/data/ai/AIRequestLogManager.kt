@@ -83,6 +83,9 @@ private data class EmbeddingResponseLog(
 class AIRequestLogManager(
     private val dao: AIRequestLogDao,
 ) {
+    @Volatile
+    private var didReclassifyRecentLogs: Boolean = false
+
     fun observeRecent(limit: Int = REQUEST_LOG_KEEP_LATEST) = dao.observeRecent(limit)
 
     fun observeById(id: Long) = dao.observeById(id)
@@ -220,6 +223,54 @@ class AIRequestLogManager(
             Log.w(TAG, "logEmbedding failed: ${it.message}", it)
         }
     }
+
+    suspend fun reclassifyRecentLogsIfNeeded(limit: Int = REQUEST_LOG_KEEP_LATEST) = withContext(Dispatchers.IO) {
+        if (didReclassifyRecentLogs) return@withContext
+        didReclassifyRecentLogs = true
+
+        runCatching {
+            val logs = dao.getRecent(limit)
+            logs.forEach { log ->
+                val newSource = reclassifyLogSourceOrNull(log) ?: return@forEach
+                if (newSource != log.source) {
+                    dao.updateSource(id = log.id, source = newSource)
+                }
+            }
+        }.onFailure {
+            Log.w(TAG, "reclassifyRecentLogsIfNeeded failed: ${it.message}", it)
+        }
+    }
+}
+
+private fun reclassifyLogSourceOrNull(log: AIRequestLogEntity): String? {
+    if (log.source == AIRequestSource.OTHER.name && log.requestPreview.isGroupChatRoutingPreview()) {
+        return AIRequestSource.GROUP_CHAT_ROUTING.name
+    }
+
+    val embeddingParams = log.paramsJson.parseEmbeddingParamsOrNull()
+    if (embeddingParams != null) {
+        if (log.source == AIRequestSource.MEMORY_EMBEDDING.name) {
+            return AIRequestSource.MEMORY_RETRIEVAL.name.takeIf { embeddingParams.totalChars < 200 }
+        }
+
+        return AIRequestSource.MEMORY_EMBEDDING.name.takeIf {
+            log.source == AIRequestSource.OTHER.name && embeddingParams.totalChars >= 200
+        }
+    }
+
+    return null
+}
+
+private fun String.isGroupChatRoutingPreview(): Boolean {
+    val trimmed = trim()
+    if (trimmed.isBlank()) return false
+    return trimmed.contains("route the speakers", ignoreCase = true)
+}
+
+private fun String.parseEmbeddingParamsOrNull(): EmbeddingParamsLog? {
+    val trimmed = trim()
+    if (trimmed.isBlank()) return null
+    return runCatching { JsonInstant.decodeFromString(EmbeddingParamsLog.serializer(), trimmed) }.getOrNull()
 }
 
 private fun buildTextGenerationParamsJson(params: TextGenerationParams): String {

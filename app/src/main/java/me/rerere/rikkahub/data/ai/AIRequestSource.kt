@@ -4,9 +4,11 @@ enum class AIRequestSource {
     CHAT,
     TITLE_SUMMARY,
     CHAT_SUGGESTION,
+    GROUP_CHAT_ROUTING,
     WELCOME_PHRASES,
     MEMORY_CONSOLIDATION,
     MEMORY_EMBEDDING,
+    MEMORY_RETRIEVAL,
     TOOL_RESULT_EMBEDDING,
     TOOL_RESULT_RAG,
     TRANSLATION,
@@ -21,9 +23,11 @@ fun AIRequestSource.displayNameZh(): String {
         AIRequestSource.CHAT -> "聊天"
         AIRequestSource.TITLE_SUMMARY -> "标题总结"
         AIRequestSource.CHAT_SUGGESTION -> "聊天建议"
+        AIRequestSource.GROUP_CHAT_ROUTING -> "群聊路由"
         AIRequestSource.WELCOME_PHRASES -> "欢迎词"
         AIRequestSource.MEMORY_CONSOLIDATION -> "记忆整合"
         AIRequestSource.MEMORY_EMBEDDING -> "记忆嵌入"
+        AIRequestSource.MEMORY_RETRIEVAL -> "记忆检索"
         AIRequestSource.TOOL_RESULT_EMBEDDING -> "工具结果嵌入"
         AIRequestSource.TOOL_RESULT_RAG -> "工具结果检索"
         AIRequestSource.TRANSLATION -> "翻译"

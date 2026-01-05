@@ -21,6 +21,12 @@ class RequestLogsVM(
     private val _sourceFilter = MutableStateFlow<AIRequestSource?>(null)
     val sourceFilter: StateFlow<AIRequestSource?> = _sourceFilter.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            requestLogManager.reclassifyRecentLogsIfNeeded()
+        }
+    }
+
     val availableSources = rawLogs
         .map { logs ->
             logs.mapNotNull { log ->

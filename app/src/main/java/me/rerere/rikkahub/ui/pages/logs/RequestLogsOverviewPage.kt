@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteForever
@@ -31,6 +32,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -42,7 +44,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.AIRequestSource
-import me.rerere.rikkahub.data.ai.displayNameZh
 import me.rerere.rikkahub.data.db.entity.AIRequestLogEntity
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
@@ -57,6 +58,10 @@ fun RequestLogsOverviewPage(vm: RequestLogsVM = koinViewModel()) {
     val navController = LocalNavController.current
     val haptics = rememberPremiumHaptics()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val listState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState()
+    }
 
     val logs by vm.logs.collectAsStateWithLifecycle(initialValue = emptyList())
     val sourceFilter by vm.sourceFilter.collectAsStateWithLifecycle()
@@ -83,6 +88,7 @@ fun RequestLogsOverviewPage(vm: RequestLogsVM = koinViewModel()) {
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -152,7 +158,7 @@ private fun SourceFilterRow(
                     haptics.perform(HapticPattern.Pop)
                     onSelect(source)
                 },
-                label = { Text(source.displayNameZh()) },
+                label = { Text(source.displayName()) },
             )
         }
     }
@@ -172,7 +178,7 @@ private fun RequestLogOverviewItem(
         label = "log_item_scale",
     )
 
-    val sourceLabel = remember(log.source) { resolveSourceLabel(log.source) }
+    val sourceLabel = resolveSourceLabel(log.source)
     val time = remember(log.createdAt) { formatLogTime(log.createdAt, "HH:mm:ss") }
     val durationText = log.durationMs?.let { "${it}ms" }.orEmpty()
 

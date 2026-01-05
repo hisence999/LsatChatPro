@@ -2263,7 +2263,7 @@ class ChatService(
             inputTransformers = emptyList(),
             outputTransformers = emptyList(),
             maxSteps = 1,
-            source = AIRequestSource.OTHER,
+            source = AIRequestSource.GROUP_CHAT_ROUTING,
         ).collect { chunk ->
             if (chunk is GenerationChunk.Messages) {
                 lastMessages = chunk.messages

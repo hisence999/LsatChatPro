@@ -28,6 +28,7 @@ import org.koin.core.component.inject
 import me.rerere.rikkahub.data.ai.rag.VectorEngine
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 
@@ -182,7 +183,11 @@ class MemoryConsolidationWorker(
                 }
                 
                 // Generate embedding for the episode
-                val summaryEmbeddingResult = embeddingService.embedWithModelId(summary, assistantId)
+                val summaryEmbeddingResult = embeddingService.embedWithModelId(
+                    text = summary,
+                    assistantId = assistantId,
+                    source = AIRequestSource.MEMORY_EMBEDDING,
+                )
                 val summaryEmbedding = summaryEmbeddingResult.embeddings.firstOrNull()
                 val embeddingModelId = summaryEmbeddingResult.modelId
                 
