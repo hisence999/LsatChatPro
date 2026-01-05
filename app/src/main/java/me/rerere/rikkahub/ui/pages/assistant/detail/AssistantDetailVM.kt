@@ -282,10 +282,10 @@ class AssistantDetailVM(
                 } else {
                     0.0f // Show all for debugging
                 }
-                val limit = if (currentAssistant.ragLimit > 0) {
-                    currentAssistant.ragLimit
-                } else {
-                    10 // Default for debugging
+                val limit = currentAssistant.ragLimit.coerceIn(0, 50)
+                if (limit <= 0) {
+                    _retrievalResults.value = emptyList()
+                    return@launch
                 }
                 
                 val results = memoryRepository.retrieveRelevantMemoriesWithScores(

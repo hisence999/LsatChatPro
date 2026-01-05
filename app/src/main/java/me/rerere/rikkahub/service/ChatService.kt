@@ -1145,33 +1145,52 @@ class ChatService(
                     val assistant = settings.getCurrentAssistant()
                     if (assistant.useRagMemoryRetrieval) {
                         // RAG mode: retrieve relevant memories based on context
-                        val lastUserMessage = conversation.currentMessages.lastOrNull { it.role == MessageRole.USER }?.toText() ?: ""
+                        val lastUserMessage = conversation.currentMessages
+                            .lastOrNull { it.role == MessageRole.USER }
+                            ?.toText()
+                            .orEmpty()
+                        val limit = assistant.ragLimit.coerceIn(0, 50)
                         
                         if (settings.enableRagLogging) {
                             Log.d("RAG", "Query: $lastUserMessage")
                         }
 
-                        if (lastUserMessage.isNotBlank()) {
-                            val results = memoryRepository.retrieveRelevantMemories(
-                                assistantId = settings.assistantId.toString(),
-                                query = lastUserMessage,
-                                limit = 50, // Hardcoded high limit for dynamic context
-                                similarityThreshold = assistant.ragSimilarityThreshold,
-                                includeCore = assistant.ragIncludeCore,
-                                includeEpisodes = assistant.ragIncludeEpisodes
-                            )
-                            if (settings.enableRagLogging) {
-                                Log.d("RAG", "Retrieved ${results.size} memories")
-                                results.forEach { Log.d("RAG", " - [${it.type}] ${it.content.take(50)}...") }
+                        when {
+                            limit <= 0 -> emptyList()
+                            lastUserMessage.isNotBlank() -> {
+                                val results = withContext(Dispatchers.IO) {
+                                    memoryRepository.retrieveRelevantMemories(
+                                        assistantId = settings.assistantId.toString(),
+                                        query = lastUserMessage,
+                                        limit = limit,
+                                        similarityThreshold = assistant.ragSimilarityThreshold,
+                                        includeCore = assistant.ragIncludeCore,
+                                        includeEpisodes = assistant.ragIncludeEpisodes,
+                                    )
+                                }
+                                if (settings.enableRagLogging) {
+                                    Log.d("RAG", "Retrieved ${results.size} memories")
+                                    results.forEach { Log.d("RAG", " - [${it.type}] ${it.content.take(50)}...") }
+                                }
+                                results
                             }
-                            results
-                        } else {
-                            if (settings.enableRagLogging) Log.d("RAG", "Empty query, using all memories")
-                            memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
+                            else -> {
+                                if (settings.enableRagLogging) Log.d("RAG", "Empty query, using recent memories")
+                                withContext(Dispatchers.IO) {
+                                    memoryRepository.getRecentCombinedMemories(
+                                        assistantId = settings.assistantId.toString(),
+                                        limit = limit,
+                                        includeCore = assistant.ragIncludeCore,
+                                        includeEpisodes = assistant.ragIncludeEpisodes,
+                                    )
+                                }
+                            }
                         }
                     } else {
                         // Simple mode: inject all memories
-                        memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
+                        withContext(Dispatchers.IO) {
+                            memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
+                        }
                     }
                 } else {
                     null
@@ -1428,21 +1447,12 @@ class ChatService(
                 seat = seat,
                 assistant = assistant,
             )
-            val memorySuffix = buildGroupChatSeatMemorySystemPromptSuffix(
-                conversationId = conversationId,
-                assistant = assistant,
-                overrides = seat.overrides,
-                userText = lastUserText,
-            )
             val fullSystemPromptSuffix = buildString {
                 append(groupContextSuffix)
-                if (!memorySuffix.isNullOrBlank()) {
-                    append(memorySuffix)
+                if (!systemPromptSuffix.isNullOrBlank()) {
+                    append(systemPromptSuffix)
                 }
-            if (!systemPromptSuffix.isNullOrBlank()) {
-                append(systemPromptSuffix)
             }
-        }
             val seatAssistant = applySeatOverrides(assistant, seat.overrides, fullSystemPromptSuffix)
             val modelSupportsBuiltIn = model.tools.isNotEmpty() ||
                 me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
@@ -1501,6 +1511,38 @@ class ChatService(
                 _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
             }
             val seatMaxSteps = if (hasExternalTools || useBuiltInSearch) 8 else 1
+            val seatMemories = if (seatAssistant.enableMemory && !temporaryConversations.contains(conversationId)) {
+                val assistantId = seatAssistant.id.toString()
+                val query = lastUserText.trim()
+                val limit = seatAssistant.ragLimit.coerceIn(0, 50)
+
+                when {
+                    !seatAssistant.useRagMemoryRetrieval -> withContext(Dispatchers.IO) {
+                        memoryRepository.getMemoriesOfAssistant(assistantId)
+                    }
+                    limit <= 0 -> emptyList()
+                    query.isNotBlank() -> withContext(Dispatchers.IO) {
+                        memoryRepository.retrieveRelevantMemories(
+                            assistantId = assistantId,
+                            query = query,
+                            limit = limit,
+                            similarityThreshold = seatAssistant.ragSimilarityThreshold,
+                            includeCore = seatAssistant.ragIncludeCore,
+                            includeEpisodes = seatAssistant.ragIncludeEpisodes,
+                        )
+                    }
+                    else -> withContext(Dispatchers.IO) {
+                        memoryRepository.getRecentCombinedMemories(
+                            assistantId = assistantId,
+                            limit = limit,
+                            includeCore = seatAssistant.ragIncludeCore,
+                            includeEpisodes = seatAssistant.ragIncludeEpisodes,
+                        )
+                    }
+                }
+            } else {
+                null
+            }
 
             generationHandler.generateText(
                 settings = settings,
@@ -1508,7 +1550,8 @@ class ChatService(
                 messages = promptMessages,
                 conversationId = conversationId,
                 assistant = seatAssistant,
-                memories = null,
+                memories = seatMemories,
+                enableMemoryTools = false,
                 tools = seatTools,
                 inputTransformers = seatInputTransformers,
                 outputTransformers = outputTransformers,
@@ -1764,6 +1807,7 @@ class ChatService(
             preferBuiltInSearch = overrides.searchEnabled && overrides.preferBuiltInSearch,
             mcpServers = overrides.mcpServerIds,
             localTools = emptyList(),
+            enableMemory = overrides.memoryEnabled && assistant.enableMemory,
             systemPrompt = updatedPrompt,
         )
     }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
@@ -19,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,6 +29,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import kotlin.math.roundToInt
 
 @Composable
 fun AssistantRagMemorySubPage(
@@ -142,6 +141,34 @@ fun AssistantRagMemorySubPage(
                         text = stringResource(R.string.assistant_page_rag_settings_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = stringResource(R.string.assistant_page_rag_topk),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.assistant_page_rag_topk_desc,
+                            assistant.ragLimit.coerceIn(0, 50)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    var topK by remember(assistant.ragLimit) {
+                        mutableFloatStateOf(assistant.ragLimit.coerceIn(0, 50).toFloat())
+                    }
+                    Slider(
+                        value = topK,
+                        onValueChange = { newValue ->
+                            val newLimit = newValue.roundToInt().coerceIn(0, 50)
+                            topK = newLimit.toFloat()
+                            onUpdateAssistant(
+                                assistant.copy(ragLimit = newLimit)
+                            )
+                        },
+                        valueRange = 0f..50f,
+                        steps = 49,
                     )
 
 

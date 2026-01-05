@@ -818,6 +818,8 @@
     <string name="assistant_page_rag_similarity_threshold">相似度阈值</string>
     <string name="assistant_page_rag_similarity_all">0.0 (全部)</string>
     <string name="assistant_page_rag_similarity_exact">1.0 (精确)</string>
+    <string name="assistant_page_rag_topk">Top-K</string>
+    <string name="assistant_page_rag_topk_desc">召回并注入的记忆数量上限（0=不注入，仍受 token 预算限制）。当前：%1$d</string>
     <string name="assistant_page_advanced_memory_settings_title">高级记忆设置</string>
     <string name="assistant_page_reflexion_settings_title">反思设置</string>
     <string name="assistant_page_memory_statistics_title">记忆统计</string>

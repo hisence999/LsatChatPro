@@ -864,6 +864,8 @@
     <string name="assistant_page_rag_similarity_threshold">Similarity Threshold</string>
     <string name="assistant_page_rag_similarity_all">0.0 (All)</string>
     <string name="assistant_page_rag_similarity_exact">1.0 (Exact)</string>
+    <string name="assistant_page_rag_topk">Top-K</string>
+    <string name="assistant_page_rag_topk_desc">Max memories to retrieve &amp; inject (0 = none, still limited by token budget). Current: %1$d</string>
     <string name="assistant_page_advanced_memory_settings_title">Advanced Memory Settings</string>
     <string name="assistant_page_reflexion_settings_title">Reflection Settings</string>
     <string name="assistant_page_memory_statistics_title">Memory Statistics</string>

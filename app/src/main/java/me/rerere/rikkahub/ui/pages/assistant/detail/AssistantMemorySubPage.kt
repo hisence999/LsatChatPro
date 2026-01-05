@@ -92,6 +92,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import kotlin.math.roundToInt
 
 /**
  * Memory mode based on current settings
@@ -598,10 +599,51 @@ private fun RagSettingsCard(
         modifier = Modifier.clip(RoundedCornerShape(24.dp)),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        // Top-K
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                var topK by remember(assistant.ragLimit) {
+                    mutableFloatStateOf(assistant.ragLimit.coerceIn(0, 50).toFloat())
+                }
+                val topKInt = topK.roundToInt().coerceIn(0, 50)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.assistant_page_rag_topk), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = topKInt.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.assistant_page_rag_topk_desc, topKInt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = topK,
+                    onValueChange = { newValue ->
+                        val newLimit = newValue.roundToInt().coerceIn(0, 50)
+                        topK = newLimit.toFloat()
+                        onUpdateAssistant(assistant.copy(ragLimit = newLimit))
+                    },
+                    valueRange = 0f..50f,
+                    steps = 49,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+
         // Similarity Threshold
         Surface(
             color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 var threshold by remember(assistant.ragSimilarityThreshold) {

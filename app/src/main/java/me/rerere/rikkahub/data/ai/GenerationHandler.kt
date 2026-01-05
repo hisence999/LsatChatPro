@@ -107,6 +107,7 @@ class GenerationHandler(
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
         assistant: Assistant,
         memories: List<AssistantMemory>? = null,
+        enableMemoryTools: Boolean = true,
         tools: List<Tool> = emptyList(),
         truncateIndex: Int = -1,
         maxSteps: Int = 256,
@@ -125,7 +126,7 @@ class GenerationHandler(
                 Log.i(TAG, "generateInternal: build tools($assistant)")
                 // Only add memory tools if memory is enabled AND memory is available for this run
                 // (temporary chats pass `memories = null` to opt-out).
-                if (assistant.enableMemory && memories != null) {
+                if (assistant.enableMemory && memories != null && enableMemoryTools) {
                     buildMemoryTools(
                         onCreation = { content ->
                             memoryRepo.addMemory(assistant.id.toString(), content)
@@ -639,7 +640,10 @@ class GenerationHandler(
         val chatHistoryCandidates = effectiveContextMessages.reversed()
         
         // Memories (Prepare effective memories including recent chats if enabled)
-        val effectiveMemoriesCandidates = if (assistant.enableMemory) {
+        val shouldInjectMemories = assistant.enableMemory &&
+            (!assistant.useRagMemoryRetrieval || assistant.ragLimit > 0)
+
+        val effectiveMemoriesCandidates = if (shouldInjectMemories) {
             val recentChatMemories = if (assistant.enableRecentChatsReference && messages.size <= 2) {
                 val today = java.time.LocalDate.now()
                 val recentConversations = conversationRepo.getRecentConversations(
