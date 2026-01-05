@@ -599,10 +599,50 @@ private fun RagSettingsCard(
         modifier = Modifier.clip(RoundedCornerShape(24.dp)),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // Top-K
+        // Similarity Threshold
         Surface(
             color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 10.dp, bottomEnd = 10.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                var threshold by remember(assistant.ragSimilarityThreshold) {
+                    mutableFloatStateOf(assistant.ragSimilarityThreshold)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.assistant_page_rag_similarity_threshold), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = String.format("%.2f", threshold),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = threshold,
+                    onValueChange = { newValue ->
+                        threshold = newValue
+                        onUpdateAssistant(assistant.copy(ragSimilarityThreshold = newValue))
+                    },
+                    valueRange = 0f..1f,
+                    steps = 19,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.assistant_page_rag_similarity_all), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.assistant_page_rag_similarity_exact), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        // Top-K
+        Surface(
+            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 var topK by remember(assistant.ragLimit) {
@@ -637,46 +677,6 @@ private fun RagSettingsCard(
                     steps = 49,
                     modifier = Modifier.padding(top = 8.dp)
                 )
-            }
-        }
-
-        // Similarity Threshold
-        Surface(
-            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                var threshold by remember(assistant.ragSimilarityThreshold) {
-                    mutableFloatStateOf(assistant.ragSimilarityThreshold)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(stringResource(R.string.assistant_page_rag_similarity_threshold), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = String.format("%.2f", threshold),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Slider(
-                    value = threshold,
-                    onValueChange = { newValue ->
-                        threshold = newValue
-                        onUpdateAssistant(assistant.copy(ragSimilarityThreshold = newValue))
-                    },
-                    valueRange = 0f..1f,
-                    steps = 19,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(stringResource(R.string.assistant_page_rag_similarity_all), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(R.string.assistant_page_rag_similarity_exact), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
             }
         }
     }
