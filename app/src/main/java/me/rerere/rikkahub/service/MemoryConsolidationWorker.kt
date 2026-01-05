@@ -140,6 +140,8 @@ class MemoryConsolidationWorker(
             val prompt = """
                 Analyze the following conversation and create a "Memory Episode".
                 
+                **Language**: Detect the primary language of the conversation (prioritize the user's messages; if mixed, follow the most recent user message). Write the "summary" in that language.
+                
                 $contextSection
                 1. **Summary**: Concise summary of what happened (under 100 words).
                 2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
@@ -147,7 +149,7 @@ class MemoryConsolidationWorker(
                 Conversation:
                 $messagesText
                 
-                Output JSON format:
+                Output JSON format (return only JSON, no extra text):
                 {
                     "summary": "...",
                     "significance": 5
