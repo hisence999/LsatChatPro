@@ -402,7 +402,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
                         current = conversation,
                         vm = vm,
                         settings = setting,
-                        drawerState = drawerState
+                        drawerState = null
                     )
                 }
             ) {

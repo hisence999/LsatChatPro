@@ -187,6 +187,7 @@ fun ChatDrawerContent(
                 recentlyRestoredIds = recentlyRestoredIds,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { vm.updateSearchQuery(it) },
+                drawerState = drawerState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),

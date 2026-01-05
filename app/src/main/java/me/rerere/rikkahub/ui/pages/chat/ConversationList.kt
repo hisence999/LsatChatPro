@@ -28,6 +28,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +47,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,12 +55,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import androidx.compose.material.icons.Icons
@@ -75,6 +81,7 @@ import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.toLocalString
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.uuid.Uuid
@@ -101,6 +108,7 @@ fun ColumnScope.ConversationList(
     recentlyRestoredIds: Set<Uuid> = emptySet(),
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    drawerState: DrawerState? = null,
     modifier: Modifier = Modifier,
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
@@ -151,8 +159,121 @@ fun ColumnScope.ConversationList(
         )
     }
 
-    Box(modifier = modifier) {
-        val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    var viewportHeight by remember { mutableIntStateOf(0) }
+
+    val listState = rememberLazyListState()
+
+    var autoCenterRequest by remember { mutableIntStateOf(0) }
+    var autoCentering by remember { mutableStateOf(false) }
+    var lastCenteredConversationId by remember { mutableStateOf<Uuid?>(null) }
+
+    fun requestAutoCenter() {
+        autoCenterRequest += 1
+    }
+
+    suspend fun centerOnConversation(conversationId: Uuid): Boolean {
+        val initialIndex = listState.firstVisibleItemIndex
+        val initialOffset = listState.firstVisibleItemScrollOffset
+
+        val fallbackItemHeightPx = with(density) { 52.dp.toPx().toInt() }
+        val viewportStartTime = System.currentTimeMillis()
+        while (viewportHeight <= 0 && System.currentTimeMillis() - viewportStartTime < 1500) {
+            kotlinx.coroutines.delay(16)
+        }
+        if (viewportHeight <= 0) return false
+
+        val centerOffset = -(viewportHeight / 2) + (fallbackItemHeightPx / 2)
+        val startTime = System.currentTimeMillis()
+        var centered = false
+
+        try {
+            while (System.currentTimeMillis() - startTime < 5000) {
+                val snapshot = conversations.itemSnapshotList
+                val indexInSnapshot = snapshot.items.indexOfFirst { item ->
+                    item is ConversationListItem.Item && item.conversation.id == conversationId
+                }
+                if (indexInSnapshot >= 0) {
+                    val targetIndex = snapshot.placeholdersBefore + indexInSnapshot
+                    runCatching { listState.scrollToItem(targetIndex, centerOffset) }
+                    centered = true
+                    break
+                }
+
+                val append = conversations.loadState.append
+                if (append is LoadState.NotLoading && append.endOfPaginationReached) {
+                    break
+                }
+                if (append is LoadState.Loading) {
+                    kotlinx.coroutines.delay(16)
+                    continue
+                }
+
+                val itemCountBefore = conversations.itemCount
+                if (itemCountBefore <= 0) {
+                    kotlinx.coroutines.delay(16)
+                    continue
+                }
+
+                runCatching { listState.scrollToItem(itemCountBefore - 1) }
+                val itemCountChanged = kotlinx.coroutines.withTimeoutOrNull(1200) {
+                    snapshotFlow { conversations.itemCount }.first { it != itemCountBefore }
+                }
+                if (itemCountChanged == null) {
+                    kotlinx.coroutines.delay(16)
+                }
+            }
+        } finally {
+            if (!centered) {
+                runCatching { listState.scrollToItem(initialIndex, initialOffset) }
+            }
+        }
+
+        return centered
+    }
+
+    LaunchedEffect(current.id, searchQuery) {
+        if (drawerState == null) return@LaunchedEffect
+        if (searchQuery.isNotBlank()) return@LaunchedEffect
+        lastCenteredConversationId = null
+        requestAutoCenter()
+    }
+
+    LaunchedEffect(drawerState?.currentValue) {
+        if (drawerState == null) return@LaunchedEffect
+        if (drawerState.currentValue == DrawerValue.Closed) {
+            lastCenteredConversationId = null
+        }
+    }
+
+    LaunchedEffect(drawerState?.targetValue, searchQuery) {
+        if (drawerState == null) return@LaunchedEffect
+        if (searchQuery.isNotBlank()) return@LaunchedEffect
+        if (drawerState.targetValue != DrawerValue.Open) return@LaunchedEffect
+        if (autoCentering) return@LaunchedEffect
+        if (lastCenteredConversationId == current.id) return@LaunchedEffect
+        requestAutoCenter()
+    }
+
+    LaunchedEffect(autoCenterRequest) {
+        if (drawerState == null) return@LaunchedEffect
+        if (searchQuery.isNotBlank()) return@LaunchedEffect
+        autoCentering = true
+        try {
+            val centered = centerOnConversation(current.id)
+            if (centered) {
+                lastCenteredConversationId = current.id
+            }
+        } finally {
+            autoCentering = false
+        }
+    }
+
+    Box(
+        modifier = modifier.onGloballyPositioned { coordinates ->
+            viewportHeight = coordinates.size.height
+        }
+    ) {
         val canScrollBackward by remember {
             derivedStateOf { listState.canScrollBackward }
         }
@@ -388,9 +509,14 @@ private fun ConversationItem(
     val combinedAlpha = restoredAlpha * pressAlpha
     
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
+        MaterialTheme.colorScheme.primaryContainer
     } else {
         Color.Transparent
+    }
+    val titleColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
     }
     var showDropdownMenu by remember {
         mutableStateOf(false)
@@ -425,6 +551,7 @@ private fun ConversationItem(
         ) {
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -447,7 +574,7 @@ private fun ConversationItem(
                     imageVector = Icons.Rounded.PushPin,
                     contentDescription = stringResource(R.string.a11y_pinned),
                     modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                 )
             }
             val loadingDesc = stringResource(R.string.a11y_loading)
