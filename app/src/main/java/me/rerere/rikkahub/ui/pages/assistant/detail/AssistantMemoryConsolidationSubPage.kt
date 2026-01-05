@@ -91,12 +91,23 @@ fun AssistantMemoryConsolidationSubPage(
                             )
                         }
                         HapticSwitch(
-                            checked = assistant.enableMemory,
-                            onCheckedChange = { onUpdate(assistant.copy(enableMemory = it)) }
+                            checked = assistant.enableMemoryConsolidation,
+                            onCheckedChange = { enabled ->
+                                onUpdate(
+                                    if (enabled) {
+                                        assistant.copy(
+                                            enableMemoryConsolidation = true,
+                                            enableRecentChatsReference = true,
+                                        )
+                                    } else {
+                                        assistant.copy(enableMemoryConsolidation = false)
+                                    }
+                                )
+                            }
                         )
                     }
 
-                    if (assistant.enableMemory) {
+                    if (assistant.enableMemory && assistant.enableMemoryConsolidation) {
                         // Consolidation Delay
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
@@ -203,7 +214,8 @@ fun AssistantMemoryConsolidationSubPage(
 
                         Button(
                             onClick = { onConsolidate(true) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = assistant.enableMemoryConsolidation,
                         ) {
                             Icon(Icons.Rounded.Psychology, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))

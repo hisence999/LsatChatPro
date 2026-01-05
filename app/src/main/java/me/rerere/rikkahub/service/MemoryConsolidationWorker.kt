@@ -13,22 +13,28 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import me.rerere.rikkahub.data.ai.rag.VectorEngine
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.ai.AIRequestSource
+import me.rerere.rikkahub.data.model.GroupChatTemplate
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 
@@ -43,6 +49,7 @@ class MemoryConsolidationWorker(
     private val settingsStore: SettingsStore by inject()
     private val embeddingService: EmbeddingService by inject()
     private val providerManager: me.rerere.ai.provider.ProviderManager by inject()
+    private val requestLogManager: AIRequestLogManager by inject()
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -56,22 +63,59 @@ class MemoryConsolidationWorker(
 
     private suspend fun consolidateMemories() {
         val settings = settingsStore.settingsFlow.value
+        val isFullScan = inputData.getBoolean("FULL_SCAN", false)
+        val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
+        val groupChatTemplateId = inputData.getString("GROUP_CHAT_TEMPLATE_ID")
+
+        if (!groupChatTemplateId.isNullOrBlank()) {
+            val templateId = runCatching { kotlin.uuid.Uuid.parse(groupChatTemplateId) }.getOrNull()
+            val template = templateId?.let { id ->
+                settings.groupChatTemplates.firstOrNull { it.id == id }
+            }
+            if (template != null) {
+                consolidateGroupChatTemplate(
+                    settings = settings,
+                    template = template,
+                    isFullScan = isFullScan,
+                    forcedConversationId = null,
+                )
+            }
+            return
+        }
+
+        if (!forceConversationId.isNullOrBlank()) {
+            val conversationId = runCatching { kotlin.uuid.Uuid.parse(forceConversationId) }.getOrNull()
+            val conversation = conversationId?.let { id -> conversationRepository.getConversationById(id) }
+            if (conversation != null) {
+                val template = settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+                if (template != null) {
+                    consolidateGroupChatTemplate(
+                        settings = settings,
+                        template = template,
+                        isFullScan = true,
+                        forcedConversationId = conversation.id.toString(),
+                    )
+                    return
+                }
+            }
+        }
+
         val assistant = settings.getCurrentAssistant()
-        if (!assistant.enableMemory) return
+        val assistantId = settings.assistantId.toString()
+
+        if (!assistant.enableMemory) {
+            if (!isFullScan && forceConversationId.isNullOrBlank()) {
+                consolidateAllGroupChatTemplates(settings = settings)
+            }
+            return
+        }
+
         val summarizerModelId = assistant.summarizerModelId
         val backgroundModelId = summarizerModelId ?: assistant.backgroundModelId ?: settings.chatModelId
         val model = settings.findModelById(backgroundModelId) ?: return
         val provider = model.findProvider(settings.providers) ?: return
         val providerHandler = providerManager.getProviderByType(provider)
-        val assistantId = settings.assistantId.toString()
 
-        // =========================================================================================
-        // TRACK A: Episodic Memory Creation (Stream of Consciousness)
-        // Only runs if enableMemoryConsolidation is true
-        // =========================================================================================
-        val isFullScan = inputData.getBoolean("FULL_SCAN", false)
-        val forceConversationId = inputData.getString("FORCE_CONVERSATION_ID")
-        
         var trackACount = 0
         val now = System.currentTimeMillis()
         
@@ -157,80 +201,98 @@ class MemoryConsolidationWorker(
                 }
             """.trimIndent()
             
+            val params = TextGenerationParams(model = model, temperature = 0.5f)
+            val requestMessages = listOf(UIMessage.user(prompt))
+            val startAt = System.currentTimeMillis()
+            var responseText = ""
+            var failure: Throwable? = null
+
             try {
                 val response = providerHandler.generateText(
                     providerSetting = provider,
-                    messages = listOf(UIMessage.user(prompt)),
-                    params = TextGenerationParams(model = model, temperature = 0.5f)
+                    messages = requestMessages,
+                    params = params,
                 )
-                val responseText = response.choices.firstOrNull()?.message?.toContentText() ?: continue
-                
+                responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                if (responseText.isBlank()) continue
+
                 var summary = responseText
                 var significance = 5
-                
-                // Try to parse JSON
-                try {
+
+                runCatching {
                     val jsonStart = responseText.indexOf("{")
                     val jsonEnd = responseText.lastIndexOf("}")
                     if (jsonStart != -1 && jsonEnd != -1) {
                         val jsonStr = responseText.substring(jsonStart, jsonEnd + 1)
                         val json = Json.parseToJsonElement(jsonStr).jsonObject
-                        summary = json["summary"]?.jsonPrimitive?.content ?: summary
-                        significance = json["significance"]?.jsonPrimitive?.intOrNull ?: 5
+                        summary = json["summary"]?.jsonPrimitiveOrNull?.content ?: summary
+                        significance = json["significance"]?.jsonPrimitiveOrNull?.intOrNull ?: 5
                     }
-                } catch (e: Exception) {
-                    // Fallback: use raw text as summary if JSON parsing fails
                 }
-                
-                // Generate embedding for the episode
-                val summaryEmbeddingResult = embeddingService.embedWithModelId(
-                    text = summary,
+
+                val summaryEmbeddingResult = runCatching {
+                    embeddingService.embedWithModelId(
+                        text = summary,
+                        assistantId = assistantId,
+                        source = AIRequestSource.MEMORY_EMBEDDING,
+                    )
+                }.getOrNull()
+                val summaryEmbedding = summaryEmbeddingResult?.embeddings?.firstOrNull()
+                val embeddingModelId = summaryEmbeddingResult?.modelId
+
+                val conversationId = conversation.id.toString()
+                val existingEpisode = chatEpisodeDAO.getEpisodeByConversationIdAndAssistantId(
+                    conversationId = conversationId,
                     assistantId = assistantId,
-                    source = AIRequestSource.MEMORY_EMBEDDING,
                 )
-                val summaryEmbedding = summaryEmbeddingResult.embeddings.firstOrNull()
-                val embeddingModelId = summaryEmbeddingResult.modelId
-                
-                if (summaryEmbedding != null) {
-                    // Check if an episode already exists for this conversation
-                    val existingEpisode = chatEpisodeDAO.getEpisodeByConversationId(conversation.id.toString())
-                    
-                    if (existingEpisode != null) {
-                        // Update existing episode
-                        chatEpisodeDAO.insertEpisode(
-                            existingEpisode.copy(
-                                content = summary,
-                                embedding = JsonInstant.encodeToString(summaryEmbedding),
-                                embeddingModelId = embeddingModelId,
-                                endTime = conversation.updateAt.toEpochMilli(),
-                                lastAccessedAt = System.currentTimeMillis(),
-                                significance = significance
-                            )
+
+                if (existingEpisode != null) {
+                    chatEpisodeDAO.insertEpisode(
+                        existingEpisode.copy(
+                            content = summary,
+                            embedding = summaryEmbedding?.let { JsonInstant.encodeToString(it) },
+                            embeddingModelId = embeddingModelId,
+                            endTime = conversation.updateAt.toEpochMilli(),
+                            lastAccessedAt = System.currentTimeMillis(),
+                            significance = significance,
                         )
-                        Log.i("MemoryConsolidation", "Updated episode (sig=$significance) for conversation ${conversation.id}")
-                    } else {
-                        // Create new episode
-                        chatEpisodeDAO.insertEpisode(
-                            ChatEpisodeEntity(
-                                assistantId = assistantId,
-                                content = summary,
-                                embedding = JsonInstant.encodeToString(summaryEmbedding),
-                                embeddingModelId = embeddingModelId,
-                                startTime = conversation.createAt.toEpochMilli(),
-                                endTime = conversation.updateAt.toEpochMilli(),
-                                lastAccessedAt = System.currentTimeMillis(),
-                                significance = significance,
-                                conversationId = conversation.id.toString()
-                            )
+                    )
+                    Log.i("MemoryConsolidation", "Updated episode (sig=$significance) for conversation ${conversation.id}")
+                } else {
+                    chatEpisodeDAO.insertEpisode(
+                        ChatEpisodeEntity(
+                            assistantId = assistantId,
+                            content = summary,
+                            embedding = summaryEmbedding?.let { JsonInstant.encodeToString(it) },
+                            embeddingModelId = embeddingModelId,
+                            startTime = conversation.createAt.toEpochMilli(),
+                            endTime = conversation.updateAt.toEpochMilli(),
+                            lastAccessedAt = System.currentTimeMillis(),
+                            significance = significance,
+                            conversationId = conversationId,
                         )
-                        Log.i("MemoryConsolidation", "Created episode (sig=$significance) for conversation ${conversation.id}")
-                    }
-                    
-                    conversationRepository.markAsConsolidated(conversation.id)
-                    trackACount++
+                    )
+                    Log.i("MemoryConsolidation", "Created episode (sig=$significance) for conversation ${conversation.id}")
                 }
-            } catch (e: Exception) {
-                Log.e("MemoryConsolidation", "Failed to process conversation ${conversation.id}", e)
+
+                conversationRepository.markAsConsolidated(conversation.id)
+                trackACount++
+            } catch (t: Throwable) {
+                failure = t
+                Log.e("MemoryConsolidation", "Failed to process conversation ${conversation.id}", t)
+            } finally {
+                val durationMs = System.currentTimeMillis() - startAt
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.MEMORY_CONSOLIDATION,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = responseText,
+                    stream = false,
+                    latencyMs = durationMs,
+                    durationMs = durationMs,
+                    error = failure,
+                )
             }
         }
         
@@ -287,6 +349,234 @@ class MemoryConsolidationWorker(
             }
         } catch (e: Exception) {
             Log.e("MemoryConsolidation", "Error auto-embedding memories", e)
+        }
+
+        if (!isFullScan && forceConversationId.isNullOrBlank()) {
+            consolidateAllGroupChatTemplates(settings = settings)
+        }
+    }
+
+    private suspend fun consolidateAllGroupChatTemplates(settings: Settings) {
+        settings.groupChatTemplates.forEach { template ->
+            consolidateGroupChatTemplate(
+                settings = settings,
+                template = template,
+                isFullScan = false,
+                forcedConversationId = null,
+            )
+        }
+    }
+
+    private suspend fun consolidateGroupChatTemplate(
+        settings: Settings,
+        template: GroupChatTemplate,
+        isFullScan: Boolean,
+        forcedConversationId: String?,
+    ) {
+        val integrationModelId = template.integrationModelId ?: return
+        val model = settings.findModelById(integrationModelId) ?: return
+        val provider = model.findProvider(settings.providers) ?: return
+        val providerHandler = providerManager.getProviderByType(provider)
+
+        val targetAssistants = template.seats
+            .asSequence()
+            .filter { seat -> seat.overrides.memoryEnabled }
+            .map { seat -> seat.assistantId }
+            .distinct()
+            .mapNotNull { id -> settings.getAssistantById(id) }
+            .filter { assistant -> assistant.enableMemory && assistant.enableMemoryConsolidation }
+            .distinctBy { it.id }
+            .toList()
+
+        if (targetAssistants.isEmpty()) return
+
+        val forcedConversation = forcedConversationId
+            ?.let { id -> runCatching { kotlin.uuid.Uuid.parse(id) }.getOrNull() }
+            ?.let { id -> conversationRepository.getConversationById(id) }
+            ?.takeIf { conversation -> conversation.assistantId == template.id }
+
+        val conversationsToProcess = when {
+            forcedConversation != null -> listOf(forcedConversation)
+            isFullScan -> conversationRepository.getConversationsOfAssistant(template.id).first()
+            else -> conversationRepository.getRecentConversations(template.id, 10)
+        }
+
+        val assistantsById = settings.assistants.associateBy { it.id }
+        val seatDisplayNames = template.buildSeatDisplayNames(
+            assistantsById = assistantsById,
+            defaultName = "Assistant",
+        )
+
+        val templateName = template.name.trim().ifBlank { "Group Chat" }
+        val now = System.currentTimeMillis()
+
+        for (conversation in conversationsToProcess) {
+            if (conversation.messageNodes.size < 4) continue
+
+            if (conversation.isConsolidated && !isFullScan && forcedConversation == null) continue
+
+            val delayMs = template.consolidationDelayMinutes * 60 * 1000L
+            if (forcedConversation == null &&
+                !isFullScan &&
+                now - conversation.updateAt.toEpochMilli() < delayMs
+            ) {
+                continue
+            }
+
+            val allMessages = conversation.currentMessages
+            val lastSummaryIndex = conversation.contextSummaryUpToIndex
+            val hasSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
+
+            val messagesToProcess = if (hasSummary && lastSummaryIndex < allMessages.size) {
+                allMessages.subList((lastSummaryIndex + 1).coerceAtMost(allMessages.size), allMessages.size)
+            } else {
+                allMessages
+            }.takeLast(30)
+
+            fun resolveSpeakerName(message: UIMessage): String {
+                message.speakerSeatId?.let { seatId ->
+                    seatDisplayNames[seatId]?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+                }
+                message.speakerAssistantId?.let { assistantId ->
+                    assistantsById[assistantId]?.name?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+                }
+                return when (message.role) {
+                    me.rerere.ai.core.MessageRole.USER -> "User"
+                    else -> "Assistant"
+                }
+            }
+
+            val messagesText = messagesToProcess.joinToString("\n") { message ->
+                "${resolveSpeakerName(message)}: ${message.toContentText()}"
+            }
+
+            val contextSection = if (hasSummary) {
+                """
+                **Context Summary (from previous summarization):**
+                ${conversation.contextSummary}
+
+                **New Messages (${messagesToProcess.size} since last summary):**
+                """.trimIndent()
+            } else ""
+
+            val prompt = """
+                Analyze the following group conversation ($templateName) and create a "Memory Episode".
+
+                **Language**: Detect the primary language of the conversation (prioritize the human user's messages; if mixed, follow the most recent human user message). Write the "summary" in that language.
+
+                $contextSection
+                1. **Summary**: Concise summary of what happened (under 100 words).
+                2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
+
+                Conversation:
+                $messagesText
+
+                Output JSON format (return only JSON, no extra text):
+                {
+                    "summary": "...",
+                    "significance": 5
+                }
+            """.trimIndent()
+
+            val params = TextGenerationParams(model = model, temperature = 0.5f)
+            val requestMessages = listOf(UIMessage.user(prompt))
+            val startAt = System.currentTimeMillis()
+            var responseText = ""
+            var failure: Throwable? = null
+
+            try {
+                val response = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = requestMessages,
+                    params = params,
+                )
+                responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
+                if (responseText.isBlank()) continue
+
+                var summary = responseText
+                var significance = 5
+
+                runCatching {
+                    val jsonStart = responseText.indexOf("{")
+                    val jsonEnd = responseText.lastIndexOf("}")
+                    if (jsonStart != -1 && jsonEnd != -1) {
+                        val jsonStr = responseText.substring(jsonStart, jsonEnd + 1)
+                        val json = Json.parseToJsonElement(jsonStr).jsonObject
+                        summary = json["summary"]?.jsonPrimitiveOrNull?.content ?: summary
+                        significance = json["significance"]?.jsonPrimitiveOrNull?.intOrNull ?: 5
+                    }
+                }
+
+                val conversationId = conversation.id.toString()
+                var insertedCount = 0
+
+                targetAssistants.forEach { targetAssistant ->
+                    val targetAssistantId = targetAssistant.id.toString()
+                    val summaryEmbeddingResult = runCatching {
+                        embeddingService.embedWithModelId(
+                            text = summary,
+                            assistantId = targetAssistantId,
+                            source = AIRequestSource.MEMORY_EMBEDDING,
+                        )
+                    }.getOrNull()
+                    val summaryEmbedding = summaryEmbeddingResult?.embeddings?.firstOrNull()
+                    val embeddingModelId = summaryEmbeddingResult?.modelId
+
+                    val existingEpisode = chatEpisodeDAO.getEpisodeByConversationIdAndAssistantId(
+                        conversationId = conversationId,
+                        assistantId = targetAssistantId,
+                    )
+
+                    if (existingEpisode != null) {
+                        chatEpisodeDAO.insertEpisode(
+                            existingEpisode.copy(
+                                content = summary,
+                                embedding = summaryEmbedding?.let { JsonInstant.encodeToString(it) },
+                                embeddingModelId = embeddingModelId,
+                                endTime = conversation.updateAt.toEpochMilli(),
+                                lastAccessedAt = System.currentTimeMillis(),
+                                significance = significance,
+                            )
+                        )
+                    } else {
+                        chatEpisodeDAO.insertEpisode(
+                            ChatEpisodeEntity(
+                                assistantId = targetAssistantId,
+                                content = summary,
+                                embedding = summaryEmbedding?.let { JsonInstant.encodeToString(it) },
+                                embeddingModelId = embeddingModelId,
+                                startTime = conversation.createAt.toEpochMilli(),
+                                endTime = conversation.updateAt.toEpochMilli(),
+                                lastAccessedAt = System.currentTimeMillis(),
+                                significance = significance,
+                                conversationId = conversationId,
+                            )
+                        )
+                    }
+
+                    insertedCount++
+                }
+
+                if (insertedCount == targetAssistants.size) {
+                    conversationRepository.markAsConsolidated(conversation.id)
+                }
+            } catch (t: Throwable) {
+                failure = t
+                Log.e("MemoryConsolidation", "Failed to process group chat conversation ${conversation.id}", t)
+            } finally {
+                val durationMs = System.currentTimeMillis() - startAt
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.MEMORY_CONSOLIDATION,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = responseText,
+                    stream = false,
+                    latencyMs = durationMs,
+                    durationMs = durationMs,
+                    error = failure,
+                )
+            }
         }
     }
 }

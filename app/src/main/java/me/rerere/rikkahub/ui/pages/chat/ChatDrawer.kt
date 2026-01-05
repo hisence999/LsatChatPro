@@ -180,6 +180,28 @@ fun ChatDrawerContent(
                 }
             }
 
+            val canConsolidate = when (val target = settings.chatTarget) {
+                is ChatTarget.Assistant -> {
+                    val assistant = settings.getCurrentAssistant()
+                    assistant.enableMemory && assistant.enableMemoryConsolidation
+                }
+
+                is ChatTarget.GroupChat -> {
+                    val template = settings.groupChatTemplates.firstOrNull { it.id == target.templateId }
+                    if (template == null || template.integrationModelId == null) {
+                        false
+                    } else {
+                        template.seats
+                            .asSequence()
+                            .filter { seat -> seat.overrides.memoryEnabled }
+                            .map { seat -> seat.assistantId }
+                            .distinct()
+                            .mapNotNull { assistantId -> settings.assistants.firstOrNull { it.id == assistantId } }
+                            .any { assistant -> assistant.enableMemory && assistant.enableMemoryConsolidation }
+                    }
+                }
+            }
+
             ConversationList(
                 current = current,
                 conversations = conversations,
@@ -221,8 +243,8 @@ fun ChatDrawerContent(
                 onPin = {
                     vm.updatePinnedStatus(it)
                 },
-                showUnconsolidatedDot = settings.getCurrentAssistant().enableMemory && settings.getCurrentAssistant().enableMemoryConsolidation,
-                showConsolidateOption = settings.getCurrentAssistant().enableMemory && settings.getCurrentAssistant().enableMemoryConsolidation
+                showUnconsolidatedDot = canConsolidate,
+                showConsolidateOption = canConsolidate,
             )
 
             // 助手选择器
