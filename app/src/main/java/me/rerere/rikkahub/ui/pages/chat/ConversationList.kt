@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -169,6 +171,7 @@ fun ColumnScope.ConversationList(
     var lastCenteredConversationId by remember { mutableStateOf<Uuid?>(null) }
 
     fun requestAutoCenter() {
+        autoCentering = true
         autoCenterRequest += 1
     }
 
@@ -281,9 +284,41 @@ fun ColumnScope.ConversationList(
             derivedStateOf { listState.canScrollForward }
         }
 
+        val currentConversationIsInSnapshot = conversations.itemSnapshotList.items.any { item ->
+            item is ConversationListItem.Item && item.conversation.id == current.id
+        }
+        val shouldMaskListWhileAutoCentering = drawerState?.targetValue == DrawerValue.Open &&
+            searchQuery.isBlank() &&
+            lastCenteredConversationId != current.id &&
+            (
+                autoCentering || (autoCenterRequest == 0 && !currentConversationIsInSnapshot)
+            )
+        val listAlpha by animateFloatAsState(
+            targetValue = if (shouldMaskListWhileAutoCentering) 0f else 1f,
+            animationSpec = spring(dampingRatio = 1f, stiffness = 600f),
+            label = "conversation_list_alpha"
+        )
+        val blockerInteractionSource = remember { MutableInteractionSource() }
+        var showAutoCenterSpinner by remember { mutableStateOf(false) }
+
+        LaunchedEffect(autoCentering) {
+            if (!autoCentering) {
+                showAutoCenterSpinner = false
+                return@LaunchedEffect
+            }
+
+            showAutoCenterSpinner = false
+            kotlinx.coroutines.delay(120)
+            if (autoCentering) {
+                showAutoCenterSpinner = true
+            }
+        }
+
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = listAlpha },
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (conversations.itemCount == 0) {
@@ -381,6 +416,7 @@ fun ColumnScope.ConversationList(
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .size(32.dp)
+                    .graphicsLayer { alpha = listAlpha }
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
@@ -399,6 +435,7 @@ fun ColumnScope.ConversationList(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .size(32.dp)
+                    .graphicsLayer { alpha = listAlpha }
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
@@ -408,6 +445,26 @@ fun ColumnScope.ConversationList(
                         )
                     )
             )
+        }
+
+        if (shouldMaskListWhileAutoCentering) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = blockerInteractionSource,
+                        indication = null,
+                        onClick = {},
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showAutoCenterSpinner) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
         }
     }
 }
