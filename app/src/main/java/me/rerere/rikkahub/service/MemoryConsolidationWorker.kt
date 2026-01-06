@@ -12,6 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
@@ -33,6 +34,7 @@ import me.rerere.rikkahub.data.ai.rag.VectorEngine
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.ai.AIRequestSource
+import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.ai.provider.Model
@@ -59,6 +61,33 @@ class MemoryConsolidationWorker(
             Log.e("MemoryConsolidation", "Error consolidating memories", e)
             Result.retry()
         }
+    }
+
+    private fun getMessagesForConsolidationOrNull(conversation: Conversation): List<UIMessage>? {
+        val allMessages = conversation.messageNodes.mapNotNull { node ->
+            node.messages.getOrNull(node.selectIndex)
+        }
+
+        if (allMessages.size != conversation.messageNodes.size) {
+            return null
+        }
+
+        var hasUserMessage = false
+        var hasAssistantMessage = false
+
+        for (message in allMessages) {
+            when (message.role) {
+                MessageRole.USER -> hasUserMessage = true
+                MessageRole.ASSISTANT -> hasAssistantMessage = true
+                else -> Unit
+            }
+
+            if (hasUserMessage && hasAssistantMessage) {
+                return allMessages
+            }
+        }
+
+        return null
     }
 
     private suspend fun consolidateMemories() {
@@ -132,8 +161,8 @@ class MemoryConsolidationWorker(
             }
             
             for (conversation in conversationsToProcess) {
-            // Skip short conversations
-            if (conversation.messageNodes.size < 4) continue
+            // Skip conversations without at least one user & one assistant message
+            val allMessages = getMessagesForConsolidationOrNull(conversation) ?: continue
             
             // Check if already consolidated (unless forced or full scan)
             if (conversation.isConsolidated && !isFullScan && forceConversationId == null) continue
@@ -160,7 +189,6 @@ class MemoryConsolidationWorker(
 
             // Summarize into an episode with Significance Score
             // Only process messages after the last summary index to avoid redundant processing
-            val allMessages = conversation.currentMessages
             val lastSummaryIndex = conversation.contextSummaryUpToIndex
             val hasSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
             
@@ -411,7 +439,7 @@ class MemoryConsolidationWorker(
         val now = System.currentTimeMillis()
 
         for (conversation in conversationsToProcess) {
-            if (conversation.messageNodes.size < 4) continue
+            val allMessages = getMessagesForConsolidationOrNull(conversation) ?: continue
 
             if (conversation.isConsolidated && !isFullScan && forcedConversation == null) continue
 
@@ -423,7 +451,6 @@ class MemoryConsolidationWorker(
                 continue
             }
 
-            val allMessages = conversation.currentMessages
             val lastSummaryIndex = conversation.contextSummaryUpToIndex
             val hasSummary = !conversation.contextSummary.isNullOrBlank() && lastSummaryIndex >= 0
 
