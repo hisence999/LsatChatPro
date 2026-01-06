@@ -1364,6 +1364,12 @@
     <string name="text_selection_copy">Copy</string>
     <string name="text_selection_continue_chat">Continue in App</string>
     <string name="text_selection_generating">Generating…</string>
+    <string name="text_selection_action_input">Input</string>
+    <string name="text_selection_action_variable">Variable: %1$s</string>
+    <string name="text_selection_prompt_translate">You are a translator. Translate the selected text to {{language}}.\nOnly output the translation, nothing else. Do not include any explanations or notes.</string>
+    <string name="text_selection_prompt_explain">You are a helpful assistant. Explain the following text in simple, easy-to-understand terms.\nBe concise but thorough. Use examples if helpful.</string>
+    <string name="text_selection_prompt_summarize">You are a summarization assistant. Provide a clear, concise summary of the following text.\nCapture the key points and main ideas. Be brief but complete.</string>
+    <string name="text_selection_prompt_custom">You are a helpful assistant. Answer the user question about the provided text.\nUser question: {{custom_prompt}}</string>
 
     <!-- Android Integration Settings -->
     <string name="setting_android_integration">Android Integration</string>

@@ -1357,6 +1357,12 @@
     <string name="text_selection_copy">复制</string>
     <string name="text_selection_continue_chat">在应用中继续</string>
     <string name="text_selection_generating">生成中…</string>
+    <string name="text_selection_action_input">输入</string>
+    <string name="text_selection_action_variable">变量：%1$s</string>
+    <string name="text_selection_prompt_translate">你是一名翻译。请把用户的文本翻译成{{language}}。\n只输出译文，不要输出任何其它内容，不要包含解释或备注。</string>
+    <string name="text_selection_prompt_explain">你是一名乐于助人的助手。请用简单易懂的方式解释以下文本。\n尽量简洁但要完整；必要时可以举例。</string>
+    <string name="text_selection_prompt_summarize">你是一名总结助手。请对以下文本给出清晰、简洁的总结。\n抓住关键点和主旨，简短但完整。</string>
+    <string name="text_selection_prompt_custom">你是一名乐于助人的助手。请根据提供的文本回答用户的问题。\n用户的问题：{{custom_prompt}}</string>
     <string name="text_selection_preview">预览</string>
     <string name="text_selection_assistant">助手</string>
     <string name="text_selection_use_default">使用默认助手</string>
@@ -1364,7 +1370,7 @@
     <string name="text_selection_edit_action">编辑操作</string>
     <string name="text_selection_add_action">添加操作</string>
     <string name="text_selection_action_name">按钮名称</string>
-    <string name="text_selection_action_prompt">Prompt Template</string>
+    <string name="text_selection_action_prompt">提示词模板</string>
     <string name="text_selection_actions">快捷操作</string>
     <string name="text_selection_actions_reset_to_defaults_desc">恢复默认快捷操作</string>
     <string name="text_selection_actions_reset_to_defaults_confirm">确定要恢复默认快捷操作吗？这将替换你所有自定义操作。</string>

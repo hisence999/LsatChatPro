@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.model.DEFAULT_TEXT_SELECTION_ACTIONS
 
 private const val TAG = "TextSelectionVM"
 
@@ -69,6 +70,30 @@ class TextSelectionVM(
     
     private var currentJob: Job? = null
     private var messages = mutableListOf<UIMessage>()
+
+    private fun QuickAction.toActionId(): String {
+        return when (this) {
+            QuickAction.TRANSLATE -> "translate"
+            QuickAction.EXPLAIN -> "explain"
+            QuickAction.SUMMARIZE -> "summarize"
+            QuickAction.CUSTOM -> "custom"
+        }
+    }
+
+    private fun normalizeTemplate(text: String): String {
+        return text.replace("\r\n", "\n").trim()
+    }
+
+    private fun renderPromptTemplate(
+        template: String,
+        variables: Map<String, String>,
+    ): String {
+        var rendered = normalizeTemplate(template)
+        variables.forEach { (key, value) ->
+            rendered = rendered.replace("{{${key}}}", value)
+        }
+        return rendered.trim()
+    }
 
     fun updateSelectedText(text: String) {
         selectedText = text
@@ -133,11 +158,21 @@ class TextSelectionVM(
                 val assistant = assistantId?.let { settings.getAssistantById(it) }
                 val assistantPrompt = assistant?.systemPrompt ?: ""
 
+                val actionId = action.toActionId()
+                val configuredAction = settings.textSelectionConfig.actions
+                    .firstOrNull { it.id == actionId }
+                val defaultAction = DEFAULT_TEXT_SELECTION_ACTIONS
+                    .firstOrNull { it.id == actionId }
+                val actionPromptTemplate = configuredAction?.prompt
+                    ?: defaultAction?.prompt
+                    ?: ""
+
                 val systemPrompt = buildSystemPrompt(
                     action = action,
                     customPrompt = customPrompt,
                     assistantPrompt = assistantPrompt,
                     translationTargetLanguage = settings.textSelectionConfig.translateLanguage,
+                    actionPromptTemplate = actionPromptTemplate,
                 )
                 val userMessage = UIMessage.user(selectedText)
                 
@@ -198,34 +233,20 @@ class TextSelectionVM(
         customPrompt: String,
         assistantPrompt: String,
         translationTargetLanguage: String,
+        actionPromptTemplate: String,
     ): String {
+        val language = translationTargetLanguage.trim().ifBlank { "their device language" }
+        val actionPrompt = renderPromptTemplate(
+            template = actionPromptTemplate,
+            variables = mapOf(
+                "language" to language,
+                "custom_prompt" to customPrompt,
+            )
+        )
+
         // For Translate, use only the action prompt (no assistant personality)
         if (action == QuickAction.TRANSLATE) {
-            val language = translationTargetLanguage.trim()
-            return """
-                You are a translator. Translate the user's text to ${if (language.isBlank()) "their device language" else language}.
-                Only output the translation, nothing else. Do not include any explanations or notes.
-            """.trimIndent()
-        }
-        
-        // For other actions, combine assistant prompt with action prompt
-        val actionPrompt = when (action) {
-            QuickAction.EXPLAIN -> """
-                Explain the following text in simple, easy-to-understand terms.
-                Be concise but thorough. Use examples if helpful.
-            """.trimIndent()
-            
-            QuickAction.SUMMARIZE -> """
-                Provide a clear, concise summary of the following text.
-                Capture the key points and main ideas. Be brief but complete.
-            """.trimIndent()
-            
-            QuickAction.CUSTOM -> """
-                Answer the user's question about the provided text.
-                User's question: $customPrompt
-            """.trimIndent()
-            
-            else -> ""
+            return actionPrompt
         }
         
         // Combine assistant prompt with action prompt

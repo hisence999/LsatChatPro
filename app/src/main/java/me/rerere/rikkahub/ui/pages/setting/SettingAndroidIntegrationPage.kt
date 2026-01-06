@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -72,7 +73,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.model.DEFAULT_TEXT_SELECTION_ACTIONS
 import me.rerere.rikkahub.data.model.TextSelectionAction
 import me.rerere.rikkahub.data.model.TextSelectionConfig
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -95,6 +95,47 @@ private val COMMON_LANGUAGES = listOf(
     "English", "Spanish", "French", "German", "Italian", "Portuguese",
     "Russian", "Japanese", "Chinese", "Korean", "Arabic", "Hindi"
 )
+
+private fun defaultTextSelectionActions(context: Context): List<TextSelectionAction> {
+    return listOf(
+        TextSelectionAction(
+            id = "translate",
+            name = context.getString(R.string.text_selection_translate),
+            icon = "Translate",
+            prompt = context.getString(R.string.text_selection_prompt_translate).trim(),
+        ),
+        TextSelectionAction(
+            id = "explain",
+            name = context.getString(R.string.text_selection_explain),
+            icon = "Lightbulb",
+            prompt = context.getString(R.string.text_selection_prompt_explain).trim(),
+        ),
+        TextSelectionAction(
+            id = "summarize",
+            name = context.getString(R.string.text_selection_summarize),
+            icon = "Summarize",
+            prompt = context.getString(R.string.text_selection_prompt_summarize).trim(),
+        ),
+        TextSelectionAction(
+            id = "custom",
+            name = context.getString(R.string.text_selection_ask),
+            icon = "AutoAwesome",
+            prompt = context.getString(R.string.text_selection_prompt_custom).trim(),
+            isCustomPrompt = true,
+        ),
+    )
+}
+
+@Composable
+private fun actionTitle(action: TextSelectionAction): String {
+    return when (action.id) {
+        "translate" -> stringResource(R.string.text_selection_translate)
+        "explain" -> stringResource(R.string.text_selection_explain)
+        "summarize" -> stringResource(R.string.text_selection_summarize)
+        "custom" -> stringResource(R.string.text_selection_ask)
+        else -> action.name
+    }
+}
 
 @Composable
 fun SettingAndroidIntegrationPage(
@@ -233,6 +274,7 @@ fun SettingAndroidIntegrationPage(
                         config.actions.forEachIndexed { index, action ->
                             ActionCard(
                                 action = action,
+                                title = actionTitle(action),
                                 onClick = { editingAction = action }
                             )
                             if (index < config.actions.lastIndex) {
@@ -279,7 +321,7 @@ fun SettingAndroidIntegrationPage(
                         scope.launch {
                             settingsStore.update {
                                 it.copy(textSelectionConfig = config.copy(
-                                    actions = DEFAULT_TEXT_SELECTION_ACTIONS
+                                    actions = defaultTextSelectionActions(context)
                                 ))
                             }
                         }
@@ -386,6 +428,7 @@ private fun PreviewCard(
                                 PreviewActionButton(
                                     modifier = Modifier.weight(if (isLastOdd) 2f else 1f),
                                     action = action,
+                                    title = actionTitle(action),
                                     shape = getButtonShape(rowIndex, colIndex, rows.size, rowActions.size),
                                     isBlack = amoledMode && isDarkMode,
                                     onClick = { onActionClick(action) }
@@ -403,6 +446,7 @@ private fun PreviewCard(
 private fun PreviewActionButton(
     modifier: Modifier = Modifier,
     action: TextSelectionAction,
+    title: String,
     shape: RoundedCornerShape,
     isBlack: Boolean = false,
     onClick: () -> Unit
@@ -440,7 +484,7 @@ private fun PreviewActionButton(
                 modifier = Modifier.size(20.dp)
             )
             Text(
-                text = action.name,
+                text = title,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -460,6 +504,7 @@ private fun PreviewActionButton(
 @Composable
 private fun ActionCard(
     action: TextSelectionAction,
+    title: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -475,7 +520,7 @@ private fun ActionCard(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = {
                 Text(
-                    text = action.name,
+                    text = title,
                     style = MaterialTheme.typography.titleMedium
                 )
             },
@@ -502,7 +547,7 @@ private fun ActionCard(
                         color = MaterialTheme.colorScheme.tertiaryContainer
                     ) {
                         Text(
-                            text = "Input",
+                            text = stringResource(R.string.text_selection_action_input),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -546,10 +591,17 @@ private fun EditActionDialog(
                     minLines = 5
                 )
                 Text(
-                    text = "Variable: {{language}}",
+                    text = stringResource(R.string.text_selection_action_variable, "{{language}}"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (action.isCustomPrompt) {
+                    Text(
+                        text = stringResource(R.string.text_selection_action_variable, "{{custom_prompt}}"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         },
         confirmButton = {

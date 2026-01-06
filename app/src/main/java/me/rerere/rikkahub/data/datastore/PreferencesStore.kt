@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import me.rerere.rikkahub.R
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
@@ -39,7 +40,9 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.TextSelectionAction
 import me.rerere.rikkahub.data.model.TextSelectionConfig
+import me.rerere.rikkahub.data.model.DEFAULT_TEXT_SELECTION_ACTIONS
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.data.model.ensureSeatInstanceNumbers
 import me.rerere.rikkahub.ui.theme.PresetThemes
@@ -89,7 +92,7 @@ private val Context.settingsStore by preferencesDataStore(
 )
 
 class SettingsStore(
-    context: Context,
+    private val context: Context,
     scope: AppScope,
 ) : KoinComponent {
     companion object {
@@ -157,9 +160,63 @@ class SettingsStore(
 
         // Android Integration
         val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
+        val TEXT_SELECTION_LOCALIZED_DEFAULT_APPLIED =
+            booleanPreferencesKey("text_selection_localized_default_applied")
     }
 
     private val dataStore = context.settingsStore
+
+    private fun normalizeTextSelectionTemplate(text: String): String {
+        return text.replace("\r\n", "\n").trim()
+    }
+
+    private fun isLegacyDefaultTextSelectionActions(actions: List<TextSelectionAction>): Boolean {
+        val currentById = actions.associateBy { it.id }
+        val defaultById = DEFAULT_TEXT_SELECTION_ACTIONS.associateBy { it.id }
+        val ids = listOf("translate", "explain", "summarize", "custom")
+
+        if (ids.any { currentById[it] == null || defaultById[it] == null }) return false
+
+        return ids.all { id ->
+            val current = currentById.getValue(id)
+            val default = defaultById.getValue(id)
+            current.enabled == default.enabled &&
+                current.icon == default.icon &&
+                current.isCustomPrompt == default.isCustomPrompt &&
+                normalizeTextSelectionTemplate(current.name) == normalizeTextSelectionTemplate(default.name) &&
+                normalizeTextSelectionTemplate(current.prompt) == normalizeTextSelectionTemplate(default.prompt)
+        }
+    }
+
+    private fun buildLocalizedDefaultTextSelectionActions(): List<TextSelectionAction> {
+        return listOf(
+            TextSelectionAction(
+                id = "translate",
+                name = context.getString(R.string.text_selection_translate),
+                icon = "Translate",
+                prompt = context.getString(R.string.text_selection_prompt_translate).trim(),
+            ),
+            TextSelectionAction(
+                id = "explain",
+                name = context.getString(R.string.text_selection_explain),
+                icon = "Lightbulb",
+                prompt = context.getString(R.string.text_selection_prompt_explain).trim(),
+            ),
+            TextSelectionAction(
+                id = "summarize",
+                name = context.getString(R.string.text_selection_summarize),
+                icon = "Summarize",
+                prompt = context.getString(R.string.text_selection_prompt_summarize).trim(),
+            ),
+            TextSelectionAction(
+                id = "custom",
+                name = context.getString(R.string.text_selection_ask),
+                icon = "AutoAwesome",
+                prompt = context.getString(R.string.text_selection_prompt_custom).trim(),
+                isCustomPrompt = true,
+            ),
+        )
+    }
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -184,6 +241,37 @@ class SettingsStore(
                 }
             }.onFailure {
                 Log.w(TAG, "applyLiveUpdateDefaultIfNeeded failed: ${it.message}", it)
+            }
+        }
+
+        // Localize default Text Selection actions (only if user hasn't customized them).
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val prefs = dataStore.data.first()
+                if (prefs[TEXT_SELECTION_LOCALIZED_DEFAULT_APPLIED] == true) return@launch
+
+                val localizedDefaults = buildLocalizedDefaultTextSelectionActions()
+                val rawConfig = prefs[TEXT_SELECTION_CONFIG]
+                val currentConfig = rawConfig?.let {
+                    runCatching { JsonInstant.decodeFromString<TextSelectionConfig>(it) }.getOrNull()
+                }
+
+                val updatedConfig = when {
+                    currentConfig == null -> TextSelectionConfig(actions = localizedDefaults)
+                    isLegacyDefaultTextSelectionActions(currentConfig.actions) ->
+                        currentConfig.copy(actions = localizedDefaults)
+
+                    else -> null
+                }
+
+                dataStore.edit { preferences ->
+                    if (updatedConfig != null) {
+                        preferences[TEXT_SELECTION_CONFIG] = JsonInstant.encodeToString(updatedConfig)
+                    }
+                    preferences[TEXT_SELECTION_LOCALIZED_DEFAULT_APPLIED] = true
+                }
+            }.onFailure {
+                Log.w(TAG, "localizeTextSelectionDefaultsIfNeeded failed: ${it.message}", it)
             }
         }
 
