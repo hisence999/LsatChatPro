@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cmd.exe /c \"where cygpath & where bash\")"
+      "Bash(cmd.exe /c \"where cygpath & where bash\")",
+      "Bash(cmd.exe /c \"where cygpath\")",
+      "Bash(cmd.exe /c \"where bash\")",
+      "Bash(cmd.exe:*)",
+      "Bash(powershell.exe -Command \"Test-Path ''C:\\\\Users\\\\54xzh\\\\scoop\\\\apps\\\\cygwin\\\\current\\\\root\\\\bin\\\\cygpath.exe''\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Users\\\\54xzh\\\\scoop\\\\apps\\\\cygwin\\\\current\\\\root\\\\bin'' -Filter ''*cyg*'' | Select-Object Name\")",
+      "Bash(cygpath:*)"
     ]
   }
 }
