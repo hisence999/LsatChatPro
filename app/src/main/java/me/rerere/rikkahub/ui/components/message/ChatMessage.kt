@@ -742,7 +742,11 @@ private fun TokenStatisticsRow(
                     tint = grayColor
                 )
                 Text(
-                    text = String.format("%.1f tok/s", tps),
+                    text = if (tps < 1000) {
+                        String.format("%.0f tok/s", tps)
+                    } else {
+                        String.format("%.1f tok/s", tps)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = grayColor
                 )
@@ -821,7 +825,11 @@ private fun TokenStatisticsRowInline(
                     tint = grayColor
                 )
                 Text(
-                    text = String.format("%.1f tok/s", tps),
+                    text = if (tps < 1000) {
+                        String.format("%.0f tok/s", tps)
+                    } else {
+                        String.format("%.1f tok/s", tps)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = grayColor
                 )
