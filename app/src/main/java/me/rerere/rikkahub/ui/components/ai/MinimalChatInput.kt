@@ -13,9 +13,28 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Spacer
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.search.SearchServiceOptions
+import coil3.compose.AsyncImage
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.utils.deleteChatFiles
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.spring
+import androidx.core.net.toUri
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.VideoLibrary
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -180,8 +199,22 @@ fun MinimalChatInput(
                 .padding(bottom = 8.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // TODO: Add media preview row
-            // TODO: Add suggestions row
+            // Media preview row
+            if (state.messageContent.isNotEmpty()) {
+                MediaFileInputRow(state = state, context = context)
+            }
+            
+            // Suggestions row
+            androidx.compose.animation.AnimatedVisibility(
+                visible = chatSuggestions.isNotEmpty(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                ChatSuggestionsRow(
+                    suggestions = chatSuggestions,
+                    onClickSuggestion = onClickSuggestion
+                )
+            }
             
             // Minimal input bar - plus button + text field with embedded action button
             Row(
@@ -971,6 +1004,254 @@ private fun MinimalPickerItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+
+    }
+}
+
+@Composable
+private fun MediaFileInputRow(
+    state: ChatInputState,
+    context: android.content.Context
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .horizontalScroll(rememberScrollState())
+    ) {
+        state.messageContent.filterIsInstance<UIMessagePart.Image>().fastForEach { image ->
+            Box {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    AsyncImage(
+                        model = image.url,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .size(20.dp)
+                        .clickable {
+                            state.messageContent = state.messageContent.filterNot { it == image }
+                            context.deleteChatFiles(listOf(image.url.toUri()))
+                        }
+                        .align(Alignment.TopEnd)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+        }
+        state.messageContent.filterIsInstance<UIMessagePart.Video>().fastForEach { video ->
+            Box {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.VideoLibrary, null)
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .size(20.dp)
+                        .clickable {
+                            state.messageContent = state.messageContent.filterNot { it == video }
+                            context.deleteChatFiles(listOf(video.url.toUri()))
+                        }
+                        .align(Alignment.TopEnd)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+        }
+        state.messageContent.filterIsInstance<UIMessagePart.Audio>().fastForEach { audio ->
+            Box {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.AudioFile, null)
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .size(20.dp)
+                        .clickable {
+                            state.messageContent = state.messageContent.filterNot { it == audio }
+                            context.deleteChatFiles(listOf(audio.url.toUri()))
+                        }
+                        .align(Alignment.TopEnd)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+        }
+        state.messageContent.filterIsInstance<UIMessagePart.Document>().fastForEach { document ->
+            Box {
+                Surface(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .defaultMinSize(minWidth = 48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp
+                ) {
+                        androidx.compose.runtime.CompositionLocalProvider(
+                        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurface.copy(0.8f)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(4.dp)
+                        ) {
+                            Text(
+                                text = document.fileName,
+                                maxLines = 1,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .padding(end = 4.dp)
+                        .size(24.dp)
+                        .clickable {
+                            state.messageContent = state.messageContent.filterNot { it == document }
+                            context.deleteChatFiles(listOf(document.url.toUri()))
+                        }
+                        .align(Alignment.TopEnd)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatSuggestionsRow(
+    modifier: Modifier = Modifier,
+    suggestions: List<String>,
+    onClickSuggestion: (String) -> Unit
+) {
+    val scrollState = rememberScrollState()
+    var pressedSuggestionIndex by remember { mutableStateOf<Int?>(null) }
+    var selectedSuggestionIndex by remember { mutableStateOf<Int?>(null) }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        suggestions.forEachIndexed { index, suggestion ->
+            var visible by remember { mutableStateOf(false) }
+            val interactionSource = remember { MutableInteractionSource() }
+            val isInteractionPressed by interactionSource.collectIsPressedAsState()
+
+            LaunchedEffect(isInteractionPressed) {
+                if (isInteractionPressed) {
+                    pressedSuggestionIndex = index
+                } else if (pressedSuggestionIndex == index) {
+                    pressedSuggestionIndex = null
+                }
+            }
+
+            LaunchedEffect(suggestion) {
+                kotlinx.coroutines.delay(index * 50L)
+                visible = true
+            }
+
+            val isSelected = selectedSuggestionIndex == index
+            val isPressed = pressedSuggestionIndex == index
+            val isAnythingSelected = selectedSuggestionIndex != null
+            val isAnythingPressed = pressedSuggestionIndex != null
+            
+            val targetScale = when {
+                isSelected -> 1.05f
+                isPressed -> 0.9f
+                else -> 1f
+            }
+            
+            val targetAlpha = when {
+                isSelected -> 0f
+                isAnythingSelected -> 0f
+                isAnythingPressed && !isPressed -> 0.5f 
+                visible -> 1f
+                else -> 0f
+            }
+
+            val scale by animateFloatAsState(
+                targetValue = targetScale,
+                animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+                label = "suggestion_scale"
+            )
+
+            val alpha by animateFloatAsState(
+                targetValue = targetAlpha,
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+                label = "suggestion_alpha"
+            )
+            
+            LaunchedEffect(isSelected) {
+                if (isSelected) {
+                    kotlinx.coroutines.delay(200)
+                    onClickSuggestion(suggestion)
+                }
+            }
+
+            if (visible || targetAlpha > 0f) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            this.alpha = alpha
+                        }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) {
+                                selectedSuggestionIndex = index
+                        }
+                ) {
+                    Text(
+                        text = suggestion,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }

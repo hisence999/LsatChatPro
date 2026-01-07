@@ -491,7 +491,7 @@ data class DisplaySetting(
     val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
     // New chat customization
     val newChatHeaderStyle: NewChatHeaderStyle = NewChatHeaderStyle.GREETING, // Header for empty new chats
-    val newChatContentStyle: NewChatContentStyle = NewChatContentStyle.TEMPLATES, // Content for empty new chats
+    val newChatContentStyle: NewChatContentStyle = NewChatContentStyle.ACTIONS, // Content for empty new chats
     val newChatShowAvatar: Boolean = true, // Show avatar in header (true) or top-right corner (false)
 )
 
