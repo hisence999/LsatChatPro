@@ -700,7 +700,12 @@ private fun TokenStatisticsRow(
                 tint = grayColor
             )
             Text(
-                text = "${usage.promptTokens.formatNumber()} tokens",
+                text = buildString {
+                    append("${usage.promptTokens.formatNumber()} tokens")
+                    if (usage.cachedTokens > 0) {
+                        append(" (${usage.cachedTokens.formatNumber()} cached)")
+                    }
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -774,7 +779,12 @@ private fun TokenStatisticsRowInline(
                 tint = grayColor
             )
             Text(
-                text = "${usage.promptTokens.formatNumber()} tokens",
+                text = buildString {
+                    append("${usage.promptTokens.formatNumber()} tokens")
+                    if (usage.cachedTokens > 0) {
+                        append(" (${usage.cachedTokens.formatNumber()} cached)")
+                    }
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
