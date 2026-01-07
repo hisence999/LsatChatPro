@@ -84,6 +84,7 @@ import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAndroidIntegrationPage
+import me.rerere.rikkahub.ui.pages.setting.SettingUICustomizationPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import okhttp3.OkHttpClient
@@ -527,6 +528,10 @@ class RouteActivity : ComponentActivity() {
                         SettingAndroidIntegrationPage()
                     }
 
+                    composable<Screen.SettingUICustomization> {
+                        SettingUICustomizationPage()
+                    }
+
                 }
                 // Toast host must be last so it renders on top of all content
                 AppToasterHost(state = toastState)
@@ -617,5 +622,8 @@ sealed interface Screen {
 
     @Serializable
     data object SettingAndroidIntegration : Screen
+
+    @Serializable
+    data object SettingUICustomization : Screen
 
 }

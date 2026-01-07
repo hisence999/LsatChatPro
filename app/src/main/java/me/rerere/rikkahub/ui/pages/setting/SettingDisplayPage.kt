@@ -2,17 +2,26 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -97,6 +106,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             // Theme Settings
             item {
                 var useExpressiveFont by me.rerere.rikkahub.ui.hooks.rememberExpressiveFont()
+                val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
                 
                 SettingsGroup(
                     title = stringResource(R.string.setting_page_theme_setting)
@@ -113,6 +123,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     )
+                    
+                    // Theme picker buttons when dynamic color is off
+                    if (!settings.dynamicColor) {
+                        PresetThemeButtonGroup(
+                            themeId = settings.themeId,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 0.dp, vertical = 8.dp),
+                            onChangeTheme = {
+                                vm.updateSettings(settings.copy(themeId = it))
+                            }
+                        )
+                    }
+                    
                     SettingGroupItem(
                         title = "Font Style",
                         subtitle = if (useExpressiveFont) "M3 Expressive (Rounded)" else "Normal",
@@ -123,20 +145,15 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     )
-                }
-            }
-
-            if (!settings.dynamicColor) {
-                item {
-                    PresetThemeButtonGroup(
-                        themeId = settings.themeId,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        onChangeTheme = {
-                            vm.updateSettings(settings.copy(themeId = it))
-                        }
+                    
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_ui_customization_title),
+                        subtitle = "Chat display, haptics, code blocks, font size and more",
+                        onClick = { navController.navigate(me.rerere.rikkahub.Screen.SettingUICustomization) }
                     )
                 }
             }
+
 
 
             // Basic Settings
@@ -210,193 +227,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 //                )
 //            }
 
-            // Chat Display Settings
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.setting_page_chat_settings)
-                ) {
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_show_user_avatar_title),
-                        subtitle = stringResource(R.string.setting_display_page_show_user_avatar_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.showUserAvatar,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = "Show Assistant Avatar",
-                        subtitle = "Show the assistant's avatar before messages",
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.showModelIcon,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showModelIcon = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_show_token_usage_title),
-                        subtitle = stringResource(R.string.setting_display_page_show_token_usage_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.showTokenUsage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
-                        subtitle = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.autoCloseThinking,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = "Show Context Stacks",
-                        subtitle = "Show context sources (modes, memories, lorebooks) in message toolbar",
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.showContextStacks,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showContextStacks = it))
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-            
-            // Message Jumper Settings
-            item {
-                SettingsGroup(
-                    title = "Message Jumper"
-                ) {
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_show_message_jumper_title),
-                        subtitle = stringResource(R.string.setting_display_page_show_message_jumper_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.showMessageJumper,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showMessageJumper = it))
-                                }
-                            )
-                        }
-                    )
-                    if (displaySetting.showMessageJumper) {
-                        SettingGroupItem(
-                            title = stringResource(R.string.setting_display_page_message_jumper_position_title),
-                            subtitle = stringResource(R.string.setting_display_page_message_jumper_position_desc),
-                            trailing = {
-                                HapticSwitch(
-                                    checked = displaySetting.messageJumperOnLeft,
-                                    onCheckedChange = {
-                                        updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it))
-                                    }
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Haptics Settings
-            item {
-                SettingsGroup(
-                    title = "Haptics"
-                ) {
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title),
-                        subtitle = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.enableMessageGenerationHapticEffect,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = "UI Haptic Feedback",
-                        subtitle = "Enable tactile feedback when tapping buttons and controls",
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.enableUIHaptics,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(enableUIHaptics = it))
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-
-            // Media Settings
-            item {
-                SettingsGroup(
-                    title = "Media"
-                ) {
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_skip_crop_image_title),
-                        subtitle = stringResource(R.string.setting_display_page_skip_crop_image_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.skipCropImage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(skipCropImage = it))
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-
-            // Code Blocks Settings
-            item {
-                SettingsGroup(
-                    title = "Code Blocks"
-                ) {
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
-                        subtitle = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.codeBlockAutoWrap,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
-                                }
-                            )
-                        }
-                    )
-                    SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
-                        subtitle = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
-                        trailing = {
-                            HapticSwitch(
-                                checked = displaySetting.codeBlockAutoCollapse,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-
-            // Advanced Settings (RP Optimizations & Font Size)
+            // Advanced Settings (RP Optimizations)
             item {
                 val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
                 SettingsGroup(
@@ -406,42 +237,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         title = "RP Optimizations",
                         subtitle = "Custom text styling for roleplay patterns",
                         onClick = { navController.navigate(me.rerere.rikkahub.Screen.SettingRpOptimizations) }
-                    )
-                }
-            }
-
-            // Font Size Slider
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.setting_display_page_font_size_title)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Slider(
-                            value = displaySetting.fontSizeRatio,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
-                            },
-                            valueRange = 0.5f..2f,
-                            steps = 11,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = "${(displaySetting.fontSizeRatio * 100).toInt()}%",
-                        )
-                    }
-                    MarkdownBlock(
-                        content = stringResource(R.string.setting_display_page_font_size_preview),
-                        modifier = Modifier.padding(8.dp),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                            lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                        )
                     )
                 }
             }

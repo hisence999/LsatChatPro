@@ -276,10 +276,51 @@ class ConversationRepository(
     // Optimized stats queries - delegate to SQL for performance
     fun getConversationCountFlow(): Flow<Int> = conversationDAO.getConversationCountFlow()
 
-    fun getDistinctUpdateDatesFlow(): Flow<List<String>> = conversationDAO.getDistinctUpdateDatesFlow()
+    fun getDistinctCreateDatesFlow(): Flow<List<String>> = conversationDAO.getDistinctCreateDatesFlow()
 
     fun getMostActiveAssistantIdFlow(): Flow<String?> = conversationDAO.getMostActiveAssistantFlow()
         .map { it?.assistantId }
+
+    fun getConversationHoursFlow(): Flow<List<Int>> = conversationDAO.getConversationHoursFlow()
+
+    fun getConversationCountByAssistantFlow(assistantId: String): Flow<Int> = 
+        conversationDAO.getConversationCountByAssistantFlow(assistantId)
+
+    /**
+     * Get the most frequently used model ID for an assistant by analyzing message nodes.
+     * Returns the model UUID as string, or null if no model found.
+     */
+    fun getMostUsedModelIdForAssistantFlow(assistantId: String): Flow<String?> = 
+        conversationDAO.getConversationsOfAssistant(assistantId)
+            .map { conversations ->
+                // Extract all modelIds from message nodes
+                val modelCounts = mutableMapOf<String, Int>()
+                
+                for (conversation in conversations) {
+                    try {
+                        val nodesJson = JsonInstant.parseToJsonElement(conversation.nodes)
+                        if (nodesJson is JsonArray) {
+                            for (nodeElement in nodesJson) {
+                                val node = nodeElement.jsonObject
+                                // Check all variants of the current node
+                                val messages = node["messages"]?.jsonArray ?: continue
+                                for (messageElement in messages) {
+                                    val message = messageElement.jsonObject
+                                    val modelId = message["modelId"]?.jsonPrimitive?.content
+                                    if (modelId != null && modelId != "null") {
+                                        modelCounts[modelId] = (modelCounts[modelId] ?: 0) + 1
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Skip malformed conversations
+                    }
+                }
+                
+                // Return the most used model ID
+                modelCounts.maxByOrNull { it.value }?.key
+            }
 
     private fun conversationSummaryToConversation(entity: LightConversationEntity): Conversation {
         return Conversation(

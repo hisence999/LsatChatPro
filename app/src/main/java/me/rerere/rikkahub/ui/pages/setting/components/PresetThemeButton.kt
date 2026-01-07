@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -121,27 +122,67 @@ fun PresetThemeButtonGroup(
     modifier: Modifier = Modifier,
     onChangeTheme: (String) -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+    
     Column(
         modifier = modifier.padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.SpaceAround,
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            PresetThemes.fastForEach { theme ->
-                key(theme.id) {
-                    PresetThemeButton(
-                        theme = theme,
-                        selected = theme.id == themeId,
-                        onClick = {
-                            onChangeTheme(theme.id)
-                        },
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState),
+                horizontalArrangement = Arrangement.SpaceAround,
+            ) {
+                PresetThemes.fastForEach { theme ->
+                    key(theme.id) {
+                        PresetThemeButton(
+                            theme = theme,
+                            selected = theme.id == themeId,
+                            onClick = {
+                                onChangeTheme(theme.id)
+                            },
+                        )
+                    }
                 }
+            }
+            
+            // Left fade when not at start
+            if (scrollState.value > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(24.dp, 80.dp)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surface,
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                                )
+                            )
+                        )
+                )
+            }
+            
+            // Right fade when not at end
+            if (scrollState.value < scrollState.maxValue) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(24.dp, 80.dp)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                                    MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        )
+                )
             }
         }
     }

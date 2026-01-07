@@ -33,6 +33,8 @@ import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -125,7 +127,7 @@ private fun StatsSection(stats: MenuStats) {
                 .height(IntrinsicSize.Min)
         )
 
-        // Weekly Token Usage & Avg Messages (Row)
+        // Total Chats & Time Label (Row)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -142,10 +144,17 @@ private fun StatsSection(stats: MenuStats) {
                     .weight(1f)
                     .fillMaxHeight()
             )
+            
+            // Time Label with appropriate icon
+            val (timeLabelText, timeLabelIcon) = when (stats.timeLabel) {
+                TimeLabel.EARLY_BIRD -> stringResource(me.rerere.rikkahub.R.string.time_label_early_bird) to Icons.Rounded.WbSunny
+                TimeLabel.DAYTIME_CHATTER -> stringResource(me.rerere.rikkahub.R.string.time_label_daytime_chatter) to Icons.Rounded.WbSunny
+                TimeLabel.NIGHT_OWL -> stringResource(me.rerere.rikkahub.R.string.time_label_night_owl) to Icons.Rounded.NightsStay
+            }
             StatCard(
-                title = "Avg. Messages/day",
-                value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
-                icon = Icons.AutoMirrored.Rounded.Chat,
+                title = "Chat Style",
+                value = timeLabelText,
+                icon = timeLabelIcon,
                 containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier

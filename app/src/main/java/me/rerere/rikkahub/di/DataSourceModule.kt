@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.api.LastChatAPI
 import me.rerere.rikkahub.data.api.SponsorAPI
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.QuickSettingsCache
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.Migration_6_7
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -29,7 +30,11 @@ import java.util.concurrent.TimeUnit
 
 val dataSourceModule = module {
     single {
-        SettingsStore(context = get(), scope = get())
+        QuickSettingsCache(context = get())
+    }
+
+    single {
+        SettingsStore(context = get(), scope = get(), quickCache = get())
     }
 
     single {

@@ -8,6 +8,9 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import kotlin.uuid.Uuid
 
+import me.rerere.rikkahub.data.datastore.NewChatHeaderStyle
+import me.rerere.rikkahub.data.datastore.NewChatContentStyle
+
 /**
  * Per-assistant UI settings. All nullable - null means "use global setting".
  */
@@ -23,6 +26,10 @@ data class AssistantUISettings(
     val codeBlockAutoWrap: Boolean? = null,
     val codeBlockAutoCollapse: Boolean? = null,
     val showContextStacks: Boolean? = null,
+    // New chat customization
+    val newChatHeaderStyle: NewChatHeaderStyle? = null,
+    val newChatContentStyle: NewChatContentStyle? = null,
+    val newChatShowAvatar: Boolean? = null, // null = use global, true/false = override
 )
 
 @Serializable

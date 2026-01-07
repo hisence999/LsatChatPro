@@ -71,7 +71,6 @@ fun <T> Select(
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .padding(vertical = 12.dp, horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -79,8 +78,7 @@ fun <T> Select(
                 leading()
                 Text(
                     text = optionToString(selectedOption),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.weight(1f)
+                    style = MaterialTheme.typography.labelLarge
                 )
                 trailing()
                 Icon(

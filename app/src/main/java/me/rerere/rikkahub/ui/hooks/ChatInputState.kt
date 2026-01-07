@@ -10,6 +10,10 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -41,6 +45,9 @@ class ChatInputState {
     var messageContent by mutableStateOf(listOf<UIMessagePart>())
     var editingMessage by mutableStateOf<Uuid?>(null)
     var loading by mutableStateOf(false)
+    
+    // FocusRequester for the text field - allows external focus requests
+    val focusRequester = FocusRequester()
 
     fun clearInput() {
         textContent.setTextAndPlaceCursorAtEnd("")
@@ -52,6 +59,23 @@ class ChatInputState {
 
     fun setMessageText(text: String) {
         textContent.setTextAndPlaceCursorAtEnd(text)
+    }
+    
+    /**
+     * Sets message text and requests focus on the text field.
+     * Use this when setting text from templates to show keyboard.
+     */
+    fun setMessageTextAndFocus(text: String, scope: CoroutineScope) {
+        textContent.setTextAndPlaceCursorAtEnd(text)
+        // Request focus with a small delay to ensure the UI has updated
+        scope.launch {
+            delay(50)
+            try {
+                focusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Focus requester may not be attached yet
+            }
+        }
     }
 
     fun appendText(content: String) {
