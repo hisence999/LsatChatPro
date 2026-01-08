@@ -229,6 +229,7 @@
   <string name="chat_input_placeholder">輸入訊息與AI聊天</string>
   <string name="chat_message_tool_call_generic">調用工具 %1$s</string>
   <string name="chat_message_tool_call_label">調用工具 %1$s</string>
+  <string name="chat_message_tool_call_skill">調用技能 %1$s</string>
   <string name="chat_message_tool_call_result">調用結果</string>
   <string name="chat_message_tool_call_title">工具調用</string>
   <string name="chat_message_tool_create_memory">創建了記憶</string>
@@ -511,6 +512,21 @@
   <string name="setting_page_general_settings">通用設定</string>
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">配置MCP伺服器</string>
+  <string name="setting_page_skills">技能</string>
+  <string name="setting_page_skills_desc">匯入並管理 Skill 技能包（zip）</string>
+
+  <string name="skills_page_title">技能</string>
+  <string name="skills_page_empty">尚無技能</string>
+  <string name="skills_page_empty_hint">匯入包含至少一個 SKILL.md 的 zip 檔</string>
+  <string name="skills_import_success">已匯入 %1$d 個技能</string>
+  <string name="skills_delete_title">刪除技能？</string>
+  <string name="skills_delete_desc">將從裝置中移除「%1$s」。</string>
+  <string name="skills_unnamed">未命名技能</string>
+  <string name="skills_no_description">無描述</string>
+
+  <string name="skills_group_title">技能</string>
+  <string name="skills_manage_title">管理技能</string>
+  <string name="skills_manage_desc">從 zip 匯入 Skill 技能包</string>
   <string name="setting_page_model_and_services">模型與服務</string>
   <string name="setting_page_no_share_app">找不到分享應用</string>
   <string name="setting_page_providers">提供商</string>
@@ -682,7 +698,7 @@
   <string name="theme_name_ocean">海灣藍</string>
   <string name="theme_name_sakura">櫻花粉</string>
   <string name="theme_name_spring">原野綠</string>
-  <string name="tools_warning">當前模型未開啟工具調用，請在設定內啟用模型的工具能力，再使用搜尋/MCP等功能</string>
+  <string name="tools_warning">當前模型未開啟工具調用，請在設定內啟用模型的工具能力，再使用技能/本地工具/搜尋/MCP等功能</string>
   <string name="translate">翻譯</string>
   <string name="translating">翻譯中...</string>
   <string name="translation_clear">清空翻譯</string>

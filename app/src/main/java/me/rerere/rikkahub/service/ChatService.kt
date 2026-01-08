@@ -1127,11 +1127,13 @@ class ChatService(
 
             // Check if model supports tools when external tools are configured
             val assistant = settings.getCurrentAssistant()
-            val hasExternalTools = (assistant.searchMode !is AssistantSearchMode.Off) || mcpManager.getAllAvailableTools().isNotEmpty()
-            if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (hasExternalTools) {
-                    _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
-                }
+            val hasToolsConfigured =
+                (assistant.searchMode !is AssistantSearchMode.Off) ||
+                    assistant.localTools.isNotEmpty() ||
+                    assistant.enabledSkillIds.isNotEmpty() ||
+                    mcpManager.getAllAvailableTools().isNotEmpty()
+            if (hasToolsConfigured && !model.abilities.contains(ModelAbility.TOOL)) {
+                _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
             }
 
             // start generating
@@ -1226,10 +1228,15 @@ class ChatService(
                         }
                     }
                     addAll(localTools.getTools(
-                        options = settings.getCurrentAssistant().localTools,
-                        assistantId = settings.getCurrentAssistant().id,
+                        options = assistant.localTools,
+                        assistantId = assistant.id,
                         conversationId = conversation.id
                     ))
+
+                    val enabledSkills = settings.skills.filter { skill -> skill.id in assistant.enabledSkillIds }
+                    if (enabledSkills.isNotEmpty()) {
+                        add(localTools.createSkillFileTool(enabledSkills))
+                    }
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(
@@ -1503,6 +1510,11 @@ class ChatService(
                             )
                         )
                     }
+                }
+
+                val enabledSkills = settings.skills.filter { skill -> skill.id in seatAssistant.enabledSkillIds }
+                if (enabledSkills.isNotEmpty()) {
+                    add(localTools.createSkillFileTool(enabledSkills))
                 }
             }
 

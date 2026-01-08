@@ -20,12 +20,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.ui.components.ai.McpPickerButton
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.search.SearchServiceOptions
@@ -42,6 +44,7 @@ fun AssistantToolsSubPage(
     mcpServerConfigs: List<McpServerConfig>
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val navController = LocalNavController.current
     
     Column(
         modifier = Modifier
@@ -168,8 +171,48 @@ fun AssistantToolsSubPage(
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // MCP GROUP (only show if servers configured)
+        // SKILLS GROUP
         // ═══════════════════════════════════════════════════════════════════
+        SettingsGroup(title = stringResource(R.string.skills_group_title)) {
+            SettingGroupItem(
+                title = stringResource(R.string.skills_manage_title),
+                subtitle = stringResource(R.string.skills_manage_desc),
+                onClick = { navController.navigate(Screen.SettingSkills) }
+            )
+
+            if (settings.skills.isEmpty()) {
+                SettingGroupItem(
+                    title = stringResource(R.string.skills_page_empty),
+                    subtitle = stringResource(R.string.skills_page_empty_hint),
+                    onClick = { navController.navigate(Screen.SettingSkills) }
+                )
+            } else {
+                settings.skills.forEach { skill ->
+                    val isEnabled = assistant.enabledSkillIds.contains(skill.id)
+                    SettingGroupItem(
+                        title = skill.name.ifBlank { stringResource(R.string.skills_unnamed) },
+                        subtitle = skill.description.ifBlank { stringResource(R.string.skills_no_description) },
+                        trailing = {
+                            HapticSwitch(
+                                checked = isEnabled,
+                                onCheckedChange = { enabled ->
+                                    val newIds = if (enabled) {
+                                        assistant.enabledSkillIds + skill.id
+                                    } else {
+                                        assistant.enabledSkillIds - skill.id
+                                    }
+                                    onUpdate(assistant.copy(enabledSkillIds = newIds))
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        // 汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽
+        // MCP GROUP (only show if servers configured)
+        // 汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽汽
         if (mcpServerConfigs.isNotEmpty()) {
             SettingsGroup(title = stringResource(R.string.assistant_page_tab_mcp)) {
             SettingGroupItem(

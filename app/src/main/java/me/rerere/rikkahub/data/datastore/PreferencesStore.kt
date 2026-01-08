@@ -41,6 +41,7 @@ import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
+import me.rerere.rikkahub.data.model.Skill
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.model.TextSelectionAction
 import me.rerere.rikkahub.data.model.TextSelectionConfig
@@ -159,6 +160,9 @@ class SettingsStore(
         // Prompt Injections
         val MODES = stringPreferencesKey("modes")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
+
+        // Skills
+        val SKILLS = stringPreferencesKey("skills")
 
         // Android Integration
         val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
@@ -383,6 +387,9 @@ class SettingsStore(
                 lorebooks = preferences[LOREBOOKS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
+                skills = preferences[SKILLS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
             )
         }
         .map {
@@ -418,10 +425,14 @@ class SettingsStore(
         .map { settings ->
             // 去重并清理无效引用
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
+            val validSkillIds = settings.skills.map { it.id }.toSet()
             val dedupedAssistants = settings.assistants.distinctBy { it.id }.map { assistant ->
                 assistant.copy(
                     mcpServers = assistant.mcpServers.filter { serverId ->
                         serverId in validMcpServerIds
+                    }.toSet(),
+                    enabledSkillIds = assistant.enabledSkillIds.filter { skillId ->
+                        skillId in validSkillIds
                     }.toSet()
                 )
             }
@@ -467,6 +478,9 @@ class SettingsStore(
                         // 过滤掉不存在的 MCP 服务器 ID
                         mcpServers = assistant.mcpServers.filter { serverId ->
                             serverId in validMcpServerIds
+                        }.toSet(),
+                        enabledSkillIds = assistant.enabledSkillIds.filter { skillId ->
+                            skillId in validSkillIds
                         }.toSet()
                     )
                 },
@@ -563,6 +577,7 @@ class SettingsStore(
 
             preferences[MODES] = JsonInstant.encodeToString(finalSettingsToSave.modes)
             preferences[LOREBOOKS] = JsonInstant.encodeToString(finalSettingsToSave.lorebooks)
+            preferences[SKILLS] = JsonInstant.encodeToString(finalSettingsToSave.skills)
         }
     }
 
@@ -651,6 +666,9 @@ data class Settings(
     // Prompt Injections
     val modes: List<Mode> = emptyList(),
     val lorebooks: List<Lorebook> = emptyList(),
+
+    // Skills (imported from zip; loaded by local tool on demand)
+    val skills: List<Skill> = emptyList(),
 ) {
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储

@@ -70,6 +70,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.animation.core.animateFloatAsState
@@ -239,6 +240,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         subtitle = stringResource(R.string.setting_page_mcp_desc),
                         icon = { Icon(Icons.Rounded.Code, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingMcp) }
+                    )
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_page_skills),
+                        subtitle = stringResource(R.string.setting_page_skills_desc),
+                        icon = { Icon(Icons.Rounded.Terminal, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { navController.navigate(Screen.SettingSkills) }
                     )
 
                     SettingGroupItem(
