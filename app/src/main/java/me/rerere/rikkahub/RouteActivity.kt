@@ -128,9 +128,6 @@ class RouteActivity : ComponentActivity() {
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
         
-        android.util.Log.d(TAG, "onCreate called")
-        android.util.Log.d(TAG, "Intent assistantId: ${intent?.getStringExtra("assistantId")}")
-        
         // Store intent data - will be processed AFTER composition is ready
         val intentAssistantId = intent?.getStringExtra("assistantId")
         val intentConversationId = intent?.getStringExtra("conversationId")
@@ -154,7 +151,6 @@ class RouteActivity : ComponentActivity() {
             val navStack = rememberNavController()
             this.navStack = navStack
             ShareHandler(navStack)
-            // AssistantShortcutHandler removed - handled directly in onCreate/onNewIntent
             TextSelectionHandler(navStack)
             NotificationHandler(navStack)
             RikkahubTheme {
@@ -184,14 +180,11 @@ class RouteActivity : ComponentActivity() {
         
         // Handle assistant shortcut - navigate directly by waiting for navStack to be ready
         if (intentAssistantId != null) {
-            android.util.Log.d(TAG, "Handling assistant shortcut directly: $intentAssistantId")
             lifecycleScope.launch {
                 // Wait for navStack to be ready (set in composition)
                 while (navStack == null) {
-                    android.util.Log.d(TAG, "Waiting for navStack...")
                     kotlinx.coroutines.delay(50)
                 }
-                android.util.Log.d(TAG, "navStack ready, navigating")
                 try {
                     val assistantId = Uuid.parse(intentAssistantId)
                     // Update the selected assistant
@@ -199,14 +192,10 @@ class RouteActivity : ComponentActivity() {
                     // Mark as recently used
                     settingsStore.markAssistantUsed(assistantId)
                     // Navigate to a new chat
-                    val newChatId = Uuid.random().toString()
-                    android.util.Log.d(TAG, "Navigating to new chat: $newChatId")
-                    navStack?.navigate(Screen.Chat(newChatId)) {
+                    navStack?.navigate(Screen.Chat(Uuid.random().toString())) {
                         popUpTo(0) { inclusive = true }
                     }
-                    android.util.Log.d(TAG, "Navigation complete")
                 } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Error handling assistant shortcut", e)
                     e.printStackTrace()
                 }
             }

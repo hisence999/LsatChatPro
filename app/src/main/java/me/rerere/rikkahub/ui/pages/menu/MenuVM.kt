@@ -34,7 +34,7 @@ class MenuVM(
 
     val stats: StateFlow<MenuStats> = combine(
         conversationRepository.getConversationCountFlow(),
-        conversationRepository.getDistinctCreateDatesFlow(),
+        conversationRepository.getDailyActivityDatesFlow(), // Uses persistent activity table instead of conversation dates
         conversationRepository.getMostActiveAssistantIdFlow(),
         conversationRepository.getEpisodeCountFlow(),
         conversationRepository.getConversationHoursFlow(),

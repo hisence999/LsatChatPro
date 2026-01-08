@@ -282,6 +282,9 @@ class ChatService(
                 )
                 saveConversation(conversationId, newConversation)
 
+                // Record daily activity for streak tracking (persists even if chat is deleted)
+                conversationRepo.recordDailyActivity()
+
                 // 开始补全
                 if(answer){
                     handleMessageComplete(conversationId)

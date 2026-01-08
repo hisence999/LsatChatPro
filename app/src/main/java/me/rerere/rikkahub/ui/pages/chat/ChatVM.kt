@@ -125,7 +125,7 @@ class ChatVM(
             val assistantId = currentSettings.assistantId.toString()
             val baseFlow = kotlinx.coroutines.flow.combine(
                 conversationRepo.getConversationCountFlow(),
-                conversationRepo.getDistinctCreateDatesFlow(),
+                conversationRepo.getDailyActivityDatesFlow(), // Uses persistent activity table instead of conversation dates
                 conversationRepo.getConversationHoursFlow(),
                 conversationRepo.getConversationCountByAssistantFlow(assistantId)
             ) { totalChats, distinctDates, hours, assistantChats ->

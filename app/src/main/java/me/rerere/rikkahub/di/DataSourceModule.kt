@@ -77,6 +77,10 @@ val dataSourceModule = module {
         get<AppDatabase>().embeddingCacheDao()
     }
 
+    single {
+        get<AppDatabase>().dailyActivityDao()
+    }
+
     single { McpManager(settingsStore = get(), appScope = get()) }
 
     single {
