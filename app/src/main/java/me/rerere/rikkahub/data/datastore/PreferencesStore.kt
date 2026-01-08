@@ -355,6 +355,22 @@ class SettingsStore(
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
+        // Update in-memory state immediately to avoid race conditions
+        val current = settingsFlow.value
+        if (!current.init && current.assistants.any { it.id == assistantId }) {
+            val updatedRecentlyUsed = buildList {
+                add(assistantId)
+                current.recentlyUsedAssistants
+                    .filter { it != assistantId }
+                    .take(2)
+                    .forEach { add(it) }
+            }
+            settingsFlow.value = current.copy(
+                assistantId = assistantId,
+                recentlyUsedAssistants = updatedRecentlyUsed
+            )
+        }
+        // Persist to DataStore
         dataStore.edit { preferences ->
             preferences[SELECT_ASSISTANT] = assistantId.toString()
         }
@@ -576,6 +592,7 @@ fun Settings.getAssistantById(id: Uuid): Assistant? {
 fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySetting {
     val ui = (assistant ?: getCurrentAssistant()).uiSettings
     return displaySetting.copy(
+        chatInputStyle = ui.chatInputStyle ?: displaySetting.chatInputStyle,
         showUserAvatar = ui.showUserAvatar ?: displaySetting.showUserAvatar,
         showModelIcon = ui.showAssistantAvatar ?: displaySetting.showModelIcon,
         showTokenUsage = ui.showTokenUsage ?: displaySetting.showTokenUsage,

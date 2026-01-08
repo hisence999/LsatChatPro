@@ -82,8 +82,93 @@ fun AssistantUISubPage(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
+        // New Chat Settings - moved to top as requested
+        SettingsGroup(title = stringResource(R.string.setting_new_chat_title)) {
+            // Header style dropdown with optional override (null = use global)
+            val headerOptions: List<me.rerere.rikkahub.data.datastore.NewChatHeaderStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_new_chat_header),
+                subtitle = stringResource(R.string.setting_new_chat_header_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = headerOptions,
+                        selectedOption = uiSettings.newChatHeaderStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(newChatHeaderStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE -> stringResource(R.string.setting_new_chat_header_none)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.GREETING -> stringResource(R.string.setting_new_chat_header_greeting)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.BIG_ICON -> stringResource(R.string.setting_new_chat_header_big_icon)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
+            )
+            
+            // Avatar toggle - only show if header style is not NONE (resolved through per-assistant or global)
+            val effectiveHeaderStyle = uiSettings.newChatHeaderStyle ?: settings.displaySetting.newChatHeaderStyle
+            if (effectiveHeaderStyle != me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE) {
+                // Changed to use TriStateSettingItem for consistent look with other settings
+                TriStateSettingItem(
+                    title = "Show Avatar in Header",
+                    subtitle = "Display assistant avatar in the new chat header",
+                    value = uiSettings.newChatShowAvatar,
+                    globalValue = settings.displaySetting.newChatShowAvatar,
+                    onValueChange = { updateUI(uiSettings.copy(newChatShowAvatar = it)) }
+                )
+            }
+            
+            // Content style dropdown with optional override (null = use global)
+            val contentOptions: List<me.rerere.rikkahub.data.datastore.NewChatContentStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatContentStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_new_chat_content),
+                subtitle = stringResource(R.string.setting_new_chat_content_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = contentOptions,
+                        selectedOption = uiSettings.newChatContentStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(newChatContentStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.NONE -> stringResource(R.string.setting_new_chat_content_none)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.TEMPLATES -> stringResource(R.string.setting_new_chat_content_templates)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.STATS -> stringResource(R.string.setting_new_chat_content_stats)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.ACTIONS -> stringResource(R.string.setting_new_chat_content_actions)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
+            )
+        }
+
         // Chat Display Settings
         SettingsGroup(title = stringResource(R.string.setting_page_chat_settings)) {
+            // Input Style dropdown - added as first item in chat settings
+            val inputOptions: List<me.rerere.rikkahub.data.datastore.ChatInputStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.ChatInputStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_chat_input_style),
+                subtitle = stringResource(R.string.setting_chat_input_style_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = inputOptions,
+                        selectedOption = uiSettings.chatInputStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(chatInputStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.ChatInputStyle.FLOATING -> stringResource(R.string.setting_chat_input_style_floating)
+                                me.rerere.rikkahub.data.datastore.ChatInputStyle.MINIMAL -> stringResource(R.string.setting_chat_input_style_minimal)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
+            )
+            
             TriStateSettingItem(
                 title = stringResource(R.string.setting_display_page_show_user_avatar_title),
                 subtitle = stringResource(R.string.setting_display_page_show_user_avatar_desc),
@@ -171,82 +256,6 @@ fun AssistantUISubPage(
             FontSizeSettingItem(
                 value = uiSettings.fontSizeRatio,
                 onValueChange = { updateUI(uiSettings.copy(fontSizeRatio = it)) }
-            )
-        }
-
-        // New Chat Settings
-        SettingsGroup(title = stringResource(R.string.setting_new_chat_title)) {
-            // Header style dropdown with optional override (null = use global)
-            val headerOptions: List<me.rerere.rikkahub.data.datastore.NewChatHeaderStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.entries
-            SettingGroupItem(
-                title = stringResource(R.string.setting_new_chat_header),
-                subtitle = stringResource(R.string.setting_new_chat_header_desc),
-                trailing = {
-                    me.rerere.rikkahub.ui.components.ui.Select(
-                        options = headerOptions,
-                        selectedOption = uiSettings.newChatHeaderStyle,
-                        onOptionSelected = { updateUI(uiSettings.copy(newChatHeaderStyle = it)) },
-                        optionToString = { style ->
-                            when (style) {
-                                null -> stringResource(R.string.use_global)
-                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE -> stringResource(R.string.setting_new_chat_header_none)
-                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.GREETING -> stringResource(R.string.setting_new_chat_header_greeting)
-                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.BIG_ICON -> stringResource(R.string.setting_new_chat_header_big_icon)
-                            }
-                        },
-                        modifier = Modifier.width(130.dp)
-                    )
-                }
-            )
-            
-            // Avatar toggle - only show if header style is not NONE (resolved through per-assistant or global)
-            val effectiveHeaderStyle = uiSettings.newChatHeaderStyle ?: settings.displaySetting.newChatHeaderStyle
-            if (effectiveHeaderStyle != me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE) {
-                // Tri-state: null = Use Global, true/false = Override
-                val avatarOptions: List<Boolean?> = listOf(null, true, false)
-                SettingGroupItem(
-                    title = "Show Avatar in Header",
-                    subtitle = "Override global setting for this assistant",
-                    trailing = {
-                        me.rerere.rikkahub.ui.components.ui.Select(
-                            options = avatarOptions,
-                            selectedOption = uiSettings.newChatShowAvatar,
-                            onOptionSelected = { updateUI(uiSettings.copy(newChatShowAvatar = it)) },
-                            optionToString = { value ->
-                                when (value) {
-                                    null -> stringResource(R.string.use_global)
-                                    true -> "On"
-                                    false -> "Off"
-                                }
-                            },
-                            modifier = Modifier.width(130.dp)
-                        )
-                    }
-                )
-            }
-            
-            // Content style dropdown with optional override (null = use global)
-            val contentOptions: List<me.rerere.rikkahub.data.datastore.NewChatContentStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatContentStyle.entries
-            SettingGroupItem(
-                title = stringResource(R.string.setting_new_chat_content),
-                subtitle = stringResource(R.string.setting_new_chat_content_desc),
-                trailing = {
-                    me.rerere.rikkahub.ui.components.ui.Select(
-                        options = contentOptions,
-                        selectedOption = uiSettings.newChatContentStyle,
-                        onOptionSelected = { updateUI(uiSettings.copy(newChatContentStyle = it)) },
-                        optionToString = { style ->
-                            when (style) {
-                                null -> stringResource(R.string.use_global)
-                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.NONE -> stringResource(R.string.setting_new_chat_content_none)
-                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.TEMPLATES -> stringResource(R.string.setting_new_chat_content_templates)
-                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.STATS -> stringResource(R.string.setting_new_chat_content_stats)
-                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.ACTIONS -> stringResource(R.string.setting_new_chat_content_actions)
-                            }
-                        },
-                        modifier = Modifier.width(130.dp)
-                    )
-                }
             )
         }
     }

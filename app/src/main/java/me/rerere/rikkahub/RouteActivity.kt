@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.SharedTransitionLayout
@@ -24,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -45,6 +47,8 @@ import okio.Path.Companion.toOkioPath
 import me.rerere.rikkahub.ui.components.ui.AppToasterHost
 import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filterNotNull
 import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -124,11 +128,12 @@ class RouteActivity : ComponentActivity() {
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
         
-        // Check for assistant shortcut intent
-        pendingAssistantId = intent?.getStringExtra("assistantId")
+        android.util.Log.d(TAG, "onCreate called")
+        android.util.Log.d(TAG, "Intent assistantId: ${intent?.getStringExtra("assistantId")}")
         
-        // Check for notification intent with conversation ID
-        pendingConversationId = intent?.getStringExtra("conversationId")
+        // Store intent data - will be processed AFTER composition is ready
+        val intentAssistantId = intent?.getStringExtra("assistantId")
+        val intentConversationId = intent?.getStringExtra("conversationId")
         
         // Check for text selection intent
         val navigateTo = intent?.getStringExtra("navigate_to")
@@ -149,7 +154,7 @@ class RouteActivity : ComponentActivity() {
             val navStack = rememberNavController()
             this.navStack = navStack
             ShareHandler(navStack)
-            AssistantShortcutHandler(navStack)
+            // AssistantShortcutHandler removed - handled directly in onCreate/onNewIntent
             TextSelectionHandler(navStack)
             NotificationHandler(navStack)
             RikkahubTheme {
@@ -176,6 +181,39 @@ class RouteActivity : ComponentActivity() {
                 AppRoutes(navStack)
             }
         }
+        
+        // Handle assistant shortcut - navigate directly by waiting for navStack to be ready
+        if (intentAssistantId != null) {
+            android.util.Log.d(TAG, "Handling assistant shortcut directly: $intentAssistantId")
+            lifecycleScope.launch {
+                // Wait for navStack to be ready (set in composition)
+                while (navStack == null) {
+                    android.util.Log.d(TAG, "Waiting for navStack...")
+                    kotlinx.coroutines.delay(50)
+                }
+                android.util.Log.d(TAG, "navStack ready, navigating")
+                try {
+                    val assistantId = Uuid.parse(intentAssistantId)
+                    // Update the selected assistant
+                    settingsStore.updateAssistant(assistantId)
+                    // Mark as recently used
+                    settingsStore.markAssistantUsed(assistantId)
+                    // Navigate to a new chat
+                    val newChatId = Uuid.random().toString()
+                    android.util.Log.d(TAG, "Navigating to new chat: $newChatId")
+                    navStack?.navigate(Screen.Chat(newChatId)) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    android.util.Log.d(TAG, "Navigation complete")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Error handling assistant shortcut", e)
+                    e.printStackTrace()
+                }
+            }
+        }
+        if (intentConversationId != null) {
+            pendingConversationId = intentConversationId
+        }
     }
 
     private fun disableNavigationBarContrast() {
@@ -184,28 +222,7 @@ class RouteActivity : ComponentActivity() {
         }
     }
     
-    @Composable
-    private fun AssistantShortcutHandler(navBackStack: NavHostController) {
-        val assistantIdStr = pendingAssistantId
-        LaunchedEffect(assistantIdStr) {
-            if (assistantIdStr != null) {
-                pendingAssistantId = null
-                try {
-                    val assistantId = Uuid.parse(assistantIdStr)
-                    // Update the selected assistant
-                    settingsStore.updateAssistant(assistantId)
-                    // Mark as recently used
-                    settingsStore.markAssistantUsed(assistantId)
-                    // Navigate to a new chat
-                    navBackStack.navigate(Screen.Chat(Uuid.random().toString())) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-    }
+    // AssistantShortcutHandler removed - shortcuts now handled directly in onCreate/onNewIntent
 
     @Composable
     private fun ShareHandler(navBackStack: NavHostController) {
@@ -311,13 +328,38 @@ class RouteActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        android.util.Log.d(TAG, "onNewIntent called")
+        android.util.Log.d(TAG, "Intent extras: conversationId=${intent.getStringExtra("conversationId")}, assistantId=${intent.getStringExtra("assistantId")}")
+        
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
+            android.util.Log.d(TAG, "Navigating to conversation: $text")
             navStack?.navigate(Screen.Chat(text))
         }
-        // Handle assistant shortcut
+        
+        // Handle assistant shortcut - navigate directly instead of using state
         intent.getStringExtra("assistantId")?.let { assistantIdStr ->
-            pendingAssistantId = assistantIdStr
+            android.util.Log.d(TAG, "Handling assistant shortcut directly: $assistantIdStr")
+            lifecycleScope.launch {
+                try {
+                    val assistantId = Uuid.parse(assistantIdStr)
+                    android.util.Log.d(TAG, "Updating to assistant: $assistantId")
+                    // Update the selected assistant
+                    settingsStore.updateAssistant(assistantId)
+                    // Mark as recently used
+                    settingsStore.markAssistantUsed(assistantId)
+                    // Navigate to a new chat
+                    val newChatId = Uuid.random().toString()
+                    android.util.Log.d(TAG, "Navigating to new chat: $newChatId")
+                    navStack?.navigate(Screen.Chat(newChatId)) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    android.util.Log.d(TAG, "Navigation complete")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Error handling assistant shortcut", e)
+                    e.printStackTrace()
+                }
+            }
         }
     }
 

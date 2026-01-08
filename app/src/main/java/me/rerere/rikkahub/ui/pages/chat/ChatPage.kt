@@ -526,8 +526,8 @@ private fun ChatPageContent(
                     )
                 }
 
-                // Conditionally render input based on style setting
-                when (setting.displaySetting.chatInputStyle) {
+                // Conditionally render input based on style setting (using effective setting for per-assistant override)
+                when (effectiveDisplaySetting.chatInputStyle) {
                     ChatInputStyle.MINIMAL -> {
                         MinimalChatInput(
                             modifier = Modifier
