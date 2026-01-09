@@ -313,6 +313,7 @@
     <string name="chat_input_placeholder">Message</string>
     <string name="chat_message_tool_call_generic">Calling tool %1$s</string>
     <string name="chat_message_tool_call_label">Calling tool %1$s</string>
+    <string name="chat_message_tool_call_skill">Calling skill %1$s</string>
     <string name="chat_message_tool_call_result">Result</string>
     <string name="chat_message_tool_call_title">Tool Call</string>
     <string name="chat_message_tool_create_memory">Created memory</string>
@@ -643,6 +644,44 @@
     <string name="setting_page_general_settings">General Settings</string>
     <string name="setting_page_mcp">MCP</string>
     <string name="setting_page_mcp_desc">Configure MCP servers</string>
+    <string name="setting_page_skills">Skills</string>
+    <string name="setting_page_skills_desc">Import and manage Skill packages (zip)</string>
+
+    <string name="skills_page_title">Skills</string>
+    <string name="skills_page_empty">No skills installed</string>
+    <string name="skills_page_empty_hint">Import a zip that contains at least one SKILL.md</string>
+    <string name="skills_import_success">Imported %1$d skill(s)</string>
+    <string name="skills_delete_title">Delete skill?</string>
+    <string name="skills_delete_desc">This will remove “%1$s” from device storage.</string>
+    <string name="skills_unnamed">Unnamed skill</string>
+    <string name="skills_no_description">No description</string>
+
+    <string name="skills_selected_count">%1$d selected</string>
+    <string name="skills_action_create_folder">Create folder</string>
+    <string name="skills_action_batch_edit">Batch edit</string>
+    <string name="skills_action_move">Move</string>
+    <string name="skills_move_to_folder_title">Move to folder</string>
+    <string name="skills_import_folder_default">Imported skills</string>
+    <string name="skills_delete_multiple_title">Delete %1$d item(s)?</string>
+    <string name="skills_delete_multiple_desc">This will delete the selected items from your device.</string>
+
+    <string name="skills_folder_create_title">Create folder</string>
+    <string name="skills_folder_rename_title">Rename folder</string>
+    <string name="skills_folder_create_action">Create</string>
+    <string name="skills_folder_rename_action">Rename</string>
+    <string name="skills_folder_name_label">Folder name</string>
+    <string name="skills_folder_name_empty">Folder name cannot be empty</string>
+    <string name="skills_folder_name_exists">Folder already exists: %1$s</string>
+    <string name="skills_folder_unnamed">Unnamed folder</string>
+    <string name="skills_folder_ungrouped">Ungrouped</string>
+    <string name="skills_folder_empty">Empty folder</string>
+    <string name="skills_folder_delete_title">Delete folder?</string>
+    <string name="skills_folder_delete_desc">This will delete ЁА%1$sЁБ.</string>
+    <string name="skills_folder_enabled_count">Enabled %1$d/%2$d</string>
+
+    <string name="skills_group_title">Skills</string>
+    <string name="skills_manage_title">Manage skills</string>
+    <string name="skills_manage_desc">Import Skill packages from zip</string>
     <string name="setting_page_model_and_services">Models &amp; Services</string>
     <string name="setting_page_no_share_app">No share app found</string>
     <string name="setting_page_providers">Model Providers</string>
@@ -835,7 +874,7 @@
     <string name="theme_name_ocean">Ocean Blue</string>
     <string name="theme_name_sakura">Sakura Pink</string>
     <string name="theme_name_spring">Meadow Green</string>
-    <string name="tools_warning">Tools are disabled for current model. Please enable tools in settings to use Search/MCP.</string>
+    <string name="tools_warning">Tools are disabled for current model. Please enable tools in settings to use Skills/Local tools/Search/MCP.</string>
     <string name="translate">Translate</string>
     <string name="translating">Translating...</string>
     <string name="translation_clear">Clear Translation</string>
@@ -1029,6 +1068,7 @@
     <string name="a11y_delete_memory">Delete memory</string>
     <string name="a11y_edit_override">Edit override</string>
     <string name="a11y_expand">Expand</string>
+    <string name="a11y_collapse">Collapse</string>
     <string name="a11y_image">Image</string>
     <string name="a11y_loading">Loading</string>
     <string name="a11y_next">Next</string>

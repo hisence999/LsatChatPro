@@ -62,6 +62,7 @@ import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
@@ -239,6 +240,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         subtitle = stringResource(R.string.setting_page_mcp_desc),
                         icon = { Icon(Icons.Rounded.Code, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingMcp) }
+                    )
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_page_skills),
+                        subtitle = stringResource(R.string.setting_page_skills_desc),
+                        icon = { Icon(Icons.Rounded.Extension, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { navController.navigate(Screen.SettingSkills) }
                     )
 
                     SettingGroupItem(

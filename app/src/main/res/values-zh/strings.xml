@@ -234,6 +234,7 @@
   <string name="chat_input_placeholder">输入消息聊天</string>
   <string name="chat_message_tool_call_generic">调用工具 %1$s</string>
   <string name="chat_message_tool_call_label">调用工具 %1$s</string>
+  <string name="chat_message_tool_call_skill">调用技能 %1$s</string>
   <string name="chat_message_tool_call_result">调用结果</string>
   <string name="chat_message_tool_call_title">工具调用</string>
   <string name="chat_message_tool_create_memory">创建了记忆</string>
@@ -558,6 +559,44 @@
   <string name="setting_page_general_settings">通用设置</string>
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">配置MCP服务器</string>
+  <string name="setting_page_skills">技能</string>
+  <string name="setting_page_skills_desc">导入并管理 Skill 技能包（zip）</string>
+
+  <string name="skills_page_title">技能</string>
+  <string name="skills_page_empty">暂无技能</string>
+  <string name="skills_page_empty_hint">导入包含至少一个 SKILL.md 的 zip 文件</string>
+  <string name="skills_import_success">已导入 %1$d 个技能</string>
+  <string name="skills_delete_title">删除技能？</string>
+  <string name="skills_delete_desc">将从设备中移除“%1$s”。</string>
+  <string name="skills_unnamed">未命名技能</string>
+  <string name="skills_no_description">无描述</string>
+
+  <string name="skills_selected_count">已选择 %1$d 项</string>
+  <string name="skills_action_create_folder">创建文件夹</string>
+  <string name="skills_action_batch_edit">批量编辑</string>
+  <string name="skills_action_move">移动</string>
+  <string name="skills_move_to_folder_title">移动到文件夹</string>
+  <string name="skills_import_folder_default">导入的技能</string>
+  <string name="skills_delete_multiple_title">删除 %1$d 项？</string>
+  <string name="skills_delete_multiple_desc">将从设备中删除所选内容。</string>
+
+  <string name="skills_folder_create_title">创建文件夹</string>
+  <string name="skills_folder_rename_title">重命名文件夹</string>
+  <string name="skills_folder_create_action">创建</string>
+  <string name="skills_folder_rename_action">重命名</string>
+  <string name="skills_folder_name_label">文件夹名称</string>
+  <string name="skills_folder_name_empty">文件夹名称不能为空</string>
+  <string name="skills_folder_name_exists">文件夹已存在：%1$s</string>
+  <string name="skills_folder_unnamed">未命名文件夹</string>
+  <string name="skills_folder_ungrouped">未分组</string>
+  <string name="skills_folder_empty">空文件夹</string>
+  <string name="skills_folder_delete_title">删除文件夹？</string>
+  <string name="skills_folder_delete_desc">将删除“%1$s”。</string>
+  <string name="skills_folder_enabled_count">已启用 %1$d/%2$d</string>
+
+  <string name="skills_group_title">技能</string>
+  <string name="skills_manage_title">管理技能</string>
+  <string name="skills_manage_desc">从 zip 导入 Skill 技能包</string>
   <string name="setting_page_model_and_services">模型与服务</string>
   <string name="setting_page_no_share_app">找不到分享应用</string>
   <string name="setting_page_providers">提供商</string>
@@ -729,7 +768,7 @@
   <string name="theme_name_ocean">海湾蓝</string>
   <string name="theme_name_sakura">樱花粉</string>
   <string name="theme_name_spring">原野绿</string>
-  <string name="tools_warning">当前模型未开启工具调用，请在设置内启用模型的工具能力，再使用搜索/MCP等功能</string>
+  <string name="tools_warning">当前模型未开启工具调用，请在设置内启用模型的工具能力，再使用技能/本地工具/搜索/MCP等功能</string>
   <string name="translate">翻译</string>
   <string name="translating">翻译中...</string>
   <string name="translation_clear">清空翻译</string>
@@ -964,6 +1003,7 @@
     <string name="a11y_delete_memory">删除记忆</string>
     <string name="a11y_edit_override">编辑覆盖</string>
     <string name="a11y_expand">展开</string>
+    <string name="a11y_collapse">折叠</string>
     <string name="a11y_image">图片</string>
     <string name="a11y_loading">加载中</string>
     <string name="a11y_next">下一个</string>

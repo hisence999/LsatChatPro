@@ -85,6 +85,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingPromptInjectionsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
 import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSkillsPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
@@ -520,6 +521,10 @@ class RouteActivity : ComponentActivity() {
                         SettingMcpPage()
                     }
 
+                    composable<Screen.SettingSkills> {
+                        SettingSkillsPage()
+                    }
+
                     composable<Screen.SettingRpOptimizations> {
                         SettingRpOptimizationsPage()
                     }
@@ -637,6 +642,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingMcp : Screen
+
+    @Serializable
+    data object SettingSkills : Screen
 
     @Serializable
     data object SettingRpOptimizations : Screen

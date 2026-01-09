@@ -6,13 +6,19 @@ import com.whl.quickjs.wrapper.QuickJSObject
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.data.model.Skill
+import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
+import java.io.File
+import java.util.Locale
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -338,6 +344,150 @@ class LocalTools(private val context: Context) {
             )
         )
     }
+
+    fun createSkillFileTool(allowedSkills: List<Skill>): Tool {
+        val allowedSkillIds = allowedSkills.map { it.id.toString() }.toSet()
+        val allowedSkillsById = allowedSkills.associateBy { it.id.toString() }
+        val allowedSkillsByName = allowedSkills.groupBy { it.name.trim().lowercase(Locale.ROOT) }
+        return Tool(
+            name = "read_skill_file",
+            description = "Read a file from an installed Skill package (e.g., SKILL.md or referenced files).",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("skill_name", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Skill name from the available skills list (preferred). If duplicated, also pass skill_id to disambiguate.")
+                        })
+                        put("skill_id", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Skill id (UUID) from the available skills list (for disambiguation / backward compatibility)")
+                        })
+                        put("path", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Relative path inside the skill folder (default: SKILL.md)")
+                        })
+                        put("max_chars", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Maximum characters to return (default: 20000)")
+                        })
+                    },
+                    required = listOf("skill_name"),
+                )
+            },
+            systemPrompt = { _, _ ->
+                if (allowedSkills.isEmpty()) return@Tool ""
+                buildString {
+                    appendLine("You can load local Skill packages on demand via the tool `read_skill_file`.")
+                    appendLine("Call with `skill_name` (preferred). If multiple skills share the same name, disambiguate with `skill_id`.")
+                    appendLine("Rules:")
+                    appendLine("- Always load a skill's SKILL.md before using it.")
+                    appendLine("- Never invent skill contents; use the tool.")
+                    appendLine("Available skills:")
+                    allowedSkills.forEach { skill ->
+                        append("- name: ")
+                        append(skill.name)
+                        append(" | id: ")
+                        append(skill.id.toString())
+                        if (skill.description.isNotBlank()) {
+                            append(" | desc: ")
+                            append(skill.description.replace('\n', ' ').trim())
+                        }
+                        appendLine()
+                    }
+                }
+            },
+            execute = { args ->
+                val obj = args.jsonObject
+                val skillNameRaw = obj["skill_name"]?.jsonPrimitiveOrNull?.contentOrNull?.trim()
+                val skillIdRaw = obj["skill_id"]?.jsonPrimitiveOrNull?.contentOrNull?.trim()
+
+                val resolvedSkill = when {
+                    !skillIdRaw.isNullOrBlank() -> {
+                        if (skillIdRaw !in allowedSkillIds) {
+                            return@Tool buildJsonObject { put("error", "Skill not allowed: $skillIdRaw") }
+                        }
+                        allowedSkillsById[skillIdRaw]
+                    }
+
+                    !skillNameRaw.isNullOrBlank() -> {
+                        val candidates = allowedSkillsByName[skillNameRaw.lowercase(Locale.ROOT)].orEmpty()
+                        when {
+                            candidates.isEmpty() -> {
+                                buildJsonObject {
+                                    put("error", "Skill not allowed: $skillNameRaw")
+                                }.let { return@Tool it }
+                            }
+
+                            candidates.size > 1 -> {
+                                buildJsonObject {
+                                    put("error", "Ambiguous skill_name: $skillNameRaw")
+                                    put("candidates", buildJsonArray {
+                                        candidates.forEach { skill ->
+                                            add(buildJsonObject {
+                                                put("id", skill.id.toString())
+                                                put("name", skill.name)
+                                            })
+                                        }
+                                    })
+                                }.let { return@Tool it }
+                            }
+
+                            else -> candidates.single()
+                        }
+                    }
+
+                    else -> null
+                }
+
+                if (resolvedSkill == null) {
+                    return@Tool buildJsonObject { put("error", "Missing skill_name") }
+                }
+
+                val resolvedSkillId = resolvedSkill.id.toString()
+
+                val pathRaw = obj["path"]?.jsonPrimitiveOrNull?.contentOrNull?.trim().orEmpty()
+                val relativePath = if (pathRaw.isBlank()) "SKILL.md" else pathRaw
+
+                val maxChars = obj["max_chars"]?.jsonPrimitiveOrNull?.intOrNull?.coerceIn(1, 200_000) ?: 20_000
+
+                val skillRoot = File(context.filesDir, "skills/$resolvedSkillId")
+                val target = safeResolve(skillRoot, relativePath)
+                    ?: return@Tool buildJsonObject { put("error", "Invalid path") }
+
+                if (!target.exists() || !target.isFile) {
+                    return@Tool buildJsonObject { put("error", "File not found: $relativePath") }
+                }
+
+                val text = runCatching { target.readText(Charsets.UTF_8) }
+                    .getOrElse { return@Tool buildJsonObject { put("error", "Failed to read file: ${it.message}") } }
+
+                val truncated = text.length > maxChars
+                val content = if (truncated) text.take(maxChars) else text
+
+                buildJsonObject {
+                    put("ok", true)
+                    put("skill_id", resolvedSkillId)
+                    put("skill_name", resolvedSkill.name)
+                    put("path", relativePath)
+                    put("truncated", truncated)
+                    put("content", content)
+                }
+            }
+        )
+    }
+
+    private fun safeResolve(rootDir: File, relativePath: String): File? {
+        val normalized = relativePath.replace('\\', '/')
+        if (normalized.startsWith("/")) return null
+        val file = File(rootDir, normalized)
+        return runCatching {
+            val rootPath = rootDir.canonicalFile.toPath()
+            val filePath = file.canonicalFile.toPath()
+            if (filePath.startsWith(rootPath)) file else null
+        }.getOrNull()
+    }
+
     fun getTools(options: List<LocalToolOption>, assistantId: Uuid, conversationId: Uuid): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {

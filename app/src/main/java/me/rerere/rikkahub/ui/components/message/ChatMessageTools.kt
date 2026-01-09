@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkRemove
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Public
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
@@ -104,6 +105,7 @@ fun ToolCallItem(
                         "delete_memory" -> Icons.Rounded.BookmarkRemove
                         "search_web" -> Icons.Rounded.Public
                         "scrape_web" -> Icons.Rounded.Public
+                        "read_skill_file" -> Icons.Rounded.Extension
                         else -> Icons.Rounded.Build
                     },
                     contentDescription = null,
@@ -114,6 +116,10 @@ fun ToolCallItem(
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                val skillNameOrId = if (toolName == "read_skill_file") {
+                    arguments.jsonObject["skill_name"]?.jsonPrimitiveOrNull?.contentOrNull
+                        ?: arguments.jsonObject["skill_id"]?.jsonPrimitiveOrNull?.contentOrNull
+                } else null
                 Text(
                     text = when (toolName) {
                         "create_memory" -> stringResource(R.string.chat_message_tool_create_memory)
@@ -125,6 +131,14 @@ fun ToolCallItem(
                                 ?: ""
                         )
                         "scrape_web" -> stringResource(R.string.chat_message_tool_scrape_web)
+                        "read_skill_file" -> {
+                            val name = skillNameOrId.orEmpty()
+                            if (name.isBlank()) {
+                                stringResource(R.string.chat_message_tool_call_generic, toolName)
+                            } else {
+                                stringResource(R.string.chat_message_tool_call_skill, name)
+                            }
+                        }
                         else -> stringResource(
                             R.string.chat_message_tool_call_generic,
                             toolName
@@ -402,10 +416,17 @@ private fun ToolCallPreviewSheet(
                         FormItem(
                             label = {
                                 Text(
-                                    stringResource(
-                                        R.string.chat_message_tool_call_label,
-                                        toolName
-                                    )
+                                    if (toolName == "read_skill_file") {
+                                        val name = arguments.jsonObject["skill_name"]?.jsonPrimitiveOrNull?.contentOrNull
+                                            ?: arguments.jsonObject["skill_id"]?.jsonPrimitiveOrNull?.contentOrNull
+                                        if (name.isNullOrBlank()) {
+                                            stringResource(R.string.chat_message_tool_call_label, toolName)
+                                        } else {
+                                            stringResource(R.string.chat_message_tool_call_skill, name)
+                                        }
+                                    } else {
+                                        stringResource(R.string.chat_message_tool_call_label, toolName)
+                                    }
                                 )
                             }
                         ) {
