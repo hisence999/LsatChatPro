@@ -16,6 +16,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
@@ -68,6 +69,7 @@ import androidx.compose.material3.LocalAbsoluteTonalElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Card
@@ -87,9 +89,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -104,6 +112,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -244,13 +253,14 @@ fun ChatInput(
         }
     }
 
-    // Collapse when ime is visible
-    val imeVisile = WindowInsets.isImeVisible
+    // Collapse when ime is hidden - always clear focus to show pickers
+    val imeVisible = WindowInsets.isImeVisible
     val focusManager = LocalFocusManager.current
-    LaunchedEffect(imeVisile) {
-        if (imeVisile) {
+    LaunchedEffect(imeVisible) {
+        if (imeVisible) {
             expand = ExpandState.Collapsed
-        } else if (state.textContent.text.isEmpty()) {
+        } else {
+            // Always clear focus when keyboard closes to collapse toolbar
             focusManager.clearFocus()
         }
     }
@@ -258,8 +268,9 @@ fun ChatInput(
     // Focus state for the text field
     var isFocused by remember { mutableStateOf(false) }
     
-    // Expanded state logic: Expanded if focused OR text is not empty
-    val isExpanded = isFocused || state.textContent.text.isNotEmpty()
+    // Expanded state logic: Expanded ONLY when focused (keyboard open)
+    // When collapsed with text, show pickers and single-line text preview
+    val isExpanded = isFocused
 
     Box(
         modifier = modifier.fillMaxWidth(), // Apply passed modifier (alignment) here
@@ -373,10 +384,31 @@ fun ChatInput(
                     }
 
                     // Search & Reasoning (Visible when NOT expanded)
+                    // Delayed appearance - slight overlap with height animation for smoother feel
+                    var showPickers by remember { mutableStateOf(false) }
+                    LaunchedEffect(isExpanded) {
+                        if (!isExpanded) {
+                            // Start showing buttons while height is still animating (100ms overlap)
+                            kotlinx.coroutines.delay(100)
+                            showPickers = true
+                        } else {
+                            // Hide immediately when expanding
+                            showPickers = false
+                        }
+                    }
+                    
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isExpanded,
-                        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandHorizontally(),
-                        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkHorizontally()
+                        visible = showPickers,
+                        enter = androidx.compose.animation.fadeIn(
+                            animationSpec = androidx.compose.animation.core.tween(150)
+                        ) + androidx.compose.animation.expandHorizontally(
+                            animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ),
+                        exit = androidx.compose.animation.fadeOut(
+                            animationSpec = androidx.compose.animation.core.tween(100)
+                        ) + androidx.compose.animation.shrinkHorizontally(
+                            animationSpec = androidx.compose.animation.core.tween(150)
+                        )
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -462,8 +494,10 @@ fun ChatInput(
                                         onFocusChange = { isFocused = it },
                                         trailingIcon = {
                                             // Crossfade between Model Picker and Send Button
+                                            // Send button shows ONLY when keyboard is open (focused) AND has content, or loading
+                                            val showSendButton = state.loading || (isFocused && !state.isEmpty())
                                             androidx.compose.animation.AnimatedContent(
-                                                targetState = !state.isEmpty() || state.loading,
+                                                targetState = showSendButton,
                                                 transitionSpec = {
                                                     androidx.compose.animation.fadeIn(
                                                         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f)
@@ -671,29 +705,159 @@ private fun TextInputRow(
                     }
                 }
             }
-            TextField(
-                state = state.textContent,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .contentReceiver(receiveContentListener)
-                    .onFocusChanged {
-                        onFocusChange(it.isFocused)
-                    },
-                shape = RoundedCornerShape(20.dp),
-                placeholder = {
-                    Text(stringResource(R.string.chat_input_placeholder))
+            // Always use MultiLine to preserve Enter key for newlines
+            // Use animated height constraint for visual collapse
+            val hasText = state.textContent.text.isNotEmpty()
+            
+            // Use imeVisible (keyboard state) for animation target - more stable than focus state
+            val imeVisibleLocal = WindowInsets.isImeVisible
+            
+            // Get container color for fade gradient (matches inner capsule with tonal elevation)
+            val amoledModeLocal by rememberAmoledDarkMode()
+            val fadeColor = if (amoledModeLocal && LocalDarkMode.current) {
+                Color.Black
+            } else {
+                // Use the elevated surface color to match the actual Surface appearance
+                MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+            }
+            
+            // Collapsed state: keyboard hidden
+            val isCollapsed = !imeVisibleLocal
+            
+            // Check if text would need multiple lines (approx > 40 chars per line)
+            val hasMultiLineContent = hasText && state.textContent.text.length > 40
+            
+            // Animated height with spring physics - only animate for multi-line content
+            val animatedMaxHeight by animateDpAsState(
+                targetValue = if (isCollapsed) 56.dp else 200.dp,
+                animationSpec = if (hasMultiLineContent) {
+                    spring(
+                        dampingRatio = 0.85f,
+                        stiffness = 400f
+                    )
+                } else {
+                    spring(
+                        dampingRatio = 1.0f,  // Critically damped - no visible animation for single line
+                        stiffness = 1000f
+                    )
                 },
-                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 16.dp), // Increased padding for centering
-                colors = TextFieldDefaults.colors().copy(
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                ),
-                trailingIcon = trailingIcon
+                label = "text_height"
             )
+            
+            // Animated alpha for fade overlay - appears when collapsed with text
+            val fadeAlpha by animateFloatAsState(
+                targetValue = if (isCollapsed && hasText) 1f else 0f,
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = 400f
+                ),
+                label = "fade_alpha"
+            )
+            
+            // Animated fade width - expands when collapsed with text
+            val fadeWidth by animateDpAsState(
+                targetValue = if (isCollapsed && hasText) 60.dp else 0.dp,
+                animationSpec = spring(
+                    dampingRatio = 0.75f,
+                    stiffness = 350f
+                ),
+                label = "fade_width"
+            )
+            
+            // Delayed lineLimits state - waits for height animation before switching to SingleLine
+            // This prevents text from reflowing mid-animation
+            // outputTransformation handles newlines by replacing them with spaces visually
+            var useSingleLine by remember { mutableStateOf(false) }
+            LaunchedEffect(isCollapsed) {
+                if (isCollapsed) {
+                    // Wait for height animation to mostly complete before switching to SingleLine
+                    kotlinx.coroutines.delay(180)
+                    useSingleLine = true
+                } else {
+                    // Immediately switch to MultiLine when expanding for smooth typing
+                    useSingleLine = false
+                }
+            }
+            
+            // Box with animated height constraint and gradient fade mask
+            Box(
+                modifier = Modifier
+                    .heightIn(max = animatedMaxHeight)
+                    .clipToBounds()
+                    .drawWithContent {
+                        // Draw the content first
+                        drawContent()
+                        
+                        // Only draw the fade overlay when collapsed (keyboard hidden) with text
+                        if (fadeWidth > 0.dp) {
+                            // Draw a gradient overlay on the right side (before trailing icon)
+                            val fadeWidthPx = fadeWidth.toPx()
+                            // Position gradient to end just before the trailing icon starts
+                            val endX = size.width - 48.dp.toPx() // trailing icon area
+                            val startX = endX - fadeWidthPx
+                            
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        fadeColor.copy(alpha = 0f),
+                                        fadeColor
+                                    ),
+                                    startX = startX,
+                                    endX = endX
+                                ),
+                                topLeft = Offset(startX, 0f),
+                                size = Size(fadeWidthPx, size.height)
+                            )
+                        }
+                    }
+            ) {
+                TextField(
+                    state = state.textContent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .focusRequester(state.focusRequester)
+                        .contentReceiver(receiveContentListener)
+                        .onFocusChanged {
+                            onFocusChange(it.isFocused)
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    placeholder = {
+                        Text(stringResource(R.string.chat_input_placeholder))
+                    },
+                    // Use SingleLine when collapsed to prevent word wrapping (text extends horizontally)
+                    // Use MultiLine when expanded (keyboard open) for normal editing
+                    // Uses delayed useSingleLine state for smooth animation transition
+                    lineLimits = if (useSingleLine) {
+                        TextFieldLineLimits.SingleLine
+                    } else {
+                        TextFieldLineLimits.MultiLine(maxHeightInLines = 5)
+                    },
+                    // When collapsed (SingleLine), visually replace newlines with spaces
+                    // This allows SingleLine mode even when text contains newlines
+                    outputTransformation = if (useSingleLine) {
+                        androidx.compose.foundation.text.input.OutputTransformation {
+                            // Replace newlines with spaces for visual display only
+                            val text = asCharSequence().toString()
+                            if (text.contains('\n')) {
+                                replace(0, length, text.replace('\n', ' '))
+                            }
+                        }
+                    } else null,
+                    // Keep Enter key as newline (not action/done) - ImeAction.None disables the action key
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.None
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    colors = TextFieldDefaults.colors().copy(
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                    ),
+                    trailingIcon = trailingIcon
+                )
+            }
             if (isFullScreen) {
                 FullScreenEditor(state = state) {
                     isFullScreen = false
@@ -984,7 +1148,7 @@ private fun ChatSuggestionsRow(
 }
 
 @Composable
-private fun FilesPicker(
+internal fun FilesPicker(
     conversation: Conversation,
     assistant: Assistant,
     state: ChatInputState,
@@ -1651,7 +1815,7 @@ private fun BigIconTextButtonPreview() {
 }
 
 @Composable
-private fun ModesPickerSheet(
+internal fun ModesPickerSheet(
     settings: me.rerere.rikkahub.data.datastore.Settings,
     conversation: Conversation,
     onUpdateConversation: (Conversation) -> Unit,
@@ -1693,7 +1857,7 @@ private fun ModesPickerSheet(
                 Icon(Icons.Rounded.KeyboardArrowDown, null)
             }
         },
-        containerColor = if (amoledMode && isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
@@ -1795,7 +1959,7 @@ private fun ModesPickerSheet(
 }
 
 @Composable
-private fun LorebooksPickerSheet(
+internal fun LorebooksPickerSheet(
     settings: me.rerere.rikkahub.data.datastore.Settings,
     assistant: Assistant,
     onUpdateAssistant: (Assistant) -> Unit,
@@ -1830,7 +1994,7 @@ private fun LorebooksPickerSheet(
                 Icon(Icons.Rounded.KeyboardArrowDown, null)
             }
         },
-        containerColor = if (amoledMode && isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier

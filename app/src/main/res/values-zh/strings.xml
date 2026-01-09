@@ -290,6 +290,7 @@
   <string name="menu_page_assistants_available_format">共 %1$d 个助手</string>
   <string name="menu_page_avg_messages_per_day">平均消息/天</string>
   <string name="menu_page_daily_chat_streak">连续聊天天数</string>
+  <string name="menu_page_chat_style">聊天风格</string>
   <string name="menu_page_days_format">%1$d 天</string>
   <string name="menu_page_most_active_assistant">最活跃的助手</string>
   <string name="menu_page_overview">概览</string>
@@ -392,6 +393,7 @@
   <string name="setting_display_page_skip_crop_image_desc">导入图片或拍照后跳过裁剪界面</string>
   <string name="setting_display_page_skip_crop_image_title">跳过图片编辑</string>
   <string name="setting_display_page_title">显示设置</string>
+  <string name="setting_display_page_subtitle">聊天显示、触感反馈、代码块、字体大小等</string>
   <string name="setting_display_page_check_updates_desc">自动从 GitHub 检查新版本</string>
   <string name="setting_display_page_check_updates_title">检查更新</string>
   <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
@@ -1222,5 +1224,71 @@
     <string name="setting_android_integration_desc">文本选择弹窗设置</string>
 
     <string name="setting_provider_page_add_from_list">从列表添加</string>
+    <!-- 1.3.1 新增（上游） -->
+    <string name="greeting_early_morning">起床啦！</string>
+    <string name="greeting_lunch_time">午餐时间！</string>
+    <string name="greeting_late_evening">准备放松一下？</string>
+    <string name="greeting_early_hours">还没睡？早点休息</string>
+
+    <string name="new_chat_template_write">写作</string>
+    <string name="new_chat_template_write_prompt">帮我写 </string>
+    <string name="new_chat_template_code">编程</string>
+    <string name="new_chat_template_code_prompt">帮我写代码 </string>
+    <string name="new_chat_template_brainstorm">头脑风暴</string>
+    <string name="new_chat_template_brainstorm_prompt">我们来头脑风暴一下 </string>
+    <string name="new_chat_template_learn">学习</string>
+    <string name="new_chat_template_learn_prompt">解释一下 </string>
+
+    <string name="use_global">使用全局设置</string>
+    <string name="setting_new_chat_title">新对话</string>
+    <string name="setting_new_chat_header">顶部</string>
+    <string name="setting_new_chat_header_desc">空对话页顶部显示样式</string>
+    <string name="setting_new_chat_header_none">无</string>
+    <string name="setting_new_chat_header_greeting">问候语</string>
+    <string name="setting_new_chat_header_big_icon">助手</string>
+    <string name="setting_new_chat_show_avatar_in_header_title">在顶部显示头像</string>
+    <string name="setting_new_chat_show_avatar_in_header_desc">关闭后，头像会移动到右上角</string>
+    <string name="setting_new_chat_content">内容</string>
+    <string name="setting_new_chat_content_desc">顶部下方显示内容</string>
+    <string name="setting_new_chat_content_none">无</string>
+    <string name="setting_new_chat_content_templates">模板</string>
+    <string name="setting_new_chat_content_stats">统计</string>
+    <string name="setting_new_chat_content_actions">操作</string>
+
+    <string name="new_chat_action_create_image">生成图片</string>
+    <string name="new_chat_action_translate">翻译</string>
+    <string name="new_chat_action_more">更多</string>
+
+    <string name="new_chat_stat_streak">连击</string>
+    <string name="new_chat_stat_days">天数</string>
+    <string name="new_chat_stat_total_chats">对话</string>
+    <string name="new_chat_stat_avg_messages">日均</string>
+    <string name="new_chat_stat_most_used_model">最常用模型</string>
+
+    <string name="time_label_early_bird">早起鸟</string>
+    <string name="time_label_daytime_chatter">白天话痨</string>
+    <string name="time_label_night_owl">夜猫子</string>
+
+    <string name="setting_ui_customization_title">界面自定义</string>
+
+    <string name="setting_chat_input_style">输入样式</string>
+    <string name="setting_chat_input_style_desc">消息输入栏的外观</string>
+    <string name="setting_chat_input_style_floating">LastChat</string>
+    <string name="setting_chat_input_style_minimal">极简</string>
+
+    <string name="minimal_input_camera">相机</string>
+    <string name="minimal_input_photos">照片</string>
+    <string name="minimal_input_files">文件</string>
+    <string name="minimal_input_thinking">思考</string>
+    <string name="minimal_input_thinking_desc">多思考一会儿，回答更好</string>
+    <string name="minimal_input_search">搜索</string>
+    <string name="minimal_input_search_desc">联网搜索信息</string>
+    <string name="minimal_input_modes">模式</string>
+    <string name="minimal_input_modes_desc">切换助手的行为方式</string>
+    <string name="minimal_input_lorebooks">世界书</string>
+    <string name="minimal_input_lorebooks_desc">从世界书添加上下文</string>
+    <string name="minimal_input_summarize">总结</string>
+    <string name="minimal_input_summarize_desc">总结这段对话</string>
+
 </resources>
 

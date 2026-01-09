@@ -124,7 +124,10 @@ class TextSelectionVM(
                 val providerSetting = model?.findProvider(settings.providers)
 
                 if (model == null || providerSetting == null) {
-                    state = TextSelectionState.Error("No model configured")
+                    state = TextSelectionState.Error(
+                        if (model == null) "No chat model selected. Please select a model in Settings."
+                        else "Provider not found for the selected model."
+                    )
                     return@launch
                 }
 
@@ -133,7 +136,8 @@ class TextSelectionVM(
                 val assistant = assistantId?.let { settings.getAssistantById(it) }
                 val assistantPrompt = assistant?.systemPrompt ?: ""
 
-                val systemPrompt = buildSystemPrompt(action, customPrompt, assistantPrompt)
+                val translateLanguage = settings.textSelectionConfig.translateLanguage
+                val systemPrompt = buildSystemPrompt(action, customPrompt, assistantPrompt, translateLanguage)
                 val userMessage = UIMessage.user(selectedText)
                 
                 messages.add(UIMessage.system(systemPrompt))
@@ -188,11 +192,11 @@ class TextSelectionVM(
         )
     }
 
-    private fun buildSystemPrompt(action: QuickAction, customPrompt: String, assistantPrompt: String): String {
+    private fun buildSystemPrompt(action: QuickAction, customPrompt: String, assistantPrompt: String, translateLanguage: String): String {
         // For Translate, use only the action prompt (no assistant personality)
         if (action == QuickAction.TRANSLATE) {
             return """
-                You are a translator. Translate the user's text to their device language.
+                You are a translator. Translate the user's text to $translateLanguage.
                 Only output the translation, nothing else. Do not include any explanations or notes.
             """.trimIndent()
         }

@@ -114,14 +114,16 @@ fun ReasoningPicker(
     onUpdateReasoningTokens: (Int) -> Unit,
 ) {
     val currentLevel = ReasoningLevel.fromBudgetTokens(reasoningTokens)
+    val amoledMode by rememberAmoledDarkMode()
     val isDarkMode = LocalDarkMode.current
+    val isAmoled = amoledMode && isDarkMode
     
     ModalBottomSheet(
         onDismissRequest = {
             onDismissRequest()
         },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -140,7 +142,7 @@ fun ReasoningPicker(
                     subtitle = stringResource(id = R.string.reasoning_off_desc),
                     onClick = { onUpdateReasoningTokens(0) },
                     position = ItemPosition.FIRST,
-                    isDarkMode = isDarkMode
+                    isAmoled = isAmoled
                 )
                 ReasoningOptionItem(
                     selected = currentLevel == ReasoningLevel.AUTO,
@@ -149,7 +151,7 @@ fun ReasoningPicker(
                     subtitle = stringResource(id = R.string.reasoning_auto_desc),
                     onClick = { onUpdateReasoningTokens(-1) },
                     position = ItemPosition.LAST,
-                    isDarkMode = isDarkMode
+                    isAmoled = isAmoled
                 )
             }
             
@@ -167,7 +169,7 @@ fun ReasoningPicker(
                     subtitle = stringResource(id = R.string.reasoning_light_desc),
                     onClick = { onUpdateReasoningTokens(1024) },
                     position = ItemPosition.FIRST,
-                    isDarkMode = isDarkMode
+                    isAmoled = isAmoled
                 )
                 ReasoningOptionItem(
                     selected = currentLevel == ReasoningLevel.MEDIUM,
@@ -176,7 +178,7 @@ fun ReasoningPicker(
                     subtitle = stringResource(id = R.string.reasoning_medium_desc),
                     onClick = { onUpdateReasoningTokens(16_000) },
                     position = ItemPosition.MIDDLE,
-                    isDarkMode = isDarkMode
+                    isAmoled = isAmoled
                 )
                 ReasoningOptionItem(
                     selected = currentLevel == ReasoningLevel.HIGH,
@@ -185,7 +187,7 @@ fun ReasoningPicker(
                     subtitle = stringResource(id = R.string.reasoning_heavy_desc),
                     onClick = { onUpdateReasoningTokens(32_000) },
                     position = ItemPosition.LAST,
-                    isDarkMode = isDarkMode
+                    isAmoled = isAmoled
                 )
             }
         }
@@ -209,7 +211,7 @@ private fun ReasoningOptionItem(
     subtitle: String,
     onClick: () -> Unit,
     position: ItemPosition = ItemPosition.SINGLE,
-    isDarkMode: Boolean  // Passed from parent to avoid ModalBottomSheet composition issues
+    isAmoled: Boolean  // Only use Color.Black when actually in OLED mode
 ) {
     val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
     
@@ -242,7 +244,7 @@ private fun ReasoningOptionItem(
             .fillMaxWidth()
             .clip(itemShape)
             .background(
-                color = if (selected) MaterialTheme.colorScheme.primaryContainer else if (isDarkMode) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
             )
             .clickable {
                 haptics.perform(me.rerere.rikkahub.ui.hooks.HapticPattern.Pop)

@@ -94,6 +94,7 @@ fun ContextRefreshDialog(
 
     AlertDialog(
         onDismissRequest = { if (state != RefreshDialogState.LOADING) onDismiss() },
+        modifier = Modifier.padding(horizontal = 24.dp),  // Padding from screen edges
         shape = RoundedCornerShape(28.dp),
         containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         title = {
@@ -181,8 +182,8 @@ fun ContextRefreshDialog(
                             }
                             
                             // Calculate tokens for messages that will be summarized
-                            val messagesToProcess = if (startIndex <= lastIndexToSummarize) {
-                                conversation.currentMessages.subList(startIndex, lastIndexToSummarize + 1)
+                            val messagesToProcess = if (startIndex <= lastIndexToSummarize && lastIndexToSummarize < conversation.currentMessages.size) {
+                                conversation.currentMessages.subList(startIndex, (lastIndexToSummarize + 1).coerceAtMost(conversation.currentMessages.size))
                             } else {
                                 emptyList()
                             }

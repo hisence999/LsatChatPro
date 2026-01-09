@@ -282,6 +282,9 @@ class ChatService(
                 )
                 saveConversation(conversationId, newConversation)
 
+                // Record daily activity for streak tracking (persists even if chat is deleted)
+                conversationRepo.recordDailyActivity()
+
                 // 开始补全
                 if(answer){
                     handleMessageComplete(conversationId)
@@ -1027,6 +1030,12 @@ class ChatService(
             val conversation = conversationRepo.getConversationById(conversationId)
                 ?: return@withContext ContextRefreshResult(false, errorMessage = "Conversation not found")
 
+            // Check for empty messages FIRST before model lookup
+            val messages = conversation.currentMessages
+            if (messages.isEmpty()) {
+                return@withContext ContextRefreshResult(false, errorMessage = "No messages to summarize")
+            }
+
             // Get the summarizer model (fall back to chat model)
             val summarizerModelId = assistant.summarizerModelId ?: assistant.chatModelId ?: settings.chatModelId
             val model = settings.findModelById(summarizerModelId)
@@ -1035,10 +1044,6 @@ class ChatService(
                 ?: return@withContext ContextRefreshResult(false, errorMessage = "No provider found")
 
 
-            val messages = conversation.currentMessages
-            if (messages.isEmpty()) {
-                return@withContext ContextRefreshResult(false, errorMessage = "No messages to summarize")
-            }
 
             // Determine which messages to summarize
             val previousSummary = conversation.contextSummary

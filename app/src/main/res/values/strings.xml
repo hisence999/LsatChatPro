@@ -306,6 +306,7 @@
     <string name="menu_page_assistants_available_format">%1$d assistants available</string>
     <string name="menu_page_avg_messages_per_day">Avg. Messages/day</string>
     <string name="menu_page_daily_chat_streak">Daily Chat Streak</string>
+    <string name="menu_page_chat_style">Chat Style</string>
     <string name="menu_page_days_format">%1$d Days</string>
     <string name="menu_page_most_active_assistant">Most Active Assistant</string>
     <string name="menu_page_overview">Overview</string>
@@ -410,6 +411,7 @@
     <string name="setting_display_page_skip_crop_image_desc">Skip crop screen after picking image</string>
     <string name="setting_display_page_skip_crop_image_title">Skip Image Crop</string>
     <string name="setting_display_page_title">Display Settings</string>
+    <string name="setting_display_page_subtitle">Chat display, haptics, code blocks, font size and more</string>
     <string name="setting_display_page_check_updates_desc">Automatically check GitHub for new app versions</string>
     <string name="setting_display_page_check_updates_title">Check for Updates</string>
     <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
@@ -1226,6 +1228,80 @@
     <string name="text_selection_setup_instructions">Select text anywhere on your device, look for \"LastChat\" in the toolbar that appears, and tap it to use these features.</string>
     <string name="text_selection_demo_text">This is sample text you can select! Try long-pressing to select these words, then look for \"LastChat\" in the selection toolbar. If you don\'t see it, you may need to tap the overflow menu (⋮) to find it.</string>
     <string name="text_selection_demo_hint">👆 Long-press the text above to try selecting it</string>
+
+    <!-- Additional Greetings -->
+    <string name="greeting_early_morning">Rise and shine!</string>
+    <string name="greeting_lunch_time">Lunch time!</string>
+    <string name="greeting_late_evening">Winding down?</string>
+    <string name="greeting_early_hours">Still up? Get some rest</string>
+
+    <!-- New Chat Templates -->
+    <string name="new_chat_template_write">Write</string>
+    <string name="new_chat_template_write_prompt">Help me write </string>
+    <string name="new_chat_template_code">Code</string>
+    <string name="new_chat_template_code_prompt">Help me code </string>
+    <string name="new_chat_template_brainstorm">Brainstorm</string>
+    <string name="new_chat_template_brainstorm_prompt">Let\'s brainstorm about </string>
+    <string name="new_chat_template_learn">Learn</string>
+    <string name="new_chat_template_learn_prompt">Explain </string>
+
+    <!-- New Chat Settings -->
+    <string name="use_global">Use Global</string>
+    <string name="setting_new_chat_title">New Chat</string>
+    <string name="setting_new_chat_header">Header</string>
+    <string name="setting_new_chat_header_desc">Style shown at top of empty chat</string>
+    <string name="setting_new_chat_header_none">None</string>
+    <string name="setting_new_chat_header_greeting">Greeting</string>
+    <string name="setting_new_chat_header_big_icon">Assistant</string>
+    <string name="setting_new_chat_show_avatar_in_header_title">Show Avatar in Header</string>
+    <string name="setting_new_chat_show_avatar_in_header_desc">When disabled, avatar moves to top-right corner</string>
+    <string name="setting_new_chat_content">Content</string>
+    <string name="setting_new_chat_content_desc">Content shown below header</string>
+    <string name="setting_new_chat_content_none">None</string>
+    <string name="setting_new_chat_content_templates">Templates</string>
+    <string name="setting_new_chat_content_stats">Stats</string>
+    <string name="setting_new_chat_content_actions">Actions</string>
+    
+    <!-- New Chat Actions -->
+    <string name="new_chat_action_create_image">Create image</string>
+    <string name="new_chat_action_translate">Translate</string>
+    <string name="new_chat_action_more">More</string>
+    
+    <!-- New Chat Stats -->
+    <string name="new_chat_stat_streak">Streak</string>
+    <string name="new_chat_stat_days">Days</string>
+    <string name="new_chat_stat_total_chats">Chats</string>
+    <string name="new_chat_stat_avg_messages">Avg/Day</string>
+    <string name="new_chat_stat_most_used_model">Top Model</string>
+    
+    <!-- Time Labels -->
+    <string name="time_label_early_bird">Early Bird</string>
+    <string name="time_label_daytime_chatter">Daytime Chatter</string>
+    <string name="time_label_night_owl">Night Owl</string>
+    
+    <!-- UI Customization -->
+    <string name="setting_ui_customization_title">UI Customization</string>
+    
+    <!-- Chat Input Style -->
+    <string name="setting_chat_input_style">Input Style</string>
+    <string name="setting_chat_input_style_desc">How the message input bar looks</string>
+    <string name="setting_chat_input_style_floating">LastChat</string>
+    <string name="setting_chat_input_style_minimal">Minimal</string>
+    
+    <!-- Minimal Input Picker -->
+    <string name="minimal_input_camera">Camera</string>
+    <string name="minimal_input_photos">Photos</string>
+    <string name="minimal_input_files">Files</string>
+    <string name="minimal_input_thinking">Thinking</string>
+    <string name="minimal_input_thinking_desc">Think longer for better answers</string>
+    <string name="minimal_input_search">Search</string>
+    <string name="minimal_input_search_desc">Search the web for information</string>
+    <string name="minimal_input_modes">Modes</string>
+    <string name="minimal_input_modes_desc">Change how the assistant behaves</string>
+    <string name="minimal_input_lorebooks">Lorebooks</string>
+    <string name="minimal_input_lorebooks_desc">Add context from your lorebooks</string>
+    <string name="minimal_input_summarize">Summarize</string>
+    <string name="minimal_input_summarize_desc">Summarize the conversation</string>
 </resources>
 
 

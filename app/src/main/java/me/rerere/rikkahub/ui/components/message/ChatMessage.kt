@@ -700,7 +700,12 @@ private fun TokenStatisticsRow(
                 tint = grayColor
             )
             Text(
-                text = stringResource(R.string.tokens_format, usage.promptTokens.formatNumber()),
+                text = buildString {
+                    append("${usage.promptTokens.formatNumber()} tokens")
+                    if (usage.cachedTokens > 0) {
+                        append(" (${usage.cachedTokens.formatNumber()} cached)")
+                    }
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -718,7 +723,7 @@ private fun TokenStatisticsRow(
                 tint = grayColor
             )
             Text(
-                text = stringResource(R.string.tokens_format, usage.completionTokens.formatNumber()),
+                text = "${usage.completionTokens.formatNumber()} tokens",
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -737,7 +742,11 @@ private fun TokenStatisticsRow(
                     tint = grayColor
                 )
                 Text(
-                    text = String.format("%.1f tok/s", tps),
+                    text = if (tps < 1000) {
+                        String.format("%.0f tok/s", tps)
+                    } else {
+                        String.format("%.1f tok/s", tps)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = grayColor
                 )
@@ -769,12 +778,17 @@ private fun TokenStatisticsRowInline(
         ) {
             Icon(
                 imageVector = Icons.Rounded.ArrowUpward,
-                contentDescription = "Sent",
+                contentDescription = stringResource(R.string.a11y_sent),
                 modifier = Modifier.size(14.dp),
                 tint = grayColor
             )
             Text(
-                text = "${usage.promptTokens.formatNumber()} tokens",
+                text = buildString {
+                    append("${usage.promptTokens.formatNumber()} tokens")
+                    if (usage.cachedTokens > 0) {
+                        append(" (${usage.cachedTokens.formatNumber()} cached)")
+                    }
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -787,7 +801,7 @@ private fun TokenStatisticsRowInline(
         ) {
             Icon(
                 imageVector = Icons.Rounded.ArrowDownward,
-                contentDescription = "Received",
+                contentDescription = stringResource(R.string.a11y_received),
                 modifier = Modifier.size(14.dp),
                 tint = grayColor
             )
@@ -806,12 +820,16 @@ private fun TokenStatisticsRowInline(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Bolt,
-                    contentDescription = "Speed",
+                    contentDescription = stringResource(R.string.a11y_speed),
                     modifier = Modifier.size(14.dp),
                     tint = grayColor
                 )
                 Text(
-                    text = String.format("%.1f tok/s", tps),
+                    text = if (tps < 1000) {
+                        String.format("%.0f tok/s", tps)
+                    } else {
+                        String.format("%.1f tok/s", tps)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = grayColor
                 )

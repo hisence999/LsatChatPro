@@ -58,6 +58,7 @@ private val Context.settingsStore by preferencesDataStore(
 class SettingsStore(
     context: Context,
     scope: AppScope,
+    private val quickCache: QuickSettingsCache,
 ) : KoinComponent {
     companion object {
         // 版本号
@@ -273,7 +274,8 @@ class SettingsStore(
 
     val settingsFlow = settingsFlowRaw
         .distinctUntilChanged()
-        .toMutableStateFlow(scope, Settings.dummy())
+        .onEach { settings -> quickCache.updateCache(settings) }
+        .toMutableStateFlow(scope, quickCache.createCachedSettings())
 
     suspend fun update(settings: Settings) {
         if(settings.init) {
@@ -353,6 +355,22 @@ class SettingsStore(
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
+        // Update in-memory state immediately to avoid race conditions
+        val current = settingsFlow.value
+        if (!current.init && current.assistants.any { it.id == assistantId }) {
+            val updatedRecentlyUsed = buildList {
+                add(assistantId)
+                current.recentlyUsedAssistants
+                    .filter { it != assistantId }
+                    .take(2)
+                    .forEach { add(it) }
+            }
+            settingsFlow.value = current.copy(
+                assistantId = assistantId,
+                recentlyUsedAssistants = updatedRecentlyUsed
+            )
+        }
+        // Persist to DataStore
         dataStore.edit { preferences ->
             preferences[SELECT_ASSISTANT] = assistantId.toString()
         }
@@ -465,6 +483,7 @@ enum class TtsFilterMode {
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
+    val chatInputStyle: ChatInputStyle = ChatInputStyle.FLOATING, // Input bar style (floating toolbar or minimal)
     val showUserAvatar: Boolean = true,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
@@ -486,12 +505,37 @@ data class DisplaySetting(
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
     val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
+    // New chat customization
+    val newChatHeaderStyle: NewChatHeaderStyle = NewChatHeaderStyle.GREETING, // Header for empty new chats
+    val newChatContentStyle: NewChatContentStyle = NewChatContentStyle.ACTIONS, // Content for empty new chats
+    val newChatShowAvatar: Boolean = true, // Show avatar in header (true) or top-right corner (false)
 )
+
+@Serializable
+enum class NewChatHeaderStyle {
+    NONE,       // Empty header
+    GREETING,   // Small avatar left of greeting
+    BIG_ICON    // Big avatar with name below (no greeting)
+}
+
+@Serializable
+enum class NewChatContentStyle {
+    NONE,       // Empty content
+    TEMPLATES,  // Template cards (Write, Code, etc.)
+    STATS,      // Stats widgets (streak, chats, avg msgs)
+    ACTIONS     // ChatGPT-style pill buttons with navigation (Create image, Translate, Code, More)
+}
 
 @Serializable
 enum class ProviderViewMode {
     LIST,
     GRID
+}
+
+@Serializable
+enum class ChatInputStyle {
+    FLOATING,   // "LastChat" - current floating toolbar
+    MINIMAL     // "Minimal" - ChatGPT-style simple bar with bottom sheet picker
 }
 
 @Serializable
@@ -548,6 +592,7 @@ fun Settings.getAssistantById(id: Uuid): Assistant? {
 fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySetting {
     val ui = (assistant ?: getCurrentAssistant()).uiSettings
     return displaySetting.copy(
+        chatInputStyle = ui.chatInputStyle ?: displaySetting.chatInputStyle,
         showUserAvatar = ui.showUserAvatar ?: displaySetting.showUserAvatar,
         showModelIcon = ui.showAssistantAvatar ?: displaySetting.showModelIcon,
         showTokenUsage = ui.showTokenUsage ?: displaySetting.showTokenUsage,
@@ -558,6 +603,9 @@ fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySe
         codeBlockAutoWrap = ui.codeBlockAutoWrap ?: displaySetting.codeBlockAutoWrap,
         codeBlockAutoCollapse = ui.codeBlockAutoCollapse ?: displaySetting.codeBlockAutoCollapse,
         showContextStacks = ui.showContextStacks ?: displaySetting.showContextStacks,
+        newChatHeaderStyle = ui.newChatHeaderStyle ?: displaySetting.newChatHeaderStyle,
+        newChatContentStyle = ui.newChatContentStyle ?: displaySetting.newChatContentStyle,
+        newChatShowAvatar = ui.newChatShowAvatar ?: displaySetting.newChatShowAvatar,
     )
 }
 

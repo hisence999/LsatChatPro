@@ -78,9 +78,17 @@ interface ConversationDAO {
     @Query("SELECT COUNT(*) FROM conversationentity")
     fun getConversationCountFlow(): Flow<Int>
 
-    @Query("SELECT DISTINCT date(update_at / 1000, 'unixepoch', 'localtime') as updateDate FROM conversationentity ORDER BY updateDate DESC")
-    fun getDistinctUpdateDatesFlow(): Flow<List<String>>
+    @Query("SELECT DISTINCT date(create_at / 1000, 'unixepoch', 'localtime') as createDate FROM conversationentity ORDER BY createDate DESC")
+    fun getDistinctCreateDatesFlow(): Flow<List<String>>
 
     @Query("SELECT assistant_id as assistantId, COUNT(*) as count FROM conversationentity GROUP BY assistant_id ORDER BY count DESC LIMIT 1")
     fun getMostActiveAssistantFlow(): Flow<AssistantCountResult?>
+
+    // Get hour of day for each conversation's creation time (for time label calculation)
+    @Query("SELECT CAST(strftime('%H', create_at / 1000, 'unixepoch', 'localtime') AS INTEGER) as hour FROM conversationentity")
+    fun getConversationHoursFlow(): Flow<List<Int>>
+
+    // Per-assistant chat count
+    @Query("SELECT COUNT(*) FROM conversationentity WHERE assistant_id = :assistantId")
+    fun getConversationCountByAssistantFlow(assistantId: String): Flow<Int>
 }

@@ -8,7 +8,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -26,10 +25,14 @@ fun Greeting(
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         
         return when (hour) {
-            in 5..11 -> stringResource(id = R.string.menu_page_morning_greeting)
-            in 12..17 -> stringResource(id = R.string.menu_page_afternoon_greeting)
-            in 18..22 -> stringResource(id = R.string.menu_page_evening_greeting)
-            else -> stringResource(id = R.string.menu_page_night_greeting)
+            in 5..7 -> stringResource(id = R.string.greeting_early_morning)
+            in 8..11 -> stringResource(id = R.string.menu_page_morning_greeting)
+            in 12..13 -> stringResource(id = R.string.greeting_lunch_time)
+            in 14..17 -> stringResource(id = R.string.menu_page_afternoon_greeting)
+            in 18..20 -> stringResource(id = R.string.menu_page_evening_greeting)
+            in 21..22 -> stringResource(id = R.string.greeting_late_evening)
+            in 23..23, in 0..1 -> stringResource(id = R.string.menu_page_night_greeting)
+            else -> stringResource(id = R.string.greeting_early_hours)
         }
     }
 

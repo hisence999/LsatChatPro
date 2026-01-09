@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.DailyActivityDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
@@ -23,12 +24,15 @@ import kotlinx.serialization.json.put
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.deleteChatFiles
 import java.time.Instant
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.uuid.Uuid
 
 class ConversationRepository(
     private val context: Context,
     private val conversationDAO: ConversationDAO,
     private val chatEpisodeDAO: me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO,
+    private val dailyActivityDAO: DailyActivityDAO,
 ) {
     companion object {
         private const val PAGE_SIZE = 20
@@ -276,10 +280,97 @@ class ConversationRepository(
     // Optimized stats queries - delegate to SQL for performance
     fun getConversationCountFlow(): Flow<Int> = conversationDAO.getConversationCountFlow()
 
-    fun getDistinctUpdateDatesFlow(): Flow<List<String>> = conversationDAO.getDistinctUpdateDatesFlow()
+    fun getDistinctCreateDatesFlow(): Flow<List<String>> = conversationDAO.getDistinctCreateDatesFlow()
 
     fun getMostActiveAssistantIdFlow(): Flow<String?> = conversationDAO.getMostActiveAssistantFlow()
         .map { it?.assistantId }
+
+    fun getConversationHoursFlow(): Flow<List<Int>> = conversationDAO.getConversationHoursFlow()
+
+    fun getConversationCountByAssistantFlow(assistantId: String): Flow<Int> = 
+        conversationDAO.getConversationCountByAssistantFlow(assistantId)
+
+    /**
+     * Get the most frequently used model ID for an assistant by analyzing message nodes.
+     * Returns the model UUID as string, or null if no model found.
+     */
+    fun getMostUsedModelIdForAssistantFlow(assistantId: String): Flow<String?> = 
+        conversationDAO.getConversationsOfAssistant(assistantId)
+            .map { conversations ->
+                // Extract all modelIds from message nodes
+                val modelCounts = mutableMapOf<String, Int>()
+                
+                for (conversation in conversations) {
+                    try {
+                        val nodesJson = JsonInstant.parseToJsonElement(conversation.nodes)
+                        if (nodesJson is JsonArray) {
+                            for (nodeElement in nodesJson) {
+                                val node = nodeElement.jsonObject
+                                // Check all variants of the current node
+                                val messages = node["messages"]?.jsonArray ?: continue
+                                for (messageElement in messages) {
+                                    val message = messageElement.jsonObject
+                                    val modelId = message["modelId"]?.jsonPrimitive?.content
+                                    if (modelId != null && modelId != "null") {
+                                        modelCounts[modelId] = (modelCounts[modelId] ?: 0) + 1
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Skip malformed conversations
+                    }
+                }
+                
+                // Return the most used model ID
+                modelCounts.maxByOrNull { it.value }?.key
+            }
+
+    // ===== Daily Activity Tracking (for persistent streaks) =====
+    
+    /**
+     * Record that the user was active today (sent a message).
+     * This persists independently of conversations, so streak data
+     * is preserved even when chats are deleted.
+     */
+    suspend fun recordDailyActivity() {
+        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        dailyActivityDAO.recordActivity(today)
+    }
+    
+    /**
+     * Get all activity dates for streak calculation.
+     * Returns dates in ISO format (YYYY-MM-DD), ordered most recent first.
+     */
+    fun getDailyActivityDatesFlow(): Flow<List<String>> = dailyActivityDAO.getAllDatesFlow()
+    
+    /**
+     * Check if user has sent a message today.
+     */
+    fun hasChattedTodayFlow(): Flow<Boolean> {
+        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        return dailyActivityDAO.hasActivityForDateFlow(today)
+    }
+    
+    /**
+     * Migrate existing conversation dates to the daily activity table.
+     * Called once during app initialization to preserve existing streaks.
+     */
+    suspend fun migrateConversationDatesToActivity() {
+        val existingDates = conversationDAO.getDistinctCreateDatesFlow().first()
+        for (dateStr in existingDates) {
+            try {
+                // Parse and re-format to ensure ISO format
+                val date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                val isoDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                // Use a timestamp in the middle of that day for migration
+                val timestamp = date.atStartOfDay().toEpochSecond(java.time.ZoneOffset.UTC) * 1000
+                dailyActivityDAO.insertDateIfNotExists(isoDate, timestamp)
+            } catch (e: Exception) {
+                // Skip invalid dates
+            }
+        }
+    }
 
     private fun conversationSummaryToConversation(entity: LightConversationEntity): Conversation {
         return Conversation(

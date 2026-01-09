@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,9 +35,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.Assistant
@@ -76,19 +82,93 @@ fun AssistantUISubPage(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // Preview Section
-        SettingsGroup(title = stringResource(R.string.assistant_ui_preview_title)) {
-            ChatPreview(
-                assistant = assistant,
-                effectiveDisplay = effectiveDisplay,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+        // New Chat Settings - moved to top as requested
+        SettingsGroup(title = stringResource(R.string.setting_new_chat_title)) {
+            // Header style dropdown with optional override (null = use global)
+            val headerOptions: List<me.rerere.rikkahub.data.datastore.NewChatHeaderStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_new_chat_header),
+                subtitle = stringResource(R.string.setting_new_chat_header_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = headerOptions,
+                        selectedOption = uiSettings.newChatHeaderStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(newChatHeaderStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE -> stringResource(R.string.setting_new_chat_header_none)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.GREETING -> stringResource(R.string.setting_new_chat_header_greeting)
+                                me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.BIG_ICON -> stringResource(R.string.setting_new_chat_header_big_icon)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
+            )
+            
+            // Avatar toggle - only show if header style is not NONE (resolved through per-assistant or global)
+            val effectiveHeaderStyle = uiSettings.newChatHeaderStyle ?: settings.displaySetting.newChatHeaderStyle
+            if (effectiveHeaderStyle != me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE) {
+                // Changed to use TriStateSettingItem for consistent look with other settings
+                TriStateSettingItem(
+                    title = stringResource(R.string.setting_new_chat_show_avatar_in_header_title),
+                    subtitle = stringResource(R.string.setting_new_chat_show_avatar_in_header_desc),
+                    value = uiSettings.newChatShowAvatar,
+                    globalValue = settings.displaySetting.newChatShowAvatar,
+                    onValueChange = { updateUI(uiSettings.copy(newChatShowAvatar = it)) }
+                )
+            }
+            
+            // Content style dropdown with optional override (null = use global)
+            val contentOptions: List<me.rerere.rikkahub.data.datastore.NewChatContentStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.NewChatContentStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_new_chat_content),
+                subtitle = stringResource(R.string.setting_new_chat_content_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = contentOptions,
+                        selectedOption = uiSettings.newChatContentStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(newChatContentStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.NONE -> stringResource(R.string.setting_new_chat_content_none)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.TEMPLATES -> stringResource(R.string.setting_new_chat_content_templates)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.STATS -> stringResource(R.string.setting_new_chat_content_stats)
+                                me.rerere.rikkahub.data.datastore.NewChatContentStyle.ACTIONS -> stringResource(R.string.setting_new_chat_content_actions)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
             )
         }
 
         // Chat Display Settings
         SettingsGroup(title = stringResource(R.string.setting_page_chat_settings)) {
+            // Input Style dropdown - added as first item in chat settings
+            val inputOptions: List<me.rerere.rikkahub.data.datastore.ChatInputStyle?> = listOf(null) + me.rerere.rikkahub.data.datastore.ChatInputStyle.entries
+            SettingGroupItem(
+                title = stringResource(R.string.setting_chat_input_style),
+                subtitle = stringResource(R.string.setting_chat_input_style_desc),
+                trailing = {
+                    me.rerere.rikkahub.ui.components.ui.Select(
+                        options = inputOptions,
+                        selectedOption = uiSettings.chatInputStyle,
+                        onOptionSelected = { updateUI(uiSettings.copy(chatInputStyle = it)) },
+                        optionToString = { style ->
+                            when (style) {
+                                null -> stringResource(R.string.use_global)
+                                me.rerere.rikkahub.data.datastore.ChatInputStyle.FLOATING -> stringResource(R.string.setting_chat_input_style_floating)
+                                me.rerere.rikkahub.data.datastore.ChatInputStyle.MINIMAL -> stringResource(R.string.setting_chat_input_style_minimal)
+                            }
+                        },
+                        modifier = Modifier.width(130.dp)
+                    )
+                }
+            )
+            
             TriStateSettingItem(
                 title = stringResource(R.string.setting_display_page_show_user_avatar_title),
                 subtitle = stringResource(R.string.setting_display_page_show_user_avatar_desc),
@@ -191,23 +271,23 @@ private fun ChatPreview(
     modifier: Modifier = Modifier
 ) {
     val settings = LocalSettings.current
-    val userNickname = settings.displaySetting.userNickname.takeIf(String::isNotBlank)
-        ?: stringResource(R.string.user_default_name)
+    val userNickname = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) }
     val userAvatar = settings.displaySetting.userAvatar
-    val previewUserMessageText = stringResource(R.string.assistant_ui_preview_sample_user_message)
-    val previewAssistantMessageText = stringResource(R.string.assistant_ui_preview_sample_assistant_message)
 
     // Create sample UIMessages for preview
-    val userMessage = remember(previewUserMessageText) {
+    val sampleUserMessageText = stringResource(R.string.assistant_ui_preview_sample_user_message)
+    val sampleAssistantMessageText = stringResource(R.string.assistant_ui_preview_sample_assistant_message)
+
+    val userMessage = remember(sampleUserMessageText) {
         me.rerere.ai.ui.UIMessage(
             role = me.rerere.ai.core.MessageRole.USER,
-            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(previewUserMessageText))
+            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(sampleUserMessageText))
         )
     }
-    val assistantMessage = remember(previewAssistantMessageText) {
+    val assistantMessage = remember(sampleAssistantMessageText) {
         me.rerere.ai.ui.UIMessage(
             role = me.rerere.ai.core.MessageRole.ASSISTANT,
-            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(previewAssistantMessageText)),
+            parts = listOf(me.rerere.ai.ui.UIMessagePart.Text(sampleAssistantMessageText)),
             usage = me.rerere.ai.core.TokenUsage(promptTokens = 24, completionTokens = 42)
         )
     }
@@ -242,7 +322,7 @@ private fun ChatPreview(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     androidx.compose.material3.ProvideTextStyle(textStyle) {
-                        MarkdownBlock(content = previewUserMessageText)
+                        MarkdownBlock(content = stringResource(R.string.assistant_ui_preview_sample_user_message))
                     }
                 }
             }
@@ -266,10 +346,10 @@ private fun ChatPreview(
 
             // Reasoning example - uses actual ChatMessageReasoning component
             val now = Clock.System.now()
-            val previewReasoningText = stringResource(R.string.assistant_ui_preview_sample_reasoning)
-            val sampleReasoning = remember(now) {
+            val sampleReasoningText = stringResource(R.string.assistant_ui_preview_sample_reasoning)
+            val sampleReasoning = remember(now, sampleReasoningText) {
                 me.rerere.ai.ui.UIMessagePart.Reasoning(
-                    reasoning = previewReasoningText,
+                    reasoning = sampleReasoningText,
                     createdAt = now,
                     finishedAt = now
                 )
@@ -282,7 +362,7 @@ private fun ChatPreview(
 
             // Assistant message (plain markdown matching actual implementation)
             androidx.compose.material3.ProvideTextStyle(textStyle) {
-                MarkdownBlock(content = previewAssistantMessageText)
+                MarkdownBlock(content = stringResource(R.string.assistant_ui_preview_sample_assistant_message))
             }
 
             // Token usage display
@@ -367,7 +447,7 @@ private fun TokenUsagePreview() {
                 tint = grayColor
             )
             Text(
-                text = stringResource(R.string.tokens_format, 24),
+                text = "24 tokens",
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -384,7 +464,7 @@ private fun TokenUsagePreview() {
                 tint = grayColor
             )
             Text(
-                text = stringResource(R.string.tokens_format, 42),
+                text = "42 tokens",
                 style = MaterialTheme.typography.labelSmall,
                 color = grayColor
             )
@@ -432,9 +512,12 @@ private fun TriStateSettingItem(
                     selected = value == null,
                     onClick = { onValueChange(null) },
                     label = {
-                        val globalValueLabel =
-                            if (globalValue) stringResource(R.string.on) else stringResource(R.string.off)
-                        Text(stringResource(R.string.global_value_format, globalValueLabel))
+                        Text(
+                            stringResource(
+                                R.string.global_value_format,
+                                stringResource(if (globalValue) R.string.on else R.string.off),
+                            ),
+                        )
                     },
                     modifier = Modifier.fillMaxWidth()
                 )

@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.util.Log
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,8 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.activity.ShortcutHandlerActivity
 import java.net.URL
 import kotlin.uuid.Uuid
+
+private const val TAG = "AppShortcutManager"
 
 /**
  * Manages dynamic app shortcuts for recently used assistants.
@@ -44,14 +47,24 @@ class AppShortcutManager(
         recentlyUsedIds: List<Uuid>,
         assistants: List<Assistant>
     ) {
-        val manager = shortcutManager ?: return
+        Log.d(TAG, "updateAssistantShortcuts called with ${recentlyUsedIds.size} recent IDs")
+        Log.d(TAG, "recentlyUsedIds: $recentlyUsedIds")
         
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
+        val manager = shortcutManager ?: run {
+            Log.w(TAG, "ShortcutManager is null (API level too low?)")
+            return
+        }
+        
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
+            Log.w(TAG, "API level too low for shortcuts")
+            return
+        }
 
         val shortcuts = recentlyUsedIds
             .take(3)
             .mapNotNull { id -> assistants.find { it.id == id } }
             .mapIndexed { index, assistant ->
+                Log.d(TAG, "Creating shortcut for assistant: ${assistant.name} (${assistant.id})")
                 val intent = Intent(context, ShortcutHandlerActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     data = "lastchat://assistant/${assistant.id}".toUri()
@@ -69,10 +82,14 @@ class AppShortcutManager(
                     .build()
             }
 
+        Log.d(TAG, "Created ${shortcuts.size} shortcuts")
+        
         try {
             manager.dynamicShortcuts = shortcuts
+            Log.d(TAG, "Successfully set dynamic shortcuts")
         } catch (e: Exception) {
             // Ignore errors, shortcuts are not critical
+            Log.e(TAG, "Error setting shortcuts", e)
             e.printStackTrace()
         }
     }

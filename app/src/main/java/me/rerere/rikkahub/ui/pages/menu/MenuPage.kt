@@ -33,6 +33,8 @@ import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -108,7 +110,7 @@ fun MenuPage() {
 private fun StatsSection(stats: MenuStats) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = stringResource(R.string.menu_page_overview),
+            text = "Overview",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -116,7 +118,7 @@ private fun StatsSection(stats: MenuStats) {
         // Daily Chat Streak (Full Width)
         StatCard(
             title = stringResource(R.string.menu_page_daily_chat_streak),
-            value = stringResource(R.string.menu_page_days_format, stats.dailyChatStreak),
+            value = "${stats.dailyChatStreak} Days",
             icon = Icons.Rounded.LocalFireDepartment,
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -125,7 +127,7 @@ private fun StatsSection(stats: MenuStats) {
                 .height(IntrinsicSize.Min)
         )
 
-        // Weekly Token Usage & Avg Messages (Row)
+        // Total Chats & Time Label (Row)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -142,10 +144,17 @@ private fun StatsSection(stats: MenuStats) {
                     .weight(1f)
                     .fillMaxHeight()
             )
+            
+            // Time Label with appropriate icon
+            val (timeLabelText, timeLabelIcon) = when (stats.timeLabel) {
+                TimeLabel.EARLY_BIRD -> stringResource(me.rerere.rikkahub.R.string.time_label_early_bird) to Icons.Rounded.WbSunny
+                TimeLabel.DAYTIME_CHATTER -> stringResource(me.rerere.rikkahub.R.string.time_label_daytime_chatter) to Icons.Rounded.WbSunny
+                TimeLabel.NIGHT_OWL -> stringResource(me.rerere.rikkahub.R.string.time_label_night_owl) to Icons.Rounded.NightsStay
+            }
             StatCard(
-                title = stringResource(R.string.menu_page_avg_messages_per_day),
-                value = "%.0f".format(stats.avgMessagesPerDay), // Format as integer
-                icon = Icons.AutoMirrored.Rounded.Chat,
+                title = stringResource(R.string.menu_page_chat_style),
+                value = timeLabelText,
+                icon = timeLabelIcon,
                 containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
@@ -179,16 +188,16 @@ private fun StatsSection(stats: MenuStats) {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = stringResource(R.string.menu_page_most_active_assistant),
+                        text = "Most Active Assistant",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = stats.mostActiveAssistantName.ifBlank { stringResource(R.string.none) },
+                        text = stats.mostActiveAssistantName.ifBlank { "None" },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = stringResource(R.string.menu_page_assistants_available_format, stats.totalAssistants),
+                        text = "${stats.totalAssistants} assistants available",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                     )
@@ -253,7 +262,7 @@ private fun ToolsSection() {
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = stringResource(R.string.menu_page_tools_section_title),
+            text = "Tools",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )

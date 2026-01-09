@@ -17,6 +17,12 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.uuid.Uuid
 
+enum class TimeLabel {
+    EARLY_BIRD,      // 5am-11am
+    DAYTIME_CHATTER, // 11am-6pm
+    NIGHT_OWL        // 6pm-5am
+}
+
 class MenuVM(
     private val conversationRepository: ConversationRepository,
     private val settingsStore: SettingsStore
@@ -28,13 +34,20 @@ class MenuVM(
 
     val stats: StateFlow<MenuStats> = combine(
         conversationRepository.getConversationCountFlow(),
-        conversationRepository.getDistinctUpdateDatesFlow(),
+        conversationRepository.getDailyActivityDatesFlow(), // Uses persistent activity table instead of conversation dates
         conversationRepository.getMostActiveAssistantIdFlow(),
         conversationRepository.getEpisodeCountFlow(),
+        conversationRepository.getConversationHoursFlow(),
         settingsStore.settingsFlow
-    ) { totalChats, distinctDates, mostActiveAssistantId, episodeCount, settings ->
+    ) { flows ->
+        val totalChats = flows[0] as Int
+        val distinctDates = flows[1] as List<String>
+        val mostActiveAssistantId = flows[2] as String?
+        val episodeCount = flows[3] as Int
+        val hours = flows[4] as List<Int>
+        val settings = flows[5] as me.rerere.rikkahub.data.datastore.Settings
         
-        // Daily Chat Streak - now using pre-computed distinct dates from SQL
+        // Daily Chat Streak
         val streak = calculateStreak(distinctDates)
 
         // Most Active Assistant
@@ -46,14 +59,8 @@ class MenuVM(
             }
         } ?: "None"
 
-        // Average Messages Per Day - use a simpler approximation based on chat count
-        // This avoids loading all messages; for exact count, consider a separate SQL query
-        val daysActive = if (distinctDates.isNotEmpty()) {
-            distinctDates.size.coerceAtLeast(1)
-        } else {
-            1
-        }
-        val avgMessagesPerDay = totalChats.toFloat() / daysActive
+        // Time Label based on when user chats most
+        val timeLabel = calculateTimeLabel(hours)
 
         MenuStats(
             totalChats = totalChats,
@@ -61,16 +68,39 @@ class MenuVM(
             mostActiveAssistantName = mostActiveAssistantName,
             totalAssistants = settings.assistants.size,
             dailyChatStreak = streak,
-            avgMessagesPerDay = avgMessagesPerDay
+            timeLabel = timeLabel
         )
     }
-        .flowOn(Dispatchers.Default) // Move calculation off main thread
-        .distinctUntilChanged() // Prevent unnecessary recompositions
+        .flowOn(Dispatchers.Default)
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = MenuStats()
         )
+
+    private fun calculateTimeLabel(hours: List<Int>): TimeLabel {
+        if (hours.isEmpty()) return TimeLabel.DAYTIME_CHATTER
+        
+        // Count chats in each time period
+        var earlyBird = 0   // 5am-11am (5-10)
+        var daytime = 0     // 11am-6pm (11-17)
+        var nightOwl = 0    // 6pm-5am (18-23, 0-4)
+        
+        for (hour in hours) {
+            when (hour) {
+                in 5..10 -> earlyBird++
+                in 11..17 -> daytime++
+                else -> nightOwl++ // 18-23 and 0-4
+            }
+        }
+        
+        return when {
+            earlyBird >= daytime && earlyBird >= nightOwl -> TimeLabel.EARLY_BIRD
+            daytime >= earlyBird && daytime >= nightOwl -> TimeLabel.DAYTIME_CHATTER
+            else -> TimeLabel.NIGHT_OWL
+        }
+    }
 
     private fun calculateStreak(distinctDates: List<String>): Int {
         if (distinctDates.isEmpty()) return 0
@@ -110,5 +140,5 @@ data class MenuStats(
     val mostActiveAssistantName: String = "None",
     val totalAssistants: Int = 0,
     val dailyChatStreak: Int = 0,
-    val avgMessagesPerDay: Float = 0f
+    val timeLabel: TimeLabel = TimeLabel.DAYTIME_CHATTER
 )

@@ -14,11 +14,13 @@ import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.DailyActivityDAO
 import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.DailyActivityEntity
 import me.rerere.rikkahub.data.db.entity.EmbeddingCacheEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
@@ -26,8 +28,8 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
-    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class],
-    version = 21,
+    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, ChatEpisodeEntity::class, EmbeddingCacheEntity::class, DailyActivityEntity::class],
+    version = 22,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -46,6 +48,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 18, to = 19),
         AutoMigration(from = 19, to = 20),
         AutoMigration(from = 20, to = 21), // Adds context_summary, context_summary_up_to_index, last_prune_time, last_prune_message_count, last_refresh_time to ConversationEntity
+        AutoMigration(from = 21, to = 22), // Adds DailyActivityEntity table for persistent streak tracking
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -59,6 +62,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatEpisodeDao(): ChatEpisodeDAO
 
     abstract fun embeddingCacheDao(): EmbeddingCacheDAO
+
+    abstract fun dailyActivityDao(): DailyActivityDAO
 
     companion object {
         const val TAG = "AppDatabase"
@@ -91,7 +96,25 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.i(TAG, "migrate: start migrate from 12 to 13")
-                db.execSQL("ALTER TABLE ChatEpisodeEntity ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0")
+                // Check if table exists before altering (table is created in MIGRATION_11_12)
+                val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='ChatEpisodeEntity'")
+                val tableExists = cursor.count > 0
+                cursor.close()
+                if (tableExists) {
+                    // Check if column already exists
+                    val columnCursor = db.query("PRAGMA table_info(ChatEpisodeEntity)")
+                    var hasColumn = false
+                    while (columnCursor.moveToNext()) {
+                        if (columnCursor.getString(1) == "last_accessed_at") {
+                            hasColumn = true
+                            break
+                        }
+                    }
+                    columnCursor.close()
+                    if (!hasColumn) {
+                        db.execSQL("ALTER TABLE ChatEpisodeEntity ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
             }
         }
 

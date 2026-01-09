@@ -49,8 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +68,9 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.HistoryToggleOff
 
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
+import me.rerere.rikkahub.ui.components.chat.NewChatContent
+
 import me.rerere.rikkahub.ui.components.ui.ToastType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -79,7 +84,9 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.datastore.ChatInputStyle
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.MinimalChatInput
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -120,6 +127,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
     val currentSearchMode by vm.currentSearchMode.collectAsStateWithLifecycle()
+    val newChatStats by vm.newChatStats.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -200,7 +208,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
                     currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
                     bigScreen = true,
-                    initialSearchQuery = searchQuery
+                    initialSearchQuery = searchQuery,
+                    newChatStats = newChatStats
                 )
             }
         }
@@ -231,7 +240,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
                     currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
                     bigScreen = false,
-                    initialSearchQuery = searchQuery
+                    initialSearchQuery = searchQuery,
+                    newChatStats = newChatStats
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -256,6 +266,7 @@ private fun ChatPageContent(
     currentSearchMode: me.rerere.rikkahub.data.model.AssistantSearchMode,
     currentChatModel: Model?,
     initialSearchQuery: String? = null,
+    newChatStats: me.rerere.rikkahub.ui.components.chat.NewChatStats,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -404,6 +415,9 @@ private fun ChatPageContent(
                 val hasUserSentMessages = conversation.messageNodes.any { it.role == me.rerere.ai.core.MessageRole.USER }
                 val currentAssistant = setting.getCurrentAssistant()
                 val hasAnyPresetMessages = currentAssistant.presetMessages.isNotEmpty()
+                val effectiveDisplaySetting = setting.getEffectiveDisplaySetting(currentAssistant)
+                
+                // Temporary chat overlay
                 androidx.compose.animation.AnimatedVisibility(
                     visible = isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages,
                     enter = androidx.compose.animation.fadeIn(),
@@ -429,126 +443,292 @@ private fun ChatPageContent(
                         )
                     }
                 }
+                
+                // New chat customization - shown when NOT temporary, no user messages, and no preset messages
+                // Only show if header or content is not NONE
+                val headerStyle = effectiveDisplaySetting.newChatHeaderStyle
+                val contentStyle = effectiveDisplaySetting.newChatContentStyle
+                val showNewChatContent = headerStyle != me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.NONE || contentStyle != me.rerere.rikkahub.data.datastore.NewChatContentStyle.NONE
+                
+                // Detect keyboard visibility
+                val isKeyboardOpen = WindowInsets.isImeVisible
+                
+                // Hide new chat content when keyboard is open or text/media is in input
+                val hasTextInput = inputState.textContent.text.isNotEmpty() || inputState.messageContent.isNotEmpty()
+                val shouldShowNewChatContent = !isTemporaryChat && !hasUserSentMessages && !hasAnyPresetMessages && showNewChatContent && !hasTextInput && !isKeyboardOpen
+                
+                // State for assistant picker triggered from header avatar
+                var showHeaderAssistantPicker by remember { mutableStateOf(false) }
+                
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = shouldShowNewChatContent,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    NewChatContent(
+                        assistant = currentAssistant,
+                        headerStyle = headerStyle,
+                        contentStyle = contentStyle,
+                        showAvatarInHeader = effectiveDisplaySetting.newChatShowAvatar,
+                        stats = newChatStats,
+                        onTemplateClick = { prompt ->
+                            // Set text and focus the input field to show keyboard
+                            inputState.setMessageTextAndFocus(prompt, scope)
+                        },
+                        onNavigateToImageGen = {
+                            navController.navigate(Screen.ImageGen)
+                        },
+                        onNavigateToTranslator = {
+                            navController.navigate(Screen.Translator)
+                        },
+                        onAvatarClick = {
+                            showHeaderAssistantPicker = true
+                        }
+                    )
+                }
+                
+                // Assistant picker sheet triggered from header avatar
+                if (showHeaderAssistantPicker) {
+                    val assistantState = me.rerere.rikkahub.ui.hooks.rememberAssistantState(setting) { newSettings ->
+                        vm.updateSettings(newSettings)
+                    }
+                    me.rerere.rikkahub.ui.components.ai.AssistantPickerSheet(
+                        settings = setting,
+                        currentAssistant = currentAssistant,
+                        onAssistantSelected = { selectedAssistant ->
+                            assistantState.setSelectAssistant(selectedAssistant)
+                            showHeaderAssistantPicker = false
+                        },
+                        onDismiss = { showHeaderAssistantPicker = false }
+                    )
+                }
 
-                // Gradient behind floating toolbar
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(
-                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+                // Gradient behind floating toolbar - hidden when showing new chat content
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = hasUserSentMessages || hasAnyPresetMessages || isTemporaryChat || !showNewChatContent,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .background(
+                                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+                                    )
                                 )
                             )
-                        )
-                )
+                    )
+                }
 
-                ChatInput(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter),
-                    state = inputState,
-                    settings = setting,
-                    conversation = conversation,
-                    mcpManager = vm.mcpManager,
-                    chatSuggestions = conversation.chatSuggestions,
-                    onClickSuggestion = { suggestion ->
-                        if (currentChatModel != null) {
-                            vm.handleMessageSend(
-                                listOf(me.rerere.ai.ui.UIMessagePart.Text(suggestion)),
-                                isTemporaryChat = isTemporaryChat
-                            )
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        } else {
-                            toaster.show("Please select a model first", type = ToastType.Error)
-                        }
-                    },
-                    onCancelClick = {
-                        loadingJob?.cancel()
-                    },
-                    enableSearch = enableWebSearch,
-                    onToggleSearch = {
-                        if (enableWebSearch) {
-                            vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
-                        } else {
-                            // Turn on search - restore last selected provider
-                            if (setting.searchServices.isNotEmpty()) {
-                                // Ensure index is valid (in case providers were removed)
-                                val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
-                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
-                            }
-                        }
-                    },
-                    onSendClick = {
-                        if (currentChatModel == null) {
-                            toaster.show("Please select a model first", type = ToastType.Error)
-                            return@ChatInput
-                        }
-                        if (inputState.isEditing()) {
-                            vm.handleMessageEdit(
-                                parts = inputState.getContents(),
-                                messageId = inputState.editingMessage!!,
-                            )
-                        } else {
-
-                            vm.handleMessageSend(inputState.getContents(), isTemporaryChat = isTemporaryChat)
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        }
-                        inputState.clearInput()
-                    },
-                    onLongSendClick = {
-                        if (inputState.isEditing()) {
-                            vm.handleMessageEdit(
-                                parts = inputState.getContents(),
-                                messageId = inputState.editingMessage!!,
-                            )
-                        } else {
-                            vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        }
-                        inputState.clearInput()
-                    },
-                    onUpdateChatModel = {
-                        vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
-                    },
-                    onUpdateAssistant = {
-                        vm.updateSettings(
-                            setting.copy(
-                                assistants = setting.assistants.map { assistant ->
-                                    if (assistant.id == it.id) {
-                                        it
-                                    } else {
-                                        assistant
+                // Conditionally render input based on style setting (using effective setting for per-assistant override)
+                when (effectiveDisplaySetting.chatInputStyle) {
+                    ChatInputStyle.MINIMAL -> {
+                        MinimalChatInput(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter),
+                            state = inputState,
+                            settings = setting,
+                            conversation = conversation,
+                            mcpManager = vm.mcpManager,
+                            chatSuggestions = conversation.chatSuggestions,
+                            onClickSuggestion = { suggestion ->
+                                if (currentChatModel != null) {
+                                    vm.handleMessageSend(
+                                        listOf(me.rerere.ai.ui.UIMessagePart.Text(suggestion)),
+                                        isTemporaryChat = isTemporaryChat
+                                    )
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                } else {
+                                    toaster.show("Please select a model first", type = ToastType.Error)
+                                }
+                            },
+                            onCancelClick = {
+                                loadingJob?.cancel()
+                            },
+                            enableSearch = enableWebSearch,
+                            onToggleSearch = {
+                                if (enableWebSearch) {
+                                    vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                                } else {
+                                    if (setting.searchServices.isNotEmpty()) {
+                                        val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
+                                        vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
                                     }
                                 }
-                            )
+                            },
+                            onSendClick = {
+                                if (currentChatModel == null) {
+                                    toaster.show("Please select a model first", type = ToastType.Error)
+                                    return@MinimalChatInput
+                                }
+                                if (inputState.isEditing()) {
+                                    vm.handleMessageEdit(
+                                        parts = inputState.getContents(),
+                                        messageId = inputState.editingMessage!!,
+                                    )
+                                } else {
+                                    vm.handleMessageSend(inputState.getContents(), isTemporaryChat = isTemporaryChat)
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                }
+                                inputState.clearInput()
+                            },
+                            onLongSendClick = {
+                                if (inputState.isEditing()) {
+                                    vm.handleMessageEdit(
+                                        parts = inputState.getContents(),
+                                        messageId = inputState.editingMessage!!,
+                                    )
+                                } else {
+                                    vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                }
+                                inputState.clearInput()
+                            },
+                            onUpdateChatModel = {
+                                vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
+                            },
+                            onUpdateAssistant = {
+                                vm.updateSettings(
+                                    setting.copy(
+                                        assistants = setting.assistants.map { assistant ->
+                                            if (assistant.id == it.id) {
+                                                it
+                                            } else {
+                                                assistant
+                                            }
+                                        }
+                                    )
+                                )
+                            },
+                            onUpdateSearchService = { index ->
+                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index))
+                            },
+                            onClearContext = {
+                                vm.handleMessageTruncate()
+                            },
+                            onUpdateConversation = { updatedConversation ->
+                                vm.updateConversation(updatedConversation)
+                                vm.saveConversationAsync()
+                            },
+                            onNavigateToLorebook = { lorebookId ->
+                                navController.navigate(Screen.SettingLorebookDetail(lorebookId))
+                            },
+                            onRefreshContext = { vm.refreshContext() },
                         )
-                    },
-                    onUpdateSearchService = { index ->
-                        // Only persist the selection to the assistant's searchMode to avoid double-update flicker
-                        // The global setting 'searchServiceSelected' is deprecated in favor of assistant-specific settings
-                        vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index))
-                    },
-                    onClearContext = {
-                        vm.handleMessageTruncate()
-                    },
-                    onUpdateConversation = { updatedConversation ->
-                        vm.updateConversation(updatedConversation)
-                        vm.saveConversationAsync()
-                    },
-                    onNavigateToLorebook = { lorebookId ->
-                        navController.navigate(Screen.SettingLorebookDetail(lorebookId))
-                    },
-                    onRefreshContext = { vm.refreshContext() },
-                )
+                    }
+                    ChatInputStyle.FLOATING -> {
+                        ChatInput(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter),
+                            state = inputState,
+                            settings = setting,
+                            conversation = conversation,
+                            mcpManager = vm.mcpManager,
+                            chatSuggestions = conversation.chatSuggestions,
+                            onClickSuggestion = { suggestion ->
+                                if (currentChatModel != null) {
+                                    vm.handleMessageSend(
+                                        listOf(me.rerere.ai.ui.UIMessagePart.Text(suggestion)),
+                                        isTemporaryChat = isTemporaryChat
+                                    )
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                } else {
+                                    toaster.show("Please select a model first", type = ToastType.Error)
+                                }
+                            },
+                            onCancelClick = {
+                                loadingJob?.cancel()
+                            },
+                            enableSearch = enableWebSearch,
+                            onToggleSearch = {
+                                if (enableWebSearch) {
+                                    vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                                } else {
+                                    if (setting.searchServices.isNotEmpty()) {
+                                        val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
+                                        vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
+                                    }
+                                }
+                            },
+                            onSendClick = {
+                                if (currentChatModel == null) {
+                                    toaster.show("Please select a model first", type = ToastType.Error)
+                                    return@ChatInput
+                                }
+                                if (inputState.isEditing()) {
+                                    vm.handleMessageEdit(
+                                        parts = inputState.getContents(),
+                                        messageId = inputState.editingMessage!!,
+                                    )
+                                } else {
+                                    vm.handleMessageSend(inputState.getContents(), isTemporaryChat = isTemporaryChat)
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                }
+                                inputState.clearInput()
+                            },
+                            onLongSendClick = {
+                                if (inputState.isEditing()) {
+                                    vm.handleMessageEdit(
+                                        parts = inputState.getContents(),
+                                        messageId = inputState.editingMessage!!,
+                                    )
+                                } else {
+                                    vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
+                                    scope.launch {
+                                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                    }
+                                }
+                                inputState.clearInput()
+                            },
+                            onUpdateChatModel = {
+                                vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
+                            },
+                            onUpdateAssistant = {
+                                vm.updateSettings(
+                                    setting.copy(
+                                        assistants = setting.assistants.map { assistant ->
+                                            if (assistant.id == it.id) {
+                                                it
+                                            } else {
+                                                assistant
+                                            }
+                                        }
+                                    )
+                                )
+                            },
+                            onUpdateSearchService = { index ->
+                                vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(index))
+                            },
+                            onClearContext = {
+                                vm.handleMessageTruncate()
+                            },
+                            onUpdateConversation = { updatedConversation ->
+                                vm.updateConversation(updatedConversation)
+                                vm.saveConversationAsync()
+                            },
+                            onNavigateToLorebook = { lorebookId ->
+                                navController.navigate(Screen.SettingLorebookDetail(lorebookId))
+                            },
+                            onRefreshContext = { vm.refreshContext() },
+                        )
+                    }
+                }
             }
         }
     }
@@ -587,7 +767,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(Icons.Rounded.Menu, contentDescription = stringResource(R.string.a11y_messages))
+                    Icon(Icons.Rounded.Menu, "Messages")
                 }
             }
         },
@@ -656,26 +836,35 @@ private fun TopBar(
                 },
                 label = "topbar_actions"
             ) { (isEmptyState, isTempChat) ->
+                // Check if header mode shows an avatar (to hide top-right avatar)
+                val hasPresetMessages = currentAssistant.presetMessages.isNotEmpty()
+                val effectiveDisplay = settings.getEffectiveDisplaySetting(currentAssistant)
+                val headerShowsAvatar = effectiveDisplay.newChatShowAvatar && (
+                    effectiveDisplay.newChatHeaderStyle == me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.BIG_ICON ||
+                    effectiveDisplay.newChatHeaderStyle == me.rerere.rikkahub.data.datastore.NewChatHeaderStyle.GREETING
+                )
+                val hideTopRightAvatar = !hasPresetMessages && headerShowsAvatar
+                
                 when {
-                    // Empty normal chat: show temp toggle + assistant
+                    // Empty normal chat: show temp toggle + assistant (unless big icon mode)
                     isEmptyState && !isTempChat -> {
                         Row {
                             IconButton(onClick = { onToggleTemporaryChat() }) {
-                                Icon(
-                                    Icons.Rounded.HistoryToggleOff,
-                                    contentDescription = stringResource(R.string.temporary_chat_title)
-                                )
+                                Icon(Icons.Rounded.HistoryToggleOff, "Temporary Chat")
                             }
-                            Box(
-                                modifier = Modifier.size(48.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                                    value = currentAssistant.avatar,
-                                    modifier = Modifier.size(32.dp),
-                                    onClick = { showAssistantPicker = true }
-                                )
+                            // Only show avatar if header doesn't already show one
+                            if (!hideTopRightAvatar) {
+                                Box(
+                                    modifier = Modifier.size(48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    me.rerere.rikkahub.ui.components.ui.UIAvatar(
+                                        name = currentAssistant.name.ifBlank { "Assistant" },
+                                        value = currentAssistant.avatar,
+                                        modifier = Modifier.size(32.dp),
+                                        onClick = { showAssistantPicker = true }
+                                    )
+                                }
                             }
                         }
                     }
@@ -683,17 +872,14 @@ private fun TopBar(
                     isEmptyState && isTempChat -> {
                         Row {
                             IconButton(onClick = { onToggleTemporaryChat() }) {
-                                Icon(
-                                    Icons.Rounded.History,
-                                    contentDescription = stringResource(R.string.a11y_make_normal_chat)
-                                )
+                                Icon(Icons.Rounded.History, "Make Normal Chat")
                             }
                             Box(
                                 modifier = Modifier.size(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                                    name = currentAssistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                    name = currentAssistant.name.ifBlank { "Assistant" },
                                     value = currentAssistant.avatar,
                                     modifier = Modifier.size(32.dp),
                                     onClick = { showAssistantPicker = true }
@@ -705,16 +891,10 @@ private fun TopBar(
                     else -> {
                         Row {
                             IconButton(onClick = { onClickMenu() }) {
-                                Icon(
-                                    if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search,
-                                    contentDescription = stringResource(R.string.a11y_chat_options)
-                                )
+                                Icon(if (previewMode) Icons.Rounded.Close else Icons.Rounded.Search, "Chat Options")
                             }
                             IconButton(onClick = { onNewChat() }) {
-                                Icon(
-                                    Icons.Rounded.AddCircle,
-                                    contentDescription = stringResource(R.string.chat_page_new_message)
-                                )
+                                Icon(Icons.Rounded.AddCircle, "New Message")
                             }
                         }
                     }
