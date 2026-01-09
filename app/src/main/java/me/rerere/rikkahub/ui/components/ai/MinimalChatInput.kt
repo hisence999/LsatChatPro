@@ -84,11 +84,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -260,6 +262,7 @@ fun MinimalChatInput(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .defaultMinSize(minHeight = 1.dp)  // Override internal min height (56dp)
+                                .focusRequester(state.focusRequester)
                                 .onFocusChanged { isFocused = it.isFocused },
                             placeholder = {
                                 Text(
@@ -292,6 +295,7 @@ fun MinimalChatInput(
                             val currentAction = when {
                                 state.loading -> "loading"
                                 !state.isEmpty() -> "send"
+                                showPicker -> "picker_open"  // New state when picker is visible
                                 else -> "picker"
                             }
                             
@@ -334,6 +338,15 @@ fun MinimalChatInput(
                                                     contentDescription = null,
                                                     modifier = Modifier.size(22.dp),
                                                     tint = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            }
+                                            "picker_open" -> {
+                                                // Show file folder icon when picker is open (like LastChat floating toolbar)
+                                                Icon(
+                                                    imageVector = Icons.Rounded.FolderOpen,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(22.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
                                                 )
                                             }
                                             "picker" -> {
@@ -432,6 +445,27 @@ private fun MinimalPickerContent(
     var showContextRefreshDialog by remember { mutableStateOf(false) }
     var showSearchPicker by remember { mutableStateOf(false) }
     
+    // Track the last valid search provider index so selection persists when search is disabled
+    var lastValidProviderIndex by rememberSaveable { mutableStateOf(settings.searchServiceSelected.coerceAtLeast(0)) }
+    
+    // Update lastValidProviderIndex when a valid external index is set
+    val currentProviderIndex = when (val mode = assistant.searchMode) {
+        is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> mode.index
+        else -> -1
+    }
+    LaunchedEffect(currentProviderIndex) {
+        if (currentProviderIndex >= 0 && currentProviderIndex < settings.searchServices.size) {
+            lastValidProviderIndex = currentProviderIndex
+        }
+    }
+    
+    // Calculate effective provider index (use tracked value when current is invalid)
+    val effectiveProviderIndex = if (currentProviderIndex >= 0 && currentProviderIndex < settings.searchServices.size) {
+        currentProviderIndex
+    } else {
+        lastValidProviderIndex.coerceIn(0, (settings.searchServices.size - 1).coerceAtLeast(0))
+    }
+    
     // Button shapes for grouped appearance (24dp outer corners, 10dp inner, matches floating toolbar)
     val leftButtonShape = RoundedCornerShape(topStart = 24.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 10.dp)
     val middleButtonShape = RoundedCornerShape(10.dp)
@@ -523,12 +557,11 @@ private fun MinimalPickerContent(
                 .height(80.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Camera button
+            // Camera button - icon only, no label
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 PermissionManager(permissionState = cameraPermission) {
-                    MinimalFileButtonGrouped(
+                    MinimalFileButtonGroupedIconOnly(
                         icon = Icons.Rounded.CameraAlt,
-                        label = stringResource(R.string.minimal_input_camera),
                         shape = leftButtonShape,
                         modifier = Modifier.fillMaxSize(),
                         onClick = {
@@ -548,10 +581,9 @@ private fun MinimalPickerContent(
                 }
             }
             
-            // Photos button
-            MinimalFileButtonGrouped(
+            // Photos button - icon only, no label
+            MinimalFileButtonGroupedIconOnly(
                 icon = Icons.Rounded.Image,
-                label = stringResource(R.string.minimal_input_photos),
                 shape = middleButtonShape,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = {
@@ -559,10 +591,9 @@ private fun MinimalPickerContent(
                 }
             )
             
-            // Files button
-            MinimalFileButtonGrouped(
+            // Files button - icon only, no label
+            MinimalFileButtonGroupedIconOnly(
                 icon = Icons.Rounded.FolderOpen,
-                label = stringResource(R.string.minimal_input_files),
                 shape = rightButtonShape,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = {
@@ -630,8 +661,10 @@ private fun MinimalPickerContent(
             SearchServiceOptions.TYPES[searchService::class]
         } else null
         
+        // Show provider icon when search is enabled and a provider is configured
         MinimalPickerItem(
             icon = {
+                // Only show provider icon when search is actually enabled
                 if (enableSearch && searchProviderName != null) {
                     AutoAIIcon(
                         name = searchProviderName,
@@ -653,14 +686,20 @@ private fun MinimalPickerContent(
             }
         )
         
-        // Modes - use enabledModeIds from conversation
-        val activeModesCount = conversation.enabledModeIds.size
+        // Modes - use enabledModeIds from conversation or default modes
+        val activeModesCount = if (conversation.enabledModeIds.isNotEmpty()) {
+            conversation.enabledModeIds.size
+        } else {
+            settings.modes.count { it.defaultEnabled }
+        }
+        val modesActive = activeModesCount > 0
         MinimalPickerItem(
             icon = {
                 Icon(
                     imageVector = Icons.Rounded.FlashOn,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    tint = if (modesActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             title = stringResource(R.string.minimal_input_modes),
@@ -670,17 +709,20 @@ private fun MinimalPickerContent(
             }
         )
         
-        // Lorebooks
+        // Lorebooks - show active count and blue icon when enabled
+        val activeLorebooksCount = assistant.enabledLorebookIds.size
+        val lorebooksActive = activeLorebooksCount > 0
         MinimalPickerItem(
             icon = {
                 Icon(
                     imageVector = Icons.Rounded.Book,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    tint = if (lorebooksActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             title = stringResource(R.string.minimal_input_lorebooks),
-            subtitle = stringResource(R.string.minimal_input_lorebooks_desc),
+            subtitle = if (activeLorebooksCount > 0) "$activeLorebooksCount active" else stringResource(R.string.minimal_input_lorebooks_desc),
             onClick = { 
                 showLorebooksPicker = true
             }
@@ -832,13 +874,18 @@ private fun MinimalPickerContent(
                     settings = settings,
                     model = chatModel,
                     onToggleSearch = { enabled ->
+                        if (enabled) {
+                            // When turning on, restore the last known valid provider index
+                            onUpdateSearchService(effectiveProviderIndex)
+                        }
                         onToggleSearch(enabled)
                     },
-                    onUpdateSearchService = onUpdateSearchService,
-                    selectedProviderIndex = when (val mode = assistant.searchMode) {
-                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> mode.index
-                        else -> -1
+                    onUpdateSearchService = { index ->
+                        // Track this selection
+                        lastValidProviderIndex = index
+                        onUpdateSearchService(index)
                     },
+                    selectedProviderIndex = effectiveProviderIndex,  // Use effective index so selection persists when off
                     preferBuiltInSearch = assistant.preferBuiltInSearch,
                     onTogglePreferBuiltInSearch = { enabled ->
                         onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))
@@ -958,6 +1005,41 @@ private fun MinimalFileButtonGrouped(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// Grouped file button icon-only variant (no text label) for compact picker display
+@Composable
+private fun MinimalFileButtonGroupedIconOnly(
+    icon: ImageVector,
+    shape: androidx.compose.ui.graphics.Shape,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    // OLED-aware button color (same as floating toolbar's BigIconTextButton)
+    val amoledMode by me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode()
+    val isDarkMode = me.rerere.rikkahub.ui.theme.LocalDarkMode.current
+    val isAmoled = amoledMode && isDarkMode
+    val buttonColor = if (isAmoled) androidx.compose.ui.graphics.Color.Black 
+                      else MaterialTheme.colorScheme.surfaceContainerHigh
+    
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = buttonColor,
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

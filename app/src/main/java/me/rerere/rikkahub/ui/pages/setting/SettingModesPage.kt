@@ -198,7 +198,10 @@ fun SettingModesPage(
     Scaffold(
         topBar = {
             OneUITopAppBar(
-                title = stringResource(R.string.prompt_injections_page_modes),
+                title = if (pagerState.currentPage == 0)
+                    stringResource(R.string.prompt_injections_page_modes)
+                else
+                    stringResource(R.string.prompt_injections_page_lorebooks),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()

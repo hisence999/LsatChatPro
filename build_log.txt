@@ -1,136 +1,735 @@
-﻿> Task :ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :ai:preBuild UP-TO-DATE
-> Task :ai:preDebugBuild UP-TO-DATE
-> Task :ai:generateDebugResValues UP-TO-DATE
-> Task :ai:generateDebugResources UP-TO-DATE
-> Task :ai:packageDebugResources UP-TO-DATE
-> Task :ai:processDebugNavigationResources UP-TO-DATE
-> Task :ai:parseDebugLocalResources UP-TO-DATE
-> Task :ai:generateDebugRFile UP-TO-DATE
-> Task :common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :common:preBuild UP-TO-DATE
-> Task :common:preDebugBuild UP-TO-DATE
-> Task :common:generateDebugResValues UP-TO-DATE
-> Task :common:generateDebugResources UP-TO-DATE
-> Task :common:packageDebugResources UP-TO-DATE
-> Task :common:processDebugNavigationResources UP-TO-DATE
-> Task :common:parseDebugLocalResources UP-TO-DATE
-> Task :common:generateDebugRFile UP-TO-DATE
-> Task :common:compileDebugKotlin UP-TO-DATE
-> Task :common:javaPreCompileDebug UP-TO-DATE
-> Task :common:compileDebugJavaWithJavac NO-SOURCE
-> Task :common:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :ai:compileDebugKotlin UP-TO-DATE
-> Task :ai:javaPreCompileDebug UP-TO-DATE
-> Task :ai:compileDebugJavaWithJavac NO-SOURCE
-> Task :ai:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
-> Task :app:generateDebugBuildConfig UP-TO-DATE
-> Task :ai:compileDebugLibraryResources UP-TO-DATE
-> Task :ai:writeDebugAarMetadata UP-TO-DATE
-> Task :common:writeDebugAarMetadata UP-TO-DATE
-> Task :document:preBuild UP-TO-DATE
-> Task :document:preDebugBuild UP-TO-DATE
-> Task :document:writeDebugAarMetadata UP-TO-DATE
-> Task :highlight:preBuild UP-TO-DATE
-> Task :highlight:preDebugBuild UP-TO-DATE
-> Task :highlight:writeDebugAarMetadata UP-TO-DATE
-> Task :search:preBuild UP-TO-DATE
-> Task :search:preDebugBuild UP-TO-DATE
-> Task :search:writeDebugAarMetadata UP-TO-DATE
-> Task :tts:preBuild UP-TO-DATE
-> Task :tts:preDebugBuild UP-TO-DATE
-> Task :tts:writeDebugAarMetadata UP-TO-DATE
-> Task :app:checkDebugAarMetadata UP-TO-DATE
-> Task :document:processDebugNavigationResources UP-TO-DATE
-> Task :highlight:processDebugNavigationResources UP-TO-DATE
-> Task :search:processDebugNavigationResources UP-TO-DATE
-> Task :tts:processDebugNavigationResources UP-TO-DATE
-> Task :app:processDebugNavigationResources UP-TO-DATE
-> Task :app:compileDebugNavigationResources UP-TO-DATE
-> Task :app:generateDebugResValues UP-TO-DATE
-> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
-> Task :app:injectCrashlyticsVersionControlInfoDebug UP-TO-DATE
-> Task :app:processDebugGoogleServices UP-TO-DATE
-> Task :document:generateDebugResValues UP-TO-DATE
-> Task :document:generateDebugResources UP-TO-DATE
-> Task :document:packageDebugResources UP-TO-DATE
-> Task :highlight:generateDebugResValues UP-TO-DATE
-> Task :highlight:generateDebugResources UP-TO-DATE
-> Task :highlight:packageDebugResources UP-TO-DATE
-> Task :search:generateDebugResValues UP-TO-DATE
-> Task :search:generateDebugResources UP-TO-DATE
-> Task :search:packageDebugResources UP-TO-DATE
-> Task :tts:generateDebugResValues UP-TO-DATE
-> Task :tts:generateDebugResources UP-TO-DATE
-> Task :tts:packageDebugResources UP-TO-DATE
-> Task :app:mapDebugSourceSetPaths UP-TO-DATE
-> Task :ai:extractDebugSupportedLocales UP-TO-DATE
-> Task :app:extractDebugSupportedLocales UP-TO-DATE
-> Task :common:extractDebugSupportedLocales UP-TO-DATE
-> Task :document:extractDebugSupportedLocales UP-TO-DATE
-> Task :highlight:extractDebugSupportedLocales UP-TO-DATE
-> Task :search:extractDebugSupportedLocales UP-TO-DATE
-> Task :tts:extractDebugSupportedLocales UP-TO-DATE
-> Task :app:generateDebugLocaleConfig UP-TO-DATE
-> Task :app:generateDebugResources UP-TO-DATE
-> Task :app:mergeDebugResources UP-TO-DATE
-> Task :app:packageDebugResources UP-TO-DATE
-> Task :app:parseDebugLocalResources UP-TO-DATE
-> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
-> Task :ai:extractDeepLinksDebug UP-TO-DATE
-> Task :ai:processDebugManifest UP-TO-DATE
-> Task :app:extractDeepLinksDebug UP-TO-DATE
-> Task :common:extractDeepLinksDebug UP-TO-DATE
-> Task :common:processDebugManifest UP-TO-DATE
-> Task :document:extractDeepLinksDebug UP-TO-DATE
-> Task :document:processDebugManifest UP-TO-DATE
-> Task :highlight:extractDeepLinksDebug UP-TO-DATE
-> Task :highlight:processDebugManifest UP-TO-DATE
-> Task :search:extractDeepLinksDebug UP-TO-DATE
-> Task :search:processDebugManifest UP-TO-DATE
-> Task :tts:extractDeepLinksDebug UP-TO-DATE
-> Task :tts:processDebugManifest UP-TO-DATE
-> Task :app:processDebugMainManifest UP-TO-DATE
-> Task :app:processDebugManifest UP-TO-DATE
-> Task :app:processDebugManifestForPackage UP-TO-DATE
-> Task :common:compileDebugLibraryResources UP-TO-DATE
-> Task :document:compileDebugLibraryResources UP-TO-DATE
-> Task :document:parseDebugLocalResources UP-TO-DATE
-> Task :document:generateDebugRFile UP-TO-DATE
-> Task :highlight:compileDebugLibraryResources UP-TO-DATE
-> Task :highlight:parseDebugLocalResources UP-TO-DATE
-> Task :highlight:generateDebugRFile UP-TO-DATE
-> Task :search:compileDebugLibraryResources UP-TO-DATE
-> Task :search:parseDebugLocalResources UP-TO-DATE
-> Task :search:generateDebugRFile UP-TO-DATE
-> Task :tts:compileDebugLibraryResources UP-TO-DATE
-> Task :tts:parseDebugLocalResources UP-TO-DATE
-> Task :tts:generateDebugRFile UP-TO-DATE
-> Task :app:processDebugResources UP-TO-DATE
-> Task :document:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :document:compileDebugKotlin UP-TO-DATE
-> Task :document:javaPreCompileDebug UP-TO-DATE
-> Task :document:compileDebugJavaWithJavac UP-TO-DATE
-> Task :document:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :highlight:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :highlight:compileDebugKotlin UP-TO-DATE
-> Task :highlight:javaPreCompileDebug UP-TO-DATE
-> Task :highlight:compileDebugJavaWithJavac NO-SOURCE
-> Task :highlight:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :search:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :search:compileDebugKotlin UP-TO-DATE
-> Task :search:javaPreCompileDebug UP-TO-DATE
-> Task :search:compileDebugJavaWithJavac NO-SOURCE
-> Task :search:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :tts:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :tts:compileDebugKotlin UP-TO-DATE
-> Task :tts:javaPreCompileDebug UP-TO-DATE
-> Task :tts:compileDebugJavaWithJavac NO-SOURCE
-> Task :tts:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :app:kspDebugKotlin UP-TO-DATE
+﻿Initialized native services in: C:\Users\julia\.gradle\native
+Initialized jansi services in: C:\Users\julia\.gradle\native
+The client will now receive all logging from the daemon (pid: 7356). The daemon log file: C:\Users\julia\.gradle\daemon\8.14\daemon-7356.out.log
+Starting 4th build in daemon [uptime: 8 mins 17.691 secs, performance: 100%, GC rate: 0.02/s, heap usage: 3% of 4 GiB]
+Using 12 worker leases.
+Now considering [C:\Users\julia\Documents\GitHub\LastChat] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file 'C:\Users\julia\Documents\GitHub\LastChat\settings.gradle.kts'.
+Projects loaded. Root project using build file 'C:\Users\julia\Documents\GitHub\LastChat\build.gradle.kts'.
+Included projects: [root project 'lastchat', project ':ai', project ':app', project ':common', project ':document', project ':highlight', project ':search', project ':tts', project ':app:baselineprofile']
 
-> Task :app:compileDebugKotlin FAILED
-108 actionable tasks: 1 executed, 107 up-to-date
+> Configure project :
+Evaluating root project 'lastchat' using build file 'C:\Users\julia\Documents\GitHub\LastChat\build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '8.13.0', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21', apply: false]
+Resolved plugin [id: 'com.android.library', version: '8.13.0', apply: false]
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.2.21-2.0.4', apply: false]
+Resolved plugin [id: 'com.google.gms.google-services', version: '4.4.4', apply: false]
+Resolved plugin [id: 'com.google.firebase.crashlytics', version: '3.0.6', apply: false]
+Resolved plugin [id: 'com.android.test', version: '8.13.0', apply: false]
+Resolved plugin [id: 'androidx.baselineprofile', version: '1.4.1', apply: false]
+
+> Configure project :ai
+Evaluating project ':ai' using build file 'C:\Users\julia\Documents\GitHub\LastChat\ai\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21']
+Using default execution profile
+Build 5d581403-d120-4aba-8ebc-ed7ea825b175 is started
+Using Kotlin Gradle Plugin gradle813 variant
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :app
+Evaluating project ':app' using build file 'C:\Users\julia\Documents\GitHub\LastChat\app\build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.2.21']
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.2.21-2.0.4']
+Resolved plugin [id: 'com.google.gms.google-services', version: '4.4.4']
+Resolved plugin [id: 'com.google.firebase.crashlytics', version: '3.0.6']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :common
+Evaluating project ':common' using build file 'C:\Users\julia\Documents\GitHub\LastChat\common\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+
+> Configure project :document
+Evaluating project ':document' using build file 'C:\Users\julia\Documents\GitHub\LastChat\document\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+
+> Configure project :highlight
+Evaluating project ':highlight' using build file 'C:\Users\julia\Documents\GitHub\LastChat\highlight\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.2.21']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :search
+Evaluating project ':search' using build file 'C:\Users\julia\Documents\GitHub\LastChat\search\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :tts
+Evaluating project ':tts' using build file 'C:\Users\julia\Documents\GitHub\LastChat\tts\build.gradle.kts'.
+Resolved plugin [id: 'com.android.library', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.2.21']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.21']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :app:baselineprofile
+Evaluating project ':app:baselineprofile' using build file 'C:\Users\julia\Documents\GitHub\LastChat\app\baselineprofile\build.gradle.kts'.
+Resolved plugin [id: 'com.android.test', version: '8.13.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.2.21']
+Resolved plugin [id: 'androidx.baselineprofile', version: '1.4.1']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle813 variant
+All projects evaluated.
+Task path ':app:compileReleaseKotlin' matched project ':app'
+Task name matched 'compileReleaseKotlin'
+Selected primary task 'compileReleaseKotlin' from project :app
+Tasks to be executed: [task ':ai:checkKotlinGradlePluginConfigurationErrors', task ':ai:preBuild', task ':ai:preReleaseBuild', task ':ai:generateReleaseResValues', task ':ai:generateReleaseResources', task ':ai:packageReleaseResources', task ':ai:processReleaseNavigationResources', task ':ai:parseReleaseLocalResources', task ':ai:generateReleaseRFile', task ':common:checkKotlinGradlePluginConfigurationErrors', task ':common:preBuild', task ':common:preReleaseBuild', task ':common:generateReleaseResValues', task ':common:generateReleaseResources', task ':common:packageReleaseResources', task ':common:processReleaseNavigationResources', task ':common:parseReleaseLocalResources', task ':common:generateReleaseRFile', task ':common:compileReleaseKotlin', task ':common:javaPreCompileRelease', task ':common:compileReleaseJavaWithJavac', task ':common:bundleLibCompileToJarRelease', task ':ai:compileReleaseKotlin', task ':ai:javaPreCompileRelease', task ':ai:compileReleaseJavaWithJavac', task ':ai:bundleLibCompileToJarRelease', task ':app:checkKotlinGradlePluginConfigurationErrors', task ':app:preBuild', task ':app:preReleaseBuild', task ':app:generateReleaseBuildConfig', task ':ai:writeReleaseAarMetadata', task ':common:writeReleaseAarMetadata', task ':document:preBuild', task ':document:preReleaseBuild', task ':document:writeReleaseAarMetadata', task ':highlight:preBuild', task ':highlight:preReleaseBuild', task ':highlight:writeReleaseAarMetadata', task ':search:preBuild', task ':search:preReleaseBuild', task ':search:writeReleaseAarMetadata', task ':tts:preBuild', task ':tts:preReleaseBuild', task ':tts:writeReleaseAarMetadata', task ':app:checkReleaseAarMetadata', task ':document:processReleaseNavigationResources', task ':highlight:processReleaseNavigationResources', task ':search:processReleaseNavigationResources', task ':tts:processReleaseNavigationResources', task ':app:processReleaseNavigationResources', task ':app:compileReleaseNavigationResources', task ':app:generateReleaseResValues', task ':app:injectCrashlyticsMappingFileIdRelease', task ':app:extractReleaseVersionControlInfo', task ':app:injectCrashlyticsVersionControlInfoRelease', task ':app:processReleaseGoogleServices', task ':document:generateReleaseResValues', task ':document:generateReleaseResources', task ':document:packageReleaseResources', task ':highlight:generateReleaseResValues', task ':highlight:generateReleaseResources', task ':highlight:packageReleaseResources', task ':search:generateReleaseResValues', task ':search:generateReleaseResources', task ':search:packageReleaseResources', task ':tts:generateReleaseResValues', task ':tts:generateReleaseResources', task ':tts:packageReleaseResources', task ':app:mapReleaseSourceSetPaths', task ':ai:extractReleaseSupportedLocales', task ':app:extractReleaseSupportedLocales', task ':common:extractReleaseSupportedLocales', task ':document:extractReleaseSupportedLocales', task ':highlight:extractReleaseSupportedLocales', task ':search:extractReleaseSupportedLocales', task ':tts:extractReleaseSupportedLocales', task ':app:generateReleaseLocaleConfig', task ':app:generateReleaseResources', task ':app:mergeReleaseResources', task ':app:packageReleaseResources', task ':app:parseReleaseLocalResources', task ':app:createReleaseCompatibleScreenManifests', task ':ai:extractDeepLinksRelease', task ':ai:processReleaseManifest', task ':app:extractDeepLinksRelease', task ':common:extractDeepLinksRelease', task ':common:processReleaseManifest', task ':document:extractDeepLinksRelease', task ':document:processReleaseManifest', task ':highlight:extractDeepLinksRelease', task ':highlight:processReleaseManifest', task ':search:extractDeepLinksRelease', task ':search:processReleaseManifest', task ':tts:extractDeepLinksRelease', task ':tts:processReleaseManifest', task ':app:processReleaseMainManifest', task ':app:processReleaseManifest', task ':app:processReleaseManifestForPackage', task ':document:parseReleaseLocalResources', task ':document:generateReleaseRFile', task ':highlight:parseReleaseLocalResources', task ':highlight:generateReleaseRFile', task ':search:parseReleaseLocalResources', task ':search:generateReleaseRFile', task ':tts:parseReleaseLocalResources', task ':tts:generateReleaseRFile', task ':app:processReleaseResources', task ':document:checkKotlinGradlePluginConfigurationErrors', task ':document:compileReleaseKotlin', task ':document:javaPreCompileRelease', task ':document:compileReleaseJavaWithJavac', task ':document:bundleLibCompileToJarRelease', task ':highlight:checkKotlinGradlePluginConfigurationErrors', task ':highlight:compileReleaseKotlin', task ':highlight:javaPreCompileRelease', task ':highlight:compileReleaseJavaWithJavac', task ':highlight:bundleLibCompileToJarRelease', task ':search:checkKotlinGradlePluginConfigurationErrors', task ':search:compileReleaseKotlin', task ':search:javaPreCompileRelease', task ':search:compileReleaseJavaWithJavac', task ':search:bundleLibCompileToJarRelease', task ':tts:checkKotlinGradlePluginConfigurationErrors', task ':tts:compileReleaseKotlin', task ':tts:javaPreCompileRelease', task ':tts:compileReleaseJavaWithJavac', task ':tts:bundleLibCompileToJarRelease', task ':app:kspReleaseKotlin', task ':app:compileReleaseKotlin']
+Tasks that were excluded: []
+Resolve mutations for :ai:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker,5,main]) started.
+:ai:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker,5,main]) started.
+
+> Task :ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':ai:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :ai:preBuild (Thread[Execution worker,5,main]) started.
+:ai:preBuild (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:preBuild UP-TO-DATE
+Skipping task ':ai:preBuild' as it has no actions.
+Resolve mutations for :ai:preReleaseBuild (Thread[Execution worker Thread 9,5,main]) started.
+:ai:preReleaseBuild (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:preReleaseBuild UP-TO-DATE
+Skipping task ':ai:preReleaseBuild' as it has no actions.
+Resolve mutations for :ai:generateReleaseResValues (Thread[Execution worker Thread 9,5,main]) started.
+:ai:generateReleaseResValues (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':ai:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':ai:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :ai:generateReleaseResources (Thread[Execution worker Thread 9,5,main]) started.
+:ai:generateReleaseResources (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':ai:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':ai:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :ai:packageReleaseResources (Thread[Execution worker Thread 9,5,main]) started.
+:ai:packageReleaseResources (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':ai:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':ai:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :ai) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :ai:processReleaseNavigationResources (Thread[Execution worker Thread 9,5,main]) started.
+:ai:processReleaseNavigationResources (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':ai:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':ai:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :ai) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :ai:parseReleaseLocalResources (Thread[Execution worker Thread 9,5,main]) started.
+:ai:parseReleaseLocalResources (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:parseReleaseLocalResources UP-TO-DATE
+Caching disabled for task ':ai:parseReleaseLocalResources' because:
+  Build cache is disabled
+Skipping task ':ai:parseReleaseLocalResources' as it is up-to-date.
+Resolve mutations for :ai:generateReleaseRFile (Thread[Execution worker Thread 9,5,main]) started.
+:ai:generateReleaseRFile (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :ai:generateReleaseRFile UP-TO-DATE
+Caching disabled for task ':ai:generateReleaseRFile' because:
+  Build cache is disabled
+Skipping task ':ai:generateReleaseRFile' as it is up-to-date.
+work action resolve package-aware-r.txt (project :ai) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :common:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker Thread 9,5,main]) started.
+:common:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':common:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :common:preBuild (Thread[Execution worker Thread 9,5,main]) started.
+:common:preBuild (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :common:preBuild UP-TO-DATE
+Skipping task ':common:preBuild' as it has no actions.
+Resolve mutations for :common:preReleaseBuild (Thread[Execution worker Thread 9,5,main]) started.
+:common:preReleaseBuild (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :common:preReleaseBuild UP-TO-DATE
+Skipping task ':common:preReleaseBuild' as it has no actions.
+Resolve mutations for :common:generateReleaseResValues (Thread[Execution worker Thread 9,5,main]) started.
+:common:generateReleaseResValues (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :common:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':common:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':common:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :common:generateReleaseResources (Thread[Execution worker Thread 9,5,main]) started.
+:common:generateReleaseResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :common:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':common:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':common:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :common:packageReleaseResources (Thread[Execution worker Thread 7,5,main]) started.
+:common:packageReleaseResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :common:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':common:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':common:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :common) (Thread[Execution worker Thread 7,5,main]) started.
+Resolve mutations for :common:processReleaseNavigationResources (Thread[included builds,5,main]) started.
+:common:processReleaseNavigationResources (Thread[included builds,5,main]) started.
+
+> Task :common:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':common:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':common:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :common) (Thread[included builds,5,main]) started.
+Resolve mutations for :common:parseReleaseLocalResources (Thread[included builds,5,main]) started.
+:common:parseReleaseLocalResources (Thread[included builds,5,main]) started.
+
+> Task :common:parseReleaseLocalResources UP-TO-DATE
+Caching disabled for task ':common:parseReleaseLocalResources' because:
+  Build cache is disabled
+Skipping task ':common:parseReleaseLocalResources' as it is up-to-date.
+Resolve mutations for :common:generateReleaseRFile (Thread[included builds,5,main]) started.
+:common:generateReleaseRFile (Thread[included builds,5,main]) started.
+
+> Task :common:generateReleaseRFile UP-TO-DATE
+Caching disabled for task ':common:generateReleaseRFile' because:
+  Build cache is disabled
+Skipping task ':common:generateReleaseRFile' as it is up-to-date.
+work action resolve package-aware-r.txt (project :common) (Thread[included builds,5,main]) started.
+Resolve mutations for :common:compileReleaseKotlin (Thread[Execution worker Thread 7,5,main]) started.
+:common:compileReleaseKotlin (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :common:compileReleaseKotlin UP-TO-DATE
+Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :common:compileDebugAndroidTestKotlin
+Caching disabled for task ':common:compileReleaseKotlin' because:
+  Build cache is disabled
+Skipping task ':common:compileReleaseKotlin' as it is up-to-date.
+Resolve mutations for :common:javaPreCompileRelease (Thread[Execution worker Thread 7,5,main]) started.
+:common:javaPreCompileRelease (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :common:javaPreCompileRelease UP-TO-DATE
+Caching disabled for task ':common:javaPreCompileRelease' because:
+  Build cache is disabled
+Skipping task ':common:javaPreCompileRelease' as it is up-to-date.
+Resolve mutations for :common:compileReleaseJavaWithJavac (Thread[Execution worker Thread 7,5,main]) started.
+:common:compileReleaseJavaWithJavac (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :common:compileReleaseJavaWithJavac NO-SOURCE
+Skipping task ':common:compileReleaseJavaWithJavac' as it has no source files and no previous output files.
+Resolve mutations for :common:bundleLibCompileToJarRelease (Thread[Execution worker Thread 7,5,main]) started.
+:common:bundleLibCompileToJarRelease (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :common:bundleLibCompileToJarRelease UP-TO-DATE
+Caching disabled for task ':common:bundleLibCompileToJarRelease' because:
+  Build cache is disabled
+  Simple merging task
+Skipping task ':common:bundleLibCompileToJarRelease' as it is up-to-date.
+work action resolve classes.jar (project :common) (Thread[Execution worker Thread 4,5,main]) started.
+Resolve mutations for :ai:compileReleaseKotlin (Thread[Execution worker Thread 6,5,main]) started.
+:ai:compileReleaseKotlin (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :ai:compileReleaseKotlin UP-TO-DATE
+Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :ai:compileDebugAndroidTestKotlin
+Caching disabled for task ':ai:compileReleaseKotlin' because:
+  Build cache is disabled
+Skipping task ':ai:compileReleaseKotlin' as it is up-to-date.
+Resolve mutations for :ai:javaPreCompileRelease (Thread[Execution worker Thread 6,5,main]) started.
+:ai:javaPreCompileRelease (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :ai:javaPreCompileRelease UP-TO-DATE
+Caching disabled for task ':ai:javaPreCompileRelease' because:
+  Build cache is disabled
+Skipping task ':ai:javaPreCompileRelease' as it is up-to-date.
+Resolve mutations for :ai:compileReleaseJavaWithJavac (Thread[Execution worker Thread 6,5,main]) started.
+:ai:compileReleaseJavaWithJavac (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :ai:compileReleaseJavaWithJavac NO-SOURCE
+Skipping task ':ai:compileReleaseJavaWithJavac' as it has no source files and no previous output files.
+Resolve mutations for :ai:bundleLibCompileToJarRelease (Thread[Execution worker Thread 6,5,main]) started.
+:ai:bundleLibCompileToJarRelease (Thread[Execution worker Thread 8,5,main]) started.
+
+> Task :ai:bundleLibCompileToJarRelease UP-TO-DATE
+Caching disabled for task ':ai:bundleLibCompileToJarRelease' because:
+  Build cache is disabled
+  Simple merging task
+Skipping task ':ai:bundleLibCompileToJarRelease' as it is up-to-date.
+work action resolve classes.jar (project :ai) (Thread[Execution worker Thread 8,5,main]) started.
+Resolve mutations for :app:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker Thread 8,5,main]) started.
+:app:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker Thread 8,5,main]) started.
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':app:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :app:preBuild (Thread[Execution worker Thread 8,5,main]) started.
+:app:preBuild (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :app:preBuild UP-TO-DATE
+Skipping task ':app:preBuild' as it has no actions.
+Resolve mutations for :app:preReleaseBuild (Thread[Execution worker Thread 11,5,main]) started.
+:app:preReleaseBuild (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :app:preReleaseBuild UP-TO-DATE
+Skipping task ':app:preReleaseBuild' as it has no actions.
+Resolve mutations for :app:generateReleaseBuildConfig (Thread[Execution worker Thread 11,5,main]) started.
+:app:generateReleaseBuildConfig (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+Caching disabled for task ':app:generateReleaseBuildConfig' because:
+  Build cache is disabled
+Skipping task ':app:generateReleaseBuildConfig' as it is up-to-date.
+Resolve mutations for :ai:writeReleaseAarMetadata (Thread[Execution worker Thread 11,5,main]) started.
+:ai:writeReleaseAarMetadata (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :ai:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':ai:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':ai:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :ai) (Thread[Execution worker Thread 11,5,main]) started.
+Resolve mutations for :common:writeReleaseAarMetadata (Thread[Execution worker Thread 11,5,main]) started.
+:common:writeReleaseAarMetadata (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :common:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':common:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':common:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :common) (Thread[Execution worker Thread 11,5,main]) started.
+Resolve mutations for :document:preBuild (Thread[Execution worker Thread 11,5,main]) started.
+:document:preBuild (Thread[Execution worker Thread 3,5,main]) started.
+
+> Task :document:preBuild UP-TO-DATE
+Skipping task ':document:preBuild' as it has no actions.
+Resolve mutations for :document:preReleaseBuild (Thread[Execution worker Thread 3,5,main]) started.
+:document:preReleaseBuild (Thread[Execution worker Thread 3,5,main]) started.
+
+> Task :document:preReleaseBuild UP-TO-DATE
+Skipping task ':document:preReleaseBuild' as it has no actions.
+Resolve mutations for :document:writeReleaseAarMetadata (Thread[Execution worker Thread 3,5,main]) started.
+:document:writeReleaseAarMetadata (Thread[Execution worker Thread 3,5,main]) started.
+
+> Task :document:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':document:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':document:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :document) (Thread[Execution worker Thread 3,5,main]) started.
+Resolve mutations for :highlight:preBuild (Thread[Execution worker Thread 3,5,main]) started.
+:highlight:preBuild (Thread[Execution worker Thread 3,5,main]) started.
+
+> Task :highlight:preBuild UP-TO-DATE
+Skipping task ':highlight:preBuild' as it has no actions.
+Resolve mutations for :highlight:preReleaseBuild (Thread[Execution worker Thread 3,5,main]) started.
+:highlight:preReleaseBuild (Thread[Execution worker Thread 3,5,main]) started.
+
+> Task :highlight:preReleaseBuild UP-TO-DATE
+Skipping task ':highlight:preReleaseBuild' as it has no actions.
+Resolve mutations for :highlight:writeReleaseAarMetadata (Thread[Execution worker Thread 6,5,main]) started.
+:highlight:writeReleaseAarMetadata (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :highlight:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':highlight:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':highlight:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :highlight) (Thread[Execution worker Thread 6,5,main]) started.
+Resolve mutations for :search:preBuild (Thread[Execution worker Thread 6,5,main]) started.
+:search:preBuild (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :search:preBuild UP-TO-DATE
+Skipping task ':search:preBuild' as it has no actions.
+Resolve mutations for :search:preReleaseBuild (Thread[Execution worker Thread 6,5,main]) started.
+:search:preReleaseBuild (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :search:preReleaseBuild UP-TO-DATE
+Skipping task ':search:preReleaseBuild' as it has no actions.
+Resolve mutations for :search:writeReleaseAarMetadata (Thread[Execution worker Thread 6,5,main]) started.
+:search:writeReleaseAarMetadata (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :search:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':search:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':search:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :search) (Thread[Execution worker Thread 6,5,main]) started.
+Resolve mutations for :tts:preBuild (Thread[Execution worker Thread 6,5,main]) started.
+:tts:preBuild (Thread[Execution worker Thread 8,5,main]) started.
+
+> Task :tts:preBuild UP-TO-DATE
+Skipping task ':tts:preBuild' as it has no actions.
+Resolve mutations for :tts:preReleaseBuild (Thread[Execution worker Thread 8,5,main]) started.
+:tts:preReleaseBuild (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :tts:preReleaseBuild UP-TO-DATE
+Skipping task ':tts:preReleaseBuild' as it has no actions.
+Resolve mutations for :tts:writeReleaseAarMetadata (Thread[Execution worker Thread 7,5,main]) started.
+:tts:writeReleaseAarMetadata (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :tts:writeReleaseAarMetadata UP-TO-DATE
+Caching disabled for task ':tts:writeReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':tts:writeReleaseAarMetadata' as it is up-to-date.
+work action resolve aar-metadata.properties (project :tts) (Thread[Execution worker Thread 7,5,main]) started.
+Resolve mutations for :app:checkReleaseAarMetadata (Thread[Execution worker Thread 7,5,main]) started.
+:app:checkReleaseAarMetadata (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+Caching disabled for task ':app:checkReleaseAarMetadata' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':app:checkReleaseAarMetadata' as it is up-to-date.
+Resolve mutations for :document:processReleaseNavigationResources (Thread[Execution worker Thread 7,5,main]) started.
+:document:processReleaseNavigationResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :document:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':document:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':document:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :document) (Thread[Execution worker Thread 7,5,main]) started.
+Resolve mutations for :highlight:processReleaseNavigationResources (Thread[Execution worker Thread 7,5,main]) started.
+:highlight:processReleaseNavigationResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :highlight:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':highlight:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':highlight:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :highlight) (Thread[Execution worker Thread 7,5,main]) started.
+Resolve mutations for :search:processReleaseNavigationResources (Thread[Execution worker,5,main]) started.
+:search:processReleaseNavigationResources (Thread[Execution worker,5,main]) started.
+
+> Task :search:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':search:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':search:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :search) (Thread[Execution worker,5,main]) started.
+Resolve mutations for :tts:processReleaseNavigationResources (Thread[Execution worker Thread 2,5,main]) started.
+:tts:processReleaseNavigationResources (Thread[Execution worker Thread 2,5,main]) started.
+
+> Task :tts:processReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':tts:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':tts:processReleaseNavigationResources' as it is up-to-date.
+work action resolve release (project :tts) (Thread[Execution worker Thread 2,5,main]) started.
+Resolve mutations for :app:processReleaseNavigationResources (Thread[Execution worker Thread 6,5,main]) started.
+:app:processReleaseNavigationResources (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :app:processReleaseNavigationResources UP-TO-DATE
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+Caching disabled for task ':app:processReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':app:processReleaseNavigationResources' as it is up-to-date.
+Resolve mutations for :app:compileReleaseNavigationResources (Thread[Execution worker Thread 6,5,main]) started.
+:app:compileReleaseNavigationResources (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :app:compileReleaseNavigationResources UP-TO-DATE
+Caching disabled for task ':app:compileReleaseNavigationResources' because:
+  Build cache is disabled
+Skipping task ':app:compileReleaseNavigationResources' as it is up-to-date.
+Resolve mutations for :app:generateReleaseResValues (Thread[Execution worker Thread 6,5,main]) started.
+:app:generateReleaseResValues (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :app:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':app:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':app:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :app:injectCrashlyticsMappingFileIdRelease (Thread[Execution worker Thread 6,5,main]) started.
+:app:injectCrashlyticsMappingFileIdRelease (Thread[Execution worker Thread 6,5,main]) started.
+
+> Task :app:injectCrashlyticsMappingFileIdRelease
+Caching disabled for task ':app:injectCrashlyticsMappingFileIdRelease' because:
+  Build cache is disabled
+Task ':app:injectCrashlyticsMappingFileIdRelease' is not up-to-date because:
+  Task.upToDateWhen is false.
+Resolve mutations for :app:extractReleaseVersionControlInfo (Thread[Execution worker Thread 6,5,main]) started.
+:app:extractReleaseVersionControlInfo (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :app:extractReleaseVersionControlInfo UP-TO-DATE
+Caching disabled for task ':app:extractReleaseVersionControlInfo' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':app:extractReleaseVersionControlInfo' as it is up-to-date.
+Resolve mutations for :app:injectCrashlyticsVersionControlInfoRelease (Thread[Execution worker Thread 4,5,main]) started.
+:app:injectCrashlyticsVersionControlInfoRelease (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :app:injectCrashlyticsVersionControlInfoRelease UP-TO-DATE
+Caching disabled for task ':app:injectCrashlyticsVersionControlInfoRelease' because:
+  Build cache is disabled
+Skipping task ':app:injectCrashlyticsVersionControlInfoRelease' as it is up-to-date.
+Resolve mutations for :app:processReleaseGoogleServices (Thread[Execution worker Thread 4,5,main]) started.
+:app:processReleaseGoogleServices (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :app:processReleaseGoogleServices UP-TO-DATE
+Caching disabled for task ':app:processReleaseGoogleServices' because:
+  Build cache is disabled
+Skipping task ':app:processReleaseGoogleServices' as it is up-to-date.
+Resolve mutations for :document:generateReleaseResValues (Thread[Execution worker Thread 4,5,main]) started.
+:document:generateReleaseResValues (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :document:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':document:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':document:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :document:generateReleaseResources (Thread[Execution worker Thread 4,5,main]) started.
+:document:generateReleaseResources (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :document:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':document:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':document:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :document:packageReleaseResources (Thread[Execution worker Thread 4,5,main]) started.
+:document:packageReleaseResources (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :document:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':document:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':document:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :document) (Thread[Execution worker Thread 4,5,main]) started.
+Resolve mutations for :highlight:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+:highlight:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :highlight:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':highlight:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':highlight:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :highlight:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:highlight:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :highlight:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':highlight:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':highlight:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :highlight:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:highlight:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :highlight:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':highlight:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':highlight:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :highlight) (Thread[Execution worker Thread 11,5,main]) started.
+Resolve mutations for :search:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+:search:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :search:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':search:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':search:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :search:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:search:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :search:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':search:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':search:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :search:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:search:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :search:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':search:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':search:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :search) (Thread[Execution worker Thread 11,5,main]) started.
+Resolve mutations for :tts:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+:tts:generateReleaseResValues (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :tts:generateReleaseResValues UP-TO-DATE
+Caching disabled for task ':tts:generateReleaseResValues' because:
+  Build cache is disabled
+Skipping task ':tts:generateReleaseResValues' as it is up-to-date.
+Resolve mutations for :tts:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:tts:generateReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :tts:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':tts:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':tts:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :tts:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+:tts:packageReleaseResources (Thread[Execution worker Thread 11,5,main]) started.
+
+> Task :tts:packageReleaseResources UP-TO-DATE
+Caching disabled for task ':tts:packageReleaseResources' because:
+  Build cache is disabled
+Skipping task ':tts:packageReleaseResources' as it is up-to-date.
+work action resolve packageReleaseResources (project :tts) (Thread[Execution worker Thread 11,5,main]) started.
+Resolve mutations for :app:mapReleaseSourceSetPaths (Thread[Execution worker Thread 7,5,main]) started.
+:app:mapReleaseSourceSetPaths (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+Caching disabled for task ':app:mapReleaseSourceSetPaths' because:
+  Build cache is disabled
+  Caching has been disabled for the task
+Skipping task ':app:mapReleaseSourceSetPaths' as it is up-to-date.
+Resolve mutations for :ai:extractReleaseSupportedLocales (Thread[Execution worker Thread 7,5,main]) started.
+:ai:extractReleaseSupportedLocales (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :ai:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':ai:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':ai:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :ai) (Thread[Execution worker Thread 7,5,main]) started.
+Resolve mutations for :app:extractReleaseSupportedLocales (Thread[Execution worker Thread 10,5,main]) started.
+:app:extractReleaseSupportedLocales (Thread[Execution worker Thread 10,5,main]) started.
+
+> Task :app:extractReleaseSupportedLocales
+Caching disabled for task ':app:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Task ':app:extractReleaseSupportedLocales' is not up-to-date because:
+  Input property 'nonMainResSet' file C:\Users\julia\Documents\GitHub\LastChat\app\build\generated\res\injectCrashlyticsMappingFileIdRelease\values\com_google_firebase_crashlytics_mappingfileid.xml has changed.
+Resolve mutations for :common:extractReleaseSupportedLocales (Thread[Execution worker Thread 10,5,main]) started.
+:common:extractReleaseSupportedLocales (Thread[Execution worker Thread 10,5,main]) started.
+
+> Task :common:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':common:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':common:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :common) (Thread[Execution worker Thread 10,5,main]) started.
+Resolve mutations for :document:extractReleaseSupportedLocales (Thread[Execution worker,5,main]) started.
+:document:extractReleaseSupportedLocales (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :document:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':document:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':document:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :document) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :highlight:extractReleaseSupportedLocales (Thread[Execution worker Thread 9,5,main]) started.
+:highlight:extractReleaseSupportedLocales (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :highlight:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':highlight:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':highlight:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :highlight) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :search:extractReleaseSupportedLocales (Thread[Execution worker Thread 9,5,main]) started.
+:search:extractReleaseSupportedLocales (Thread[Execution worker Thread 9,5,main]) started.
+
+> Task :search:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':search:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':search:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :search) (Thread[Execution worker Thread 9,5,main]) started.
+Resolve mutations for :tts:extractReleaseSupportedLocales (Thread[Execution worker Thread 4,5,main]) started.
+:tts:extractReleaseSupportedLocales (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :tts:extractReleaseSupportedLocales UP-TO-DATE
+Caching disabled for task ':tts:extractReleaseSupportedLocales' because:
+  Build cache is disabled
+Skipping task ':tts:extractReleaseSupportedLocales' as it is up-to-date.
+work action resolve supported_locales.txt (project :tts) (Thread[Execution worker Thread 4,5,main]) started.
+Resolve mutations for :app:generateReleaseLocaleConfig (Thread[Execution worker Thread 4,5,main]) started.
+:app:generateReleaseLocaleConfig (Thread[Execution worker Thread 4,5,main]) started.
+
+> Task :app:generateReleaseLocaleConfig UP-TO-DATE
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+Caching disabled for task ':app:generateReleaseLocaleConfig' because:
+  Build cache is disabled
+Skipping task ':app:generateReleaseLocaleConfig' as it is up-to-date.
+Resolve mutations for :app:generateReleaseResources (Thread[Execution worker Thread 4,5,main]) started.
+:app:generateReleaseResources (Thread[Execution worker Thread 2,5,main]) started.
+
+> Task :app:generateReleaseResources UP-TO-DATE
+Caching disabled for task ':app:generateReleaseResources' because:
+  Build cache is disabled
+Skipping task ':app:generateReleaseResources' as it is up-to-date.
+Resolve mutations for :app:mergeReleaseResources (Thread[Execution worker Thread 2,5,main]) started.
+:app:mergeReleaseResources (Thread[Execution worker Thread 2,5,main]) started.
+
+> Task :app:mergeReleaseResources FAILED
+file or directory 'C:\Users\julia\Documents\GitHub\LastChat\app\libs', not found
+Caching disabled for task ':app:mergeReleaseResources' because:
+  Build cache is disabled
+Task ':app:mergeReleaseResources' is not up-to-date because:
+  Output property 'blameLogOutputFolder' file C:\Users\julia\Documents\GitHub\LastChat\app\build\intermediates\merged_res_blame_folder\release\mergeReleaseResources\out\multi-v2\mergeReleaseResources.json has been removed.
+  Output property 'blameLogOutputFolder' file C:\Users\julia\Documents\GitHub\LastChat\app\build\intermediates\merged_res_blame_folder\release\mergeReleaseResources\out\multi-v2\values-af.json has been removed.
+  Output property 'blameLogOutputFolder' file C:\Users\julia\Documents\GitHub\LastChat\app\build\intermediates\merged_res_blame_folder\release\mergeReleaseResources\out\multi-v2\values-am.json has been removed.
+  and more...
+The input changes require a full rebuild for incremental task ':app:mergeReleaseResources'.
+Build 5d581403-d120-4aba-8ebc-ed7ea825b175 is closed
+.\gradlew.bat : 
+At line:1 char:1
++ .\gradlew.bat :app:compileReleaseKotlin --info 2>&1 | 
+Out-File -FileP ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], Remot 
+   eException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:mergeReleaseResources'.
+> java.io.IOException: Unable to delete directory 'C:\Users\juli
+a\Documents\GitHub\LastChat\app\build\intermediates\merged_res_b
+lame_folder\release\mergeReleaseResources\out'
+    Failed to delete some children. This might happen because a 
+process has files open or has its working directory set in the 
+target directory.
+    - C:\Users\julia\Documents\GitHub\LastChat\app\build\interme
+diates\merged_res_blame_folder\release\mergeReleaseResources\out
+\multi-v2
+    - C:\Users\julia\Documents\GitHub\LastChat\app\build\interme
+diates\merged_res_blame_folder\release\mergeReleaseResources\out
+\single
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s
+60 actionable tasks: 3 executed, 57 up-to-date
+Watched directory hierarchies: [C:\Users\julia\Documents\GitHub\LastChat]
