@@ -42,6 +42,7 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.Mode
 import me.rerere.rikkahub.data.model.Skill
+import me.rerere.rikkahub.data.model.SkillFolder
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.model.TextSelectionAction
 import me.rerere.rikkahub.data.model.TextSelectionConfig
@@ -163,6 +164,7 @@ class SettingsStore(
 
         // Skills
         val SKILLS = stringPreferencesKey("skills")
+        val SKILL_FOLDERS = stringPreferencesKey("skill_folders")
 
         // Android Integration
         val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
@@ -387,6 +389,9 @@ class SettingsStore(
                 lorebooks = preferences[LOREBOOKS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
+                skillFolders = preferences[SKILL_FOLDERS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
                 skills = preferences[SKILLS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -425,7 +430,16 @@ class SettingsStore(
         .map { settings ->
             // 去重并清理无效引用
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
-            val validSkillIds = settings.skills.map { it.id }.toSet()
+            val dedupedSkillFolders = settings.skillFolders.distinctBy { it.id }
+            val validSkillFolderIds = dedupedSkillFolders.map { it.id }.toSet()
+            val sanitizedSkills = settings.skills.map { skill ->
+                if (skill.folderId != null && skill.folderId !in validSkillFolderIds) {
+                    skill.copy(folderId = null)
+                } else {
+                    skill
+                }
+            }
+            val validSkillIds = sanitizedSkills.map { it.id }.toSet()
             val dedupedAssistants = settings.assistants.distinctBy { it.id }.map { assistant ->
                 assistant.copy(
                     mcpServers = assistant.mcpServers.filter { serverId ->
@@ -484,6 +498,8 @@ class SettingsStore(
                         }.toSet()
                     )
                 },
+                skillFolders = dedupedSkillFolders,
+                skills = sanitizedSkills,
                 groupChatTemplates = dedupedGroupChats,
                 chatTarget = sanitizedChatTarget,
                 ttsProviders = settings.ttsProviders.distinctBy { it.id },
@@ -577,6 +593,7 @@ class SettingsStore(
 
             preferences[MODES] = JsonInstant.encodeToString(finalSettingsToSave.modes)
             preferences[LOREBOOKS] = JsonInstant.encodeToString(finalSettingsToSave.lorebooks)
+            preferences[SKILL_FOLDERS] = JsonInstant.encodeToString(finalSettingsToSave.skillFolders)
             preferences[SKILLS] = JsonInstant.encodeToString(finalSettingsToSave.skills)
         }
     }
@@ -668,6 +685,7 @@ data class Settings(
     val lorebooks: List<Lorebook> = emptyList(),
 
     // Skills (imported from zip; loaded by local tool on demand)
+    val skillFolders: List<SkillFolder> = emptyList(),
     val skills: List<Skill> = emptyList(),
 ) {
     companion object {
@@ -981,6 +999,18 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         updatedAssistant
     }
 
+    // 1.5 Clean skills & folders
+    val dedupedSkillFolders = skillFolders.distinctBy { it.id }
+    val validSkillFolderIds = dedupedSkillFolders.map { it.id }.toSet()
+    val cleanedSkills = skills.map { skill ->
+        if (skill.folderId != null && skill.folderId !in validSkillFolderIds) {
+            skill.copy(folderId = null)
+        } else {
+            skill
+        }
+    }
+    val validSkillIds = cleanedSkills.map { it.id }.toSet()
+
     // 2. Remove orphaned tag references from assistants
     val validTagIds = assistantTags.map { it.id }.toSet()
     val cleanedAssistants = sanitizedAssistants.map { assistant ->
@@ -993,7 +1023,17 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         }
     }
 
-    val validAssistantIds = cleanedAssistants.map { it.id }.toSet()
+    // 2.5 Remove orphaned skill references from assistants
+    val cleanedAssistantsWithSkills = cleanedAssistants.map { assistant ->
+        val filtered = assistant.enabledSkillIds.filter { it in validSkillIds }.toSet()
+        if (filtered.size != assistant.enabledSkillIds.size) {
+            assistant.copy(enabledSkillIds = filtered)
+        } else {
+            assistant
+        }
+    }
+
+    val validAssistantIds = cleanedAssistantsWithSkills.map { it.id }.toSet()
     val cleanedGroupChats = groupChatTemplates
         .distinctBy { it.id }
         .map { template ->
@@ -1039,7 +1079,7 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         }
     }
 
-    val fallbackAssistantId = cleanedAssistants.firstOrNull()?.id ?: DEFAULT_ASSISTANT_ID
+    val fallbackAssistantId = cleanedAssistantsWithSkills.firstOrNull()?.id ?: DEFAULT_ASSISTANT_ID
     val sanitizedAssistantId = if (assistantId in validAssistantIds) assistantId else fallbackAssistantId
     val sanitizedChatTarget = when (val target = chatTarget) {
         is ChatTarget.Assistant -> {
@@ -1056,7 +1096,9 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
     val cleanedSettings = copy(
         assistantId = sanitizedAssistantId,
         chatTarget = sanitizedChatTarget,
-        assistants = cleanedAssistants,
+        assistants = cleanedAssistantsWithSkills,
+        skillFolders = dedupedSkillFolders,
+        skills = cleanedSkills,
         groupChatTemplates = cleanedGroupChats,
         favoriteModels = cleanedFavorites,
         searchServiceSelected = clampedSearchSelected,

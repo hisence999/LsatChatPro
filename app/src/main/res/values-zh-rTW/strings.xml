@@ -524,6 +524,29 @@
   <string name="skills_unnamed">未命名技能</string>
   <string name="skills_no_description">無描述</string>
 
+  <string name="skills_selected_count">已選取 %1$d 項</string>
+  <string name="skills_action_create_folder">建立資料夾</string>
+  <string name="skills_action_batch_edit">批量編輯</string>
+  <string name="skills_action_move">移動</string>
+  <string name="skills_move_to_folder_title">移動到資料夾</string>
+  <string name="skills_import_folder_default">匯入的技能</string>
+  <string name="skills_delete_multiple_title">刪除 %1$d 項？</string>
+  <string name="skills_delete_multiple_desc">將從裝置中刪除所選內容。</string>
+
+  <string name="skills_folder_create_title">建立資料夾</string>
+  <string name="skills_folder_rename_title">重新命名資料夾</string>
+  <string name="skills_folder_create_action">建立</string>
+  <string name="skills_folder_rename_action">重新命名</string>
+  <string name="skills_folder_name_label">資料夾名稱</string>
+  <string name="skills_folder_name_empty">資料夾名稱不能為空</string>
+  <string name="skills_folder_name_exists">資料夾已存在：%1$s</string>
+  <string name="skills_folder_unnamed">未命名資料夾</string>
+  <string name="skills_folder_ungrouped">未分組</string>
+  <string name="skills_folder_empty">空資料夾</string>
+  <string name="skills_folder_delete_title">刪除資料夾？</string>
+  <string name="skills_folder_delete_desc">將刪除「%1$s」。</string>
+  <string name="skills_folder_enabled_count">已啟用 %1$d/%2$d</string>
+
   <string name="skills_group_title">技能</string>
   <string name="skills_manage_title">管理技能</string>
   <string name="skills_manage_desc">從 zip 匯入 Skill 技能包</string>
@@ -974,6 +997,7 @@
   <string name="a11y_delete_memory">刪除記憶</string>
   <string name="a11y_edit_override">編輯覆蓋</string>
   <string name="a11y_expand">展開</string>
+  <string name="a11y_collapse">折疊</string>
   <string name="a11y_image">圖片</string>
   <string name="a11y_loading">載入中</string>
   <string name="a11y_next">下一個</string>

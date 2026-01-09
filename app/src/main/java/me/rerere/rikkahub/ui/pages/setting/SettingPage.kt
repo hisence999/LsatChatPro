@@ -62,6 +62,7 @@ import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
@@ -70,7 +71,6 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.animation.core.animateFloatAsState
@@ -245,7 +245,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     SettingGroupItem(
                         title = stringResource(R.string.setting_page_skills),
                         subtitle = stringResource(R.string.setting_page_skills_desc),
-                        icon = { Icon(Icons.Rounded.Terminal, null, modifier = Modifier.size(20.dp)) },
+                        icon = { Icon(Icons.Rounded.Extension, null, modifier = Modifier.size(20.dp)) },
                         onClick = { navController.navigate(Screen.SettingSkills) }
                     )
 

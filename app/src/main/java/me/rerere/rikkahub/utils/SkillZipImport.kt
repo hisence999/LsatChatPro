@@ -2,6 +2,7 @@ package me.rerere.rikkahub.utils
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.model.Skill
@@ -11,11 +12,12 @@ import kotlin.uuid.Uuid
 
 object SkillZipImport {
     sealed class ImportResult {
-        data class Success(val skills: List<Skill>) : ImportResult()
+        data class Success(val skills: List<Skill>, val archiveName: String?) : ImportResult()
         data class Error(val message: String) : ImportResult()
     }
 
     suspend fun importFromUri(context: Context, uri: Uri): ImportResult = withContext(Dispatchers.IO) {
+        val archiveName = getArchiveName(context, uri)
         val tempRoot = File(context.cacheDir, "skills_import/${System.currentTimeMillis()}_${Uuid.random()}")
         val tempSkillRoot = File(tempRoot, "unzipped")
         val installed = mutableListOf<Skill>()
@@ -75,12 +77,40 @@ object SkillZipImport {
                 )
             }
 
-            ImportResult.Success(installed)
+            ImportResult.Success(skills = installed, archiveName = archiveName)
         } catch (e: Exception) {
             ImportResult.Error("Failed to import skills: ${e.message}")
         } finally {
             runCatching { tempRoot.deleteRecursively() }
         }
+    }
+
+    private fun getArchiveName(context: Context, uri: Uri): String? {
+        val raw = runCatching {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (!cursor.moveToFirst()) return@use null
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index < 0) return@use null
+                    cursor.getString(index)
+                }
+        }.getOrNull() ?: uri.lastPathSegment
+
+        val name = raw
+            ?.substringAfterLast('/')
+            ?.substringAfterLast('\\')
+            ?.trim()
+            .orEmpty()
+
+        if (name.isBlank()) return null
+
+        val trimmed = name.trim()
+        val withoutZip = if (trimmed.endsWith(".zip", ignoreCase = true)) {
+            trimmed.dropLast(4).trim()
+        } else {
+            trimmed
+        }
+        return withoutZip.ifBlank { null }
     }
 
     private data class SkillFrontMatter(
@@ -125,4 +155,3 @@ object SkillZipImport {
         return if (filePath.startsWith(rootPath)) file else null
     }
 }
-

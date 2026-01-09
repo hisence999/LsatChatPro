@@ -4,18 +4,38 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +51,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.search.SearchServiceOptions
+import kotlin.uuid.Uuid
 
 /**
  * Tools & Search tab - Combined search, local tools, and MCP settings.
@@ -45,6 +66,9 @@ fun AssistantToolsSubPage(
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
+
+    var expandedFolderIds by remember { mutableStateOf<Set<Uuid>>(emptySet()) }
+    var ungroupedExpanded by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
@@ -187,25 +211,194 @@ fun AssistantToolsSubPage(
                     onClick = { navController.navigate(Screen.SettingSkills) }
                 )
             } else {
-                settings.skills.forEach { skill ->
-                    val isEnabled = assistant.enabledSkillIds.contains(skill.id)
-                    SettingGroupItem(
-                        title = skill.name.ifBlank { stringResource(R.string.skills_unnamed) },
-                        subtitle = skill.description.ifBlank { stringResource(R.string.skills_no_description) },
-                        trailing = {
-                            HapticSwitch(
-                                checked = isEnabled,
-                                onCheckedChange = { enabled ->
-                                    val newIds = if (enabled) {
-                                        assistant.enabledSkillIds + skill.id
-                                    } else {
-                                        assistant.enabledSkillIds - skill.id
-                                    }
-                                    onUpdate(assistant.copy(enabledSkillIds = newIds))
+                val foldersById = settings.skillFolders.associateBy { it.id }
+                val ungroupedSkills = settings.skills.filter { skill ->
+                    skill.folderId == null || skill.folderId !in foldersById
+                }
+
+                settings.skillFolders.forEach { folder ->
+                    val skillsInFolder = settings.skills.filter { it.folderId == folder.id }
+                    if (skillsInFolder.isEmpty()) return@forEach
+
+                    val folderSkillIds = skillsInFolder.map { it.id }.toSet()
+                    val enabledCount = skillsInFolder.count { assistant.enabledSkillIds.contains(it.id) }
+                    val folderEnabled = enabledCount > 0
+
+                    Column {
+                        val expanded = expandedFolderIds.contains(folder.id)
+                        val arrowRotation by animateFloatAsState(
+                            targetValue = if (expanded) 180f else 0f,
+                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                            label = "skills_folder_arrow_rotation"
+                        )
+
+                        SettingGroupItem(
+                            title = folder.name.ifBlank { stringResource(R.string.skills_folder_unnamed) },
+                            subtitle = stringResource(R.string.skills_folder_enabled_count, enabledCount, skillsInFolder.size),
+                            icon = { Icon(Icons.Rounded.Folder, contentDescription = null) },
+                            onClick = {
+                                expandedFolderIds = if (expandedFolderIds.contains(folder.id)) {
+                                    expandedFolderIds - folder.id
+                                } else {
+                                    expandedFolderIds + folder.id
                                 }
-                            )
+                            },
+                            trailing = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                                        contentDescription = stringResource(if (expanded) R.string.a11y_collapse else R.string.a11y_expand),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer {
+                                                rotationZ = arrowRotation
+                                            },
+                                    )
+                                    HapticSwitch(
+                                        checked = folderEnabled,
+                                        onCheckedChange = { enabled ->
+                                            val newIds = if (enabled) {
+                                                assistant.enabledSkillIds + folderSkillIds
+                                            } else {
+                                                assistant.enabledSkillIds - folderSkillIds
+                                            }
+                                            onUpdate(assistant.copy(enabledSkillIds = newIds))
+                                        }
+                                    )
+                                }
+                            }
+                        )
+
+                        AnimatedVisibility(
+                            visible = expanded,
+                            enter = expandVertically(
+                                animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)
+                            ) + fadeIn(
+                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
+                            ) + fadeOut(),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                skillsInFolder.forEach { skill ->
+                                    val isEnabled = assistant.enabledSkillIds.contains(skill.id)
+                                    SettingGroupItem(
+                                        title = skill.name.ifBlank { stringResource(R.string.skills_unnamed) },
+                                        subtitle = skill.description.ifBlank { stringResource(R.string.skills_no_description) },
+                                        trailing = {
+                                            HapticSwitch(
+                                                checked = isEnabled,
+                                                onCheckedChange = { enabled ->
+                                                    val newIds = if (enabled) {
+                                                        assistant.enabledSkillIds + skill.id
+                                                    } else {
+                                                        assistant.enabledSkillIds - skill.id
+                                                    }
+                                                    onUpdate(assistant.copy(enabledSkillIds = newIds))
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
                         }
-                    )
+                    }
+                }
+
+                if (ungroupedSkills.isNotEmpty()) {
+                    val folderSkillIds = ungroupedSkills.map { it.id }.toSet()
+                    val enabledCount = ungroupedSkills.count { assistant.enabledSkillIds.contains(it.id) }
+                    val folderEnabled = enabledCount > 0
+
+                    Column {
+                        val expanded = ungroupedExpanded
+                        val arrowRotation by animateFloatAsState(
+                            targetValue = if (expanded) 180f else 0f,
+                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                            label = "skills_folder_ungrouped_arrow_rotation"
+                        )
+
+                        SettingGroupItem(
+                            title = stringResource(R.string.skills_folder_ungrouped),
+                            subtitle = stringResource(R.string.skills_folder_enabled_count, enabledCount, ungroupedSkills.size),
+                            icon = { Icon(Icons.Rounded.Folder, contentDescription = null) },
+                            onClick = { ungroupedExpanded = !ungroupedExpanded },
+                            trailing = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                                        contentDescription = stringResource(if (expanded) R.string.a11y_collapse else R.string.a11y_expand),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer {
+                                                rotationZ = arrowRotation
+                                            },
+                                    )
+                                    HapticSwitch(
+                                        checked = folderEnabled,
+                                        onCheckedChange = { enabled ->
+                                            val newIds = if (enabled) {
+                                                assistant.enabledSkillIds + folderSkillIds
+                                            } else {
+                                                assistant.enabledSkillIds - folderSkillIds
+                                            }
+                                            onUpdate(assistant.copy(enabledSkillIds = newIds))
+                                        }
+                                    )
+                                }
+                            }
+                        )
+
+                        AnimatedVisibility(
+                            visible = expanded,
+                            enter = expandVertically(
+                                animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)
+                            ) + fadeIn(
+                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
+                            ) + fadeOut(),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                ungroupedSkills.forEach { skill ->
+                                    val isEnabled = assistant.enabledSkillIds.contains(skill.id)
+                                    SettingGroupItem(
+                                        title = skill.name.ifBlank { stringResource(R.string.skills_unnamed) },
+                                        subtitle = skill.description.ifBlank { stringResource(R.string.skills_no_description) },
+                                        trailing = {
+                                            HapticSwitch(
+                                                checked = isEnabled,
+                                                onCheckedChange = { enabled ->
+                                                    val newIds = if (enabled) {
+                                                        assistant.enabledSkillIds + skill.id
+                                                    } else {
+                                                        assistant.enabledSkillIds - skill.id
+                                                    }
+                                                    onUpdate(assistant.copy(enabledSkillIds = newIds))
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

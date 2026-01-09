@@ -656,6 +656,29 @@
     <string name="skills_unnamed">Unnamed skill</string>
     <string name="skills_no_description">No description</string>
 
+    <string name="skills_selected_count">%1$d selected</string>
+    <string name="skills_action_create_folder">Create folder</string>
+    <string name="skills_action_batch_edit">Batch edit</string>
+    <string name="skills_action_move">Move</string>
+    <string name="skills_move_to_folder_title">Move to folder</string>
+    <string name="skills_import_folder_default">Imported skills</string>
+    <string name="skills_delete_multiple_title">Delete %1$d item(s)?</string>
+    <string name="skills_delete_multiple_desc">This will delete the selected items from your device.</string>
+
+    <string name="skills_folder_create_title">Create folder</string>
+    <string name="skills_folder_rename_title">Rename folder</string>
+    <string name="skills_folder_create_action">Create</string>
+    <string name="skills_folder_rename_action">Rename</string>
+    <string name="skills_folder_name_label">Folder name</string>
+    <string name="skills_folder_name_empty">Folder name cannot be empty</string>
+    <string name="skills_folder_name_exists">Folder already exists: %1$s</string>
+    <string name="skills_folder_unnamed">Unnamed folder</string>
+    <string name="skills_folder_ungrouped">Ungrouped</string>
+    <string name="skills_folder_empty">Empty folder</string>
+    <string name="skills_folder_delete_title">Delete folder?</string>
+    <string name="skills_folder_delete_desc">This will delete ЁА%1$sЁБ.</string>
+    <string name="skills_folder_enabled_count">Enabled %1$d/%2$d</string>
+
     <string name="skills_group_title">Skills</string>
     <string name="skills_manage_title">Manage skills</string>
     <string name="skills_manage_desc">Import Skill packages from zip</string>
@@ -1045,6 +1068,7 @@
     <string name="a11y_delete_memory">Delete memory</string>
     <string name="a11y_edit_override">Edit override</string>
     <string name="a11y_expand">Expand</string>
+    <string name="a11y_collapse">Collapse</string>
     <string name="a11y_image">Image</string>
     <string name="a11y_loading">Loading</string>
     <string name="a11y_next">Next</string>

@@ -4,9 +4,8 @@ import kotlinx.serialization.Serializable
 import kotlin.uuid.Uuid
 
 @Serializable
-data class Skill(
+data class SkillFolder(
     val id: Uuid = Uuid.random(),
     val name: String = "",
-    val description: String = "",
-    val folderId: Uuid? = null,
 )
+
