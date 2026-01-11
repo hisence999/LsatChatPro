@@ -58,13 +58,16 @@ import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Summarize
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.ViewModule
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -86,6 +89,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -103,6 +107,7 @@ import androidx.core.content.FileProvider
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -111,6 +116,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.components.crop.CropImageScreen
+import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -120,7 +126,11 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.createChatFilesByContents
+import me.rerere.rikkahub.utils.getFileMimeType
+import me.rerere.rikkahub.utils.getFileNameFromUri
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
 
 /**
@@ -209,7 +219,7 @@ fun MinimalChatInput(
             
             // Suggestions row
             androidx.compose.animation.AnimatedVisibility(
-                visible = chatSuggestions.isNotEmpty(),
+                visible = uiMode == ChatInputUiMode.Normal && chatSuggestions.isNotEmpty(),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -266,7 +276,7 @@ fun MinimalChatInput(
                                     .onFocusChanged { isFocused = it.isFocused },
                                 placeholder = {
                                     Text(
-                                        text = "Ask ${assistant.name}",
+                                        text = stringResource(R.string.chat_input_placeholder),
                                         maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -350,14 +360,23 @@ fun MinimalChatInput(
                                                 )
                                             }
                                             "picker" -> {
-                                                ModelSelector(
-                                                    modelId = assistant.chatModelId ?: settings.chatModelId,
-                                                    providers = settings.providers,
-                                                    onSelect = { onUpdateChatModel(it) },
-                                                    type = me.rerere.ai.provider.ModelType.CHAT,
-                                                    onlyIcon = true,
-                                                    modifier = Modifier.size(24.dp),
-                                                )
+                                                if (uiMode == ChatInputUiMode.GroupChat) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Group,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(24.dp),
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                } else {
+                                                    ModelSelector(
+                                                        modelId = assistant.chatModelId ?: settings.chatModelId,
+                                                        providers = settings.providers,
+                                                        onSelect = { onUpdateChatModel(it) },
+                                                        type = me.rerere.ai.provider.ModelType.CHAT,
+                                                        onlyIcon = true,
+                                                        modifier = Modifier.size(24.dp),
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -384,7 +403,9 @@ fun MinimalChatInput(
                 state = state,
                 conversation = conversation,
                 settings = settings,
+                mcpManager = mcpManager,
                 assistant = assistant,
+                uiMode = uiMode,
                 cameraPermission = cameraPermission,
                 enableSearch = enableSearch,
                 onToggleSearch = onToggleSearch,
@@ -405,7 +426,9 @@ private fun MinimalPickerContent(
     state: ChatInputState,
     conversation: Conversation,
     settings: Settings,
+    mcpManager: McpManager,
     assistant: Assistant,
+    uiMode: ChatInputUiMode,
     cameraPermission: me.rerere.rikkahub.ui.components.ui.permission.PermissionState,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
@@ -444,6 +467,14 @@ private fun MinimalPickerContent(
     var showLorebooksPicker by remember { mutableStateOf(false) }
     var showContextRefreshDialog by remember { mutableStateOf(false) }
     var showSearchPicker by remember { mutableStateOf(false) }
+    var showMcpPicker by remember { mutableStateOf(false) }
+
+    val mcpServers = settings.mcpServers
+    val enabledMcpServersCount = remember(mcpServers, assistant.mcpServers) {
+        mcpServers.count { it.commonOptions.enable && it.id in assistant.mcpServers }
+    }
+    val mcpSyncStatus by mcpManager.syncingStatus.collectAsStateWithLifecycle()
+    val mcpLoading = mcpSyncStatus.values.any { it == McpStatus.Connecting }
     
     // Track the last valid search provider index so selection persists when search is disabled
     var lastValidProviderIndex by rememberSaveable { mutableStateOf(settings.searchServiceSelected.coerceAtLeast(0)) }
@@ -536,11 +567,59 @@ private fun MinimalPickerContent(
     
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
+        ActivityResultContracts.OpenMultipleDocuments()
     ) { selectedUris ->
         if (selectedUris.isNotEmpty()) {
-            state.addImages(context.createChatFilesByContents(selectedUris))
-            onDismiss()
+            scope.launch {
+                val documents = withContext(Dispatchers.IO) {
+                    // Keep consistent with ChatInput's filtering rules.
+                    selectedUris.mapNotNull { uri ->
+                        val fileName = context.getFileNameFromUri(uri) ?: "file"
+                        val mime = context.getFileMimeType(uri) ?: "text/plain"
+
+                        val isAllowed = mime.startsWith("text/") ||
+                            mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                            mime == "application/pdf" ||
+                            fileName.endsWith(".txt", ignoreCase = true) ||
+                            fileName.endsWith(".md", ignoreCase = true) ||
+                            fileName.endsWith(".csv", ignoreCase = true) ||
+                            fileName.endsWith(".json", ignoreCase = true) ||
+                            fileName.endsWith(".js", ignoreCase = true) ||
+                            fileName.endsWith(".html", ignoreCase = true) ||
+                            fileName.endsWith(".css", ignoreCase = true) ||
+                            fileName.endsWith(".xml", ignoreCase = true) ||
+                            fileName.endsWith(".py", ignoreCase = true) ||
+                            fileName.endsWith(".java", ignoreCase = true) ||
+                            fileName.endsWith(".kt", ignoreCase = true) ||
+                            fileName.endsWith(".ts", ignoreCase = true) ||
+                            fileName.endsWith(".tsx", ignoreCase = true) ||
+                            fileName.endsWith(".markdown", ignoreCase = true) ||
+                            fileName.endsWith(".mdx", ignoreCase = true) ||
+                            fileName.endsWith(".yml", ignoreCase = true) ||
+                            fileName.endsWith(".yaml", ignoreCase = true)
+                        if (!isAllowed) return@mapNotNull null
+
+                        val localUri = context.createChatFilesByContents(listOf(uri)).firstOrNull()
+                            ?: return@mapNotNull null
+                        UIMessagePart.Document(
+                            url = localUri.toString(),
+                            fileName = fileName,
+                            mime = mime,
+                        )
+                    }
+                }
+
+                if (documents.isNotEmpty()) {
+                    state.addFiles(documents)
+                    onDismiss()
+                } else {
+                    val fileName = selectedUris.firstOrNull()?.let(context::getFileNameFromUri) ?: "file"
+                    toaster.show(
+                        context.getString(R.string.assistant_importer_unsupported_file_type, fileName),
+                        type = ToastType.Error,
+                    )
+                }
+            }
         }
     }
     
@@ -597,7 +676,7 @@ private fun MinimalPickerContent(
                 shape = rightButtonShape,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = {
-                    filePickerLauncher.launch("*/*")
+                    filePickerLauncher.launch(arrayOf("*/*"))
                 }
             )
         }
@@ -608,83 +687,110 @@ private fun MinimalPickerContent(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         )
         
-        // Model picker - uses actual model icon, full-width clickable
-        val currentModel = settings.getCurrentChatModel()
-        val provider = currentModel?.findProvider(providers = settings.providers)
-        MinimalPickerItem(
-            icon = {
-                // Show model icon (not ModelSelector which handles its own clicks)
-                if (currentModel != null) {
-                    me.rerere.rikkahub.ui.components.ui.ModelIcon(
-                        model = currentModel,
-                        provider = provider,
-                        modifier = Modifier.size(24.dp),
-                        color = androidx.compose.ui.graphics.Color.Transparent
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.ViewModule,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            },
-            title = currentModel?.displayName ?: "Select Model",
-            subtitle = currentModel?.modelId ?: "Choose a model to use",
-            onClick = { 
-                // Open model selector sheet
-                showModelPicker = true
-            }
-        )
-        
-        // Reasoning picker - show if model is selected
-        if (currentModel != null) {
+        if (uiMode == ChatInputUiMode.Normal) {
+            // Model picker - uses actual model icon, full-width clickable
+            val currentModel = settings.getCurrentChatModel()
+            val provider = currentModel?.findProvider(providers = settings.providers)
             MinimalPickerItem(
                 icon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Lightbulb,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    // Show model icon (not ModelSelector which handles its own clicks)
+                    if (currentModel != null) {
+                        me.rerere.rikkahub.ui.components.ui.ModelIcon(
+                            model = currentModel,
+                            provider = provider,
+                            modifier = Modifier.size(24.dp),
+                            color = androidx.compose.ui.graphics.Color.Transparent
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.ViewModule,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 },
-                title = stringResource(R.string.minimal_input_thinking),
-                subtitle = stringResource(R.string.minimal_input_thinking_desc),
-                onClick = { 
-                    showReasoningPicker = true
+                title = currentModel?.displayName ?: "Select Model",
+                subtitle = currentModel?.modelId ?: "Choose a model to use",
+                onClick = {
+                    // Open model selector sheet
+                    showModelPicker = true
                 }
             )
-        }
-        
-        // Search picker - show selected provider if enabled
-        val searchService = settings.searchServices.getOrNull(settings.searchServiceSelected)
-        val searchProviderName = if (searchService != null) {
-            SearchServiceOptions.TYPES[searchService::class]
-        } else null
-        
-        // Show provider icon when search is enabled and a provider is configured
-        MinimalPickerItem(
-            icon = {
-                // Only show provider icon when search is actually enabled
-                if (enableSearch && searchProviderName != null) {
-                    AutoAIIcon(
-                        name = searchProviderName,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = if (enableSearch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            title = if (enableSearch && searchProviderName != null) searchProviderName else stringResource(R.string.minimal_input_search),
-            subtitle = if (enableSearch) stringResource(R.string.web_search_enabled) else stringResource(R.string.minimal_input_search_desc),
-            onClick = { 
-                showSearchPicker = true
+
+            // Reasoning picker - show if model is selected
+            if (currentModel != null) {
+                MinimalPickerItem(
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Lightbulb,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    title = stringResource(R.string.minimal_input_thinking),
+                    subtitle = stringResource(R.string.minimal_input_thinking_desc),
+                    onClick = {
+                        showReasoningPicker = true
+                    }
+                )
             }
-        )
+
+            // Search picker - show selected provider if enabled
+            val searchService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+            val searchProviderName = if (searchService != null) {
+                SearchServiceOptions.TYPES[searchService::class]
+            } else null
+
+            // Show provider icon when search is enabled and a provider is configured
+            MinimalPickerItem(
+                icon = {
+                    // Only show provider icon when search is actually enabled
+                    if (enableSearch && searchProviderName != null) {
+                        AutoAIIcon(
+                            name = searchProviderName,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = if (enableSearch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                title = if (enableSearch && searchProviderName != null) searchProviderName else stringResource(R.string.minimal_input_search),
+                subtitle = if (enableSearch) stringResource(R.string.web_search_enabled) else stringResource(R.string.minimal_input_search_desc),
+                onClick = {
+                    showSearchPicker = true
+                }
+            )
+
+            if (mcpServers.isNotEmpty()) {
+                MinimalPickerItem(
+                    icon = {
+                        if (mcpLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.Terminal,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (enabledMcpServersCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    title = stringResource(R.string.mcp_picker_title),
+                    subtitle = "${enabledMcpServersCount}/${mcpServers.size} · ${stringResource(R.string.assistant_page_mcp_servers_desc)}",
+                    onClick = {
+                        showMcpPicker = true
+                    }
+                )
+            }
+        }
         
         // Modes - use enabledModeIds from conversation or default modes
         val activeModesCount = if (conversation.enabledModeIds.isNotEmpty()) {
@@ -709,47 +815,49 @@ private fun MinimalPickerContent(
             }
         )
         
-        // Lorebooks - show active count and blue icon when enabled
-        val activeLorebooksCount = assistant.enabledLorebookIds.size
-        val lorebooksActive = activeLorebooksCount > 0
-        MinimalPickerItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Rounded.Book,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = if (lorebooksActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            title = stringResource(R.string.minimal_input_lorebooks),
-            subtitle = if (activeLorebooksCount > 0) "$activeLorebooksCount active" else stringResource(R.string.minimal_input_lorebooks_desc),
-            onClick = { 
-                showLorebooksPicker = true
-            }
-        )
-        
-        // Summarize button - only show when context refresh is enabled
-        if (assistant.enableContextRefresh) {
+        if (uiMode == ChatInputUiMode.Normal) {
+            // Lorebooks - show active count and blue icon when enabled
+            val activeLorebooksCount = assistant.enabledLorebookIds.size
+            val lorebooksActive = activeLorebooksCount > 0
             MinimalPickerItem(
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.Summarize,
+                        imageVector = Icons.Rounded.Book,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = if (lorebooksActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
-                title = stringResource(R.string.minimal_input_summarize),
-                subtitle = stringResource(R.string.minimal_input_summarize_desc),
+                title = stringResource(R.string.minimal_input_lorebooks),
+                subtitle = if (activeLorebooksCount > 0) "$activeLorebooksCount active" else stringResource(R.string.minimal_input_lorebooks_desc),
                 onClick = {
-                    showContextRefreshDialog = true
+                    showLorebooksPicker = true
                 }
             )
+
+            // Summarize button - only show when context refresh is enabled
+            if (assistant.enableContextRefresh) {
+                MinimalPickerItem(
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Summarize,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    title = stringResource(R.string.minimal_input_summarize),
+                    subtitle = stringResource(R.string.minimal_input_summarize_desc),
+                    onClick = {
+                        showContextRefreshDialog = true
+                    }
+                )
+            }
         }
     }
     
     // Reasoning picker sheet
-    if (showReasoningPicker) {
+    if (uiMode == ChatInputUiMode.Normal && showReasoningPicker) {
         ReasoningPicker(
             reasoningTokens = assistant.thinkingBudget ?: 0,
             onDismissRequest = { showReasoningPicker = false },
@@ -761,7 +869,7 @@ private fun MinimalPickerContent(
     }
     
     // Model picker sheet - direct ModalBottomSheet (not ModelSelector which shows its own button)
-    if (showModelPicker) {
+    if (uiMode == ChatInputUiMode.Normal && showModelPicker) {
         val modelPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val filteredProviders = settings.providers.filter { 
             it.enabled && it.models.any { model -> model.type == me.rerere.ai.provider.ModelType.CHAT }
@@ -824,7 +932,7 @@ private fun MinimalPickerContent(
     }
     
     // Lorebooks picker sheet
-    if (showLorebooksPicker) {
+    if (uiMode == ChatInputUiMode.Normal && showLorebooksPicker) {
         LorebooksPickerSheet(
             settings = settings,
             assistant = assistant,
@@ -838,16 +946,61 @@ private fun MinimalPickerContent(
     }
     
     // Context Refresh dialog (same as floating toolbar)
-    if (showContextRefreshDialog) {
+    if (uiMode == ChatInputUiMode.Normal && showContextRefreshDialog) {
         ContextRefreshDialog(
             conversation = conversation,
             onRefresh = onRefreshContext,
             onDismiss = { showContextRefreshDialog = false }
         )
     }
+
+    if (uiMode == ChatInputUiMode.Normal && showMcpPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showMcpPicker = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = sheetContainerColor
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.mcp_picker_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                if (mcpLoading) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Text(
+                            text = stringResource(id = R.string.mcp_picker_syncing),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                McpPicker(
+                    assistant = assistant,
+                    servers = mcpServers,
+                    onUpdateAssistant = onUpdateAssistant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+            }
+        }
+    }
     
     // Search picker sheet (same as floating toolbar) - direct content, no intermediate button
-    if (showSearchPicker) {
+    if (uiMode == ChatInputUiMode.Normal && showSearchPicker) {
         val chatModel = settings.getCurrentChatModel()
         
         ModalBottomSheet(

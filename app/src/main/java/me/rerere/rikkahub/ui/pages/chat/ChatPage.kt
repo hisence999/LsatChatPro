@@ -834,7 +834,7 @@ private fun ChatPageContent(
                 )
 
                 val messageInputStyle = setting.displaySetting.messageInputStyle
-                val useMinimalInput = !isGroupChatTemplate && messageInputStyle == MessageInputStyle.MINIMAL
+                val useMinimalInput = messageInputStyle == MessageInputStyle.MINIMAL
 
                 if (useMinimalInput) {
                     MinimalChatInput(
