@@ -1744,7 +1744,7 @@ class ChatService(
             val primaryMessage = runningMessages.lastOrNull { message ->
                 message.role == MessageRole.ASSISTANT && message.speakerSeatId == seat.id
             }
-            seat.id to (primaryMessage?.toText()?.trim().orEmpty())
+            seat.id to (primaryMessage?.toContentText().orEmpty())
         }
 
         val disagreementMarkers = listOf(
@@ -2116,7 +2116,7 @@ class ChatService(
                         settings = settings,
                         seatDisplayNames = seatDisplayNames,
                     )
-                    val content = message.toText().trim().take(4000)
+                    val content = message.toContentText().take(4000)
                     if (content.isBlank()) return@mapIndexedNotNull null
                     val prefix = when {
                         isUnread && speakerName.isNullOrBlank() -> "[Unread message from another assistant (assistant)]"
@@ -2378,7 +2378,7 @@ class ChatService(
                         isInSeatList -> "[Assistant]"
                         else -> "[Assistant (not in seat list)]"
                     }
-                    val content = message.toText().trim().take(1200)
+                    val content = message.toContentText().take(1200)
                     if (content.isBlank()) return@forEach
                     appendLine(prefix)
                     appendLine(content)
@@ -2428,7 +2428,7 @@ class ChatService(
 
         val outputText = lastMessages
             .lastOrNull { it.role == MessageRole.ASSISTANT }
-            ?.toText()
+            ?.toContentText()
             ?.trim()
             .orEmpty()
 
