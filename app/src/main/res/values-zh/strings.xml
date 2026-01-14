@@ -113,6 +113,7 @@
   <string name="assistant_page_local_tools_python_engine_desc">在本地执行 Python 代码（Chaquopy），运行于当前会话工作目录。需要先授予工作区根目录权限。</string>
   <string name="assistant_page_manage_memory">管理记忆 (%d条)</string>
   <string name="assistant_page_manage_memory_title">管理记忆</string>
+  <string name="assistant_page_memory_pinned_badge">固定</string>
   <string name="assistant_page_max_tokens">最大Token数</string>
   <string name="assistant_page_max_tokens_desc">最大生成Token数量。留空表示无限制。</string>
   <string name="assistant_page_max_tokens_limit">限制：%d 个Token</string>

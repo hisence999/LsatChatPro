@@ -641,7 +641,7 @@ class GenerationHandler(
         
         // Memories (Prepare effective memories including recent chats if enabled)
         val shouldInjectMemories = assistant.enableMemory &&
-            (!assistant.useRagMemoryRetrieval || assistant.ragLimit > 0)
+            (!assistant.useRagMemoryRetrieval || assistant.ragLimit > 0 || memories.any { it.pinned })
 
         val effectiveMemoriesCandidates = if (shouldInjectMemories) {
             val recentChatMemories = if (assistant.enableRecentChatsReference && messages.size <= 2) {
@@ -663,7 +663,8 @@ class GenerationHandler(
             } else {
                 emptyList()
             }
-            (memories + recentChatMemories).distinctBy { it.content } // Avoid duplicates
+            val pinnedFirst = memories.filter { it.pinned } + memories.filterNot { it.pinned }
+            (pinnedFirst + recentChatMemories).distinctBy { it.content } // Avoid duplicates
         } else {
             emptyList()
         }
@@ -680,7 +681,12 @@ class GenerationHandler(
 
         // Minimums
         val minChatHistory = 2.coerceAtMost(chatHistoryCandidates.size)
-        val minMemories = if (assistant.enableMemory) 2.coerceAtMost(effectiveMemoriesCandidates.size) else 0
+        val pinnedCandidates = effectiveMemoriesCandidates.filter { it.pinned }
+        val remainingMemoryCandidates = effectiveMemoriesCandidates.filterNot { it.pinned }
+        val minMemoriesTotal = if (assistant.enableMemory) 2.coerceAtMost(effectiveMemoriesCandidates.size) else 0
+        val minUnpinnedMemories = (minMemoriesTotal - pinnedCandidates.size)
+            .coerceAtLeast(0)
+            .coerceAtMost(remainingMemoryCandidates.size)
 
         // Add minimums first
         var usedTokens = 0
@@ -692,7 +698,11 @@ class GenerationHandler(
         }
         
         // Add min memories
-        effectiveMemoriesCandidates.take(minMemories).forEach {
+        pinnedCandidates.forEach {
+            selectedMemories.add(it)
+            usedTokens += estimateTokens(it.content)
+        }
+        remainingMemoryCandidates.take(minUnpinnedMemories).forEach {
             selectedMemories.add(it)
             usedTokens += estimateTokens(it.content)
         }
@@ -701,7 +711,7 @@ class GenerationHandler(
         var availableTokens = remainingTokens - usedTokens
         if (availableTokens > 0) {
             val remainingChatHistory = chatHistoryCandidates.drop(minChatHistory)
-            val remainingMemories = effectiveMemoriesCandidates.drop(minMemories)
+            val remainingMemories = remainingMemoryCandidates.drop(minUnpinnedMemories)
             
             when (assistant.contextPriority) {
                 me.rerere.rikkahub.data.model.ContextPriority.CHAT_HISTORY -> {
@@ -847,6 +857,7 @@ class GenerationHandler(
 
         val usedMemories = selectedMemories.mapIndexed { index, memory ->
             val reason = when {
+                memory.pinned -> "Pinned"
                 memory.id == -1 -> "Recent episode boost"
                 assistant.useRagMemoryRetrieval -> "Contextually relevant"
                 else -> "Always included"

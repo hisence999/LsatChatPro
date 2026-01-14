@@ -111,6 +111,7 @@
   <string name="assistant_page_local_tools_python_engine_desc">在本地執行 Python 代碼（Chaquopy），於目前會話工作目錄執行。需要先授予工作區根目錄權限。</string>
   <string name="assistant_page_manage_memory">管理記憶 (%d條)</string>
   <string name="assistant_page_manage_memory_title">管理記憶</string>
+  <string name="assistant_page_memory_pinned_badge">固定</string>
   <string name="assistant_page_max_tokens">最大Token數</string>
   <string name="assistant_page_max_tokens_desc">最大生成Token數量。留空表示無限制。</string>
   <string name="assistant_page_max_tokens_limit">限制：%d 個Token</string>

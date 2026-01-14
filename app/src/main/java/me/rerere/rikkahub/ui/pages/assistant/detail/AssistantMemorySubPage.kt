@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
@@ -46,6 +47,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -164,6 +166,15 @@ fun AssistantMemorySettings(
 
     // Memory edit dialog
     memoryDialogState.EditStateContent { memory, update ->
+        val haptics = rememberPremiumHaptics()
+        val canPin = memory.type == 0 && memory.id >= 0
+        val pinInteractionSource = remember { MutableInteractionSource() }
+        val isPinPressed by pinInteractionSource.collectIsPressedAsState()
+        val pinScale by animateFloatAsState(
+            targetValue = if (isPinPressed) 0.85f else 1f,
+            animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+            label = "memory_pin_scale",
+        )
         AlertDialog(
             onDismissRequest = { memoryDialogState.dismiss() },
             title = { Text(stringResource(R.string.assistant_page_manage_memory_title)) },
@@ -177,13 +188,45 @@ fun AssistantMemorySettings(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { memoryDialogState.confirm() }) {
-                    Text(stringResource(R.string.assistant_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { memoryDialogState.dismiss() }) {
-                    Text(stringResource(R.string.assistant_page_cancel))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (canPin) {
+                        FilterChip(
+                            selected = memory.pinned,
+                            onClick = {
+                                haptics.perform(HapticPattern.Pop)
+                                update(memory.copy(pinned = !memory.pinned))
+                            },
+                            label = { Text(stringResource(R.string.assistant_page_memory_pinned_badge)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.PushPin,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            interactionSource = pinInteractionSource,
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = pinScale
+                                scaleY = pinScale
+                            },
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { memoryDialogState.dismiss() }) {
+                            Text(stringResource(R.string.assistant_page_cancel))
+                        }
+                        TextButton(onClick = { memoryDialogState.confirm() }) {
+                            Text(stringResource(R.string.assistant_page_save))
+                        }
+                    }
                 }
             }
         )
@@ -1168,7 +1211,7 @@ private fun MemoryItem(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Show type and embedding badges only when needed
-                val showBadges = showType || (useRagMemoryRetrieval && !memory.hasEmbedding)
+                val showBadges = memory.pinned || showType || (useRagMemoryRetrieval && !memory.hasEmbedding)
                 AnimatedVisibility(
                     visible = showBadges,
                     enter = fadeIn() + expandVertically(),
@@ -1178,6 +1221,20 @@ private fun MemoryItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (memory.pinned) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.assistant_page_memory_pinned_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+
                         if (showType) {
                             Surface(
                                 color = if (memory.type == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,

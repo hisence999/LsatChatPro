@@ -166,6 +166,7 @@
     <string name="assistant_page_local_tools_workspace_files_desc">Allow assistant to read/write files in the current conversation workspace. Requires workspace root permission.</string>
     <string name="assistant_page_manage_memory">Manage Memory (%d)</string>
     <string name="assistant_page_manage_memory_title">Manage Memory</string>
+    <string name="assistant_page_memory_pinned_badge">Pinned</string>
     <string name="assistant_page_max_tokens">Max Tokens</string>
     <string name="assistant_page_max_tokens_desc">Max generation tokens. Leave empty for no limit.</string>
     <string name="assistant_page_max_tokens_limit">Limit: %d Tokens</string>

@@ -51,7 +51,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         ScheduledTaskRunEntity::class,
         DailyActivityEntity::class,
     ],
-    version = 29,
+    version = 30,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -78,6 +78,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 26, to = 27),
         AutoMigration(from = 27, to = 28),
         AutoMigration(from = 28, to = 29),
+        AutoMigration(from = 29, to = 30),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

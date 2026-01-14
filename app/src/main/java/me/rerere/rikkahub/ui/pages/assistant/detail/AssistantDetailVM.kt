@@ -228,7 +228,8 @@ class AssistantDetailVM(
         viewModelScope.launch {
             memoryRepository.addMemory(
                 assistantId = assistantId.toString(),
-                content = memory.content
+                content = memory.content,
+                pinned = memory.pinned,
             )
         }
     }
@@ -238,7 +239,11 @@ class AssistantDetailVM(
             if (memory.id < 0) {
                 memoryRepository.updateEpisodeContent(id = -memory.id, content = memory.content)
             } else {
-                memoryRepository.updateContent(id = memory.id, content = memory.content)
+                memoryRepository.updateCoreMemory(
+                    id = memory.id,
+                    content = memory.content,
+                    pinned = memory.pinned,
+                )
             }
         }
     }

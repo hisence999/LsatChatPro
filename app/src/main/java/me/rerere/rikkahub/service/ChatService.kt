@@ -1193,13 +1193,20 @@ class ChatService(
                             ?.toText()
                             .orEmpty()
                         val limit = assistant.ragLimit.coerceIn(0, 50)
+                        val pinnedMemories = if (assistant.ragIncludeCore) {
+                            withContext(Dispatchers.IO) {
+                                memoryRepository.getPinnedMemoriesOfAssistant(settings.assistantId.toString())
+                            }
+                        } else {
+                            emptyList()
+                        }
                         
                         if (settings.enableRagLogging) {
                             Log.d("RAG", "Query: $lastUserMessage")
                         }
 
                         when {
-                            limit <= 0 -> emptyList()
+                            limit <= 0 -> pinnedMemories
                             lastUserMessage.isNotBlank() -> {
                                 val results = withContext(Dispatchers.IO) {
                                     memoryRepository.retrieveRelevantMemories(
@@ -1215,17 +1222,18 @@ class ChatService(
                                     Log.d("RAG", "Retrieved ${results.size} memories")
                                     results.forEach { Log.d("RAG", " - [${it.type}] ${it.content.take(50)}...") }
                                 }
-                                results
+                                (pinnedMemories + results).distinctBy { it.id }
                             }
                             else -> {
                                 if (settings.enableRagLogging) Log.d("RAG", "Empty query, using recent memories")
                                 withContext(Dispatchers.IO) {
-                                    memoryRepository.getRecentCombinedMemories(
+                                    val recent = memoryRepository.getRecentCombinedMemories(
                                         assistantId = settings.assistantId.toString(),
                                         limit = limit,
                                         includeCore = assistant.ragIncludeCore,
                                         includeEpisodes = assistant.ragIncludeEpisodes,
                                     )
+                                    (pinnedMemories + recent).distinctBy { it.id }
                                 }
                             }
                         }
@@ -1610,14 +1618,21 @@ class ChatService(
                 val assistantId = seatAssistant.id.toString()
                 val query = lastUserText.trim()
                 val limit = seatAssistant.ragLimit.coerceIn(0, 50)
+                val pinnedMemories = if (seatAssistant.ragIncludeCore) {
+                    withContext(Dispatchers.IO) {
+                        memoryRepository.getPinnedMemoriesOfAssistant(assistantId)
+                    }
+                } else {
+                    emptyList()
+                }
 
                 when {
                     !seatAssistant.useRagMemoryRetrieval -> withContext(Dispatchers.IO) {
                         memoryRepository.getMemoriesOfAssistant(assistantId)
                     }
-                    limit <= 0 -> emptyList()
+                    limit <= 0 -> pinnedMemories
                     query.isNotBlank() -> withContext(Dispatchers.IO) {
-                        memoryRepository.retrieveRelevantMemories(
+                        val results = memoryRepository.retrieveRelevantMemories(
                             assistantId = assistantId,
                             query = query,
                             limit = limit,
@@ -1625,14 +1640,16 @@ class ChatService(
                             includeCore = seatAssistant.ragIncludeCore,
                             includeEpisodes = seatAssistant.ragIncludeEpisodes,
                         )
+                        (pinnedMemories + results).distinctBy { it.id }
                     }
                     else -> withContext(Dispatchers.IO) {
-                        memoryRepository.getRecentCombinedMemories(
+                        val recent = memoryRepository.getRecentCombinedMemories(
                             assistantId = assistantId,
                             limit = limit,
                             includeCore = seatAssistant.ragIncludeCore,
                             includeEpisodes = seatAssistant.ragIncludeEpisodes,
                         )
+                        (pinnedMemories + recent).distinctBy { it.id }
                     }
                 }
             } else {

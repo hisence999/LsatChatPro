@@ -18,6 +18,8 @@ data class MemoryEntity(
     val embeddingModelId: String? = null, // UUID of the embedding model used
     @ColumnInfo(name = "type", defaultValue = "0")
     val type: Int = 0, // 0: CORE, 1: EPISODIC
+    @ColumnInfo(name = "pinned", defaultValue = "0")
+    val pinned: Boolean = false,
     @ColumnInfo(name = "last_accessed_at", defaultValue = "0")
     val lastAccessedAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "created_at", defaultValue = "0")
