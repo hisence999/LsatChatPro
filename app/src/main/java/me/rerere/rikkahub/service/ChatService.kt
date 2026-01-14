@@ -1458,6 +1458,18 @@ class ChatService(
             ?.trim()
             .orEmpty()
 
+        val recentAssistantMessages = run {
+            val lastUserIndex = baseMessages.indexOfLast { it.role == MessageRole.USER }
+            if (lastUserIndex <= 0) return@run emptyList<UIMessage>()
+
+            baseMessages
+                .take(lastUserIndex)
+                .asReversed()
+                .filter { message -> message.role == MessageRole.ASSISTANT }
+                .take(2)
+                .reversed()
+        }
+
         val mentionedSeatIds = resolveMentionedSeatIds(
             text = lastUserText,
             settings = settings,
@@ -1475,6 +1487,7 @@ class ChatService(
                 settings = settings,
                 template = template,
                 userText = lastUserText,
+                recentAssistantMessages = recentAssistantMessages,
             )
         }
 
@@ -2261,6 +2274,7 @@ class ChatService(
         settings: Settings,
         template: GroupChatTemplate,
         userText: String,
+        recentAssistantMessages: List<UIMessage>,
     ): List<Uuid> {
         val enabledSeats = template.seats.filter { it.defaultEnabled }
         if (enabledSeats.isEmpty()) return emptyList()
@@ -2308,13 +2322,56 @@ class ChatService(
             appendLine("Rules:")
             appendLine("- Choose 1 to 3 speakers from the seat list.")
             appendLine("- Prefer the most relevant seats; avoid redundancy.")
+            appendLine("- Use the conversation context (recent assistant messages + latest user message) when routing.")
             appendLine("- Output schema: {\"speakers\":[\"<seatId>\", ...]}")
+            appendLine("- Output MUST be a single JSON object with ONLY the \"speakers\" key. No markdown, no explanation.")
             appendLine()
             appendLine("Seats:")
             seatLines.forEach { appendLine(it) }
             appendLine()
-            appendLine("User message:")
-            appendLine(userText.take(4000))
+            val allowedSeatIds = enabledSeats.map { it.id }.toSet()
+            val allowedAssistantIds = enabledSeats.map { it.assistantId }.toSet()
+            val contextMessages = recentAssistantMessages
+                .asSequence()
+                .filter { message -> message.role == MessageRole.ASSISTANT }
+                .toList()
+                .takeLast(2)
+
+            if (contextMessages.isNotEmpty()) {
+                appendLine("Conversation context (chronological; last is the latest user message):")
+                contextMessages.forEach { message ->
+                    val speakerName = resolveGroupChatMessageSpeakerName(
+                        message = message,
+                        settings = settings,
+                        seatDisplayNames = seatDisplayNames,
+                    )?.trim().orEmpty()
+                    val isInSeatList = run {
+                        val seatId = message.speakerSeatId
+                        val assistantId = message.speakerAssistantId
+                        when {
+                            seatId != null -> seatId in allowedSeatIds
+                            assistantId != null -> assistantId in allowedAssistantIds
+                            else -> false
+                        }
+                    }
+
+                    val prefix = when {
+                        speakerName.isNotBlank() && isInSeatList -> "[Assistant: $speakerName]"
+                        speakerName.isNotBlank() -> "[Assistant: $speakerName (not in seat list)]"
+                        isInSeatList -> "[Assistant]"
+                        else -> "[Assistant (not in seat list)]"
+                    }
+                    val content = message.toText().trim().take(1200)
+                    if (content.isBlank()) return@forEach
+                    appendLine(prefix)
+                    appendLine(content)
+                }
+                appendLine("[User]")
+                appendLine(userText.take(4000))
+            } else {
+                appendLine("Latest user message:")
+                appendLine(userText.take(4000))
+            }
         }
 
         val routerAssistant = me.rerere.rikkahub.data.model.Assistant(
