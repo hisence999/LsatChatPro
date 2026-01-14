@@ -1918,7 +1918,7 @@ class ChatService(
             searchMode = if (overrides.searchEnabled) overrides.searchMode else AssistantSearchMode.Off,
             preferBuiltInSearch = overrides.searchEnabled && overrides.preferBuiltInSearch,
             mcpServers = overrides.mcpServerIds,
-            localTools = emptyList(),
+            localTools = assistant.localTools,
             enableMemory = overrides.memoryEnabled && assistant.enableMemory,
             systemPrompt = updatedPrompt,
         )

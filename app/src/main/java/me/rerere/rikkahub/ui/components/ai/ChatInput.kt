@@ -216,20 +216,20 @@ enum class ChatInputUiMode {
     GroupChat,
 }
 
-private data class GroupChatMentionKeySuggestion(
+internal data class GroupChatMentionKeySuggestion(
     val normalizedKey: String,
     val displayName: String,
     val seatCount: Int,
     val sampleAssistantId: Uuid?,
 )
 
-private data class ActiveMentionContext(
+internal data class ActiveMentionContext(
     val atIndex: Int,
     val cursor: Int,
     val query: String,
 )
 
-private fun findActiveMentionContext(
+internal fun findActiveMentionContext(
     text: String,
     cursor: Int,
 ): ActiveMentionContext? {
@@ -250,7 +250,7 @@ private fun findActiveMentionContext(
     )
 }
 
-private fun findMentionTokenStartForAtomicBackspace(
+internal fun findMentionTokenStartForAtomicBackspace(
     text: String,
     cursor: Int,
     validMentionKeys: Set<String>,
@@ -277,7 +277,7 @@ private fun findMentionTokenStartForAtomicBackspace(
     return atIndex
 }
 
-private fun buildGroupChatMentionKeySuggestions(
+internal fun buildGroupChatMentionKeySuggestions(
     settings: Settings,
     template: GroupChatTemplate,
     defaultAssistantName: String,
@@ -321,7 +321,7 @@ private fun buildGroupChatMentionKeySuggestions(
         .sortedBy { it.displayName.lowercase(Locale.ROOT) }
 }
 
-private fun filterGroupChatMentionSuggestions(
+internal fun filterGroupChatMentionSuggestions(
     suggestions: List<GroupChatMentionKeySuggestion>,
     queryNormalized: String,
 ): List<GroupChatMentionKeySuggestion> {
@@ -1577,7 +1577,7 @@ private fun FilesPicker(
             }
         }
 
-        if (uiMode == ChatInputUiMode.Normal && !isKeyboardVisible) {
+        if (!isKeyboardVisible && (uiMode == ChatInputUiMode.Normal || conversation.messageNodes.isEmpty())) {
             Spacer(modifier = Modifier.height(8.dp))
 
             if (conversation.messageNodes.isEmpty()) {
@@ -1687,7 +1687,7 @@ private fun FilesPicker(
                 )
             }
 
-            if (mcpServers.isNotEmpty()) {
+            if (uiMode == ChatInputUiMode.Normal && mcpServers.isNotEmpty()) {
                 val mcpInteractionSource = remember { MutableInteractionSource() }
                 val isMcpPressed by mcpInteractionSource.collectIsPressedAsState()
                 val mcpScale by animateFloatAsState(
