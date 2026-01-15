@@ -1281,11 +1281,18 @@ class ChatService(
                         assistantId = assistant.id,
                         conversationId = conversation.id
                     ))
-                    if (assistant.localTools.contains(LocalToolOption.WorkspaceFiles)) {
+                    val hasWorkspaceFiles = assistant.localTools.contains(LocalToolOption.WorkspaceFiles)
+                    if (hasWorkspaceFiles) {
                         addAll(createWorkspaceFileTools(conversationId = conversation.id, settingsSnapshot = settings))
                     }
                     if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
-                        add(createWorkspacePythonTool(conversationId = conversation.id, settingsSnapshot = settings))
+                        add(
+                            createWorkspacePythonTool(
+                                conversationId = conversation.id,
+                                settingsSnapshot = settings,
+                                includeCommonRules = !hasWorkspaceFiles,
+                            )
+                        )
                     }
 
                     val enabledSkills = settings.skills.filter { skill -> skill.id in assistant.enabledSkillIds }
@@ -1588,11 +1595,18 @@ class ChatService(
                     }
                 }
 
-                if (seatAssistant.localTools.contains(LocalToolOption.WorkspaceFiles)) {
+                val hasWorkspaceFiles = seatAssistant.localTools.contains(LocalToolOption.WorkspaceFiles)
+                if (hasWorkspaceFiles) {
                     addAll(createWorkspaceFileTools(conversationId = conversation.id, settingsSnapshot = settings))
                 }
                 if (seatAssistant.localTools.contains(LocalToolOption.PythonEngine)) {
-                    add(createWorkspacePythonTool(conversationId = conversation.id, settingsSnapshot = settings))
+                    add(
+                        createWorkspacePythonTool(
+                            conversationId = conversation.id,
+                            settingsSnapshot = settings,
+                            includeCommonRules = !hasWorkspaceFiles,
+                        )
+                    )
                 }
 
                 val enabledSkills = settings.skills.filter { skill -> skill.id in seatAssistant.enabledSkillIds }
@@ -2874,6 +2888,7 @@ class ChatService(
     private fun createWorkspacePythonTool(
         conversationId: Uuid,
         settingsSnapshot: Settings,
+        includeCommonRules: Boolean,
     ): Tool {
         return Tool(
             name = "eval_python",
@@ -2920,7 +2935,11 @@ class ChatService(
             },
             systemPrompt = { _, _ ->
                 buildString {
-                    appendLine(workspaceToolSystemPrompt("eval_python"))
+                    if (includeCommonRules) {
+                        appendLine(workspaceToolsCommonSystemPrompt())
+                        appendLine()
+                    }
+                    appendLine("## tool: eval_python")
                     appendLine()
                     appendLine("### execution")
                     appendLine("- The Python code runs locally via Chaquopy.")
@@ -2928,7 +2947,7 @@ class ChatService(
                     appendLine("- Prefer a `run(input: dict)` entrypoint and return JSON-serializable data.")
                     appendLine("- Use print() for logs; stdout/stderr will be returned.")
                     appendLine("- Avoid network access and avoid reading/writing files unless explicitly requested by the user.")
-                }
+                }.trimEnd()
             },
             execute = { args ->
                 val obj = args.jsonObject
@@ -3431,7 +3450,38 @@ class ChatService(
         }
     }
 
-    private fun workspaceToolSystemPrompt(toolName: String): String {
+    private fun workspaceToolsCommonSystemPrompt(): String {
+        return buildString {
+            appendLine("## workspace tools (common rules)")
+            appendLine()
+            appendLine("### scope")
+            appendLine("- Operates only within the current conversation workspace directory under the user-authorized workspace root.")
+            appendLine("- All paths are relative to the conversation workspace directory.")
+            appendLine()
+            appendLine("### path rules")
+            appendLine("- Use relative paths with `/` separators (example: `folder/file.txt`).")
+            appendLine("- Do NOT use absolute paths (no leading `/`) and do NOT use `..`.")
+            appendLine("- Root directory is represented by an empty string \"\" when allowed by the tool (e.g. `workspace_list`).")
+            appendLine()
+            appendLine("### parameter naming")
+            appendLine("- Use the exact parameter keys from the schema (usually snake_case, e.g. `max_entries`, `max_chars`, `confirm_token`).")
+            appendLine()
+            appendLine("### confirmation (default)")
+            appendLine("- If the tool returns `requires_confirmation=true`, you MUST ask the user for confirmation.")
+            appendLine("- On user confirmation, call the same tool again with:")
+            appendLine("  - `confirm=true`")
+            appendLine("  - `confirm_token` from the previous tool result")
+            appendLine("  - the same parameters")
+            appendLine()
+            appendLine("### setup")
+            appendLine("- If you see an error like \"Workspace root is not set\", ask the user to set the default root in Settings -> Skills, or authorize a root folder for this conversation in Work directory settings.")
+        }.trimEnd()
+    }
+
+    private fun workspaceToolSystemPrompt(
+        toolName: String,
+        includeCommonRules: Boolean,
+    ): String {
         val examples = when (toolName) {
             "workspace_list" -> """
                 ### examples
@@ -3468,29 +3518,11 @@ class ChatService(
         }
 
         return buildString {
+            if (includeCommonRules) {
+                appendLine(workspaceToolsCommonSystemPrompt())
+                appendLine()
+            }
             appendLine("## tool: $toolName")
-            appendLine()
-            appendLine("### scope")
-            appendLine("- Operates only within the current conversation workspace directory under the user-authorized workspace root.")
-            appendLine("- All paths are relative to the conversation workspace directory.")
-            appendLine()
-            appendLine("### path rules")
-            appendLine("- Use relative paths with `/` separators (example: `folder/file.txt`).")
-            appendLine("- Do NOT use absolute paths (no leading `/`) and do NOT use `..`.")
-            appendLine("- Root directory is represented by an empty string \"\" when allowed by the tool (e.g. `workspace_list`).")
-            appendLine()
-            appendLine("### parameter naming")
-            appendLine("- Use the exact parameter keys from the schema (usually snake_case, e.g. `max_entries`, `max_chars`, `confirm_token`).")
-            appendLine()
-            appendLine("### confirmation (default)")
-            appendLine("- If the tool returns `requires_confirmation=true`, you MUST ask the user for confirmation.")
-            appendLine("- On user confirmation, call the same tool again with:")
-            appendLine("  - `confirm=true`")
-            appendLine("  - `confirm_token` from the previous tool result")
-            appendLine("  - the same parameters")
-            appendLine()
-            appendLine("### setup")
-            appendLine("- If you see an error like \"Workspace root is not set\", ask the user to set the default root in Settings -> Skills, or authorize a root folder for this conversation in Work directory settings.")
             if (examples.isNotBlank()) {
                 appendLine()
                 appendLine(examples)
@@ -3615,7 +3647,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_list") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_list",
+                    includeCommonRules = true,
+                )
+            }
         )
     }
 
@@ -3719,7 +3756,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_read_file") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_read_file",
+                    includeCommonRules = false,
+                )
+            }
         )
     }
 
@@ -3866,7 +3908,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_write_file") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_write_file",
+                    includeCommonRules = false,
+                )
+            }
         )
     }
 
@@ -3969,7 +4016,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_mkdir") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_mkdir",
+                    includeCommonRules = false,
+                )
+            }
         )
     }
 
@@ -4066,7 +4118,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_delete") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_delete",
+                    includeCommonRules = false,
+                )
+            }
         )
     }
 
@@ -4235,7 +4292,12 @@ class ChatService(
                     buildJsonObject { put("ok", false); put("error", e.message ?: "Unknown error") }
                 }
             },
-            systemPrompt = { _, _ -> workspaceToolSystemPrompt("workspace_rename") }
+            systemPrompt = { _, _ ->
+                workspaceToolSystemPrompt(
+                    toolName = "workspace_rename",
+                    includeCommonRules = false,
+                )
+            }
         )
     }
 
