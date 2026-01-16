@@ -181,6 +181,14 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Claude -> this.apiKey
     }
 
+    val baseUrl = when (this) {
+        is ProviderSetting.OpenAI -> this.baseUrl
+        is ProviderSetting.Google -> this.baseUrl
+        is ProviderSetting.Claude -> this.baseUrl
+    }
+
+    val rewrittenBaseUrl = baseUrl.rewriteProviderBaseUrlForTarget(type)
+
     // Convert to target type while preserving common properties
     return when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI(
@@ -193,7 +201,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             tags = this.tags,
             customIconUri = this.customIconUri,
             apiKey = apiKey,
-            baseUrl = if (this is ProviderSetting.OpenAI) this.baseUrl else "https://api.openai.com/v1"
+            baseUrl = rewrittenBaseUrl
         )
         ProviderSetting.Google::class -> ProviderSetting.Google(
             id = this.id,
@@ -205,7 +213,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             tags = this.tags,
             customIconUri = this.customIconUri,
             apiKey = apiKey,
-            baseUrl = if (this is ProviderSetting.Google) this.baseUrl else "https://generativelanguage.googleapis.com/v1beta"
+            baseUrl = rewrittenBaseUrl
         )
         ProviderSetting.Claude::class -> ProviderSetting.Claude(
             id = this.id,
@@ -217,9 +225,39 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             tags = this.tags,
             customIconUri = this.customIconUri,
             apiKey = apiKey,
-            baseUrl = if (this is ProviderSetting.Claude) this.baseUrl else "https://api.anthropic.com/v1"
+            baseUrl = rewrittenBaseUrl
         )
         else -> this // Return unchanged if unknown type
+    }
+}
+
+private fun String.rewriteProviderBaseUrlForTarget(
+    targetType: KClass<out ProviderSetting>
+): String {
+    val trimmed = trim()
+    if (trimmed.isBlank()) return trimmed
+
+    val noTrailingSlash = trimmed.removeSuffix("/")
+
+    return when (targetType) {
+        ProviderSetting.Google::class -> {
+            if (noTrailingSlash.endsWith("/v1")) {
+                noTrailingSlash.removeSuffix("/v1") + "/v1beta"
+            } else {
+                noTrailingSlash
+            }
+        }
+
+        ProviderSetting.OpenAI::class,
+        ProviderSetting.Claude::class -> {
+            if (noTrailingSlash.endsWith("/v1beta")) {
+                noTrailingSlash.removeSuffix("/v1beta") + "/v1"
+            } else {
+                noTrailingSlash
+            }
+        }
+
+        else -> noTrailingSlash
     }
 }
 
