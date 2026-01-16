@@ -44,6 +44,10 @@ fun LocalDateTime.toLocalString(): String {
     return formatter.format(this)
 }
 
+fun LocalDateTime.toLocalStringSeconds(): String {
+    return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(this)
+}
+
 fun LocalDate.toLocalString(includeYear: Boolean): String {
     val locale = Locale.getDefault()
     val formatter = if (includeYear) {

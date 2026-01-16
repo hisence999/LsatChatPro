@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,12 +97,14 @@ import me.rerere.rikkahub.utils.exportImage
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.rikkahub.utils.toLocalString
+import me.rerere.rikkahub.utils.toLocalStringSeconds
 import org.koin.compose.koinInject
 import java.io.FileOutputStream
 import java.time.LocalDateTime
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.uuid.Uuid
+import kotlinx.datetime.LocalDateTime as KxLocalDateTime
 
 @Composable
 fun ChatExportSheet(
@@ -242,44 +243,11 @@ private fun exportToMarkdown(
 ) {
     val filename = "chat-export-${LocalDateTime.now().toLocalString()}.md"
 
-    val sb = buildAnnotatedString {
-        append("# ${conversation.title}\n\n")
-        append("*Exported on ${LocalDateTime.now().toLocalString()}*\n\n")
-
-        messages.forEach { message ->
-            val role = if (message.role == MessageRole.USER) "**User**" else "**Assistant**"
-            append("$role:\n\n")
-            message.parts.toSortedMessageParts().forEach { part ->
-                when (part) {
-                    is UIMessagePart.Text -> {
-                        append(part.text)
-                        appendLine()
-                    }
-
-                    is UIMessagePart.Image -> {
-                        append("![Image](${part.encodeBase64().getOrNull()})")
-                        appendLine()
-                    }
-
-                    is UIMessagePart.Reasoning -> {
-                        part.reasoning.lines()
-                            .filter { it.isNotBlank() }
-                            .map { "> $it" }
-                            .forEach {
-                                append(it)
-                            }
-                        appendLine()
-                        appendLine()
-                    }
-
-                    else -> {}
-                }
-            }
-            appendLine()
-            append("---")
-            appendLine()
-        }
-    }
+    val markdown = buildChatMarkdown(
+        conversation = conversation,
+        messages = messages,
+        exportedAt = LocalDateTime.now()
+    )
 
     try {
         val dir = context.appTempFolder
@@ -291,7 +259,7 @@ private fun exportToMarkdown(
             file.createNewFile()
         }
         FileOutputStream(file).use {
-            it.write(sb.toString().toByteArray())
+            it.write(markdown.toByteArray())
         }
 
         // Share the file
@@ -305,6 +273,57 @@ private fun exportToMarkdown(
     } catch (e: Exception) {
         e.printStackTrace()
     }
+}
+
+internal fun buildChatMarkdown(
+    conversation: Conversation,
+    messages: List<UIMessage>,
+    exportedAt: LocalDateTime = LocalDateTime.now(),
+): String {
+    val sb = StringBuilder()
+    sb.append("# ").append(conversation.title).append("\n\n")
+    sb.append("*Exported on ").append(exportedAt.toLocalStringSeconds()).append("*\n\n")
+
+    messages.forEach { message ->
+        if (message.parts.isEmptyUIMessage()) return@forEach
+
+        val role = if (message.role == MessageRole.USER) "**User**" else "**Assistant**"
+        sb.append(role)
+            .append(" · ")
+            .append(message.createdAt.toLocalStringSeconds())
+            .append("\n\n")
+
+        message.parts.toSortedMessageParts()
+            .filterNot { it is UIMessagePart.Reasoning || it is UIMessagePart.Thinking }
+            .forEach { part ->
+                when (part) {
+                    is UIMessagePart.Text -> {
+                        sb.append(part.text).append("\n")
+                    }
+
+                    is UIMessagePart.Image -> {
+                        sb.append("![Image](").append(part.encodeBase64().getOrNull()).append(")\n")
+                    }
+
+                    else -> Unit
+                }
+            }
+
+        sb.append("\n---\n")
+    }
+
+    return sb.toString().trimEnd() + "\n"
+}
+
+private fun KxLocalDateTime.toLocalStringSeconds(): String {
+    return "%04d-%02d-%02d %02d:%02d:%02d".format(
+        year,
+        month.ordinal + 1,
+        day,
+        hour,
+        minute,
+        second
+    )
 }
 
 private suspend fun exportToImage(
