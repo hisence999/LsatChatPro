@@ -355,10 +355,15 @@ class LocalTools(private val context: Context) {
         )
     }
 
-    fun createSkillFileTool(allowedSkills: List<Skill>): Tool {
+    fun createSkillFileTool(
+        allowedSkills: List<Skill>,
+        scriptableSkills: List<Skill> = emptyList(),
+    ): Tool {
         val allowedSkillIds = allowedSkills.map { it.id.toString() }.toSet()
         val allowedSkillsById = allowedSkills.associateBy { it.id.toString() }
         val allowedSkillsByName = allowedSkills.groupBy { it.name.trim().lowercase(Locale.ROOT) }
+        val duplicatedNameKeys = allowedSkillsByName.filterValues { it.size > 1 }.keys
+        val scriptableSkillIds = scriptableSkills.map { it.id.toString() }.toSet()
         return Tool(
             name = "read_skill_file",
             description = "Read a file from an installed Skill package (e.g., SKILL.md or referenced files).",
@@ -388,24 +393,46 @@ class LocalTools(private val context: Context) {
             systemPrompt = { _, _ ->
                 if (allowedSkills.isEmpty()) return@Tool ""
                 buildString {
-                    appendLine("You can load local Skill packages on demand via the tool `read_skill_file`.")
-                    appendLine("Call with `skill_name` (preferred). If multiple skills share the same name, disambiguate with `skill_id`.")
-                    appendLine("Rules:")
-                    appendLine("- Always load a skill's SKILL.md before using it.")
-                    appendLine("- Never invent skill contents; use the tool.")
-                    appendLine("Available skills:")
+                    appendLine("## skill tools (skills list)")
+                    appendLine()
+                    appendLine("### skills")
                     allowedSkills.forEach { skill ->
-                        append("- name: ")
-                        append(skill.name)
-                        append(" | id: ")
-                        append(skill.id.toString())
+                        val name = skill.name
+                        val nameKey = name.trim().lowercase(Locale.ROOT)
+                        val isScriptable = skill.id.toString() in scriptableSkillIds
+
+                        append("- ")
+                        append(name)
+                        if (isScriptable) append(" [script]")
+                        if (nameKey in duplicatedNameKeys) {
+                            append(" | id: ")
+                            append(skill.id.toString())
+                        }
                         if (skill.description.isNotBlank()) {
                             append(" | desc: ")
                             append(skill.description.replace('\n', ' ').trim())
                         }
                         appendLine()
                     }
-                }
+
+                    appendLine()
+                    appendLine("### note")
+                    if (duplicatedNameKeys.isEmpty()) {
+                        appendLine("- Skill names are unique; prefer using `skill_name` without `skill_id`.")
+                    } else {
+                        appendLine("- If multiple skills share the same name, pass `skill_id` to disambiguate (ids are shown for duplicated names).")
+                    }
+                    if (scriptableSkillIds.isNotEmpty()) {
+                        appendLine("- Skills marked `[script]` can be executed via `run_skill_script`.")
+                    }
+
+                    appendLine()
+                    appendLine("## tool: read_skill_file")
+                    appendLine()
+                    appendLine("### rules")
+                    appendLine("- Always load a skill's SKILL.md before using it.")
+                    appendLine("- Never invent skill contents; use this tool to read files.")
+                }.trimEnd()
             },
             execute = { args ->
                 val obj = args.jsonObject

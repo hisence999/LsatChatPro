@@ -1297,12 +1297,12 @@ class ChatService(
 
                     val enabledSkills = settings.skills.filter { skill -> skill.id in assistant.enabledSkillIds }
                     if (enabledSkills.isNotEmpty()) {
-                        add(localTools.createSkillFileTool(enabledSkills))
                         val scriptableSkills = if (settings.enableSkillScriptExecution) {
                             enabledSkills.filter { skill -> skill.id in settings.enabledSkillScriptIds }
                         } else {
                             emptyList()
                         }
+                        add(localTools.createSkillFileTool(enabledSkills, scriptableSkills))
                         if (scriptableSkills.isNotEmpty()) {
                             add(createSkillScriptTool(conversationId = conversation.id, allowedSkills = scriptableSkills))
                         }
@@ -1611,12 +1611,12 @@ class ChatService(
 
                 val enabledSkills = settings.skills.filter { skill -> skill.id in seatAssistant.enabledSkillIds }
                 if (enabledSkills.isNotEmpty()) {
-                    add(localTools.createSkillFileTool(enabledSkills))
                     val scriptableSkills = if (settings.enableSkillScriptExecution) {
                         enabledSkills.filter { skill -> skill.id in settings.enabledSkillScriptIds }
                     } else {
                         emptyList()
                     }
+                    add(localTools.createSkillFileTool(enabledSkills, scriptableSkills))
                     if (scriptableSkills.isNotEmpty()) {
                         add(createSkillScriptTool(conversationId = conversation.id, allowedSkills = scriptableSkills))
                     }
@@ -2536,23 +2536,16 @@ class ChatService(
             systemPrompt = { _, _ ->
                 if (allowedSkills.isEmpty()) return@Tool ""
                 buildString {
-                    appendLine("You can execute trusted local Skill scripts via the tool `run_skill_script`.")
-                    appendLine("Rules:")
-                    appendLine("- `skill_name` MUST be one of the allowed skills listed below (or pass `skill_id`).")
+                    appendLine("## tool: run_skill_script")
+                    appendLine()
+                    appendLine("### rules")
+                    appendLine("- `skill_name` MUST be a skill marked `[script]` in the skills list (or pass `skill_id`).")
                     appendLine("- `skill_name` is a Skill package name, NOT a workspace path. Do NOT use placeholders like \".\" or \"/\".")
-                    appendLine("- Only run scripts from the allowed skills list below.")
                     appendLine("- The script path must be under `scripts/` and end with `.py`.")
                     appendLine("- Scripts run with the working directory set to the current conversation's workspace folder.")
                     appendLine("- Prefer reading SKILL.md / script source via `read_skill_file` before running.")
                     appendLine("- If the script is CLI-style (no run(input)), pass `argv` (e.g., [\"--help\"]) to run it.")
-                    appendLine("Allowed skills for script execution:")
-                    allowedSkills.forEach { skill ->
-                        append("- name: ")
-                        append(skill.name)
-                        append(" | id: ")
-                        appendLine(skill.id.toString())
-                    }
-                }
+                }.trimEnd()
             },
             execute = { args ->
                 val obj = args.jsonObject
