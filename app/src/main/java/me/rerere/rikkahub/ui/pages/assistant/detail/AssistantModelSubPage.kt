@@ -212,7 +212,7 @@ fun AssistantModelSubPage(
                             value = assistant.temperature ?: 1.0f,
                             onValueChange = { onUpdate(assistant.copy(temperature = it.toFixed(2).toFloatOrNull() ?: 0.6f)) },
                             valueRange = 0f..2f,
-                            steps = 19,
+                            steps = 39,
                             modifier = Modifier.fillMaxWidth()
                         )
                         Row(
@@ -271,7 +271,7 @@ fun AssistantModelSubPage(
                             value = assistant.topP ?: 0.9f,
                             onValueChange = { onUpdate(assistant.copy(topP = it.toFixed(2).toFloatOrNull() ?: 0.9f)) },
                             valueRange = 0f..1f,
-                            steps = 9,
+                            steps = 19,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
