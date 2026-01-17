@@ -639,6 +639,10 @@ fun ChatInput(
                                         isFocused = isFocused,
                                         onFocusChange = { isFocused = it },
                                         groupChatMentionKeys = groupChatMentionKeys,
+                                        onSend = {
+                                            expand = ExpandState.Collapsed
+                                            sendMessage()
+                                        },
                                         trailingIcon = {
                                             // Crossfade between Model Picker and Send Button
                                             val showSendButton =
@@ -791,6 +795,7 @@ private fun TextInputRow(
     isFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
     groupChatMentionKeys: List<GroupChatMentionKeySuggestion> = emptyList(),
+    onSend: () -> Unit,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     val settings = LocalSettings.current
@@ -834,6 +839,8 @@ private fun TextInputRow(
                 }
             }
             var isFullScreen by remember { mutableStateOf(false) }
+            val showFullscreenInputButton = settings.displaySetting.showFullscreenInputButton &&
+                (isFocused || state.textContent.text.isNotEmpty())
             val receiveContentListener = remember {
                 ReceiveContentListener { transferableContent ->
                     when {
@@ -857,6 +864,14 @@ private fun TextInputRow(
                     }
                 }
             }
+
+            val fullscreenInteractionSource = remember { MutableInteractionSource() }
+            val isFullscreenPressed by fullscreenInteractionSource.collectIsPressedAsState()
+            val fullscreenScale by animateFloatAsState(
+                targetValue = if (isFullscreenPressed) 0.85f else 1f,
+                animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                label = "fullscreen_input_scale",
+            )
             TextField(
                 state = state.textContent,
                 modifier = Modifier
@@ -878,7 +893,38 @@ private fun TextInputRow(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                 ),
-                trailingIcon = trailingIcon
+                trailingIcon = if (showFullscreenInputButton) {
+                    {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    haptics.perform(HapticPattern.Pop)
+                                    isFullScreen = true
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .graphicsLayer {
+                                        scaleX = fullscreenScale
+                                        scaleY = fullscreenScale
+                                    },
+                                interactionSource = fullscreenInteractionSource,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Fullscreen,
+                                    contentDescription = stringResource(R.string.chat_input_fullscreen),
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+
+                            trailingIcon?.invoke()
+                        }
+                    }
+                } else {
+                    trailingIcon
+                }
             )
 
             val enableMentionSuggestions = groupChatMentionKeys.isNotEmpty()
@@ -1004,7 +1050,10 @@ private fun TextInputRow(
                 }
             }
             if (isFullScreen) {
-                FullScreenEditor(state = state) {
+                FullScreenEditor(
+                    state = state,
+                    onSend = onSend,
+                ) {
                     isFullScreen = false
                 }
             }
@@ -1838,8 +1887,9 @@ private fun FilesPicker(
 }
 
 @Composable
-private fun FullScreenEditor(
+internal fun FullScreenEditor(
     state: ChatInputState,
+    onSend: () -> Unit,
     onDone: () -> Unit
 ) {
     BasicAlertDialog(
@@ -1871,7 +1921,25 @@ private fun FullScreenEditor(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = {
+                                onSend()
+                                if (!state.loading) {
+                                    onDone()
+                                }
+                            },
+                            enabled = state.loading || !state.isEmpty(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (state.loading) R.string.stop else R.string.send,
+                                )
+                            )
+                        }
                         TextButton(
                             onClick = {
                                 onDone()

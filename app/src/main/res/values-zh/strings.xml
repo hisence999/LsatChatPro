@@ -236,6 +236,7 @@
   <string name="clear">清除</string>
   <string name="cancel_edit">取消编辑</string>
   <string name="chat_input_placeholder">输入消息聊天</string>
+  <string name="chat_input_fullscreen">全屏输入</string>
   <string name="chat_message_tool_call_generic">调用工具 %1$s</string>
   <string name="chat_message_tool_call_label">调用工具 %1$s</string>
   <string name="chat_message_tool_call_skill">调用技能 %1$s</string>
@@ -493,6 +494,8 @@
   <string name="setting_display_page_message_input_style_desc">在标准与极简输入栏之间切换</string>
   <string name="setting_display_page_message_input_style_standard">标准</string>
   <string name="setting_display_page_message_input_style_minimal">极简</string>
+  <string name="setting_display_page_show_fullscreen_input_button_title">显示全屏输入框按钮</string>
+  <string name="setting_display_page_show_fullscreen_input_button_desc">输入栏展开时显示全屏输入按钮</string>
   <string name="setting_display_page_show_context_stacks_desc">在消息工具栏中显示上下文来源（模式、记忆、世界书）</string>
   <string name="setting_display_page_show_context_stacks_title">显示上下文堆栈</string>
   <string name="setting_display_page_show_updates_desc">是否显示应用更新通知</string>

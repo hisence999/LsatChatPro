@@ -348,6 +348,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_fullscreen_input_button_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_fullscreen_input_button_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.showFullscreenInputButton,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showFullscreenInputButton = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
                         subtitle = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
                         trailing = {

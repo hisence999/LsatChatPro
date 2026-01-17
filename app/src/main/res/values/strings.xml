@@ -317,6 +317,7 @@
     <string name="clear">Clear</string>
     <string name="cancel_edit">Cancel Edit</string>
     <string name="chat_input_placeholder">Message</string>
+    <string name="chat_input_fullscreen">Fullscreen input</string>
     <string name="chat_message_tool_call_generic">Calling tool %1$s</string>
     <string name="chat_message_tool_call_label">Calling tool %1$s</string>
     <string name="chat_message_tool_call_skill">Calling skill %1$s</string>
@@ -580,6 +581,8 @@
     <string name="setting_display_page_message_input_style_desc">Choose between the standard and minimal input bar</string>
     <string name="setting_display_page_message_input_style_standard">Standard</string>
     <string name="setting_display_page_message_input_style_minimal">Minimal</string>
+    <string name="setting_display_page_show_fullscreen_input_button_title">Show fullscreen input button</string>
+    <string name="setting_display_page_show_fullscreen_input_button_desc">Show the fullscreen input button when the input bar is expanded</string>
     <string name="setting_display_page_show_context_stacks_desc">Show context sources (modes, memories, lorebooks) in message toolbar</string>
     <string name="setting_display_page_show_context_stacks_title">Show Context Stacks</string>
     <string name="setting_display_page_show_updates_desc">Show app update notifications</string>

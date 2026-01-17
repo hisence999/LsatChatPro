@@ -231,6 +231,7 @@
   <string name="clear">清除</string>
   <string name="cancel_edit">取消編輯</string>
   <string name="chat_input_placeholder">輸入訊息與AI聊天</string>
+  <string name="chat_input_fullscreen">全螢幕輸入</string>
   <string name="chat_message_tool_call_generic">調用工具 %1$s</string>
   <string name="chat_message_tool_call_label">調用工具 %1$s</string>
   <string name="chat_message_tool_call_skill">調用技能 %1$s</string>
@@ -464,6 +465,8 @@
   <string name="setting_display_page_message_input_style_desc">在標準與極簡輸入欄之間切換</string>
   <string name="setting_display_page_message_input_style_standard">標準</string>
   <string name="setting_display_page_message_input_style_minimal">極簡</string>
+  <string name="setting_display_page_show_fullscreen_input_button_title">顯示全螢幕輸入框按鈕</string>
+  <string name="setting_display_page_show_fullscreen_input_button_desc">輸入欄展開時顯示全螢幕輸入按鈕</string>
   <string name="setting_display_page_show_updates_desc">是否顯示應用更新通知</string>
   <string name="setting_display_page_show_updates_title">顯示更新</string>
   <string name="setting_display_page_show_user_avatar_desc">是否在聊天消息中顯示用戶頭像</string>
