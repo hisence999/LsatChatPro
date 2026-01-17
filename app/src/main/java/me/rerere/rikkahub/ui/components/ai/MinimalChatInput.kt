@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.core.spring
 import androidx.core.net.toUri
 import androidx.compose.foundation.background
@@ -299,7 +300,15 @@ fun MinimalChatInput(
             ) {
                 ChatSuggestionsRow(
                     suggestions = chatSuggestions,
-                    onClickSuggestion = onClickSuggestion
+                    onClickSuggestion = onClickSuggestion,
+                    onLongPressSuggestion = { suggestion ->
+                        haptics.perform(HapticPattern.Pop)
+                        if (isFocused) {
+                            state.insertTextAtCursor(suggestion)
+                        } else {
+                            state.appendText(suggestion)
+                        }
+                    }
                 )
             }
             
@@ -1687,7 +1696,8 @@ private fun MediaFileInputRow(
 private fun ChatSuggestionsRow(
     modifier: Modifier = Modifier,
     suggestions: List<String>,
-    onClickSuggestion: (String) -> Unit
+    onClickSuggestion: (String) -> Unit,
+    onLongPressSuggestion: (String) -> Unit,
 ) {
     val scrollState = rememberScrollState()
     var pressedSuggestionIndex by remember { mutableStateOf<Int?>(null) }
@@ -1766,12 +1776,12 @@ private fun ChatSuggestionsRow(
                             scaleY = scale
                             this.alpha = alpha
                         }
-                        .clickable(
+                        .combinedClickable(
                             interactionSource = interactionSource,
-                            indication = null
-                        ) {
-                                selectedSuggestionIndex = index
-                        }
+                            indication = null,
+                            onClick = { selectedSuggestionIndex = index },
+                            onLongClick = { onLongPressSuggestion(suggestion) },
+                        )
                 ) {
                     Text(
                         text = suggestion,

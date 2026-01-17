@@ -464,7 +464,15 @@ fun ChatInput(
             if (uiMode == ChatInputUiMode.Normal && chatSuggestions.isNotEmpty()) {
                 ChatSuggestionsRow(
                     suggestions = chatSuggestions,
-                    onClickSuggestion = onClickSuggestion
+                    onClickSuggestion = onClickSuggestion,
+                    onLongPressSuggestion = { suggestion ->
+                        haptics.perform(HapticPattern.Pop)
+                        if (isFocused) {
+                            state.insertTextAtCursor(suggestion)
+                        } else {
+                            state.appendText(suggestion)
+                        }
+                    }
                 )
             }
 
@@ -1224,7 +1232,8 @@ private fun MediaFileInputRow(
 private fun ChatSuggestionsRow(
     modifier: Modifier = Modifier,
     suggestions: List<String>,
-    onClickSuggestion: (String) -> Unit
+    onClickSuggestion: (String) -> Unit,
+    onLongPressSuggestion: (String) -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -1317,6 +1326,9 @@ private fun ChatSuggestionsRow(
                                     pressedSuggestionIndex = index
                                     tryAwaitRelease()
                                     pressedSuggestionIndex = null
+                                },
+                                onLongPress = {
+                                    onLongPressSuggestion(suggestion)
                                 },
                                 onTap = {
                                     selectedSuggestionIndex = index
