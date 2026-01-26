@@ -150,7 +150,7 @@ class KeepAliveService : Service() {
             getString(R.string.notification_keep_alive_content_generating_multi, activeCount)
         }
         return NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_statusbar)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(contentText)
             .setOngoing(true)
@@ -164,7 +164,7 @@ class KeepAliveService : Service() {
 
     private fun buildGenerationFinishedNotification(contentText: String): Notification {
         return NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_statusbar)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(contentText)
             .setOngoing(false)
