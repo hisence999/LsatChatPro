@@ -101,100 +101,89 @@ fun ChatMessageAssistantAvatar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Always use assistant avatar when available
-            when {
-                assistant != null -> {
-                    val enableMention = onAvatarLongPress != null
-                    val avatarInteractionSource = remember { MutableInteractionSource() }
-                    val isAvatarPressed by avatarInteractionSource.collectIsPressedAsState()
-                    val avatarScale by animateFloatAsState(
-                        targetValue = if (enableMention && isAvatarPressed) 0.85f else 1f,
-                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
-                        label = "assistant_message_avatar_scale",
-                    )
-                    if (showIcon) {
+            val assistantIdentity = assistant?.takeIf { it.useAssistantAvatar || model == null }
+            val enableMention = assistant != null && onAvatarLongPress != null
+            val avatarInteractionSource = remember { MutableInteractionSource() }
+            val isAvatarPressed by avatarInteractionSource.collectIsPressedAsState()
+            val avatarScale by animateFloatAsState(
+                targetValue = if (enableMention && isAvatarPressed) 0.85f else 1f,
+                animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                label = "assistant_message_avatar_scale",
+            )
+
+            val avatarModifier = Modifier
+                .size(36.dp)
+                .graphicsLayer {
+                    scaleX = avatarScale
+                    scaleY = avatarScale
+                }
+                .combinedClickable(
+                    interactionSource = avatarInteractionSource,
+                    indication = null,
+                    enabled = enableMention,
+                    onClick = {},
+                    onLongClick = {
+                        val safeAssistant = assistant ?: return@combinedClickable
+                        haptics.perform(HapticPattern.Pop)
+                        onAvatarLongPress?.invoke(safeAssistant)
+                    },
+                )
+
+            if (showIcon) {
+                when {
+                    assistantIdentity != null -> {
                         UIAvatar(
-                            name = assistant.name,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .graphicsLayer {
-                                    scaleX = avatarScale
-                                    scaleY = avatarScale
-                                }
-                                .combinedClickable(
-                                    interactionSource = avatarInteractionSource,
-                                    indication = null,
-                                    enabled = enableMention,
-                                    onClick = {},
-                                    onLongClick = {
-                                        haptics.perform(HapticPattern.Pop)
-                                        onAvatarLongPress?.invoke(assistant)
-                                    },
-                                ),
-                            value = assistant.avatar,
+                            name = assistantIdentity.name,
+                            modifier = avatarModifier,
+                            value = assistantIdentity.avatar,
                             loading = loading,
                         )
                     }
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (effectiveDisplay.showModelName) {
+
+                    model != null -> {
+                        AutoAIIcon(
+                            name = model.modelId,
+                            modifier = avatarModifier,
+                            loading = loading,
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                if (effectiveDisplay.showModelName) {
+                    Text(
+                        text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
+                            .substring(0, 5), // HH:mm format
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LocalContentColor.current.copy(alpha = 0.8f),
+                        maxLines = 1,
+                    )
+
+                    when {
+                        assistantIdentity != null -> {
                             Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
-                                    .substring(0, 5), // HH:mm format
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f),
-                                maxLines = 1,
-                            )
-                            Text(
-                                text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
+                                text = assistantIdentity.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                             )
                         }
-                    }
-                }
 
-                model != null -> {
-                    if (showIcon) {
-                        AutoAIIcon(
-                            name = model.modelId,
-                            modifier = Modifier.size(36.dp),
-                            loading = loading
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (effectiveDisplay.showModelName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
-                                    .substring(0, 5), // HH:mm format
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f)
-                            )
+                        model != null -> {
                             Text(
                                 text = model.displayName,
                                 style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
                             )
                         }
-                    }
-                }
 
-                else -> {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (effectiveDisplay.showModelName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalTime().toString()
-                                    .substring(0, 5), // HH:mm format
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f)
-                            )
+                        else -> {
                             Text(
                                 text = stringResource(R.string.assistant_page_default_assistant),
                                 style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
                             )
                         }
                     }
