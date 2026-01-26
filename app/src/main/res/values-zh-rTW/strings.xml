@@ -1008,7 +1008,9 @@
   <string name="assistant_page_background_model">後台模型</string>
   <string name="assistant_page_background_model_desc">用於後台任務（如自動通知）的模型。</string>
   <string name="assistant_page_prefer_built_in_search">優先使用內置搜索</string>
-  <string name="assistant_page_prefer_built_in_search_desc">不支持時將回退到上方選擇的提供商。</string>
+  <string name="assistant_page_prefer_built_in_search_desc">支援時使用內置搜索，否則回退到上方勾選的提供商。</string>
+  <string name="assistant_page_multi_search_title">多線搜索</string>
+  <string name="assistant_page_multi_search_desc">勾選多個提供商將並發搜尋並合併結果（按 URL 去重）。</string>
 
   <string name="assistant_page_tool_results_group_title">歷史工具結果最佳化</string>
   <string name="assistant_page_tool_results_mode_title">歷史工具結果</string>

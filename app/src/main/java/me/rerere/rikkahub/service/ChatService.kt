@@ -1263,18 +1263,14 @@ class ChatService(
                     
                     // Use assistant's searchMode for external tools (only if NOT using built-in)
                     when (val searchMode = assistant.searchMode) {
-                        is AssistantSearchMode.Provider -> {
-                            // Only add external search tools if NOT using built-in search
+                        is AssistantSearchMode.Provider,
+                        is AssistantSearchMode.MultiProvider -> {
                             if (!useBuiltInSearch) {
-                                addAll(createSearchTool(settings, searchMode.index))
+                                addAll(me.rerere.rikkahub.data.ai.tools.SearchTools.createSearchTools(settings, searchMode))
                             }
                         }
-                        is AssistantSearchMode.BuiltIn -> {
-                            // Built-in search is handled via model.tools, no external tool needed
-                        }
-                        is AssistantSearchMode.Off -> {
-                            // No search tools
-                        }
+                        is AssistantSearchMode.BuiltIn -> Unit
+                        is AssistantSearchMode.Off -> Unit
                     }
                     addAll(localTools.getTools(
                         options = assistant.localTools,
@@ -1570,9 +1566,10 @@ class ChatService(
             val seatTools = buildList {
                 // Search tools (external), if enabled and not using built-in.
                 when (val searchMode = seatAssistant.searchMode) {
-                    is AssistantSearchMode.Provider -> {
+                    is AssistantSearchMode.Provider,
+                    is AssistantSearchMode.MultiProvider -> {
                         if (!useBuiltInSearch) {
-                            addAll(createSearchTool(settings, searchMode.index))
+                            addAll(me.rerere.rikkahub.data.ai.tools.SearchTools.createSearchTools(settings, searchMode))
                         }
                     }
                     is AssistantSearchMode.BuiltIn -> Unit

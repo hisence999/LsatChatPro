@@ -593,6 +593,7 @@ fun ChatInput(
                                 model = chatModel,
                                 selectedProviderIndex = when (val mode = assistant.searchMode) {
                                     is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> mode.index
+                                    is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> mode.indices.firstOrNull() ?: -1
                                     else -> -1
                                 },
                                 isBuiltInMode = assistant.searchMode is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn,
@@ -601,7 +602,28 @@ fun ChatInput(
                                     onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))
                                 },
                                 contentColor = if (enableSearch || chatModel?.tools?.contains(BuiltInTools.Search) == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                onlyIcon = true
+                                onlyIcon = true,
+                                selectedProviderIndices = when (val mode = assistant.searchMode) {
+                                    is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> listOf(mode.index)
+                                    is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> mode.indices
+                                    else -> emptyList()
+                                },
+                                onUpdateSearchProviders = { indices ->
+                                    val sanitized = indices
+                                        .asSequence()
+                                        .filter { index -> index >= 0 && index < settings.searchServices.size }
+                                        .distinct()
+                                        .sorted()
+                                        .toList()
+
+                                    val nextMode = when (sanitized.size) {
+                                        0 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Off
+                                        1 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(sanitized.first())
+                                        else -> me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider(sanitized)
+                                    }
+
+                                    onUpdateAssistant(assistant.copy(searchMode = nextMode))
+                                }
                             )
 
                             // Reasoning

@@ -542,12 +542,23 @@ private fun ChatPageContent(
         }
     }
 
-    // Track the last selected search provider index so we can restore it when toggling on
-    var lastProviderIndex by rememberSaveable { mutableStateOf(0) }
+    // Track the last selected external search providers so we can restore them when toggling on
+    var lastExternalProviderIndices by rememberSaveable { mutableStateOf(intArrayOf()) }
 
     LaunchedEffect(currentSearchMode) {
-        if (currentSearchMode is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider) {
-            lastProviderIndex = currentSearchMode.index
+        val indices = when (currentSearchMode) {
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> intArrayOf(currentSearchMode.index)
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> currentSearchMode.indices
+                .asSequence()
+                .distinct()
+                .sorted()
+                .toList()
+                .toIntArray()
+            else -> null
+        }
+
+        if (indices != null && !indices.contentEquals(lastExternalProviderIndices)) {
+            lastExternalProviderIndices = indices
         }
     }
 
@@ -868,11 +879,24 @@ private fun ChatPageContent(
                             if (enableWebSearch) {
                                 vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
                             } else {
-                                // Turn on search - restore last selected provider
+                                // Turn on search - restore last selected external providers
                                 if (setting.searchServices.isNotEmpty()) {
-                                    // Ensure index is valid (in case providers were removed)
-                                    val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
-                                    vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
+                                    val restored = lastExternalProviderIndices
+                                        .asSequence()
+                                        .filter { it >= 0 && it <= setting.searchServices.lastIndex }
+                                        .distinct()
+                                        .sorted()
+                                        .toList()
+                                        .ifEmpty {
+                                            listOf(setting.searchServiceSelected.coerceIn(0, setting.searchServices.lastIndex))
+                                        }
+
+                                    val mode = when (restored.size) {
+                                        0 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Off
+                                        1 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(restored.first())
+                                        else -> me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider(restored)
+                                    }
+                                    vm.updateAssistantSearchMode(mode)
                                 }
                             }
                         },
@@ -1003,11 +1027,24 @@ private fun ChatPageContent(
                             if (enableWebSearch) {
                                 vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
                             } else {
-                                // Turn on search - restore last selected provider
+                                // Turn on search - restore last selected external providers
                                 if (setting.searchServices.isNotEmpty()) {
-                                    // Ensure index is valid (in case providers were removed)
-                                    val validIndex = lastProviderIndex.coerceIn(0, setting.searchServices.lastIndex)
-                                    vm.updateAssistantSearchMode(me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(validIndex))
+                                    val restored = lastExternalProviderIndices
+                                        .asSequence()
+                                        .filter { it >= 0 && it <= setting.searchServices.lastIndex }
+                                        .distinct()
+                                        .sorted()
+                                        .toList()
+                                        .ifEmpty {
+                                            listOf(setting.searchServiceSelected.coerceIn(0, setting.searchServices.lastIndex))
+                                        }
+
+                                    val mode = when (restored.size) {
+                                        0 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Off
+                                        1 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(restored.first())
+                                        else -> me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider(restored)
+                                    }
+                                    vm.updateAssistantSearchMode(mode)
                                 }
                             }
                         },

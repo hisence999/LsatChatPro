@@ -156,6 +156,10 @@ sealed class AssistantSearchMode {
     @Serializable
     @SerialName("provider")
     data class Provider(val index: Int) : AssistantSearchMode()
+
+    @Serializable
+    @SerialName("multi_provider")
+    data class MultiProvider(val indices: List<Int>) : AssistantSearchMode()
 }
 
 @Serializable

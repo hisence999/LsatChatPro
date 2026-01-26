@@ -135,6 +135,7 @@ class ChatVM(
             is me.rerere.rikkahub.data.model.AssistantSearchMode.Off -> false
             is me.rerere.rikkahub.data.model.AssistantSearchMode.BuiltIn -> true
             is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> true
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> true
             null -> false
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)

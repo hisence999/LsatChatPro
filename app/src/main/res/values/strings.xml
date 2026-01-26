@@ -1074,7 +1074,9 @@
     <string name="assistant_page_background_model">Background Model</string>
     <string name="assistant_page_background_model_desc">Model used for background tasks like spontaneous notifications.</string>
     <string name="assistant_page_prefer_built_in_search">Prefer Built-in Search</string>
-    <string name="assistant_page_prefer_built_in_search_desc">Falls back to selected provider above if not supported.</string>
+    <string name="assistant_page_prefer_built_in_search_desc">Uses built-in search when supported, otherwise falls back to providers selected above.</string>
+    <string name="assistant_page_multi_search_title">Multi Search</string>
+    <string name="assistant_page_multi_search_desc">Check multiple providers to search in parallel (URL deduped).</string>
 
     <string name="assistant_page_tool_results_group_title">Historical Tool Result Optimization</string>
     <string name="assistant_page_tool_results_mode_title">Old tool results</string>

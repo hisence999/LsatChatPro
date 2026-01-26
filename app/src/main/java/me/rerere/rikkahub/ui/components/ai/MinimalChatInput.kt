@@ -23,6 +23,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.utils.deleteChatFiles
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
@@ -739,6 +740,7 @@ private fun MinimalPickerContent(
     // Update lastValidProviderIndex when a valid external index is set
     val currentProviderIndex = when (val mode = assistant.searchMode) {
         is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> mode.index
+        is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> mode.indices.firstOrNull() ?: -1
         else -> -1
     }
     LaunchedEffect(currentProviderIndex) {
@@ -1313,7 +1315,8 @@ private fun MinimalPickerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 16.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -1327,19 +1330,34 @@ private fun MinimalPickerContent(
                     enableSearch = enableSearch,
                     settings = settings,
                     model = chatModel,
-                    onToggleSearch = { enabled ->
-                        if (enabled) {
-                            // When turning on, restore the last known valid provider index
-                            onUpdateSearchService(effectiveProviderIndex)
-                        }
-                        onToggleSearch(enabled)
-                    },
+                    onToggleSearch = onToggleSearch,
                     onUpdateSearchService = { index ->
                         // Track this selection
                         lastValidProviderIndex = index
                         onUpdateSearchService(index)
                     },
                     selectedProviderIndex = effectiveProviderIndex,  // Use effective index so selection persists when off
+                    selectedProviderIndices = when (val mode = assistant.searchMode) {
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> listOf(mode.index)
+                        is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> mode.indices
+                        else -> emptyList()
+                    },
+                    onUpdateSearchProviders = { indices ->
+                        val sanitized = indices
+                            .asSequence()
+                            .filter { index -> index >= 0 && index < settings.searchServices.size }
+                            .distinct()
+                            .sorted()
+                            .toList()
+
+                        val nextMode = when (sanitized.size) {
+                            0 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Off
+                            1 -> me.rerere.rikkahub.data.model.AssistantSearchMode.Provider(sanitized.first())
+                            else -> me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider(sanitized)
+                        }
+
+                        onUpdateAssistant(assistant.copy(searchMode = nextMode))
+                    },
                     preferBuiltInSearch = assistant.preferBuiltInSearch,
                     onTogglePreferBuiltInSearch = { enabled ->
                         onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))

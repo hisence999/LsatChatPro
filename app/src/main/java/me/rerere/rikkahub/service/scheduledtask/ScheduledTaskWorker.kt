@@ -415,9 +415,10 @@ class ScheduledTaskWorker(
             val useBuiltInSearch = assistantForRun.preferBuiltInSearch && modelSupportsBuiltIn
 
             when (val sm = assistantForRun.searchMode) {
-                is AssistantSearchMode.Provider -> {
+                is AssistantSearchMode.Provider,
+                is AssistantSearchMode.MultiProvider -> {
                     if (!useBuiltInSearch) {
-                        addAll(SearchTools.createSearchTools(settings, sm.index))
+                        addAll(SearchTools.createSearchTools(settings, sm))
                     }
                 }
 

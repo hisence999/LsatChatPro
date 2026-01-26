@@ -36,6 +36,7 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.GroupChatTemplate
@@ -536,31 +537,45 @@ class SettingsStore(
         .distinctUntilChanged()
         .toMutableStateFlow(scope, Settings.dummy())
 
-    suspend fun update(settings: Settings) {
-        if(settings.init) {
-            Log.w(TAG, "Cannot update dummy settings")
-            return
-        }
-        
-        // Auto-update recently used assistants when assistant changes
-        val settingsToSave = if (settings.assistantId != settingsFlow.value.assistantId && 
-            !settingsFlow.value.init &&
-            settings.assistants.any { it.id == settings.assistantId }) {
-            val updatedList = buildList {
-                add(settings.assistantId)
-                settings.recentlyUsedAssistants
+	    suspend fun update(settings: Settings) {
+	        if(settings.init) {
+	            Log.w(TAG, "Cannot update dummy settings")
+	            return
+	        }
+
+	        val oldSettingsSnapshot = settingsFlow.value
+	        
+	        // Auto-update recently used assistants when assistant changes
+	        val settingsToSave = if (settings.assistantId != oldSettingsSnapshot.assistantId && 
+	            !oldSettingsSnapshot.init &&
+	            settings.assistants.any { it.id == settings.assistantId }) {
+	            val updatedList = buildList {
+	                add(settings.assistantId)
+	                settings.recentlyUsedAssistants
                     .filter { it != settings.assistantId }
                     .take(2)
                     .forEach { add(it) }
             }
             settings.copy(recentlyUsedAssistants = updatedList)
-        } else {
-            settings
-        }
+	        } else {
+	            settings
+	        }
 
-        val finalSettingsToSave = settingsToSave.copy(
-            displaySetting = settingsToSave.displaySetting.coerceForConflicts()
-        )
+	        val settingsToSaveWithReboundSearchIndices = if (!oldSettingsSnapshot.init) {
+	            val oldSearchServiceIds = oldSettingsSnapshot.searchServices.map { it.id }
+	            val newSearchServiceIds = settingsToSave.searchServices.map { it.id }
+	            if (oldSearchServiceIds != newSearchServiceIds) {
+	                settingsToSave.rebindSearchServiceIndices(oldSearchServices = oldSettingsSnapshot.searchServices)
+	            } else {
+	                settingsToSave
+	            }
+	        } else {
+	            settingsToSave
+	        }
+
+	        val finalSettingsToSave = settingsToSaveWithReboundSearchIndices.copy(
+	            displaySetting = settingsToSaveWithReboundSearchIndices.displaySetting.coerceForConflicts()
+	        )
 
         settingsFlow.value = finalSettingsToSave
         dataStore.edit { preferences ->
@@ -728,6 +743,65 @@ data class Settings(
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
         fun dummy() = Settings(init = true)
     }
+}
+
+internal fun Settings.rebindSearchServiceIndices(oldSearchServices: List<SearchServiceOptions>): Settings {
+    if (oldSearchServices.isEmpty() || searchServices.isEmpty()) {
+        val clampedSelected = if (searchServices.isNotEmpty()) {
+            searchServiceSelected.coerceIn(0, searchServices.lastIndex)
+        } else {
+            0
+        }
+        return copy(searchServiceSelected = clampedSelected)
+    }
+
+    val newIndexById = searchServices.withIndex().associate { (index, service) -> service.id to index }
+
+    fun remapIndex(oldIndex: Int): Int? {
+        val id = oldSearchServices.getOrNull(oldIndex)?.id ?: return null
+        return newIndexById[id]
+    }
+
+    fun remapIndices(indices: List<Int>): List<Int> {
+        return indices.asSequence()
+            .mapNotNull { remapIndex(it) }
+            .distinct()
+            .sorted()
+            .toList()
+    }
+
+    val remappedSearchSelected = remapIndex(searchServiceSelected)
+        ?: searchServiceSelected.coerceIn(0, searchServices.lastIndex)
+
+    val reboundAssistants = assistants.map { assistant ->
+        when (val mode = assistant.searchMode) {
+            is AssistantSearchMode.Provider -> {
+                val newIndex = remapIndex(mode.index)
+                when {
+                    newIndex == null -> assistant.copy(searchMode = AssistantSearchMode.Off)
+                    newIndex != mode.index -> assistant.copy(searchMode = AssistantSearchMode.Provider(newIndex))
+                    else -> assistant
+                }
+            }
+
+            is AssistantSearchMode.MultiProvider -> {
+                val remapped = remapIndices(mode.indices)
+                val canonical = when (remapped.size) {
+                    0 -> AssistantSearchMode.Off
+                    1 -> AssistantSearchMode.Provider(remapped.first())
+                    else -> AssistantSearchMode.MultiProvider(remapped)
+                }
+                if (canonical != mode) assistant.copy(searchMode = canonical) else assistant
+            }
+
+            else -> assistant
+        }
+    }
+
+    return copy(
+        assistants = reboundAssistants,
+        searchServiceSelected = remappedSearchSelected,
+    )
 }
 
 /**
@@ -1061,6 +1135,27 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
                 if (mode.index < 0 || mode.index >= searchServices.size) {
                     invalidSearchModeCount++
                     updatedAssistant = updatedAssistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                }
+            }
+            is me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider -> {
+                val sanitized = mode.indices
+                    .asSequence()
+                    .filter { index -> index >= 0 && index < searchServices.size }
+                    .distinct()
+                    .toList()
+
+                updatedAssistant = when {
+                    sanitized.isEmpty() -> {
+                        invalidSearchModeCount++
+                        updatedAssistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.Off)
+                    }
+
+                    sanitized != mode.indices -> {
+                        invalidSearchModeCount++
+                        updatedAssistant.copy(searchMode = me.rerere.rikkahub.data.model.AssistantSearchMode.MultiProvider(sanitized))
+                    }
+
+                    else -> updatedAssistant
                 }
             }
             else -> { /* no change needed */ }

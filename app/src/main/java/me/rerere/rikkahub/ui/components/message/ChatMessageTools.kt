@@ -236,7 +236,12 @@ fun ToolCallItem(
                     }
                 }
                 if(toolName == "scrape_web") {
-                    val url = arguments.jsonObject["url"]?.jsonPrimitiveOrNull?.contentOrNull ?: ""
+                    val url = arguments.jsonObject["url"]?.jsonPrimitiveOrNull?.contentOrNull
+                        ?: arguments.jsonObject["urls"]?.jsonArray
+                            ?.firstOrNull()
+                            ?.jsonPrimitiveOrNull
+                            ?.contentOrNull
+                        ?: ""
                     Text(
                         text = url,
                         style = MaterialTheme.typography.labelSmall,

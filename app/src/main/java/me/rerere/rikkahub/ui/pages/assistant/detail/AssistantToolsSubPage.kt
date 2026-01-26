@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -44,17 +43,14 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.ui.components.ai.McpPickerButton
-import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
-import me.rerere.search.SearchServiceOptions
 import kotlin.uuid.Uuid
 
 /**
- * Tools & Search tab - Combined search, local tools, and MCP settings.
+ * Tools tab - Local tools and MCP settings.
  * Designed with cohesive SettingsGroup pattern.
  */
 @Composable
@@ -77,62 +73,6 @@ fun AssistantToolsSubPage(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // ═══════════════════════════════════════════════════════════════════
-        // SEARCH GROUP
-        // ═══════════════════════════════════════════════════════════════════
-        SettingsGroup(title = stringResource(R.string.search_ability_search)) {
-            // Build options list for Select
-            val currentSearchMode = assistant.searchMode
-            
-            // Create sealed class options for the selector
-            data class SearchOption(val mode: AssistantSearchMode, val displayName: String)
-            
-            val offText = stringResource(R.string.off)
-            val searchOptions = buildList {
-                add(SearchOption(AssistantSearchMode.Off, offText))
-                settings.searchServices.forEachIndexed { index, service ->
-                    val name = SearchServiceOptions.TYPES[service::class] ?: "Provider ${index + 1}"
-                    add(SearchOption(AssistantSearchMode.Provider(index), name))
-                }
-            }
-            
-            val selectedOption = searchOptions.find { option ->
-                when (val mode = option.mode) {
-                    is AssistantSearchMode.Off -> currentSearchMode is AssistantSearchMode.Off || currentSearchMode is AssistantSearchMode.BuiltIn
-                    is AssistantSearchMode.BuiltIn -> currentSearchMode is AssistantSearchMode.BuiltIn
-                    is AssistantSearchMode.Provider -> currentSearchMode is AssistantSearchMode.Provider && currentSearchMode.index == mode.index
-                }
-            } ?: searchOptions.first()
-            
-            SettingGroupItem(
-                title = stringResource(R.string.assistant_page_search_provider_title),
-                subtitle = selectedOption.displayName,
-                trailing = {
-                    Select(
-                        options = searchOptions,
-                        selectedOption = selectedOption,
-                        onOptionSelected = { option ->
-                            onUpdate(assistant.copy(searchMode = option.mode))
-                        },
-                        optionToString = { it.displayName },
-                        modifier = Modifier.width(150.dp)
-                    )
-                }
-            )
-            
-            // Prefer Built-in Search
-            SettingGroupItem(
-                title = stringResource(R.string.assistant_page_prefer_built_in_search),
-                subtitle = stringResource(R.string.assistant_page_prefer_built_in_search_desc),
-                trailing = {
-                    HapticSwitch(
-                        checked = assistant.preferBuiltInSearch,
-                        onCheckedChange = { onUpdate(assistant.copy(preferBuiltInSearch = it)) }
-                    )
-                }
-            )
-        }
-
         // ═══════════════════════════════════════════════════════════════════
         // LOCAL TOOLS GROUP
         // ═══════════════════════════════════════════════════════════════════
