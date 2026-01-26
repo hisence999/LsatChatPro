@@ -357,6 +357,7 @@ private fun SharedTransitionScope.ChatListNormal(
                             onCitationClick = onCitationClick,
                             model = message.modelId?.let { settings.findModelById(it) },
                             assistant = assistantForMessage,
+                            forceUseAssistantAvatar = groupChatTemplateForConversation != null,
                             onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                             loading = loading && isLast,
                             isRecentlyRestored = node.id in recentlyRestoredNodeIds,

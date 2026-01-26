@@ -88,6 +88,7 @@ fun ChatMessageAssistantAvatar(
     loading: Boolean,
     model: Model?,
     assistant: Assistant?,
+    forceUseAssistantAvatar: Boolean = false,
     onAvatarLongPress: ((Assistant) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -101,7 +102,7 @@ fun ChatMessageAssistantAvatar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val assistantIdentity = assistant?.takeIf { it.useAssistantAvatar || model == null }
+            val assistantIdentity = assistant?.takeIf { forceUseAssistantAvatar || it.useAssistantAvatar || model == null }
             val enableMention = assistant != null && onAvatarLongPress != null
             val avatarInteractionSource = remember { MutableInteractionSource() }
             val isAvatarPressed by avatarInteractionSource.collectIsPressedAsState()
