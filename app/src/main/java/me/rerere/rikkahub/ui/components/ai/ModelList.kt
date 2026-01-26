@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -26,6 +27,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -40,6 +44,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -50,6 +55,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -210,7 +216,7 @@ fun ModelSelector(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.85f)
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -612,8 +618,11 @@ internal fun ColumnScope.ModelList(
     }
 
     // 供应商Badge行
+    val useSingleRowProviderBadges = providers.size < 4
     val providerBadgeListState = rememberLazyListState()
-    LaunchedEffect(lazyListState) {
+    val providerBadgeScrollState = rememberScrollState()
+    val providerBadgeRequesters = remember(providers) { providers.associate { it.id to BringIntoViewRequester() } }
+    LaunchedEffect(lazyListState, useSingleRowProviderBadges, providers, providerPositions) {
         // 当LazyColumn滚动时，LazyRow也跟随滚动
         snapshotFlow { lazyListState.firstVisibleItemIndex }
             .distinctUntilChanged()
@@ -623,42 +632,128 @@ internal fun ColumnScope.ModelList(
                     val currentProvider = providerPositions.entries.findLast {
                         index > it.value
                     }
-                    val index = providers.indexOfFirst { it.id == currentProvider?.key }
-                    if (index >= 0) {
-                        providerBadgeListState.animateScrollToItem(index)
-                    } else {
+                    val currentProviderId = currentProvider?.key
+                    if (currentProviderId != null) {
+                        if (useSingleRowProviderBadges) {
+                            val providerIndex = providers.indexOfFirst { it.id == currentProviderId }
+                            if (providerIndex >= 0) {
+                                providerBadgeListState.animateScrollToItem(providerIndex)
+                            } else {
+                                providerBadgeListState.requestScrollToItem(0)
+                            }
+                        } else {
+                            providerBadgeRequesters[currentProviderId]?.bringIntoView()
+                        }
+                    } else if (useSingleRowProviderBadges) {
                         providerBadgeListState.requestScrollToItem(0)
+                    } else {
+                        providerBadgeScrollState.scrollTo(0)
                     }
                 } else {
-                    providerBadgeListState.requestScrollToItem(0)
+                    if (useSingleRowProviderBadges) {
+                        providerBadgeListState.requestScrollToItem(0)
+                    } else {
+                        providerBadgeScrollState.scrollTo(0)
+                    }
                 }
             }
     }
     if (providers.isNotEmpty()) {
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            state = providerBadgeListState
-        ) {
-            items(providers) { provider ->
-                AssistChip(
-                    onClick = {
-                        val position = providerPositions[provider.id] ?: 0
-                        coroutineScope.launch {
-                            lazyListState.animateScrollToItem(position)
+        if (useSingleRowProviderBadges) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                state = providerBadgeListState
+            ) {
+                items(
+                    items = providers,
+                    key = { it.id }
+                ) { provider ->
+                    AssistChip(
+                        onClick = {
+                            val position = providerPositions[provider.id] ?: 0
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(position)
+                            }
+                        },
+                        label = {
+                            Text(provider.name)
+                        },
+                        leadingIcon = {
+                            ProviderIcon(
+                                provider = provider,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                    )
+                }
+            }
+        } else {
+            val providerBadgeRow1 = remember(providers) { providers.filterIndexed { index, _ -> index % 2 == 0 } }
+            val providerBadgeRow2 = remember(providers) { providers.filterIndexed { index, _ -> index % 2 == 1 } }
+            CompositionLocalProvider(
+                LocalMinimumInteractiveComponentSize provides 0.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(providerBadgeScrollState)
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    ) {
+                        providerBadgeRow1.fastForEach { provider ->
+                            AssistChip(
+                                modifier = Modifier.bringIntoViewRequester(providerBadgeRequesters.getValue(provider.id)),
+                                onClick = {
+                                    val position = providerPositions[provider.id] ?: 0
+                                    coroutineScope.launch {
+                                        lazyListState.animateScrollToItem(position)
+                                    }
+                                },
+                                label = {
+                                    Text(provider.name)
+                                },
+                                leadingIcon = {
+                                    ProviderIcon(
+                                        provider = provider,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                            )
                         }
-                    },
-                    label = {
-                        Text(provider.name)
-                    },
-                    leadingIcon = {
-                        ProviderIcon(
-                            provider = provider,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    },
-                )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    ) {
+                        providerBadgeRow2.fastForEach { provider ->
+                            AssistChip(
+                                modifier = Modifier.bringIntoViewRequester(providerBadgeRequesters.getValue(provider.id)),
+                                onClick = {
+                                    val position = providerPositions[provider.id] ?: 0
+                                    coroutineScope.launch {
+                                        lazyListState.animateScrollToItem(position)
+                                    }
+                                },
+                                label = {
+                                    Text(provider.name)
+                                },
+                                leadingIcon = {
+                                    ProviderIcon(
+                                        provider = provider,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
