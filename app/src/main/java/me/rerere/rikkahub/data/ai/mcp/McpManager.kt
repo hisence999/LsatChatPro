@@ -23,6 +23,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.datastore.getMcpToolCallTimeoutSeconds
 import me.rerere.rikkahub.data.ai.mcp.transport.SseClientTransport
 import me.rerere.rikkahub.data.ai.mcp.transport.StreamableHttpClientTransport
 import me.rerere.rikkahub.data.model.Assistant
@@ -103,6 +104,9 @@ class McpManager(
     }
 
     suspend fun callToolForAssistant(assistant: Assistant, toolName: String, args: JsonObject): JsonElement {
+        val settingsSnapshot = settingsStore.settingsFlow.value
+        val timeoutSeconds = settingsSnapshot.getMcpToolCallTimeoutSeconds()
+
         val tool = getAvailableToolsForAssistant(assistant).find { it.name == toolName }
             ?: return JsonPrimitive("Failed to execute tool, because no such tool")
 
@@ -122,7 +126,7 @@ class McpManager(
                 name = tool.name,
                 arguments = args,
             ),
-            options = RequestOptions(timeout = 60.seconds),
+            options = RequestOptions(timeout = timeoutSeconds.seconds),
             compatibility = true
         )
         require(result != null) {

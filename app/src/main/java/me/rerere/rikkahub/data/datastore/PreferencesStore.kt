@@ -148,6 +148,7 @@ class SettingsStore(
 
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
+        val MCP_TOOL_CALL_TIMEOUT_SECONDS = intPreferencesKey("mcp_tool_call_timeout_seconds")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -378,6 +379,7 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
+                mcpToolCallTimeoutSeconds = (preferences[MCP_TOOL_CALL_TIMEOUT_SECONDS] ?: 60).coerceAtLeast(1),
                 mcpServers = preferences[MCP_SERVERS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -574,7 +576,8 @@ class SettingsStore(
 	        }
 
 	        val finalSettingsToSave = settingsToSaveWithReboundSearchIndices.copy(
-	            displaySetting = settingsToSaveWithReboundSearchIndices.displaySetting.coerceForConflicts()
+	            displaySetting = settingsToSaveWithReboundSearchIndices.displaySetting.coerceForConflicts(),
+                mcpToolCallTimeoutSeconds = settingsToSaveWithReboundSearchIndices.mcpToolCallTimeoutSeconds.coerceAtLeast(1),
 	        )
 
         settingsFlow.value = finalSettingsToSave
@@ -616,6 +619,7 @@ class SettingsStore(
             preferences[SEARCH_SELECTED] = finalSettingsToSave.searchServiceSelected.coerceIn(0, finalSettingsToSave.searchServices.size - 1)
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(finalSettingsToSave.mcpServers)
+            preferences[MCP_TOOL_CALL_TIMEOUT_SECONDS] = finalSettingsToSave.mcpToolCallTimeoutSeconds.coerceAtLeast(1)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.webDavConfig)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(finalSettingsToSave.ttsProviders)
             finalSettingsToSave.selectedTTSProviderId?.let {
@@ -716,6 +720,7 @@ data class Settings(
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
+    val mcpToolCallTimeoutSeconds: Int = 60,
     val mcpServers: List<McpServerConfig> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
@@ -966,6 +971,10 @@ fun Settings.getEffectiveWorkspaceRootTreeUri(conversationId: Uuid): String? {
 
 fun Settings.hasConversationWorkspaceRoot(conversationId: Uuid): Boolean {
     return getConversationWorkspaceRootTreeUri(conversationId) != null
+}
+
+fun Settings.getMcpToolCallTimeoutSeconds(): Int {
+    return mcpToolCallTimeoutSeconds.coerceAtLeast(1)
 }
 
 /**

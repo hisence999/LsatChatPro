@@ -20,6 +20,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
@@ -32,17 +33,20 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import me.rerere.rikkahub.data.datastore.MessageInputStyle
+import me.rerere.rikkahub.data.datastore.getMcpToolCallTimeoutSeconds
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
@@ -380,6 +384,36 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showContextStacks = it))
                                 }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_mcp_tool_call_timeout_title),
+                        subtitle = stringResource(R.string.setting_display_page_mcp_tool_call_timeout_desc),
+                        trailing = {
+                            var timeoutText by remember(settings.getMcpToolCallTimeoutSeconds()) {
+                                mutableStateOf(settings.getMcpToolCallTimeoutSeconds().toString())
+                            }
+
+                            OutlinedTextField(
+                                value = timeoutText,
+                                onValueChange = { value ->
+                                    val filtered = value.filter { it.isDigit() }
+                                    val parsed = filtered.toIntOrNull()
+                                    val safe = parsed?.coerceAtLeast(1)
+
+                                    timeoutText = (safe ?: filtered).toString()
+
+                                    if (safe != null) {
+                                        vm.updateSettings { current ->
+                                            if (current.mcpToolCallTimeoutSeconds == safe) current
+                                            else current.copy(mcpToolCallTimeoutSeconds = safe)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.widthIn(min = 80.dp, max = 120.dp),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
                         }
                     )

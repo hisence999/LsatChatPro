@@ -585,6 +585,8 @@
     <string name="setting_display_page_show_fullscreen_input_button_desc">Show the fullscreen input button when the input bar is expanded</string>
     <string name="setting_display_page_show_context_stacks_desc">Show context sources (modes, memories, lorebooks) in message toolbar</string>
     <string name="setting_display_page_show_context_stacks_title">Show Context Stacks</string>
+    <string name="setting_display_page_mcp_tool_call_timeout_title">MCP Tool Call Timeout</string>
+    <string name="setting_display_page_mcp_tool_call_timeout_desc">Unit: seconds</string>
     <string name="setting_display_page_show_updates_desc">Show app update notifications</string>
     <string name="setting_display_page_show_updates_title">Show Updates</string>
     <string name="setting_display_page_show_user_avatar_desc">Show user avatar in chat messages</string>

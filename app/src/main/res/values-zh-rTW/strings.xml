@@ -1338,6 +1338,8 @@
   <!-- Display -->
   <string name="setting_display_page_show_context_stacks_title">顯示上下文堆疊</string>
   <string name="setting_display_page_show_context_stacks_desc">在消息工具列顯示上下文來源（模式、記憶、世界書）</string>
+  <string name="setting_display_page_mcp_tool_call_timeout_title">MCP工具調用逾時時間</string>
+  <string name="setting_display_page_mcp_tool_call_timeout_desc">單位：秒</string>
   <string name="setting_display_page_show_assistant_avatar_title">顯示助手頭像</string>
   <string name="setting_display_page_show_assistant_avatar_desc">在消息前顯示助手的頭像</string>
 
