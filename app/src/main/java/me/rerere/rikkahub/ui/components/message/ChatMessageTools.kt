@@ -43,10 +43,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkRemove
 import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -59,11 +62,9 @@ import me.rerere.highlight.HighlightText
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.repository.MemoryRepository
-import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
-import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.JsonInstantPretty
@@ -460,54 +461,123 @@ private fun ToolCallPreviewSheet(
                                 }
                             }
                         }
-                        FormItem(
-                            label = {
+                        val clipboardManager = LocalClipboardManager.current
+
+                        val toolCallLabel = when (toolName) {
+                            "read_skill_file" -> {
+                                val name =
+                                    arguments.jsonObject["skill_name"]?.jsonPrimitiveOrNull?.contentOrNull
+                                        ?: arguments.jsonObject["skill_id"]?.jsonPrimitiveOrNull?.contentOrNull
+                                if (name.isNullOrBlank()) {
+                                    stringResource(R.string.chat_message_tool_call_label, toolName)
+                                } else {
+                                    stringResource(R.string.chat_message_tool_call_skill, name)
+                                }
+                            }
+
+                            "run_skill_script" -> {
+                                val name = arguments.jsonObject["path"]?.jsonPrimitiveOrNull?.contentOrNull
+                                    ?.replace('\\', '/')
+                                    ?.substringAfterLast('/')
+                                    .orEmpty()
+                                if (name.isBlank()) {
+                                    stringResource(R.string.chat_message_tool_run_script_generic)
+                                } else {
+                                    stringResource(R.string.chat_message_tool_run_script, name)
+                                }
+                            }
+
+                            else -> stringResource(R.string.chat_message_tool_call_label, toolName)
+                        }
+
+                        val argumentsJson = remember(arguments) {
+                            JsonInstantPretty.encodeToString(arguments)
+                        }
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    when (toolName) {
-                                        "read_skill_file" -> {
-                                            val name =
-                                                arguments.jsonObject["skill_name"]?.jsonPrimitiveOrNull?.contentOrNull
-                                                    ?: arguments.jsonObject["skill_id"]?.jsonPrimitiveOrNull?.contentOrNull
-                                            if (name.isNullOrBlank()) {
-                                                stringResource(R.string.chat_message_tool_call_label, toolName)
-                                            } else {
-                                                stringResource(R.string.chat_message_tool_call_skill, name)
-                                            }
-                                        }
-
-                                        "run_skill_script" -> {
-                                            val name = arguments.jsonObject["path"]?.jsonPrimitiveOrNull?.contentOrNull
-                                                ?.replace('\\', '/')
-                                                ?.substringAfterLast('/')
-                                                .orEmpty()
-                                            if (name.isBlank()) {
-                                                stringResource(R.string.chat_message_tool_run_script_generic)
-                                            } else {
-                                                stringResource(R.string.chat_message_tool_run_script, name)
-                                            }
-                                        }
-
-                                        else -> stringResource(R.string.chat_message_tool_call_label, toolName)
+                                    text = toolCallLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                IconButton(
+                                    modifier = Modifier.size(24.dp),
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(argumentsJson))
                                     }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ContentCopy,
+                                        contentDescription = stringResource(R.string.copy),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                HighlightText(
+                                    code = argumentsJson,
+                                    language = "json",
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(12.dp)
                                 )
                             }
-                        ) {
-                            HighlightCodeBlock(
-                                code = JsonInstantPretty.encodeToString(arguments),
-                                language = "json",
-                                style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
-                            )
                         }
-                        FormItem(
-                            label = {
-                                Text(stringResource(R.string.chat_message_tool_call_result))
-                            }
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            HighlightCodeBlock(
-                                code = JsonInstantPretty.encodeToString(content),
-                                language = "json",
-                                style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
-                            )
+                            val contentJson = remember(content) {
+                                JsonInstantPretty.encodeToString(content)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.chat_message_tool_call_result),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                IconButton(
+                                    modifier = Modifier.size(24.dp),
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(contentJson))
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ContentCopy,
+                                        contentDescription = stringResource(R.string.copy),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                HighlightText(
+                                    code = contentJson,
+                                    language = "json",
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
                 }
