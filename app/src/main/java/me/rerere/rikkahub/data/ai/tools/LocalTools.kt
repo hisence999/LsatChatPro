@@ -40,6 +40,10 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("workspace_files")
     data object WorkspaceFiles : LocalToolOption()
+
+    @Serializable
+    @SerialName("lorebooks_editor")
+    data object LorebooksEditor : LocalToolOption()
 }
 
 class LocalTools(private val context: Context) {

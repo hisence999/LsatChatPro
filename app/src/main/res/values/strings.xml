@@ -164,6 +164,8 @@
     <string name="assistant_page_local_tools_device_control_subtitle">Notifications, apps, alarms, reminders</string>
     <string name="assistant_page_local_tools_workspace_files_title">Workspace Files</string>
     <string name="assistant_page_local_tools_workspace_files_desc">Allow assistant to read/write files in the current conversation workspace. Requires workspace root permission.</string>
+    <string name="assistant_page_local_tools_lorebooks_editor_title">Lorebooks Editor</string>
+    <string name="assistant_page_local_tools_lorebooks_editor_desc">Allow assistant to create/update/delete entries in enabled lorebooks (undoable via history).</string>
     <string name="assistant_page_manage_memory">Manage Memory (%d)</string>
     <string name="assistant_page_manage_memory_title">Manage Memory</string>
     <string name="assistant_page_memory_pinned_badge">Pinned</string>

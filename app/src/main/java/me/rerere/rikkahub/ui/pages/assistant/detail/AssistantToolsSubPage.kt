@@ -140,6 +140,25 @@ fun AssistantToolsSubPage(
                     )
                 }
             )
+
+            // Lorebooks Editor
+            SettingGroupItem(
+                title = stringResource(R.string.assistant_page_local_tools_lorebooks_editor_title),
+                subtitle = stringResource(R.string.assistant_page_local_tools_lorebooks_editor_desc),
+                trailing = {
+                    HapticSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.LorebooksEditor),
+                        onCheckedChange = { enabled ->
+                            val newLocalTools = if (enabled) {
+                                assistant.localTools + LocalToolOption.LorebooksEditor
+                            } else {
+                                assistant.localTools - LocalToolOption.LorebooksEditor
+                            }
+                            onUpdate(assistant.copy(localTools = newLocalTools))
+                        }
+                    )
+                }
+            )
              
             // Device Control
             SettingGroupItem(

@@ -1173,7 +1173,8 @@ class ChatService(
 
             // Check if model supports tools when external tools are configured
             val assistant = settings.getCurrentAssistant()
-            val hasEnabledLorebooksForAssistant = settings.lorebooks.any { lorebook ->
+            val lorebooksEditorEnabled = assistant.localTools.contains(LocalToolOption.LorebooksEditor)
+            val hasEnabledLorebooksForAssistant = lorebooksEditorEnabled && settings.lorebooks.any { lorebook ->
                 lorebook.enabled && assistant.enabledLorebookIds.contains(lorebook.id)
             }
             val hasToolsConfigured =
