@@ -1363,6 +1363,13 @@
     <string name="lorebook_detail_no_entries">No entries yet</string>
     <string name="lorebook_detail_add_entry_hint">Add entries to inject prompts when triggered</string>
     <string name="lorebook_edit">Edit Lorebook</string>
+    <string name="lorebook_history">History</string>
+    <string name="lorebook_history_title">Lorebook History</string>
+    <string name="lorebook_history_undo_last_tool_change">Undo last tool change</string>
+    <string name="lorebook_history_empty">No tool history yet</string>
+    <string name="lorebook_history_undone">Undone</string>
+    <string name="lorebook_history_undo_success">Undone</string>
+    <string name="lorebook_history_undo_failed">Failed to undo</string>
     <string name="lorebook_entry_unnamed">Unnamed Entry</string>
     <string name="lorebook_entry_add">Add Entry</string>
     <string name="lorebook_entry_edit">Edit Entry</string>

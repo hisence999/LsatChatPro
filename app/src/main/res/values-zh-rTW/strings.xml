@@ -1291,6 +1291,13 @@
   <string name="lorebooks_page_cover">封面圖片</string>
   <string name="lorebooks_page_cover_hint">點擊選擇圖片或表情</string>
   <string name="lorebook_edit">編輯世界書</string>
+  <string name="lorebook_history">歷史</string>
+  <string name="lorebook_history_title">世界書歷史</string>
+  <string name="lorebook_history_undo_last_tool_change">撤銷最近一次工具改動</string>
+  <string name="lorebook_history_empty">還沒有工具歷史</string>
+  <string name="lorebook_history_undone">已撤銷</string>
+  <string name="lorebook_history_undo_success">已撤銷</string>
+  <string name="lorebook_history_undo_failed">撤銷失敗</string>
   <string name="lorebook_detail_not_found">未找到世界書</string>
   <string name="lorebook_detail_no_entries">還沒有條目</string>
   <string name="lorebook_detail_add_entry_hint">添加條目，在觸發時注入提示內容</string>

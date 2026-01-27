@@ -96,6 +96,10 @@ val dataSourceModule = module {
         get<AppDatabase>().dailyActivityDao()
     }
 
+    single {
+        get<AppDatabase>().lorebookEntryRevisionDao()
+    }
+
     single { McpManager(settingsStore = get(), appScope = get()) }
 
     single {

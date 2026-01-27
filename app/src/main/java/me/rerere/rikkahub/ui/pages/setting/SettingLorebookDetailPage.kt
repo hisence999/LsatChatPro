@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -16,10 +17,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +38,8 @@ import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material.icons.rounded.Search
@@ -108,6 +113,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
+import me.rerere.rikkahub.data.repository.LorebookEntryRevisionRepository
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.LaunchedEffect
@@ -128,7 +134,11 @@ fun SettingLorebookDetailPage(
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val embeddingService: EmbeddingService = koinInject()
+    val revisionRepo: LorebookEntryRevisionRepository = koinInject()
     val scope = rememberCoroutineScope()
+    val revisions by revisionRepo
+        .observeRecentByLorebook(id, LorebookEntryRevisionRepository.KEEP_LATEST_PER_LOREBOOK)
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     
     var showAddEntrySheet by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<LorebookEntry?>(null) }
@@ -137,6 +147,7 @@ fun SettingLorebookDetailPage(
     var pendingExportFormat by remember { mutableStateOf("") }
     var pendingExportContent by remember { mutableStateOf("") }
     var showAssistantToggleSheet by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
     
     // Search state
     var searchQuery by remember { mutableStateOf("") }
@@ -259,6 +270,14 @@ fun SettingLorebookDetailPage(
                         }
                     ) {
                         Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit))
+                    }
+                    IconButton(
+                        onClick = {
+                            showHistorySheet = true
+                            haptics.perform(HapticPattern.Tick)
+                        }
+                    ) {
+                        Icon(Icons.Rounded.History, contentDescription = stringResource(R.string.lorebook_history))
                     }
                     Box {
                         IconButton(
@@ -573,6 +592,158 @@ fun SettingLorebookDetailPage(
             },
             onDismiss = { showAssistantToggleSheet = false }
         )
+    }
+
+    // History Sheet (tool changes only)
+    if (showHistorySheet) {
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showHistorySheet = false },
+            sheetState = sheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.lorebook_history_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            when (revisionRepo.undo(id)) {
+                                is LorebookEntryRevisionRepository.UndoResult.Success -> {
+                                    haptics.perform(HapticPattern.Success)
+                                    toaster.show(
+                                        context.getString(R.string.lorebook_history_undo_success),
+                                        me.rerere.rikkahub.ui.components.ui.ToastType.Success,
+                                    )
+                                }
+
+                                is LorebookEntryRevisionRepository.UndoResult.Failure -> {
+                                    haptics.perform(HapticPattern.Error)
+                                    toaster.show(
+                                        context.getString(R.string.lorebook_history_undo_failed),
+                                        me.rerere.rikkahub.ui.components.ui.ToastType.Error,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    enabled = revisions.any { it.undoneAt == null },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.lorebook_history_undo_last_tool_change))
+                }
+
+                if (revisions.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.lorebook_history_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        textAlign = TextAlign.Center,
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 520.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                    ) {
+                        items(revisions, key = { it.id }) { revision ->
+                            val actionLabel = when (revision.action) {
+                                "create" -> stringResource(R.string.add)
+                                "update" -> stringResource(R.string.edit)
+                                "delete" -> stringResource(R.string.delete)
+                                else -> revision.action
+                            }
+                            val timeLabel = DateUtils.getRelativeTimeSpanString(
+                                revision.createdAt,
+                                System.currentTimeMillis(),
+                                DateUtils.MINUTE_IN_MILLIS
+                            ).toString()
+
+                            ListItem(
+                                leadingContent = {
+                                    Icon(
+                                        imageVector = when (revision.action) {
+                                            "create" -> Icons.Rounded.Add
+                                            "update" -> Icons.Rounded.Edit
+                                            "delete" -> Icons.Rounded.Delete
+                                            else -> Icons.Rounded.History
+                                        },
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                headlineContent = {
+                                    Text(
+                                        text = "$actionLabel: ${revision.entryTitle.ifBlank { context.getString(R.string.lorebook_entry_unnamed) }}",
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = timeLabel,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                trailingContent = {
+                                    if (revision.undoneAt == null) {
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    when (revisionRepo.undo(id, revision.id)) {
+                                                        is LorebookEntryRevisionRepository.UndoResult.Success -> {
+                                                            haptics.perform(HapticPattern.Success)
+                                                            toaster.show(
+                                                                context.getString(R.string.lorebook_history_undo_success),
+                                                                me.rerere.rikkahub.ui.components.ui.ToastType.Success,
+                                                            )
+                                                        }
+
+                                                        is LorebookEntryRevisionRepository.UndoResult.Failure -> {
+                                                            haptics.perform(HapticPattern.Error)
+                                                            toaster.show(
+                                                                context.getString(R.string.lorebook_history_undo_failed),
+                                                                me.rerere.rikkahub.ui.components.ui.ToastType.Error,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Text(stringResource(R.string.undo))
+                                        }
+                                    } else {
+                                        Text(
+                                            text = stringResource(R.string.lorebook_history_undone),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.labelMedium,
+                                        )
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
     }
 }
 

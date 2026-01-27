@@ -74,6 +74,8 @@ import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
 import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.rag.EmbeddingService
+import me.rerere.rikkahub.data.ai.tools.LorebookTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.SkillScriptRunner
@@ -108,6 +110,7 @@ import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.repository.LorebookEntryRevisionRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import me.rerere.rikkahub.utils.JsonInstant
@@ -161,6 +164,8 @@ class ChatService(
     private val requestLogManager: AIRequestLogManager,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
+    private val embeddingService: EmbeddingService,
+    private val lorebookEntryRevisionRepository: LorebookEntryRevisionRepository,
     private val localTools: LocalTools,
     private val okHttpClient: OkHttpClient,
     val mcpManager: McpManager,
@@ -1168,11 +1173,15 @@ class ChatService(
 
             // Check if model supports tools when external tools are configured
             val assistant = settings.getCurrentAssistant()
+            val hasEnabledLorebooksForAssistant = settings.lorebooks.any { lorebook ->
+                lorebook.enabled && assistant.enabledLorebookIds.contains(lorebook.id)
+            }
             val hasToolsConfigured =
                 (assistant.searchMode !is AssistantSearchMode.Off) ||
                     assistant.localTools.isNotEmpty() ||
                     assistant.enabledSkillIds.isNotEmpty() ||
-                    mcpManager.getAllAvailableTools().isNotEmpty()
+                    mcpManager.getAllAvailableTools().isNotEmpty() ||
+                    hasEnabledLorebooksForAssistant
             if (hasToolsConfigured && !model.abilities.contains(ModelAbility.TOOL)) {
                 _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
             }
@@ -1277,6 +1286,18 @@ class ChatService(
                         assistantId = assistant.id,
                         conversationId = conversation.id
                     ))
+                    if (hasEnabledLorebooksForAssistant) {
+                        addAll(
+                            LorebookTools.create(
+                                assistant = assistant,
+                                conversationId = conversation.id,
+                                settingsSnapshot = settings,
+                                settingsStore = settingsStore,
+                                embeddingService = embeddingService,
+                                revisionRepo = lorebookEntryRevisionRepository,
+                            )
+                        )
+                    }
                     val hasWorkspaceFiles = assistant.localTools.contains(LocalToolOption.WorkspaceFiles)
                     if (hasWorkspaceFiles) {
                         addAll(createWorkspaceFileTools(conversationId = conversation.id, settingsSnapshot = settings))
