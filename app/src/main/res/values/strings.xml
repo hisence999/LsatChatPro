@@ -603,6 +603,8 @@
     <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
     <string name="setting_display_page_font_style_normal">Normal</string>
     <string name="setting_display_page_font_style_title">Font Style</string>
+    <string name="setting_display_page_fonts_title">Fonts</string>
+    <string name="setting_display_page_fonts_desc">Customize fonts for headers, content, and code</string>
     <string name="setting_display_page_rp_optimizations_desc">Custom text styling for roleplay patterns</string>
     <string name="setting_display_page_rp_optimizations_title">RP Optimizations</string>
     <string name="setting_display_page_section_advanced">Advanced</string>

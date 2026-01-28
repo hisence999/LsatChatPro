@@ -514,6 +514,8 @@
   <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
   <string name="setting_display_page_font_style_normal">普通</string>
   <string name="setting_display_page_font_style_title">字体风格</string>
+  <string name="setting_display_page_fonts_title">字体</string>
+  <string name="setting_display_page_fonts_desc">自定义标题、正文和代码的字体</string>
   <string name="setting_display_page_rp_optimizations_desc">为角色扮演模式提供自定义文本样式</string>
   <string name="setting_display_page_rp_optimizations_title">RP 优化</string>
   <string name="setting_display_page_section_advanced">高级</string>

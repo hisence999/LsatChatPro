@@ -86,6 +86,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var amoledDarkMode by rememberAmoledDarkMode()
     val haptics = rememberPremiumHaptics()
+    val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
@@ -126,8 +127,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
         ) {
             // Theme Settings
             item {
-                var useExpressiveFont by me.rerere.rikkahub.ui.hooks.rememberExpressiveFont()
-                
                 SettingsGroup(
                     title = stringResource(R.string.setting_page_theme_setting)
                 ) {
@@ -144,18 +143,9 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
-                        title = stringResource(R.string.setting_display_page_font_style_title),
-                        subtitle = if (useExpressiveFont) {
-                            stringResource(R.string.setting_display_page_font_style_expressive)
-                        } else {
-                            stringResource(R.string.setting_display_page_font_style_normal)
-                        },
-                        trailing = {
-                            HapticSwitch(
-                                checked = useExpressiveFont,
-                                onCheckedChange = { useExpressiveFont = it }
-                            )
-                        }
+                        title = stringResource(R.string.setting_display_page_fonts_title),
+                        subtitle = stringResource(R.string.setting_display_page_fonts_desc),
+                        onClick = { navController.navigate(me.rerere.rikkahub.Screen.SettingFonts) }
                     )
                 }
             }
@@ -682,7 +672,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 
             // Advanced Settings (RP Optimizations & Font Size)
             item {
-                val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
                 SettingsGroup(
                     title = stringResource(R.string.setting_display_page_section_advanced)
                 ) {
