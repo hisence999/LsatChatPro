@@ -106,6 +106,14 @@ fun AssistantUISubPage(
             )
 
             TriStateSettingItem(
+                title = stringResource(R.string.setting_display_page_show_model_name_title),
+                subtitle = stringResource(R.string.setting_display_page_show_model_name_desc),
+                value = uiSettings.showAssistantName,
+                globalValue = settings.displaySetting.showModelName,
+                onValueChange = { updateUI(uiSettings.copy(showAssistantName = it)) }
+            )
+
+            TriStateSettingItem(
                 title = stringResource(R.string.setting_display_page_show_token_usage_title),
                 subtitle = stringResource(R.string.setting_display_page_show_token_usage_desc),
                 value = uiSettings.showTokenUsage,

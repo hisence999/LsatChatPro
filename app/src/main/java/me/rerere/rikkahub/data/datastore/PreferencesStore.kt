@@ -986,6 +986,7 @@ fun Settings.getEffectiveDisplaySetting(assistant: Assistant? = null): DisplaySe
     return displaySetting.copy(
         showUserAvatar = ui.showUserAvatar ?: displaySetting.showUserAvatar,
         showModelIcon = ui.showAssistantAvatar ?: displaySetting.showModelIcon,
+        showModelName = ui.showAssistantName ?: displaySetting.showModelName,
         showTokenUsage = ui.showTokenUsage ?: displaySetting.showTokenUsage,
         autoCloseThinking = ui.autoCloseThinking ?: displaySetting.autoCloseThinking,
         showMessageJumper = ui.showMessageJumper ?: displaySetting.showMessageJumper,

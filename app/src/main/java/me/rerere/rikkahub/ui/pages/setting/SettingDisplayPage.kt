@@ -313,6 +313,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_model_name_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_model_name_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.showModelName,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showModelName = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_show_token_usage_title),
                         subtitle = stringResource(R.string.setting_display_page_show_token_usage_desc),
                         trailing = {

@@ -575,8 +575,8 @@
     <string name="setting_display_page_show_message_jumper_title">Message Jumper</string>
     <string name="setting_display_page_message_jumper_position_title">Jumper Position</string>
     <string name="setting_display_page_message_jumper_position_desc">Move jumper to left side</string>
-    <string name="setting_display_page_show_model_name_desc">Show model name in chat messages</string>
-    <string name="setting_display_page_show_model_name_title">Show Model Name</string>
+    <string name="setting_display_page_show_model_name_desc">Show assistant name and time before messages</string>
+    <string name="setting_display_page_show_model_name_title">Show Assistant Name</string>
     <string name="setting_display_page_show_token_usage_desc">Show token statistics below AI responses</string>
     <string name="setting_display_page_show_token_usage_title">Show Token Statistics</string>
     <string name="setting_display_page_message_input_style_title">Message Input Style</string>

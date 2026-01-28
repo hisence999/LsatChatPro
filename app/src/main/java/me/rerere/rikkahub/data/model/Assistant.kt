@@ -27,6 +27,7 @@ enum class ToolResultHistoryMode {
 data class AssistantUISettings(
     val showUserAvatar: Boolean? = null,
     val showAssistantAvatar: Boolean? = null,
+    val showAssistantName: Boolean? = null,
     val showTokenUsage: Boolean? = null,
     val autoCloseThinking: Boolean? = null,
     val showMessageJumper: Boolean? = null,

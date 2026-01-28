@@ -457,8 +457,8 @@
   <string name="setting_display_page_notification_message_generated_desc">當應用程式不在前景時，若產生新訊息則顯示通知</string>
   <string name="setting_display_page_show_message_jumper_desc">在捲動聊天列表時，在右側顯示快速跳轉按鈕</string>
   <string name="setting_display_page_show_message_jumper_title">消息導航按鈕</string>
-  <string name="setting_display_page_show_model_name_desc">是否在聊天消息中顯示模型名稱</string>
-  <string name="setting_display_page_show_model_name_title">顯示模型名稱</string>
+  <string name="setting_display_page_show_model_name_desc">在消息前顯示助手名稱和時間</string>
+  <string name="setting_display_page_show_model_name_title">顯示助手名稱</string>
   <string name="setting_display_page_show_token_usage_desc">顯示token用量和消息數量</string>
   <string name="setting_display_page_show_token_usage_title">顯示Token和上下文統計</string>
   <string name="setting_display_page_message_input_style_title">消息輸入欄樣式</string>
