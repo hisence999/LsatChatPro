@@ -83,7 +83,11 @@ import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.ai.provider.Model
+import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.BitmapComposer
@@ -450,12 +454,52 @@ private fun ExportedChatImage(
                     }
 
                     // Messages
-                    messages.forEach { message ->
+                    val settings = LocalSettings.current
+                    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+                    val groupChatTemplateForConversation = remember(settings.groupChatTemplates, conversation.assistantId) {
+                        settings.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
+                    }
+                    val assistantsById = remember(settings.assistants) { settings.assistants.associateBy { it.id } }
+                    val seatDisplayNames = remember(groupChatTemplateForConversation, assistantsById, defaultAssistantName) {
+                        groupChatTemplateForConversation?.buildSeatDisplayNames(
+                            assistantsById = assistantsById,
+                            defaultName = defaultAssistantName,
+                        ).orEmpty()
+                    }
+                    val forceUseAssistantAvatar = groupChatTemplateForConversation != null
+
+                    messages.forEachIndexed { index, message ->
+                        val previousMessage = messages.getOrNull(index - 1)
+                        val speakerChanged = previousMessage?.role == MessageRole.ASSISTANT &&
+                            message.role == MessageRole.ASSISTANT &&
+                            (previousMessage.speakerSeatId != message.speakerSeatId ||
+                                previousMessage.speakerAssistantId != message.speakerAssistantId ||
+                                previousMessage.modelId != message.modelId)
+                        val previousRole = if (speakerChanged) null else previousMessage?.role
+                        val model = message.modelId?.let { settings.findModelById(it) }
+                        val assistant = message.speakerSeatId
+                            ?.let { seatId ->
+                                groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
+                            }
+                            ?.let { seat ->
+                                assistantsById[seat.assistantId]?.let { resolved ->
+                                    val displayName = seatDisplayNames[seat.id]
+                                    if (displayName.isNullOrBlank() || displayName == resolved.name) {
+                                        resolved
+                                    } else {
+                                        resolved.copy(name = displayName)
+                                    }
+                                }
+                            }
+                            ?: message.speakerAssistantId?.let { speakerId -> settings.getAssistantById(speakerId) }
+                            ?: settings.getAssistantById(conversation.assistantId)
                         ExportedChatMessage(
                             message = message,
+                            previousRole = previousRole,
                             options = options,
-                            prevMessage = messages.getOrNull(messages.indexOf(message) - 1),
-                            conversationAssistantId = conversation.assistantId,
+                            model = model,
+                            assistant = assistant,
+                            forceUseAssistantAvatar = forceUseAssistantAvatar,
                         )
                     }
 
@@ -476,23 +520,24 @@ private fun ExportedChatImage(
 @Composable
 private fun ExportedChatMessage(
     message: UIMessage,
-    prevMessage: UIMessage? = null,
+    previousRole: MessageRole? = null,
+    model: Model? = null,
+    assistant: Assistant? = null,
+    forceUseAssistantAvatar: Boolean = false,
     options: ImageExportOptions = ImageExportOptions(),
-    conversationAssistantId: Uuid? = null,
 ) {
     if (message.parts.isEmptyUIMessage()) return
     val context = LocalContext.current
     val settings = LocalSettings.current
-    val model = message.modelId?.let { settings.findModelById(it) }
-    val assistantId = message.speakerAssistantId ?: conversationAssistantId
-    val assistant = assistantId?.let { settings.getAssistantById(it) }
-    // Prefer assistant avatar for assistant messages in exported images
-    val showModelIcon = message.role == MessageRole.ASSISTANT && prevMessage?.role == MessageRole.USER
-    val iconLabel = when {
-        model?.modelId?.isNotBlank() == true -> model.modelId
-        model?.displayName?.isNotBlank() == true -> model.displayName
-        else -> "AI"
-    }
+    val effectiveDisplaySetting = settings.getEffectiveDisplaySetting(assistant)
+    val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
+    val headerInfo = resolveExportedAssistantHeaderInfo(
+        assistant = assistant,
+        model = model,
+        forceUseAssistantAvatar = forceUseAssistantAvatar,
+        defaultAssistantName = defaultAssistantName,
+    )
+    val showHeader = message.role == MessageRole.ASSISTANT && previousRole != message.role
     val messageContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
@@ -558,38 +603,65 @@ private fun ExportedChatMessage(
         }
     }
 
-    if (showModelIcon) {
+    if (showHeader) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(vertical = 8.dp)
         ) {
-            if (assistant != null) {
-                UIAvatar(
-                    name = assistant.name.ifBlank { iconLabel },
-                    value = assistant.avatar,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .size(36.dp),
-                    loading = false,
-                )
-            } else {
-                AutoAIIcon(
-                    name = iconLabel,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .size(36.dp)
-                )
+            if (effectiveDisplaySetting.showModelIcon) {
+                when {
+                    headerInfo.identity != null -> {
+                        UIAvatar(
+                            name = headerInfo.identity.name,
+                            value = headerInfo.identity.avatar,
+                            modifier = Modifier.size(36.dp),
+                            loading = false,
+                        )
+                    }
+
+                    model != null -> {
+                        AutoAIIcon(
+                            name = model.modelId,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
             }
 
-            Text(
-                text = iconLabel,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            if (effectiveDisplaySetting.showModelName) {
+                Text(
+                    text = headerInfo.name,
+                    style = if (headerInfo.identity != null) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.titleSmall
+                    },
+                )
+            }
         }
     }
     messageContent()
+}
+
+internal data class ExportedAssistantHeaderInfo(
+    val identity: Assistant?,
+    val name: String,
+)
+
+internal fun resolveExportedAssistantHeaderInfo(
+    assistant: Assistant?,
+    model: Model?,
+    forceUseAssistantAvatar: Boolean,
+    defaultAssistantName: String,
+): ExportedAssistantHeaderInfo {
+    val identity = assistant?.takeIf { forceUseAssistantAvatar || it.useAssistantAvatar || model == null }
+    val name = when {
+        identity != null -> identity.name.ifBlank { defaultAssistantName }
+        model != null -> model.displayName
+        else -> defaultAssistantName
+    }
+    return ExportedAssistantHeaderInfo(identity = identity, name = name)
 }
 
 @Composable
