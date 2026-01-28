@@ -532,85 +532,86 @@ internal fun ColumnScope.ModelList(
             }
 
             // Render flattened provider items - each model is its own item
-            items(
-                items = providerListItems,
-                key = { item ->
-                    when (item) {
-                        is ProviderListItem.Header -> "provider-header:${item.provider.id}"
-                        is ProviderListItem.ModelEntry -> "provider-model:${item.provider.id}:${item.model.id}"
-                    }
-                }
-            ) { item ->
-                when (item) {
+            providerListItems.fastForEach { listItem ->
+                when (listItem) {
                     is ProviderListItem.Header -> {
-                        Row(
-                            modifier = Modifier
-                                .padding(bottom = 4.dp, top = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                        stickyHeader(
+                            key = "provider-header:${listItem.provider.id}"
                         ) {
-                            Text(
-                                text = item.provider.name,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .padding(bottom = 4.dp, top = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = listItem.provider.name,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
 
-                            Spacer(modifier = Modifier.weight(1f))
+                                Spacer(modifier = Modifier.weight(1f))
 
-                            ProviderBalanceText(
-                                providerSetting = item.provider,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                                ProviderBalanceText(
+                                    providerSetting = listItem.provider,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
-                    is ProviderListItem.ModelEntry -> {
-                        ModelItem(
-                            model = item.model,
-                            onSelect = onSelect,
-                            modifier = Modifier.animateItem(),
-                            providerSetting = item.provider,
-                            select = currentModel == item.model.id,
-                            inGroup = true,
-                            position = item.position,
-                            onDismiss = {
-                                onDismiss()
-                            },
-                            tail = {
-                                IconButton(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            settingsStore.update { settings ->
-                                                if (item.isFavorite) {
-                                                    settings.copy(
-                                                        favoriteModels = settings.favoriteModels.filter { it != item.model.id }
-                                                    )
 
-                                                } else {
-                                                    settings.copy(
-                                                        favoriteModels = settings.favoriteModels + item.model.id
-                                                    )
+                    is ProviderListItem.ModelEntry -> {
+                        item(
+                            key = "provider-model:${listItem.provider.id}:${listItem.model.id}"
+                        ) {
+                            ModelItem(
+                                model = listItem.model,
+                                onSelect = onSelect,
+                                modifier = Modifier.animateItem(),
+                                providerSetting = listItem.provider,
+                                select = currentModel == listItem.model.id,
+                                inGroup = true,
+                                position = listItem.position,
+                                onDismiss = {
+                                    onDismiss()
+                                },
+                                tail = {
+                                    IconButton(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                settingsStore.update { settings ->
+                                                    if (listItem.isFavorite) {
+                                                        settings.copy(
+                                                            favoriteModels = settings.favoriteModels.filter { it != listItem.model.id }
+                                                        )
+
+                                                    } else {
+                                                        settings.copy(
+                                                            favoriteModels = settings.favoriteModels + listItem.model.id
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                ) {
-                                    if (item.isFavorite) {
-                                        Icon(
-                                            HeartIcon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp),
-                                            tint = MaterialTheme.colorScheme.primary,
-                                        )
-                                    } else {
-                                        Icon(
-                                            Icons.Rounded.FavoriteBorder,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    ) {
+                                        if (listItem.isFavorite) {
+                                            Icon(
+                                                HeartIcon,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        } else {
+                                            Icon(
+                                                Icons.Rounded.FavoriteBorder,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -630,7 +631,7 @@ internal fun ColumnScope.ModelList(
             .collect { index ->
                 if (index > 0) {
                     val currentProvider = providerPositions.entries.findLast {
-                        index > it.value
+                        index >= it.value
                     }
                     val currentProviderId = currentProvider?.key
                     if (currentProviderId != null) {
