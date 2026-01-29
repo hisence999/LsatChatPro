@@ -93,6 +93,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.selectWelcomePhrase
+import me.rerere.rikkahub.service.WelcomePhrasesService
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.MessageInputStyle
@@ -122,6 +123,7 @@ import me.rerere.rikkahub.utils.createChatFilesByContents
 import me.rerere.rikkahub.utils.getFileMimeType
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
 import androidx.compose.animation.core.Animatable
@@ -481,6 +483,7 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    val welcomePhrasesService = koinInject<WelcomePhrasesService>()
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
     var mentionDisambiguationState by remember { mutableStateOf<GroupChatMentionDisambiguationState?>(null) }
@@ -732,6 +735,12 @@ private fun ChatPageContent(
 
                         else -> EmptyChatOverlay.None
                     }
+                }
+
+                LaunchedEffect(assistantForConversation?.id, overlayState) {
+                    val assistant = assistantForConversation ?: return@LaunchedEffect
+                    if (overlayState != EmptyChatOverlay.Welcome) return@LaunchedEffect
+                    welcomePhrasesService.enqueueAutoRefreshForAssistantIfNeeded(context, assistant.id)
                 }
 
                 LaunchedEffect(conversation.id, overlayState, welcomeText) {
