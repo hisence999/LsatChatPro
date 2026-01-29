@@ -3,7 +3,6 @@ package me.rerere.rikkahub.utils
 import android.content.Context
 import android.graphics.Typeface
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +20,13 @@ private const val TAG = "FontFileManager"
  */
 class FontFileManager(private val context: Context) {
     
-    private val fontsDir: File = context.filesDir.resolve("custom_fonts").also { it.mkdirs() }
+    private val fontsDir: File = context.filesDir.resolve("custom_fonts")
+
+    private fun ensureFontsDirExists() {
+        if (!fontsDir.exists()) {
+            fontsDir.mkdirs()
+        }
+    }
     
     /**
      * Import a font file from a content URI to internal storage.
@@ -30,6 +35,7 @@ class FontFileManager(private val context: Context) {
      * @return The internal file path, or null on failure
      */
     suspend fun importFont(uri: Uri, displayName: String): String? = withContext(Dispatchers.IO) {
+        ensureFontsDirExists()
         try {
             val sanitizedName = displayName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
             val extension = getExtension(displayName).ifEmpty { "ttf" }
@@ -70,8 +76,8 @@ class FontFileManager(private val context: Context) {
     /**
      * Delete a custom font file.
      */
-    fun deleteFont(internalPath: String): Boolean {
-        return try {
+    suspend fun deleteFont(internalPath: String): Boolean = withContext(Dispatchers.IO) {
+        try {
             File(internalPath).delete()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete font: $internalPath", e)
@@ -82,8 +88,9 @@ class FontFileManager(private val context: Context) {
     /**
      * List all custom fonts stored in internal storage.
      */
-    fun listFonts(): List<CustomFontInfo> {
-        return fontsDir.listFiles()?.mapNotNull { file ->
+    suspend fun listFonts(): List<CustomFontInfo> = withContext(Dispatchers.IO) {
+        ensureFontsDirExists()
+        fontsDir.listFiles()?.mapNotNull { file ->
             try {
                 val typeface = Typeface.createFromFile(file)
                 if (typeface != null) {
@@ -105,20 +112,20 @@ class FontFileManager(private val context: Context) {
      * Detect variable font axes from a font file.
      * Uses font table parsing for Android 8.0+ or falls back to common axes.
      */
-    fun detectFontAxes(fontPath: String): List<FontAxis> {
+    suspend fun detectFontAxes(fontPath: String): List<FontAxis> = withContext(Dispatchers.IO) {
         val file = File(fontPath)
-        if (!file.exists()) return emptyList()
-        
-        return try {
+        if (!file.exists()) return@withContext emptyList()
+
+        try {
             // Try to detect axes from font file
             val axes = mutableListOf<FontAxis>()
-            
+
             // Read the font file and parse fvar table for variable fonts
             val axisInfo = parseFvarTable(file)
             if (axisInfo.isNotEmpty()) {
                 axes.addAll(axisInfo)
             }
-            
+
             axes
         } catch (e: Exception) {
             Log.e(TAG, "Failed to detect axes for $fontPath", e)
@@ -129,14 +136,13 @@ class FontFileManager(private val context: Context) {
     /**
      * Detect OpenType features from a font file.
      */
-    fun detectFontFeatures(fontPath: String): List<FontFeature> {
+    suspend fun detectFontFeatures(fontPath: String): List<FontFeature> = withContext(Dispatchers.IO) {
         val file = File(fontPath)
-        if (!file.exists()) return emptyList()
-        
-        return try {
+        if (!file.exists()) return@withContext emptyList()
+
+        try {
             // Parse GPOS/GSUB tables for OpenType features
-            val features = parseOpenTypeFeatures(file)
-            features
+            parseOpenTypeFeatures(file)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to detect features for $fontPath", e)
             emptyList()
@@ -146,8 +152,8 @@ class FontFileManager(private val context: Context) {
     /**
      * Get the file bytes for backup/export purposes.
      */
-    fun getFontBytes(fontPath: String): ByteArray? {
-        return try {
+    suspend fun getFontBytes(fontPath: String): ByteArray? = withContext(Dispatchers.IO) {
+        try {
             File(fontPath).readBytes()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read font bytes: $fontPath", e)
@@ -159,6 +165,7 @@ class FontFileManager(private val context: Context) {
      * Restore a font from backup bytes.
      */
     suspend fun restoreFontFromBytes(bytes: ByteArray, displayName: String): String? = withContext(Dispatchers.IO) {
+        ensureFontsDirExists()
         try {
             val sanitizedName = displayName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
             val fileName = "${System.currentTimeMillis()}_$sanitizedName"

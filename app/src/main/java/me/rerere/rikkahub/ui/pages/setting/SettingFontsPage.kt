@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -66,7 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.FontConfig
 import me.rerere.rikkahub.data.datastore.FontSettings
@@ -115,14 +118,14 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             OneUITopAppBar(
-                title = "Fonts",
+                title = stringResource(R.string.setting_fonts_page_title),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
                 },
                 actions = {
                     IconButton(onClick = { showResetAllDialog = true }) {
-                        Icon(Icons.Rounded.Refresh, "Reset All")
+                        Icon(Icons.Rounded.Refresh, stringResource(R.string.setting_fonts_page_reset_all_cd))
                     }
                 }
             )
@@ -139,10 +142,10 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
         ) {
             // Unified Font Toggle
             item {
-                SettingsGroup(title = "General") {
+                SettingsGroup(title = stringResource(R.string.setting_fonts_page_section_general)) {
                     SettingGroupItem(
-                        title = "Use same font for headers and content",
-                        subtitle = "Link header and content font settings together",
+                        title = stringResource(R.string.setting_fonts_page_unified_toggle_title),
+                        subtitle = stringResource(R.string.setting_fonts_page_unified_toggle_desc),
                         trailing = {
                             HapticSwitch(
                                 checked = localFontSettings.useSameFontForHeadersAndContent,
@@ -168,8 +171,16 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
             item {
                 key("headers") {
                     FontConfigSection(
-                        title = if (localFontSettings.useSameFontForHeadersAndContent) "Headers & Content" else "Headers",
-                        subtitle = if (localFontSettings.useSameFontForHeadersAndContent) "All text except code blocks" else "Titles, headings, and display text",
+                        title = if (localFontSettings.useSameFontForHeadersAndContent) {
+                            stringResource(R.string.setting_fonts_page_section_headers_and_content)
+                        } else {
+                            stringResource(R.string.setting_fonts_page_section_headers)
+                        },
+                        subtitle = if (localFontSettings.useSameFontForHeadersAndContent) {
+                            stringResource(R.string.setting_fonts_page_headers_and_content_desc)
+                        } else {
+                            stringResource(R.string.setting_fonts_page_headers_desc)
+                        },
                         config = localFontSettings.headerFont,
                         fontManager = fontManager,
                         onConfigChange = { newConfig, persist ->
@@ -207,8 +218,8 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     key("content") {
                         FontConfigSection(
-                            title = "Content",
-                            subtitle = "Body text, paragraphs, and messages",
+                            title = stringResource(R.string.setting_fonts_page_section_content),
+                            subtitle = stringResource(R.string.setting_fonts_page_content_desc),
                             config = localFontSettings.contentFont,
                             fontManager = fontManager,
                             onConfigChange = { newConfig, persist ->
@@ -226,8 +237,8 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
             item {
                 key("code") {
                     FontConfigSection(
-                        title = "Code Blocks",
-                        subtitle = "Code, inline code, and monospace text",
+                        title = stringResource(R.string.setting_fonts_page_section_code_blocks),
+                        subtitle = stringResource(R.string.setting_fonts_page_code_blocks_desc),
                         config = localFontSettings.codeFont,
                         fontManager = fontManager,
                         isCodeFont = true,
@@ -244,7 +255,7 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
             // Preview Section
             item {
                 Spacer(Modifier.height(8.dp))
-                SettingsGroup(title = "Preview") {
+                SettingsGroup(title = stringResource(R.string.setting_fonts_page_section_preview)) {
                     FontPreviewCard(fontSettings = localFontSettings)
                 }
             }
@@ -255,19 +266,19 @@ fun SettingFontsPage(vm: SettingVM = koinViewModel()) {
     if (showResetAllDialog) {
         AlertDialog(
             onDismissRequest = { showResetAllDialog = false },
-            title = { Text("Reset All Fonts?") },
-            text = { Text("This will reset all font settings to their defaults. Custom fonts will be kept but no longer applied.") },
+            title = { Text(stringResource(R.string.setting_fonts_page_reset_all_dialog_title)) },
+            text = { Text(stringResource(R.string.setting_fonts_page_reset_all_dialog_desc)) },
             confirmButton = {
                 TextButton(onClick = {
                     updateLocalFontSettings(FontSettings(), persist = true)
                     showResetAllDialog = false
                 }) {
-                    Text("Reset")
+                    Text(stringResource(R.string.reset))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetAllDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -288,6 +299,7 @@ private fun FontConfigSection(
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    val customFontFallbackName = stringResource(R.string.setting_fonts_page_custom_font)
     
     val fontPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -305,11 +317,12 @@ private fun FontConfigSection(
                 }
                 
                 // Get display name
-                val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    cursor.moveToFirst()
-                    if (nameIndex >= 0) cursor.getString(nameIndex) else "Custom Font"
-                } ?: "Custom Font"
+                val displayName = withContext(Dispatchers.IO) {
+                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else customFontFallbackName
+                    } ?: customFontFallbackName
+                }
                 
                 // Import font
                 val fontPath = fontManager.importFont(uri, displayName)
@@ -367,7 +380,7 @@ private fun FontConfigSection(
                     IconButton(onClick = { showResetDialog = true }) {
                         Icon(
                             Icons.Rounded.Refresh,
-                            "Reset",
+                            stringResource(R.string.reset),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -380,7 +393,7 @@ private fun FontConfigSection(
                         
                         // Font Source Selector
                         Text(
-                            text = "Font Source",
+                            text = stringResource(R.string.setting_fonts_page_font_source_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -426,9 +439,9 @@ private fun FontConfigSection(
                                 ) {
                                     Text(
                                         text = when (source) {
-                                            FontSource.System -> "Default"
-                                            FontSource.SystemCode -> "Default"
-                                            FontSource.Custom -> "Custom"
+                                            FontSource.System -> stringResource(R.string.setting_fonts_page_font_source_default)
+                                            FontSource.SystemCode -> stringResource(R.string.setting_fonts_page_font_source_google_sans_code)
+                                            FontSource.Custom -> stringResource(R.string.setting_fonts_page_font_source_custom)
                                         },
                                         style = MaterialTheme.typography.labelMedium
                                     )
@@ -455,23 +468,25 @@ private fun FontConfigSection(
                                     )
                                     if (config.customAxes.isNotEmpty()) {
                                         Text(
-                                            text = "Variable font · ${config.customAxes.size} axes",
+                                            text = stringResource(R.string.setting_fonts_page_variable_font_axes, config.customAxes.size),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                                 IconButton(onClick = {
-                                    config.customFontPath?.let { fontManager.deleteFont(it) }
-                                    onConfigChange(config.copy(
-                                        fontSource = FontSource.System,
-                                        customFontPath = null,
-                                        customFontName = null,
-                                        customAxes = emptyList(),
-                                        features = emptyList()
-                                    ), true)
+                                    scope.launch {
+                                        config.customFontPath?.let { fontManager.deleteFont(it) }
+                                        onConfigChange(config.copy(
+                                            fontSource = FontSource.System,
+                                            customFontPath = null,
+                                            customFontName = null,
+                                            customAxes = emptyList(),
+                                            features = emptyList()
+                                        ), true)
+                                    }
                                 }) {
-                                    Icon(Icons.Rounded.Delete, "Remove", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Rounded.Delete, stringResource(R.string.setting_fonts_page_remove_custom_font_cd), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -481,13 +496,13 @@ private fun FontConfigSection(
                             // System font axes
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "Font Axes",
+                                text = stringResource(R.string.setting_fonts_page_axes_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             
                             FontAxisSlider(
-                                label = "Width",
+                                label = stringResource(R.string.setting_fonts_page_axis_width),
                                 value = config.width,
                                 valueRange = 75f..125f,
                                 steps = 4,
@@ -497,7 +512,7 @@ private fun FontConfigSection(
                             
                             if (config.fontSource == FontSource.System) {
                                 FontAxisSlider(
-                                    label = "Roundness",
+                                    label = stringResource(R.string.setting_fonts_page_axis_roundness),
                                     value = config.roundness,
                                     valueRange = 0f..100f,
                                     steps = 9,
@@ -509,7 +524,7 @@ private fun FontConfigSection(
                             // Custom font axes
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "Font Axes",
+                                text = stringResource(R.string.setting_fonts_page_axes_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -533,13 +548,13 @@ private fun FontConfigSection(
                             // Typography adjustments only for custom fonts
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "Typography",
+                                text = stringResource(R.string.setting_fonts_page_typography_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             
                             FontAxisSlider(
-                                label = "Size",
+                                label = stringResource(R.string.setting_fonts_page_typography_size),
                                 value = config.fontSize,
                                 valueRange = 0.5f..2f,
                                 steps = 14,
@@ -549,7 +564,7 @@ private fun FontConfigSection(
                             )
                             
                             FontAxisSlider(
-                                label = "Letter Spacing",
+                                label = stringResource(R.string.setting_fonts_page_typography_letter_spacing),
                                 value = config.letterSpacing,
                                 valueRange = -0.05f..0.1f,
                                 steps = 14,
@@ -563,7 +578,7 @@ private fun FontConfigSection(
                         if (config.features.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "OpenType Features",
+                                text = stringResource(R.string.setting_fonts_page_features_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -609,19 +624,19 @@ private fun FontConfigSection(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset $title Font?") },
-            text = { Text("This will reset the font settings for $title to defaults.") },
+            title = { Text(stringResource(R.string.setting_fonts_page_reset_font_dialog_title, title)) },
+            text = { Text(stringResource(R.string.setting_fonts_page_reset_font_dialog_desc, title)) },
             confirmButton = {
                 TextButton(onClick = {
                     onReset()
                     showResetDialog = false
                 }) {
-                    Text("Reset")
+                    Text(stringResource(R.string.reset))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -701,7 +716,7 @@ private fun FontPreviewCard(fontSettings: FontSettings) {
         ) {
             // Header preview
             Text(
-                text = "Header Preview",
+                text = stringResource(R.string.setting_fonts_page_preview_header),
                 style = TextStyle(
                     fontFamily = headerFontFamily,
                     fontWeight = FontWeight(fontSettings.headerFont.weight.roundToInt()),
@@ -713,7 +728,7 @@ private fun FontPreviewCard(fontSettings: FontSettings) {
             
             // Content preview
             Text(
-                text = "This is a preview of the content font. It shows how body text will appear in messages and other content areas.",
+                text = stringResource(R.string.setting_fonts_page_preview_body),
                 style = TextStyle(
                     fontFamily = contentFontFamily,
                     fontWeight = FontWeight(fontSettings.contentFont.weight.roundToInt()),
@@ -732,7 +747,7 @@ private fun FontPreviewCard(fontSettings: FontSettings) {
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "fun main() {\n    println(\"Hello, World!\")\n}",
+                    text = stringResource(R.string.setting_fonts_page_preview_code),
                     style = TextStyle(
                         fontFamily = codeFontFamily,
                         fontWeight = FontWeight(fontSettings.codeFont.weight.roundToInt()),
@@ -752,8 +767,6 @@ private fun FontPreviewCard(fontSettings: FontSettings) {
  */
 @Composable
 private fun rememberFontFamilyFromConfig(config: FontConfig): FontFamily {
-    val context = LocalContext.current
-    
     return remember(
         config.fontSource,
         config.customFontPath,
@@ -834,10 +847,11 @@ private fun rememberFontFamilyFromConfig(config: FontConfig): FontFamily {
     }
 }
 
+@Composable
 private fun getFontSourceLabel(config: FontConfig): String {
     return when (config.fontSource) {
-        FontSource.System -> "Default"
-        FontSource.SystemCode -> "Google Sans Code"
-        FontSource.Custom -> config.customFontName ?: "Custom Font"
+        FontSource.System -> stringResource(R.string.setting_fonts_page_font_source_default)
+        FontSource.SystemCode -> stringResource(R.string.setting_fonts_page_font_source_google_sans_code)
+        FontSource.Custom -> config.customFontName ?: stringResource(R.string.setting_fonts_page_custom_font)
     }
 }
