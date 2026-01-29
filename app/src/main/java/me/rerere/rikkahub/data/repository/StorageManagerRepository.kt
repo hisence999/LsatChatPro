@@ -558,12 +558,36 @@ class StorageManagerRepository(
             referenced += StorageScanUtils.normalizePath(file)
         }
 
-        settings.assistants.forEach { assistant ->
-            when (val avatar = assistant.avatar) {
+        fun addAvatar(avatar: Avatar?) {
+            when (avatar) {
                 is Avatar.Image -> addUrl(avatar.url)
                 else -> Unit
             }
+        }
+
+        // Global user profile assets.
+        addAvatar(settings.displaySetting.userAvatar)
+
+        settings.assistants.forEach { assistant ->
+            addAvatar(assistant.avatar)
             addUrl(assistant.background)
+        }
+
+        // Prompt injection assets.
+        settings.modes.forEach { mode ->
+            mode.attachments.forEach { attachment ->
+                addUrl(attachment.url)
+            }
+        }
+
+        settings.lorebooks.forEach { lorebook ->
+            addAvatar(lorebook.cover)
+            lorebook.entries.forEach { entry ->
+                entry.attachments.forEach { attachment ->
+                    addUrl(attachment.url)
+                }
+                addUrl(entry.imageContent)
+            }
         }
 
         // Generated images: GenMediaEntity.path uses relative paths like "images/xxx.png".
