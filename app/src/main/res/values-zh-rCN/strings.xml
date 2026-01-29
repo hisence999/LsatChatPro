@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="storage_manager_title">存储管理</string>
+    <string name="storage_manager_total">总计</string>
+    <string name="storage_manager_loading_placeholder">加载中…</string>
+    <string name="storage_manager_chart_hint">点按扇区高亮</string>
+
+    <string name="storage_category_images">图片</string>
+    <string name="storage_category_files">文件</string>
+    <string name="storage_category_chat_records">聊天记录</string>
+    <string name="storage_category_cache">缓存</string>
+    <string name="storage_category_history_files">历史文件</string>
+    <string name="storage_category_logs">日志</string>
+
+    <string name="storage_category_subtitle">%1$s · %2$d 项</string>
+    <string name="storage_category_logs_subtitle">%1$d 条请求日志</string>
+
+    <string name="storage_category_usage_title">占用情况</string>
+    <string name="storage_category_usage_value">%1$s · %2$d 项</string>
+    <string name="storage_logs_included_note">日志与聊天记录存放在同一数据库内</string>
+
+    <string name="storage_filter_all_assistants">全部</string>
+    <string name="storage_assistant_unnamed">未命名助手</string>
+    <string name="storage_select_assistant_hint">请选择助手</string>
+
+    <string name="storage_images_assistant_title">按助手清理图片</string>
+    <string name="storage_files_assistant_title">按助手清理文件</string>
+    <string name="storage_chat_records_assistant_title">按助手清理聊天记录</string>
+    <string name="storage_assistant_file_stats">%1$s · %2$d 个文件</string>
+    <string name="storage_chat_records_count">%1$d 个会话</string>
+    <string name="storage_chat_records_attachments_hint">附件：%1$s · %2$d 个文件</string>
+
+    <string name="storage_action_clear_images">清理图片</string>
+    <string name="storage_action_clear_files">清理文件</string>
+    <string name="storage_action_clear_records_only">仅清理聊天记录</string>
+    <string name="storage_action_clear_attachments_only">仅清理附件</string>
+    <string name="storage_action_clear_records_and_attachments">清理聊天记录+附件</string>
+    <string name="storage_action_clear_cache">清理缓存</string>
+    <string name="storage_action_scan">扫描</string>
+    <string name="storage_action_clear_orphans">清理</string>
+    <string name="storage_action_open_logs">查看日志</string>
+
+    <string name="storage_confirm_clear_images_title">清理图片？</string>
+    <string name="storage_confirm_clear_images_desc">仅删除该助手聊天中的图片文件（只删文件）。聊天记录会保留，历史图片链接可能失效。</string>
+    <string name="storage_confirm_clear_files_title">清理文件？</string>
+    <string name="storage_confirm_clear_files_desc">仅删除该助手聊天中的附件文件（只删文件）。聊天记录会保留，历史附件链接可能失效。</string>
+    <string name="storage_confirm_clear_records_title">清理聊天记录？</string>
+    <string name="storage_confirm_clear_records_desc">删除该助手的聊天记录；不删除文件。</string>
+    <string name="storage_confirm_clear_attachments_title">清理附件？</string>
+    <string name="storage_confirm_clear_attachments_desc">删除该助手聊天中的附件文件；聊天记录会保留，历史附件链接可能失效。</string>
+    <string name="storage_confirm_clear_records_and_attachments_title">清理聊天记录与附件？</string>
+    <string name="storage_confirm_clear_records_and_attachments_desc">删除该助手的聊天记录与附件文件。</string>
+
+    <string name="storage_cache_title">缓存</string>
+    <string name="storage_cache_desc">清理临时缓存文件（后续可能会重新生成）。</string>
+    <string name="storage_confirm_clear_cache_title">清理缓存？</string>
+    <string name="storage_confirm_clear_cache_desc">将删除缓存文件。</string>
+
+    <string name="storage_history_title">历史文件</string>
+    <string name="storage_history_desc">扫描当前聊天/设置未引用的遗留文件（含孤儿 Skill 包）。</string>
+    <string name="storage_history_scan_summary">发现：%1$s · %2$d 个文件</string>
+    <string name="storage_history_no_orphans">未发现历史文件</string>
+    <string name="storage_confirm_clear_history_title">清理历史文件？</string>
+    <string name="storage_confirm_clear_history_desc">将删除当前聊天/设置未引用的文件。建议先备份。</string>
+
+    <string name="storage_logs_title">日志</string>
+    <string name="storage_logs_desc">请求日志存放在聊天记录数据库中。</string>
+
+    <string name="storage_toast_images_cleared">已清理图片</string>
+    <string name="storage_toast_files_cleared">已清理文件</string>
+    <string name="storage_toast_chat_records_cleared">已清理聊天记录</string>
+    <string name="storage_toast_cache_cleared">已清理缓存</string>
+    <string name="storage_toast_history_cleared">已清理历史文件</string>
+    <string name="storage_toast_done">完成</string>
+
+    <string name="request_logs_export_empty">暂无可导出的日志</string>
+    <string name="request_logs_export_failed">导出失败：%1$s</string>
+</resources>

@@ -15,6 +15,12 @@ data class AssistantCountResult(
     val count: Int
 )
 
+data class ConversationNodesScanRow(
+    val id: String,
+    val assistantId: String,
+    val nodes: String,
+)
+
 @Dao
 interface ConversationDAO {
     @Query("SELECT * FROM conversationentity ORDER BY is_pinned DESC, update_at DESC")
@@ -34,6 +40,15 @@ interface ConversationDAO {
 
     @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC LIMIT :limit")
     suspend fun getRecentConversationsOfAssistant(assistantId: String, limit: Int): List<ConversationEntity>
+
+    @Query("SELECT COUNT(*) FROM conversationentity")
+    suspend fun getConversationCount(): Int
+
+    @Query("SELECT COUNT(*) FROM conversationentity WHERE assistant_id = :assistantId")
+    suspend fun getConversationCountOfAssistant(assistantId: String): Int
+
+    @Query("SELECT id, assistant_id as assistantId, nodes FROM conversationentity ORDER BY update_at DESC LIMIT :limit OFFSET :offset")
+    suspend fun getNodesBatchForScan(limit: Int, offset: Int): List<ConversationNodesScanRow>
 
     @Query("SELECT * FROM conversationentity WHERE (title LIKE '%' || :searchText || '%' OR nodes LIKE '%' || :searchText || '%') ORDER BY is_pinned DESC, update_at DESC")
     fun searchConversations(searchText: String): Flow<List<ConversationEntity>>

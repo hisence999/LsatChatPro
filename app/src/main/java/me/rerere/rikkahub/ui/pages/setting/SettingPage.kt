@@ -284,7 +284,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 storageState.second / 1024 / 1024.0
                             )
                         },
-                        icon = { Icon(Icons.Rounded.Storage, null, modifier = Modifier.size(20.dp)) }
+                        icon = { Icon(Icons.Rounded.Storage, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { navController.navigate(Screen.StorageManager) }
                     )
                 }
             }

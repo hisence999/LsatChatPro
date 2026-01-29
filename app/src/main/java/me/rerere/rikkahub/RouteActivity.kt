@@ -70,6 +70,8 @@ import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.logs.RequestLogDetailPage
 import me.rerere.rikkahub.ui.pages.logs.RequestLogsOverviewPage
 import me.rerere.rikkahub.ui.pages.menu.MenuPage
+import me.rerere.rikkahub.ui.pages.storage.StorageCategoryPage
+import me.rerere.rikkahub.ui.pages.storage.StorageManagerPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 
@@ -480,6 +482,15 @@ class RouteActivity : ComponentActivity() {
                         SettingPage()
                     }
 
+                    composable<Screen.StorageManager> {
+                        StorageManagerPage()
+                    }
+
+                    composable<Screen.StorageCategory> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.StorageCategory>()
+                        StorageCategoryPage(category = route.category)
+                    }
+
                     composable<Screen.Backup> {
                         BackupPage()
                     }
@@ -623,6 +634,12 @@ sealed interface Screen {
 
     @Serializable
     data object Setting : Screen
+
+    @Serializable
+    data object StorageManager : Screen
+
+    @Serializable
+    data class StorageCategory(val category: String) : Screen
 
     @Serializable
     data object Backup : Screen

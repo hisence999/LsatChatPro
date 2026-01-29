@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.logs
 
+import android.content.Intent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -32,15 +34,24 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.AIRequestSource
@@ -48,16 +59,24 @@ import me.rerere.rikkahub.data.db.entity.AIRequestLogEntity
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.AppShapes
+import me.rerere.rikkahub.utils.JsonInstant
 import org.koin.androidx.compose.koinViewModel
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun RequestLogsOverviewPage(vm: RequestLogsVM = koinViewModel()) {
     val navController = LocalNavController.current
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
     val haptics = rememberPremiumHaptics()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scope = rememberCoroutineScope()
 
     val listState = rememberSaveable(saver = LazyListState.Saver) {
         LazyListState()
@@ -75,6 +94,62 @@ fun RequestLogsOverviewPage(vm: RequestLogsVM = koinViewModel()) {
                 scrollBehavior = scrollBehavior,
                 navigationIcon = { BackButton() },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            haptics.perform(HapticPattern.Pop)
+                            if (logs.isEmpty()) {
+                                toaster.show(message = context.getString(R.string.request_logs_export_empty))
+                                return@IconButton
+                            }
+
+                            scope.launch {
+                                runCatching {
+                                    val file = withContext(Dispatchers.IO) {
+                                        val exportItems = logs.map { it.toExportItem() }
+                                        val json = JsonInstant.encodeToString(
+                                            serializer = ListSerializer(RequestLogExportItem.serializer()),
+                                            value = exportItems,
+                                        )
+
+                                        val timestamp = LocalDateTime.now()
+                                            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                                        val out = File(context.appTempFolder, "request-logs-$timestamp.json")
+                                        out.writeText(json, Charsets.UTF_8)
+                                        out
+                                    }
+
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file,
+                                    )
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/json"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            intent,
+                                            context.getString(R.string.chat_page_export_share_via)
+                                        )
+                                    )
+                                }.onSuccess {
+                                    haptics.perform(HapticPattern.Success)
+                                }.onFailure { e ->
+                                    haptics.perform(HapticPattern.Error)
+                                    toaster.show(
+                                        message = context.getString(
+                                            R.string.request_logs_export_failed,
+                                            e.message ?: "Unknown error"
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Rounded.Share, contentDescription = null)
+                    }
                     IconButton(
                         onClick = {
                             haptics.perform(HapticPattern.Pop)
@@ -268,3 +343,44 @@ private fun RequestLogOverviewItem(
         }
     }
 }
+
+@Serializable
+private data class RequestLogExportItem(
+    val id: Long,
+    val createdAt: Long,
+    val latencyMs: Long?,
+    val durationMs: Long?,
+    val source: String,
+    val providerName: String,
+    val providerType: String,
+    val modelId: String,
+    val modelDisplayName: String,
+    val stream: Boolean,
+    val paramsJson: String,
+    val requestMessagesJson: String,
+    val requestUrl: String,
+    val requestPreview: String,
+    val responsePreview: String,
+    val responseText: String,
+    val error: String?,
+)
+
+private fun AIRequestLogEntity.toExportItem(): RequestLogExportItem = RequestLogExportItem(
+    id = id,
+    createdAt = createdAt,
+    latencyMs = latencyMs,
+    durationMs = durationMs,
+    source = source,
+    providerName = providerName,
+    providerType = providerType,
+    modelId = modelId,
+    modelDisplayName = modelDisplayName,
+    stream = stream,
+    paramsJson = paramsJson,
+    requestMessagesJson = requestMessagesJson,
+    requestUrl = requestUrl,
+    requestPreview = requestPreview,
+    responsePreview = responsePreview,
+    responseText = responseText,
+    error = error,
+)

@@ -534,6 +534,79 @@
   <string name="setting_page_chat_settings">聊天設定</string>
   <string name="setting_page_chat_storage">聊天記錄儲存</string>
   <string name="setting_page_chat_storage_desc">%1$d 個檔案，%2$.2f MB</string>
+
+  <string name="storage_manager_title">儲存管理</string>
+  <string name="storage_manager_total">總計</string>
+  <string name="storage_manager_loading_placeholder">載入中…</string>
+  <string name="storage_manager_chart_hint">點按扇區以高亮</string>
+
+  <string name="storage_category_images">圖片</string>
+  <string name="storage_category_files">檔案</string>
+  <string name="storage_category_chat_records">聊天記錄</string>
+  <string name="storage_category_cache">快取</string>
+  <string name="storage_category_history_files">歷史檔案</string>
+  <string name="storage_category_logs">日誌</string>
+
+  <string name="storage_category_subtitle">%1$s · %2$d 項</string>
+  <string name="storage_category_logs_subtitle">%1$d 條請求日誌</string>
+
+  <string name="storage_category_usage_title">佔用情況</string>
+  <string name="storage_category_usage_value">%1$s · %2$d 項</string>
+  <string name="storage_logs_included_note">日誌與聊天記錄存放於同一資料庫</string>
+
+  <string name="storage_filter_all_assistants">全部</string>
+  <string name="storage_assistant_unnamed">未命名助手</string>
+  <string name="storage_select_assistant_hint">請選擇助手</string>
+
+  <string name="storage_images_assistant_title">依助手清理圖片</string>
+  <string name="storage_files_assistant_title">依助手清理檔案</string>
+  <string name="storage_chat_records_assistant_title">依助手清理聊天記錄</string>
+  <string name="storage_assistant_file_stats">%1$s · %2$d 個檔案</string>
+  <string name="storage_chat_records_count">%1$d 個會話</string>
+  <string name="storage_chat_records_attachments_hint">附件：%1$s · %2$d 個檔案</string>
+
+  <string name="storage_action_clear_images">清理圖片</string>
+  <string name="storage_action_clear_files">清理檔案</string>
+  <string name="storage_action_clear_records_only">僅清理聊天記錄</string>
+  <string name="storage_action_clear_attachments_only">僅清理附件</string>
+  <string name="storage_action_clear_records_and_attachments">清理聊天記錄+附件</string>
+  <string name="storage_action_clear_cache">清理快取</string>
+  <string name="storage_action_scan">掃描</string>
+  <string name="storage_action_clear_orphans">清理</string>
+  <string name="storage_action_open_logs">查看日誌</string>
+
+  <string name="storage_confirm_clear_images_title">清理圖片？</string>
+  <string name="storage_confirm_clear_images_desc">僅刪除該助手聊天中的圖片檔案（只刪檔案）。聊天記錄會保留，歷史圖片連結可能失效。</string>
+  <string name="storage_confirm_clear_files_title">清理檔案？</string>
+  <string name="storage_confirm_clear_files_desc">僅刪除該助手聊天中的附件檔案（只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
+  <string name="storage_confirm_clear_records_title">清理聊天記錄？</string>
+  <string name="storage_confirm_clear_records_desc">刪除該助手的聊天記錄；不刪除檔案。</string>
+  <string name="storage_confirm_clear_attachments_title">清理附件？</string>
+  <string name="storage_confirm_clear_attachments_desc">刪除該助手聊天中的附件檔案；聊天記錄會保留，歷史附件連結可能失效。</string>
+  <string name="storage_confirm_clear_records_and_attachments_title">清理聊天記錄與附件？</string>
+  <string name="storage_confirm_clear_records_and_attachments_desc">刪除該助手的聊天記錄與附件檔案。</string>
+
+  <string name="storage_cache_title">快取</string>
+  <string name="storage_cache_desc">清理臨時快取檔案（之後可能會重新生成）。</string>
+  <string name="storage_confirm_clear_cache_title">清理快取？</string>
+  <string name="storage_confirm_clear_cache_desc">將刪除快取檔案。</string>
+
+  <string name="storage_history_title">歷史檔案</string>
+  <string name="storage_history_desc">掃描目前聊天/設定未引用的遺留檔案（含孤兒 Skill 包）。</string>
+  <string name="storage_history_scan_summary">發現：%1$s · %2$d 個檔案</string>
+  <string name="storage_history_no_orphans">未發現歷史檔案</string>
+  <string name="storage_confirm_clear_history_title">清理歷史檔案？</string>
+  <string name="storage_confirm_clear_history_desc">將刪除目前聊天/設定未引用的檔案。建議先備份。</string>
+
+  <string name="storage_logs_title">日誌</string>
+  <string name="storage_logs_desc">請求日誌存放在聊天記錄資料庫中。</string>
+
+  <string name="storage_toast_images_cleared">已清理圖片</string>
+  <string name="storage_toast_files_cleared">已清理檔案</string>
+  <string name="storage_toast_chat_records_cleared">已清理聊天記錄</string>
+  <string name="storage_toast_cache_cleared">已清理快取</string>
+  <string name="storage_toast_history_cleared">已清理歷史檔案</string>
+  <string name="storage_toast_done">完成</string>
   <string name="setting_page_color_mode">顏色模式</string>
   <string name="setting_page_color_mode_dark">深色</string>
   <string name="setting_page_color_mode_light">淺色</string>
@@ -1395,6 +1468,8 @@
   <string name="setting_request_logs_enable_developer_mode_first">需要先啟用開發者模式。</string>
   <string name="request_logs_empty">還沒有請求日誌</string>
   <string name="request_logs_filter_all">全部</string>
+  <string name="request_logs_export_empty">暫無可匯出的日誌</string>
+  <string name="request_logs_export_failed">匯出失敗：%1$s</string>
   <string name="request_log_not_found">未找到日誌</string>
   <string name="request_log_status_ok">成功</string>
   <string name="request_log_status_error">錯誤</string>

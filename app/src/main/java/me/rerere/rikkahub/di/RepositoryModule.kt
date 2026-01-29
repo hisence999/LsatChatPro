@@ -5,6 +5,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import me.rerere.rikkahub.data.repository.LorebookEntryRevisionRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.StorageManagerRepository
 import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import org.koin.dsl.module
 
@@ -31,5 +32,16 @@ val repositoryModule = module {
 
     single {
         LorebookEntryRevisionRepository(get(), get())
+    }
+
+    single {
+        StorageManagerRepository(
+            context = get(),
+            settingsStore = get(),
+            conversationDAO = get(),
+            conversationRepository = get(),
+            genMediaDAO = get(),
+            aiRequestLogDao = get(),
+        )
     }
 }

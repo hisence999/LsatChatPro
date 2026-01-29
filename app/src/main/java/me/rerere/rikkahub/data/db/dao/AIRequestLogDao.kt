@@ -11,11 +11,17 @@ interface AIRequestLogDao {
     @Insert
     fun insert(log: AIRequestLogEntity): Long
 
+    @Query("SELECT COUNT(*) FROM AIRequestLogEntity")
+    fun countAll(): Int
+
     @Query("SELECT * FROM AIRequestLogEntity ORDER BY created_at DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<AIRequestLogEntity>>
 
     @Query("SELECT * FROM AIRequestLogEntity ORDER BY created_at DESC LIMIT :limit")
     fun getRecent(limit: Int): List<AIRequestLogEntity>
+
+    @Query("SELECT * FROM AIRequestLogEntity ORDER BY created_at DESC")
+    fun getAll(): List<AIRequestLogEntity>
 
     @Query("SELECT * FROM AIRequestLogEntity WHERE id = :id LIMIT 1")
     fun observeById(id: Long): Flow<AIRequestLogEntity?>

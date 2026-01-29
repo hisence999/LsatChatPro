@@ -197,9 +197,9 @@ class ConversationRepository(
         }
     }
 
-    suspend fun deleteConversationOfAssistant(assistantId: Uuid) {
+    suspend fun deleteConversationOfAssistant(assistantId: Uuid, deleteFiles: Boolean = true) {
         getConversationsOfAssistant(assistantId).first().forEach { conversation ->
-            deleteConversation(conversation)
+            deleteConversation(conversation, deleteFiles = deleteFiles)
         }
     }
 

@@ -16,6 +16,8 @@
     <string name="request_log_status_error">Error</string>
     <string name="request_logs_empty">No request logs yet</string>
     <string name="request_logs_filter_all">All</string>
+    <string name="request_logs_export_empty">No logs to export</string>
+    <string name="request_logs_export_failed">Failed to export logs: %1$s</string>
     <string name="request_log_empty_details">Select a log to view details</string>
     <string name="request_log_not_found">Log not found</string>
     <string name="request_log_detail_title">Request Log</string>
@@ -709,6 +711,79 @@
     <string name="setting_page_chat_settings">Chat Settings</string>
     <string name="setting_page_chat_storage">Chat Storage</string>
     <string name="setting_page_chat_storage_desc">%1$d files, %2$.2f MB</string>
+
+    <string name="storage_manager_title">Storage Manager</string>
+    <string name="storage_manager_total">Total</string>
+    <string name="storage_manager_loading_placeholder">Loading…</string>
+    <string name="storage_manager_chart_hint">Tap a slice to highlight</string>
+
+    <string name="storage_category_images">Images</string>
+    <string name="storage_category_files">Files</string>
+    <string name="storage_category_chat_records">Chat Records</string>
+    <string name="storage_category_cache">Cache</string>
+    <string name="storage_category_history_files">History Files</string>
+    <string name="storage_category_logs">Logs</string>
+
+    <string name="storage_category_subtitle">%1$s · %2$d items</string>
+    <string name="storage_category_logs_subtitle">%1$d request logs</string>
+
+    <string name="storage_category_usage_title">Usage</string>
+    <string name="storage_category_usage_value">%1$s · %2$d items</string>
+    <string name="storage_logs_included_note">Logs are stored in the same database as Chat Records.</string>
+
+    <string name="storage_filter_all_assistants">All</string>
+    <string name="storage_assistant_unnamed">Unnamed assistant</string>
+    <string name="storage_select_assistant_hint">Select an assistant to continue</string>
+
+    <string name="storage_images_assistant_title">Assistant images</string>
+    <string name="storage_files_assistant_title">Assistant files</string>
+    <string name="storage_chat_records_assistant_title">Assistant chat records</string>
+    <string name="storage_assistant_file_stats">%1$s · %2$d files</string>
+    <string name="storage_chat_records_count">%1$d conversations</string>
+    <string name="storage_chat_records_attachments_hint">Attachments: %1$s · %2$d files</string>
+
+    <string name="storage_action_clear_images">Clear images</string>
+    <string name="storage_action_clear_files">Clear files</string>
+    <string name="storage_action_clear_records_only">Clear records</string>
+    <string name="storage_action_clear_attachments_only">Clear attachments</string>
+    <string name="storage_action_clear_records_and_attachments">Clear all</string>
+    <string name="storage_action_clear_cache">Clear cache</string>
+    <string name="storage_action_scan">Scan</string>
+    <string name="storage_action_clear_orphans">Clear</string>
+    <string name="storage_action_open_logs">Open logs</string>
+
+    <string name="storage_confirm_clear_images_title">Clear images?</string>
+    <string name="storage_confirm_clear_images_desc">This deletes image files from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
+    <string name="storage_confirm_clear_files_title">Clear files?</string>
+    <string name="storage_confirm_clear_files_desc">This deletes attachment files from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
+    <string name="storage_confirm_clear_records_title">Clear chat records?</string>
+    <string name="storage_confirm_clear_records_desc">This deletes this assistant’s chat records. Files will be kept.</string>
+    <string name="storage_confirm_clear_attachments_title">Clear attachments?</string>
+    <string name="storage_confirm_clear_attachments_desc">This deletes attachment files from this assistant’s chats. Chat history will be kept, but links may break.</string>
+    <string name="storage_confirm_clear_records_and_attachments_title">Clear records &amp; attachments?</string>
+    <string name="storage_confirm_clear_records_and_attachments_desc">This deletes this assistant’s chat records and attachment files.</string>
+
+    <string name="storage_cache_title">Cache</string>
+    <string name="storage_cache_desc">Clear temporary cache files. The app may rebuild them later.</string>
+    <string name="storage_confirm_clear_cache_title">Clear cache?</string>
+    <string name="storage_confirm_clear_cache_desc">This will delete cache files.</string>
+
+    <string name="storage_history_title">History files</string>
+    <string name="storage_history_desc">Scan for leftover files not referenced by current chats/settings (including orphan skill packages).</string>
+    <string name="storage_history_scan_summary">Found: %1$s · %2$d files</string>
+    <string name="storage_history_no_orphans">No history files found</string>
+    <string name="storage_confirm_clear_history_title">Clear history files?</string>
+    <string name="storage_confirm_clear_history_desc">This will delete files that are not referenced by current chats/settings. Make sure you have backups.</string>
+
+    <string name="storage_logs_title">Logs</string>
+    <string name="storage_logs_desc">Request logs are stored in Chat Records database.</string>
+
+    <string name="storage_toast_images_cleared">Images cleared</string>
+    <string name="storage_toast_files_cleared">Files cleared</string>
+    <string name="storage_toast_chat_records_cleared">Chat records cleared</string>
+    <string name="storage_toast_cache_cleared">Cache cleared</string>
+    <string name="storage_toast_history_cleared">History files cleared</string>
+    <string name="storage_toast_done">Done</string>
     <string name="setting_page_color_mode">Color Mode</string>
     <string name="setting_page_color_mode_dark">Dark</string>
     <string name="setting_page_color_mode_light">Light</string>

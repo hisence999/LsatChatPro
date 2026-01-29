@@ -15,6 +15,8 @@ import me.rerere.rikkahub.ui.pages.logs.RequestLogDetailVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerVM
 import me.rerere.rikkahub.ui.pages.menu.MenuVM
+import me.rerere.rikkahub.ui.pages.storage.StorageCategoryVM
+import me.rerere.rikkahub.ui.pages.storage.StorageManagerVM
 import me.rerere.rikkahub.ui.pages.translator.TranslatorVM
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -71,6 +73,14 @@ val viewModelModule = module {
     viewModelOf(::DeveloperVM)
     viewModelOf(::MenuVM)
     viewModelOf(::TextSelectionVM)
+    viewModelOf(::StorageManagerVM)
+    viewModel<StorageCategoryVM> {
+        StorageCategoryVM(
+            categoryKey = it.get(),
+            settingsStore = get(),
+            storageRepo = get(),
+        )
+    }
 
     viewModel<AssistantScheduledTasksVM> {
         AssistantScheduledTasksVM(
