@@ -334,6 +334,12 @@ class ChatCompletionsAPI(
                         })
                     }
 
+                    "api.moonshot.cn" -> {
+                        put("thinking", buildJsonObject {
+                            put("type", if (!level.isEnabled) "disabled" else "enabled")
+                        })
+                    }
+
                     else -> {
                         // OpenAI 官方
                         // 文档中，只支持 "low", "medium", "high"

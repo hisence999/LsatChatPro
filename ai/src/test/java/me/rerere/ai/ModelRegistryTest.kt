@@ -1,6 +1,7 @@
 package me.rerere.ai
 
 import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.registry.ModelRegistry
 import org.junit.Test
 
@@ -36,5 +37,13 @@ class ModelRegistryTest {
         assert(ModelRegistry.CLAUDE_4_5.match("claude-4.5-sonnet"))
         assert(!ModelRegistry.CLAUDE_4_5.match("claude-sonnet-4-20250929"))
         assert(!ModelRegistry.CLAUDE_4_5.match("claude-4-sonnet"))
+    }
+
+    @Test
+    fun testKimiK25() {
+        val modelId = "kimi-k2.5"
+        assert(ModelRegistry.MODEL_INPUT_MODALITIES.getData(modelId) == listOf(Modality.TEXT, Modality.IMAGE))
+        assert(ModelRegistry.MODEL_ABILITIES.getData(modelId).contains(ModelAbility.TOOL))
+        assert(ModelRegistry.MODEL_ABILITIES.getData(modelId).contains(ModelAbility.REASONING))
     }
 }
