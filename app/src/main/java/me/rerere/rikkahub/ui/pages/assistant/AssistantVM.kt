@@ -2,21 +2,29 @@ package me.rerere.rikkahub.ui.pages.assistant
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.db.dao.ScheduledTaskDao
+import me.rerere.rikkahub.data.db.dao.ScheduledTaskRunDao
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskScheduler
 
 class AssistantVM(
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
     private val conversationRepo: ConversationRepository,
+    private val scheduledTaskDao: ScheduledTaskDao,
+    private val scheduledTaskRunDao: ScheduledTaskRunDao,
+    private val scheduledTaskScheduler: ScheduledTaskScheduler,
     private val appScope: me.rerere.rikkahub.AppScope
 ) : ViewModel() {
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
@@ -62,6 +70,7 @@ class AssistantVM(
     }
 
     private val deletionJobs = java.util.concurrent.ConcurrentHashMap<kotlin.uuid.Uuid, kotlinx.coroutines.Job>()
+    private val enabledTaskSnapshotForUndo = java.util.concurrent.ConcurrentHashMap<kotlin.uuid.Uuid, List<String>>()
 
     fun removeAssistant(assistant: Assistant) {
         // Cancel any existing job for this assistant
@@ -78,9 +87,39 @@ class AssistantVM(
 
         // Start delayed deletion of data
         val job = appScope.launch {
+            val assistantId = assistant.id.toString()
+
+            if (!enabledTaskSnapshotForUndo.containsKey(assistant.id)) {
+                val enabledTaskIds = withContext(Dispatchers.IO) {
+                    scheduledTaskDao.getEnabledTaskIdsOfAssistant(assistantId)
+                }
+                enabledTaskSnapshotForUndo.putIfAbsent(assistant.id, enabledTaskIds)
+            }
+
+            withContext(Dispatchers.IO) {
+                val taskIds = scheduledTaskDao.getTaskIdsOfAssistant(assistantId)
+                taskIds.forEach { taskId ->
+                    scheduledTaskScheduler.cancel(taskId)
+                }
+                scheduledTaskDao.disableByAssistantId(assistantId)
+            }
+
             kotlinx.coroutines.delay(4000) // 4 seconds to undo
-            memoryRepository.deleteMemoriesOfAssistant(assistant.id.toString())
-            conversationRepo.deleteConversationOfAssistant(assistant.id)
+
+            withContext(Dispatchers.IO) {
+                val taskIds = scheduledTaskDao.getTaskIdsOfAssistant(assistantId)
+                taskIds.forEach { taskId ->
+                    scheduledTaskScheduler.cancel(taskId)
+                }
+
+                scheduledTaskRunDao.deleteByAssistantId(assistantId)
+                scheduledTaskDao.deleteByAssistantId(assistantId)
+
+                memoryRepository.deleteMemoriesOfAssistant(assistantId)
+                conversationRepo.deleteConversationOfAssistant(assistant.id)
+            }
+
+            enabledTaskSnapshotForUndo.remove(assistant.id)
             deletionJobs.remove(assistant.id)
         }
         deletionJobs[assistant.id] = job
@@ -90,6 +129,18 @@ class AssistantVM(
         // Cancel deletion job if it exists
         deletionJobs[assistant.id]?.cancel()
         deletionJobs.remove(assistant.id)
+
+        val enabledTaskIds = enabledTaskSnapshotForUndo.remove(assistant.id).orEmpty()
+        if (enabledTaskIds.isNotEmpty()) {
+            appScope.launch {
+                withContext(Dispatchers.IO) {
+                    enabledTaskIds.forEach { taskId ->
+                        scheduledTaskDao.updateEnabled(taskId, true)
+                        scheduledTaskScheduler.schedule(taskId)
+                    }
+                }
+            }
+        }
 
         viewModelScope.launch {
             // Restore to settings

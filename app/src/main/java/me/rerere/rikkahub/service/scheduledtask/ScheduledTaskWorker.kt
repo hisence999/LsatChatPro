@@ -102,14 +102,27 @@ class ScheduledTaskWorker(
         val assistant = settings.getAssistantById(assistantId)
         if (assistant == null) {
             taskDao.updateEnabled(task.id, false)
-            return@withContext finishFinalFailure(
-                task = task.copy(enabled = false),
-                run = run,
-                scheduledFor = scheduledFor,
-                assistantName = null,
-                errorCode = "ASSISTANT_NOT_FOUND",
-                errorMessage = "Assistant not found",
+
+            runDao.update(
+                run.copy(
+                    attempt = attempt,
+                    status = ScheduledTaskRunStatus.FAILED,
+                    finishedAt = nowMillis,
+                    errorCode = "ASSISTANT_NOT_FOUND",
+                    errorMessage = "Assistant not found",
+                )
             )
+
+            // Assistant is deleted or missing; silently disable the task and avoid sending notifications.
+            afterRunUpdateTask(
+                task = task.copy(enabled = false),
+                nowMillis = nowMillis,
+                scheduledFor = scheduledFor,
+                lastErrorCode = "ASSISTANT_NOT_FOUND",
+                lastErrorAt = nowMillis,
+            )
+
+            return@withContext Result.success()
         }
 
         val locale = Locale.getDefault()

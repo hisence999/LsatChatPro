@@ -24,14 +24,26 @@ interface ScheduledTaskDao {
     @Query("SELECT * FROM scheduled_tasks WHERE enabled = 1")
     suspend fun getAllEnabled(): List<ScheduledTaskEntity>
 
+    @Query("SELECT id FROM scheduled_tasks WHERE assistant_id = :assistantId")
+    suspend fun getTaskIdsOfAssistant(assistantId: String): List<String>
+
+    @Query("SELECT id FROM scheduled_tasks WHERE assistant_id = :assistantId AND enabled = 1")
+    suspend fun getEnabledTaskIdsOfAssistant(assistantId: String): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(task: ScheduledTaskEntity)
 
     @Query("DELETE FROM scheduled_tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("DELETE FROM scheduled_tasks WHERE assistant_id = :assistantId")
+    suspend fun deleteByAssistantId(assistantId: String)
+
     @Query("UPDATE scheduled_tasks SET enabled = :enabled WHERE id = :id")
     suspend fun updateEnabled(id: String, enabled: Boolean)
+
+    @Query("UPDATE scheduled_tasks SET enabled = 0 WHERE assistant_id = :assistantId")
+    suspend fun disableByAssistantId(assistantId: String)
 
     @Query(
         """

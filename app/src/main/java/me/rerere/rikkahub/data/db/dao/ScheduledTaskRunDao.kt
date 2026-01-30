@@ -23,5 +23,8 @@ interface ScheduledTaskRunDao {
 
     @Update
     suspend fun update(run: ScheduledTaskRunEntity)
+
+    @Query("DELETE FROM scheduled_task_runs WHERE assistant_id = :assistantId")
+    suspend fun deleteByAssistantId(assistantId: String)
 }
 
