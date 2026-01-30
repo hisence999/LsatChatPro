@@ -713,6 +713,8 @@
     <string name="setting_page_chat_storage_desc">%1$d files, %2$.2f MB</string>
 
     <string name="storage_manager_title">Storage Manager</string>
+    <string name="storage_manager_overview">Overview</string>
+    <string name="storage_manager_categories">Categories</string>
     <string name="storage_manager_total">Total</string>
     <string name="storage_manager_loading_placeholder">Loading…</string>
     <string name="storage_manager_chart_hint">Tap a slice to highlight</string>

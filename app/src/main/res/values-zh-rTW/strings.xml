@@ -536,6 +536,8 @@
   <string name="setting_page_chat_storage_desc">%1$d 個檔案，%2$.2f MB</string>
 
   <string name="storage_manager_title">儲存管理</string>
+  <string name="storage_manager_overview">總覽</string>
+  <string name="storage_manager_categories">分類</string>
   <string name="storage_manager_total">總計</string>
   <string name="storage_manager_loading_placeholder">載入中…</string>
   <string name="storage_manager_chart_hint">點按扇區以高亮</string>

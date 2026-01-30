@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="storage_manager_title">存储管理</string>
+    <string name="storage_manager_overview">总览</string>
+    <string name="storage_manager_categories">分类</string>
     <string name="storage_manager_total">总计</string>
     <string name="storage_manager_loading_placeholder">加载中…</string>
     <string name="storage_manager_chart_hint">点按扇区高亮</string>
