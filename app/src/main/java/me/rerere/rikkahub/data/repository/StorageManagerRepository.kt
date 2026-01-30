@@ -81,7 +81,21 @@ class StorageManagerRepository(
     private val genMediaDAO: GenMediaDAO,
     private val aiRequestLogDao: AIRequestLogDao,
 ) {
-    suspend fun loadOverview(): StorageOverview = withContext(Dispatchers.IO) {
+    private val overviewCache = TimedSuspendCache<StorageOverview>(
+        maxAgeMs = 5 * 60_000L,
+    )
+
+    fun peekOverviewCache(): StorageOverview? = overviewCache.peek()?.value
+
+    fun invalidateOverviewCache() {
+        overviewCache.invalidate()
+    }
+
+    suspend fun loadOverview(forceRefresh: Boolean = false): StorageOverview {
+        return overviewCache.get(forceRefresh = forceRefresh) { computeOverview() }
+    }
+
+    private suspend fun computeOverview(): StorageOverview = withContext(Dispatchers.IO) {
         val settings = settingsStore.settingsFlow.value
 
         val requestLogCount = runCatching { aiRequestLogDao.countAll() }.getOrNull() ?: 0
@@ -188,6 +202,15 @@ class StorageManagerRepository(
         )
     }
 
+    suspend fun getLogsUsage(): StorageCategoryUsage = withContext(Dispatchers.IO) {
+        val requestLogCount = runCatching { aiRequestLogDao.countAll() }.getOrNull() ?: 0
+        StorageCategoryUsage(
+            category = StorageCategoryKey.LOGS,
+            bytes = 0L,
+            fileCount = requestLogCount,
+        )
+    }
+
     suspend fun getAssistantAttachmentStats(assistantId: Uuid): AssistantAttachmentStats = withContext(Dispatchers.IO) {
         val conversations = conversationRepository.getConversationsOfAssistant(assistantId).first()
         val imageUrls = LinkedHashSet<String>()
@@ -270,14 +293,16 @@ class StorageManagerRepository(
             }
             .toList()
 
-        deleteFiles(targetFiles)
+        val result = deleteFiles(targetFiles)
+        invalidateOverviewCache()
+        result
     }
 
     suspend fun clearAssistantChats(
         assistantId: Uuid,
         mode: AssistantChatCleanupMode,
     ): DeleteResult = withContext(Dispatchers.IO) {
-        when (mode) {
+        val result = when (mode) {
             AssistantChatCleanupMode.RECORDS_ONLY -> {
                 conversationRepository.deleteConversationOfAssistant(assistantId, deleteFiles = false)
                 DeleteResult(deletedCount = 0, failedCount = 0, deletedBytes = 0L)
@@ -296,6 +321,8 @@ class StorageManagerRepository(
                 DeleteResult(deletedCount = 0, failedCount = 0, deletedBytes = 0L)
             }
         }
+        invalidateOverviewCache()
+        result
     }
 
     suspend fun getAssistantConversationCount(assistantId: Uuid): Int = withContext(Dispatchers.IO) {
@@ -421,18 +448,22 @@ class StorageManagerRepository(
                 }
         }
 
-        DeleteResult(
+        val result = DeleteResult(
             deletedCount = deletedCount,
             failedCount = failedCount,
             deletedBytes = deletedBytes,
         )
+        invalidateOverviewCache()
+        result
     }
 
     suspend fun clearCache(): DeleteResult = withContext(Dispatchers.IO) {
         val root = context.cacheDir
         val children = root.listFiles().orEmpty()
         val targets = children.filter { it.exists() }
-        deleteFilesOrDirs(targets)
+        val result = deleteFilesOrDirs(targets)
+        invalidateOverviewCache()
+        result
     }
 
     private data class Usage(val count: Int, val bytes: Long)

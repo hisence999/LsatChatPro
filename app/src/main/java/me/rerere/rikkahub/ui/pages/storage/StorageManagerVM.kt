@@ -20,10 +20,11 @@ class StorageManagerVM(
         refresh()
     }
 
-    fun refresh() {
+    fun refresh(force: Boolean = false) {
         viewModelScope.launch {
-            _overview.value = UiState.Loading
-            _overview.value = runCatching { storageRepo.loadOverview() }
+            val cached = storageRepo.peekOverviewCache()
+            _overview.value = cached?.let { UiState.Success(it) } ?: UiState.Loading
+            _overview.value = runCatching { storageRepo.loadOverview(forceRefresh = force) }
                 .fold(
                     onSuccess = { UiState.Success(it) },
                     onFailure = { UiState.Error(it) },
@@ -31,4 +32,3 @@ class StorageManagerVM(
         }
     }
 }
-

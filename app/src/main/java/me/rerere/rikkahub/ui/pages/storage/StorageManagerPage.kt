@@ -66,7 +66,7 @@ fun StorageManagerPage(
                     IconButton(
                         onClick = {
                             haptics.perform(HapticPattern.Pop)
-                            vm.refresh()
+                            vm.refresh(force = true)
                         }
                     ) {
                         Icon(Icons.Rounded.Refresh, contentDescription = null)

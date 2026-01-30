@@ -61,14 +61,18 @@ class StorageCategoryVM(
         refreshUsage()
     }
 
-    fun refreshUsage() {
+    fun refreshUsage(force: Boolean = false) {
         viewModelScope.launch {
-            _categoryUsage.value = UiState.Loading
+            val cached = storageRepo.peekOverviewCache()
+                ?.categories
+                ?.firstOrNull { it.category == category }
+            _categoryUsage.value = cached?.let { UiState.Success(it) } ?: UiState.Loading
             _categoryUsage.value = runCatching {
                 when (category) {
                     StorageCategoryKey.CACHE -> storageRepo.getCacheUsage()
-                    StorageCategoryKey.CHAT_RECORDS, StorageCategoryKey.LOGS -> storageRepo.getChatRecordsUsage()
-                    else -> storageRepo.loadOverview().categories.first { it.category == category }
+                    StorageCategoryKey.CHAT_RECORDS -> storageRepo.getChatRecordsUsage()
+                    StorageCategoryKey.LOGS -> storageRepo.getLogsUsage()
+                    else -> storageRepo.loadOverview(forceRefresh = force).categories.first { it.category == category }
                 }
             }.fold(
                 onSuccess = { UiState.Success(it) },
@@ -206,4 +210,3 @@ class StorageCategoryVM(
         }
     }
 }
-
