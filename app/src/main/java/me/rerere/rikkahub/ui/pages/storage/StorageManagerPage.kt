@@ -29,7 +29,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
-import me.rerere.rikkahub.data.repository.StorageCategoryUsage
 import me.rerere.rikkahub.data.repository.StorageOverview
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
@@ -49,11 +48,6 @@ fun StorageManagerPage(
     val haptics = rememberPremiumHaptics()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val overviewState by vm.overview.collectAsStateWithLifecycle()
-
-    val categories = (overviewState as? UiState.Success<StorageOverview>)
-        ?.data
-        ?.categories
-        .orEmpty()
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -84,18 +78,16 @@ fun StorageManagerPage(
                 StorageOverviewGroup(overviewState = overviewState)
             }
 
-            if (categories.isNotEmpty()) {
-                item(key = "categories") {
-                    StorageCategoriesGroup(
-                        categories = categories,
-                        onOpenCategory = { category ->
-                            when (category) {
-                                StorageCategoryKey.LOGS -> navController.navigate(Screen.RequestLogs)
-                                else -> navController.navigate(Screen.StorageCategory(category.key))
-                            }
-                        },
-                    )
-                }
+            item(key = "categories") {
+                StorageCategoriesGroup(
+                    overviewState = overviewState,
+                    onOpenCategory = { category ->
+                        when (category) {
+                            StorageCategoryKey.LOGS -> navController.navigate(Screen.RequestLogs)
+                            else -> navController.navigate(Screen.StorageCategory(category.key))
+                        }
+                    },
+                )
             }
         }
     }
@@ -110,7 +102,7 @@ private fun StorageOverviewGroup(
     val subtitleText = when (overviewState) {
         UiState.Idle,
         UiState.Loading,
-        -> stringResource(R.string.storage_manager_loading_placeholder)
+        -> null
 
         is UiState.Error -> overviewState.error.message ?: "Error"
 
@@ -126,6 +118,17 @@ private fun StorageOverviewGroup(
             {
                 Text(
                     text = totalText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        UiState.Idle,
+        UiState.Loading,
+        -> {
+            {
+                Text(
+                    text = stringResource(R.string.storage_manager_loading_placeholder),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -152,37 +155,58 @@ private fun StorageOverviewGroup(
 
 @Composable
 private fun StorageCategoriesGroup(
-    categories: List<StorageCategoryUsage>,
+    overviewState: UiState<StorageOverview>,
     onOpenCategory: (StorageCategoryKey) -> Unit,
 ) {
     val context = LocalContext.current
 
     SettingsGroup(title = stringResource(R.string.storage_manager_categories)) {
-        categories.forEach { usage ->
-            val bytesText = runCatching { Formatter.formatShortFileSize(context, usage.bytes) }
-                .getOrNull()
-                ?: "${usage.bytes} B"
+        val byKey = (overviewState as? UiState.Success<StorageOverview>)
+            ?.data
+            ?.categories
+            ?.associateBy { it.category }
+            .orEmpty()
 
-            val subtitleText = when (usage.category) {
-                StorageCategoryKey.LOGS -> stringResource(R.string.storage_category_logs_subtitle, usage.fileCount)
-                else -> stringResource(
-                    R.string.storage_category_subtitle,
-                    bytesText,
-                    usage.fileCount,
-                )
+        val placeholderText = when (overviewState) {
+            UiState.Idle,
+            UiState.Loading,
+            -> stringResource(R.string.storage_manager_loading_placeholder)
+
+            is UiState.Error -> overviewState.error.message ?: "Error"
+
+            is UiState.Success -> null
+        }
+
+        StorageCategoryKey.entries.forEach { category ->
+            val usage = byKey[category]
+            val subtitleText = placeholderText ?: run {
+                val bytes = usage?.bytes ?: 0L
+                val count = usage?.fileCount ?: 0
+                val bytesText = runCatching { Formatter.formatShortFileSize(context, bytes) }
+                    .getOrNull()
+                    ?: "${bytes} B"
+
+                when (category) {
+                    StorageCategoryKey.LOGS -> stringResource(R.string.storage_category_logs_subtitle, count)
+                    else -> stringResource(
+                        R.string.storage_category_subtitle,
+                        bytesText,
+                        count,
+                    )
+                }
             }
 
             SettingGroupItem(
-                title = stringResource(categoryTitleRes(usage.category)),
+                title = stringResource(categoryTitleRes(category)),
                 subtitle = subtitleText,
                 icon = {
                     Icon(
-                        imageVector = categoryIcon(usage.category),
+                        imageVector = categoryIcon(category),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                onClick = { onOpenCategory(usage.category) },
+                onClick = { onOpenCategory(category) },
             )
         }
     }
