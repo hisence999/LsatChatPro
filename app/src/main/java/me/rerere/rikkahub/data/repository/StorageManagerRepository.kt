@@ -82,7 +82,7 @@ class StorageManagerRepository(
     private val aiRequestLogDao: AIRequestLogDao,
 ) {
     private val overviewCache = TimedSuspendCache<StorageOverview>(
-        maxAgeMs = 5 * 60_000L,
+        maxAgeMs = 30 * 60_000L,
     )
 
     fun peekOverviewCache(): StorageOverview? = overviewCache.peek()?.value
