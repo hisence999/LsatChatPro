@@ -38,7 +38,6 @@ fun StorageCategoryScaffoldContent(
     onSelectAssistant: (Uuid?) -> Unit,
     attachmentStatsState: UiState<AssistantAttachmentStats>,
     conversationCountState: UiState<Int>,
-    onClearAssistantImages: (Uuid) -> Unit,
     assistantImagesState: UiState<List<AssistantImageEntry>>,
     onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
@@ -52,13 +51,10 @@ fun StorageCategoryScaffoldContent(
     if (category == StorageCategoryKey.IMAGES) {
         StorageImagesScaffoldContent(
             innerPadding = innerPadding,
-            usageState = usageState,
             assistants = assistants,
             selectedAssistantId = selectedAssistantId,
             onSelectAssistant = onSelectAssistant,
-            attachmentStatsState = attachmentStatsState,
             assistantImagesState = assistantImagesState,
-            onClearAssistantImages = onClearAssistantImages,
             onDeleteAssistantImages = onDeleteAssistantImages,
         )
         return

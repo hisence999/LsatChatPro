@@ -107,21 +107,33 @@ class StorageCategoryVM(
 
     private fun reloadAssistantData(assistantId: Uuid) {
         viewModelScope.launch {
-            _assistantAttachmentStats.value = UiState.Loading
-            _assistantConversationCount.value = UiState.Loading
-            _assistantImages.value = if (category == StorageCategoryKey.IMAGES) UiState.Loading else UiState.Idle
+            val loadAttachmentStats = category == StorageCategoryKey.FILES || category == StorageCategoryKey.CHAT_RECORDS
+            val loadConversationCount = category == StorageCategoryKey.CHAT_RECORDS
+            val loadImages = category == StorageCategoryKey.IMAGES
 
-            val statsState = runCatching { storageRepo.getAssistantAttachmentStats(assistantId) }
-                .fold(
-                    onSuccess = { UiState.Success(it) },
-                    onFailure = { UiState.Error(it) },
-                )
-            val countState = runCatching { storageRepo.getAssistantConversationCount(assistantId) }
-                .fold(
-                    onSuccess = { UiState.Success(it) },
-                    onFailure = { UiState.Error(it) },
-                )
-            val imagesState = if (category == StorageCategoryKey.IMAGES) {
+            _assistantAttachmentStats.value = if (loadAttachmentStats) UiState.Loading else UiState.Idle
+            _assistantConversationCount.value = if (loadConversationCount) UiState.Loading else UiState.Idle
+            _assistantImages.value = if (loadImages) UiState.Loading else UiState.Idle
+
+            val statsState = if (loadAttachmentStats) {
+                runCatching { storageRepo.getAssistantAttachmentStats(assistantId) }
+                    .fold(
+                        onSuccess = { UiState.Success(it) },
+                        onFailure = { UiState.Error(it) },
+                    )
+            } else {
+                UiState.Idle
+            }
+            val countState = if (loadConversationCount) {
+                runCatching { storageRepo.getAssistantConversationCount(assistantId) }
+                    .fold(
+                        onSuccess = { UiState.Success(it) },
+                        onFailure = { UiState.Error(it) },
+                    )
+            } else {
+                UiState.Idle
+            }
+            val imagesState = if (loadImages) {
                 runCatching { storageRepo.getAssistantImageEntries(assistantId) }
                     .fold(
                         onSuccess = { UiState.Success(it) },

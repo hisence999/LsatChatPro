@@ -744,10 +744,11 @@
     <string name="storage_chat_records_count">%1$d conversations</string>
     <string name="storage_chat_records_attachments_hint">Attachments: %1$s · %2$d files</string>
 
-    <string name="storage_images_preview_title">Gallery</string>
+    <string name="storage_images_preview_title">Image selection</string>
     <string name="storage_images_preview_hint">Tap to preview · Long press to select</string>
     <string name="storage_images_empty_hint">No images found for this assistant</string>
-    <string name="storage_images_selected_summary">Selected: %1$d · %2$s</string>
+    <string name="storage_images_total_summary">All: %1$s · %2$d images</string>
+    <string name="storage_images_selected_summary">Selected: %1$s · %2$d images</string>
 
     <string name="storage_action_clear_images">Clear images</string>
     <string name="storage_action_clear_files">Clear files</string>

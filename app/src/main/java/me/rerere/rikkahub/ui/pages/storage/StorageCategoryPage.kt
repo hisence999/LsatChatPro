@@ -97,7 +97,6 @@ fun StorageCategoryPage(
             },
             attachmentStatsState = attachmentStatsState,
             conversationCountState = conversationCountState,
-            onClearAssistantImages = { assistantId -> vm.clearAssistantImages(assistantId) },
             assistantImagesState = assistantImagesState,
             onDeleteAssistantImages = { assistantId, absolutePaths -> vm.deleteAssistantImages(assistantId, absolutePaths) },
             onClearAssistantFiles = { assistantId -> vm.clearAssistantFiles(assistantId) },

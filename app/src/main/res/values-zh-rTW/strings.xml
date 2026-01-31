@@ -567,10 +567,11 @@
   <string name="storage_chat_records_count">%1$d 個會話</string>
   <string name="storage_chat_records_attachments_hint">附件：%1$s · %2$d 個檔案</string>
 
-  <string name="storage_images_preview_title">圖片預覽</string>
+  <string name="storage_images_preview_title">圖片選擇</string>
   <string name="storage_images_preview_hint">點按預覽 · 長按選擇</string>
   <string name="storage_images_empty_hint">未找到該助手的圖片</string>
-  <string name="storage_images_selected_summary">已選擇：%1$d · %2$s</string>
+  <string name="storage_images_total_summary">全部：%1$s · %2$d 張</string>
+  <string name="storage_images_selected_summary">已選擇：%1$s · %2$d 張</string>
 
   <string name="storage_action_clear_images">清理圖片</string>
   <string name="storage_action_clear_files">清理檔案</string>

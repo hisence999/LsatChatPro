@@ -55,9 +55,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
-import me.rerere.rikkahub.data.repository.StorageCategoryUsage
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
@@ -68,13 +66,10 @@ import kotlin.uuid.Uuid
 @Composable
 fun StorageImagesScaffoldContent(
     innerPadding: PaddingValues,
-    usageState: UiState<StorageCategoryUsage>,
     assistants: List<Assistant>,
     selectedAssistantId: Uuid?,
     onSelectAssistant: (Uuid?) -> Unit,
-    attachmentStatsState: UiState<AssistantAttachmentStats>,
     assistantImagesState: UiState<List<AssistantImageEntry>>,
-    onClearAssistantImages: (Uuid) -> Unit,
     onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
 ) {
     val context = LocalContext.current
@@ -125,26 +120,11 @@ fun StorageImagesScaffoldContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "usage", span = { GridItemSpan(maxLineSpan) }) {
-            CategoryUsageCard(usageState = usageState)
-        }
-
         item(key = "assistant_filter", span = { GridItemSpan(maxLineSpan) }) {
             AssistantFilterRow(
                 assistants = assistants,
                 selected = selectedAssistantId,
                 onSelect = onSelectAssistant,
-            )
-        }
-
-        item(key = "assistant_clear", span = { GridItemSpan(maxLineSpan) }) {
-            AssistantAttachmentsCard(
-                title = stringResource(R.string.storage_images_assistant_title),
-                kind = AttachmentKind.Images,
-                assistants = assistants,
-                selectedAssistantId = selectedAssistantId,
-                statsState = attachmentStatsState,
-                onConfirmClear = onClearAssistantImages,
             )
         }
 
@@ -247,6 +227,7 @@ private fun AssistantImagesGalleryCard(
     onClearSelection: () -> Unit,
     onRequestDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
     Card(
         shape = AppShapes.CardLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -299,13 +280,21 @@ private fun AssistantImagesGalleryCard(
                         return@Column
                     }
 
-                    if (selectedCount > 0) {
-                        Text(
-                            text = stringResource(R.string.storage_images_selected_summary, selectedCount, selectedBytesText),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    val totalBytes = imagesState.data.sumOf { it.bytes }
+                    val totalBytesText = runCatching { Formatter.formatShortFileSize(context, totalBytes) }
+                        .getOrNull()
+                        ?: "${totalBytes} B"
+                    val totalCount = imagesState.data.size
+
+                    Text(
+                        text = if (selectedCount > 0) {
+                            stringResource(R.string.storage_images_selected_summary, selectedBytesText, selectedCount)
+                        } else {
+                            stringResource(R.string.storage_images_total_summary, totalBytesText, totalCount)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
 
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
