@@ -1,8 +1,6 @@
 package me.rerere.rikkahub.data.repository
 
 import android.content.Context
-import androidx.core.net.toFile
-import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -65,6 +63,13 @@ data class AssistantAttachmentStats(
     val imageBytes: Long,
     val fileCount: Int,
     val fileBytes: Long,
+)
+
+data class AssistantImageEntry(
+    val absolutePath: String,
+    val bytes: Long,
+    val lastModified: Long,
+    val url: String,
 )
 
 enum class AssistantChatCleanupMode {
@@ -221,10 +226,10 @@ class StorageManagerRepository(
                 node.messages.forEach { message ->
                     message.parts.forEach { part ->
                         when (part) {
-                            is UIMessagePart.Image -> part.url.takeIf { it.startsWith("file://") }?.let(imageUrls::add)
-                            is UIMessagePart.Document -> part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
-                            is UIMessagePart.Video -> part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
-                            is UIMessagePart.Audio -> part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
+                            is UIMessagePart.Image -> imageUrls += part.url
+                            is UIMessagePart.Document -> fileUrls += part.url
+                            is UIMessagePart.Video -> fileUrls += part.url
+                            is UIMessagePart.Audio -> fileUrls += part.url
                             else -> Unit
                         }
                     }
@@ -232,22 +237,24 @@ class StorageManagerRepository(
             }
         }
 
+        val uploadDir = File(context.filesDir, "upload")
+
         val images = imageUrls
             .asSequence()
-            .mapNotNull(::toLocalFileOrNull)
-            .distinctBy { it.absolutePath }
+            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 // Safety: only delete chat attachments in upload/, avoid touching avatars/images dirs.
-                StorageScanUtils.isInChildOf(file, File(context.filesDir, "upload"))
+                StorageScanUtils.isInChildOf(file, uploadDir)
             }
             .toList()
 
         val files = fileUrls
             .asSequence()
-            .mapNotNull(::toLocalFileOrNull)
-            .distinctBy { it.absolutePath }
+            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
-                StorageScanUtils.isInChildOf(file, File(context.filesDir, "upload"))
+                StorageScanUtils.isInChildOf(file, uploadDir)
             }
             .toList()
 
@@ -273,10 +280,10 @@ class StorageManagerRepository(
                 node.messages.forEach { message ->
                     message.parts.forEach { part ->
                         when (part) {
-                            is UIMessagePart.Image -> if (clearImages) part.url.takeIf { it.startsWith("file://") }?.let(imageUrls::add)
-                            is UIMessagePart.Document -> if (clearFiles) part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
-                            is UIMessagePart.Video -> if (clearFiles) part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
-                            is UIMessagePart.Audio -> if (clearFiles) part.url.takeIf { it.startsWith("file://") }?.let(fileUrls::add)
+                            is UIMessagePart.Image -> if (clearImages) imageUrls += part.url
+                            is UIMessagePart.Document -> if (clearFiles) fileUrls += part.url
+                            is UIMessagePart.Video -> if (clearFiles) fileUrls += part.url
+                            is UIMessagePart.Audio -> if (clearFiles) fileUrls += part.url
                             else -> Unit
                         }
                     }
@@ -284,12 +291,13 @@ class StorageManagerRepository(
             }
         }
 
+        val uploadDir = File(context.filesDir, "upload")
         val targetFiles = (imageUrls + fileUrls)
             .asSequence()
-            .mapNotNull(::toLocalFileOrNull)
-            .distinctBy { it.absolutePath }
+            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
-                StorageScanUtils.isInChildOf(file, File(context.filesDir, "upload"))
+                StorageScanUtils.isInChildOf(file, uploadDir)
             }
             .toList()
 
@@ -329,6 +337,58 @@ class StorageManagerRepository(
         runCatching { conversationDAO.getConversationCountOfAssistant(assistantId.toString()) }
             .getOrNull()
             ?: 0
+    }
+
+    suspend fun getAssistantImageEntries(assistantId: Uuid): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
+        val conversations = conversationRepository.getConversationsOfAssistant(assistantId).first()
+        val imageUrls = LinkedHashSet<String>()
+
+        conversations.forEach { conversation ->
+            conversation.messageNodes.forEach { node ->
+                node.messages.forEach { message ->
+                    message.parts.forEach { part ->
+                        when (part) {
+                            is UIMessagePart.Image -> imageUrls += part.url
+                            is UIMessagePart.Document -> if (part.mime.startsWith("image/")) imageUrls += part.url
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        }
+
+        val uploadDir = File(context.filesDir, "upload")
+        imageUrls
+            .asSequence()
+            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
+            .filter { file ->
+                StorageScanUtils.isInChildOf(file, uploadDir)
+            }
+            .map { file ->
+                val path = StorageScanUtils.normalizePath(file)
+                AssistantImageEntry(
+                    absolutePath = path,
+                    bytes = file.lengthSafe(),
+                    lastModified = runCatching { file.lastModified() }.getOrNull() ?: 0L,
+                    url = "file://$path",
+                )
+            }
+            .sortedByDescending { it.lastModified }
+            .toList()
+    }
+
+    suspend fun deleteAssistantImageEntries(absolutePaths: List<String>): DeleteResult = withContext(Dispatchers.IO) {
+        val uploadDir = File(context.filesDir, "upload")
+        val files = absolutePaths
+            .asSequence()
+            .map { File(it) }
+            .filter { file -> StorageScanUtils.isInChildOf(file, uploadDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
+            .toList()
+        val result = deleteFiles(files)
+        invalidateOverviewCache()
+        result
     }
 
     suspend fun scanOrphans(previewLimit: Int = 40): OrphanScanResult = withContext(Dispatchers.IO) {
@@ -584,8 +644,8 @@ class StorageManagerRepository(
         val referenced = HashSet<String>(8_192)
 
         fun addUrl(url: String?) {
-            if (url.isNullOrBlank() || !url.startsWith("file://")) return
-            val file = toLocalFileOrNull(url) ?: return
+            if (url.isNullOrBlank()) return
+            val file = StorageScanUtils.toLocalFileOrNull(url, context.filesDir) ?: return
             referenced += StorageScanUtils.normalizePath(file)
         }
 
@@ -650,10 +710,7 @@ class StorageManagerRepository(
             }
 
             batch.forEach { row ->
-                StorageScanUtils.fileUrlRegex.findAll(row.nodes).forEach { match ->
-                    val file = toLocalFileOrNull(match.value) ?: return@forEach
-                    referenced += StorageScanUtils.normalizePath(file)
-                }
+                referenced += StorageScanUtils.extractReferencedFilePathsFromText(row.nodes, context.filesDir)
             }
 
             offset += batchSize
@@ -661,13 +718,6 @@ class StorageManagerRepository(
         }
 
         return referenced
-    }
-
-    private fun toLocalFileOrNull(url: String): File? {
-        val uri = runCatching { url.toUri() }.getOrNull() ?: return null
-        if (uri.scheme != "file") return null
-        val file = runCatching { uri.toFile() }.getOrNull() ?: return null
-        return file.takeIf { StorageScanUtils.isInChildOf(it, context.filesDir) }
     }
 
     private fun File.lengthSafe(): Long = runCatching { length() }.getOrNull() ?: 0L

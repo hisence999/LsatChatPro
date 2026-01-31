@@ -567,11 +567,19 @@
   <string name="storage_chat_records_count">%1$d 個會話</string>
   <string name="storage_chat_records_attachments_hint">附件：%1$s · %2$d 個檔案</string>
 
+  <string name="storage_images_preview_title">圖片預覽</string>
+  <string name="storage_images_preview_hint">點按預覽 · 長按選擇</string>
+  <string name="storage_images_empty_hint">未找到該助手的圖片</string>
+  <string name="storage_images_selected_summary">已選擇：%1$d · %2$s</string>
+
   <string name="storage_action_clear_images">清理圖片</string>
   <string name="storage_action_clear_files">清理檔案</string>
   <string name="storage_action_clear_records_only">僅清理聊天記錄</string>
   <string name="storage_action_clear_attachments_only">僅清理附件</string>
   <string name="storage_action_clear_records_and_attachments">清理聊天記錄+附件</string>
+  <string name="storage_action_select_all">全選</string>
+  <string name="storage_action_clear_selection">取消選擇</string>
+  <string name="storage_action_delete_selected">刪除所選</string>
   <string name="storage_action_clear_cache">清理快取</string>
   <string name="storage_action_scan">掃描</string>
   <string name="storage_action_clear_orphans">清理</string>
@@ -581,6 +589,8 @@
   <string name="storage_confirm_clear_images_desc">僅刪除該助手聊天中的圖片檔案（只刪檔案）。聊天記錄會保留，歷史圖片連結可能失效。</string>
   <string name="storage_confirm_clear_files_title">清理檔案？</string>
   <string name="storage_confirm_clear_files_desc">僅刪除該助手聊天中的附件檔案（只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
+  <string name="storage_confirm_delete_selected_images_title">刪除所選圖片？</string>
+  <string name="storage_confirm_delete_selected_images_desc">僅刪除該助手聊天中的 %1$d 個圖片檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史圖片連結可能失效。</string>
   <string name="storage_confirm_clear_records_title">清理聊天記錄？</string>
   <string name="storage_confirm_clear_records_desc">刪除該助手的聊天記錄；不刪除檔案。</string>
   <string name="storage_confirm_clear_attachments_title">清理附件？</string>

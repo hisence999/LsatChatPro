@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
+import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.DeleteResult
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
@@ -51,6 +52,9 @@ class StorageCategoryVM(
     private val _assistantConversationCount = MutableStateFlow<UiState<Int>>(UiState.Idle)
     val assistantConversationCount: StateFlow<UiState<Int>> = _assistantConversationCount.asStateFlow()
 
+    private val _assistantImages = MutableStateFlow<UiState<List<AssistantImageEntry>>>(UiState.Idle)
+    val assistantImages: StateFlow<UiState<List<AssistantImageEntry>>> = _assistantImages.asStateFlow()
+
     private val _orphanScan = MutableStateFlow<UiState<OrphanScanResult>>(UiState.Idle)
     val orphanScan: StateFlow<UiState<OrphanScanResult>> = _orphanScan.asStateFlow()
 
@@ -86,6 +90,7 @@ class StorageCategoryVM(
         if (id == null) {
             _assistantAttachmentStats.value = UiState.Idle
             _assistantConversationCount.value = UiState.Idle
+            _assistantImages.value = UiState.Idle
             return
         }
 
@@ -104,6 +109,7 @@ class StorageCategoryVM(
         viewModelScope.launch {
             _assistantAttachmentStats.value = UiState.Loading
             _assistantConversationCount.value = UiState.Loading
+            _assistantImages.value = if (category == StorageCategoryKey.IMAGES) UiState.Loading else UiState.Idle
 
             val statsState = runCatching { storageRepo.getAssistantAttachmentStats(assistantId) }
                 .fold(
@@ -115,9 +121,19 @@ class StorageCategoryVM(
                     onSuccess = { UiState.Success(it) },
                     onFailure = { UiState.Error(it) },
                 )
+            val imagesState = if (category == StorageCategoryKey.IMAGES) {
+                runCatching { storageRepo.getAssistantImageEntries(assistantId) }
+                    .fold(
+                        onSuccess = { UiState.Success(it) },
+                        onFailure = { UiState.Error(it) },
+                    )
+            } else {
+                UiState.Idle
+            }
 
             _assistantAttachmentStats.value = statsState
             _assistantConversationCount.value = countState
+            _assistantImages.value = imagesState
         }
     }
 
@@ -134,6 +150,19 @@ class StorageCategoryVM(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { UiState.Error(it) },
             )
+            refreshUsage()
+            reloadAssistantData(assistantId)
+        }
+    }
+
+    fun deleteAssistantImages(assistantId: Uuid, absolutePaths: List<String>) {
+        viewModelScope.launch {
+            _action.value = UiState.Loading
+            _action.value = runCatching { storageRepo.deleteAssistantImageEntries(absolutePaths) }
+                .fold(
+                    onSuccess = { UiState.Success(it) },
+                    onFailure = { UiState.Error(it) },
+                )
             refreshUsage()
             reloadAssistantData(assistantId)
         }

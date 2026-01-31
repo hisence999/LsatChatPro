@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
+import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
@@ -38,6 +39,8 @@ fun StorageCategoryScaffoldContent(
     attachmentStatsState: UiState<AssistantAttachmentStats>,
     conversationCountState: UiState<Int>,
     onClearAssistantImages: (Uuid) -> Unit,
+    assistantImagesState: UiState<List<AssistantImageEntry>>,
+    onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
     onClearAssistantChats: (Uuid, AssistantChatCleanupMode) -> Unit,
     orphanScanState: UiState<OrphanScanResult>,
@@ -46,6 +49,21 @@ fun StorageCategoryScaffoldContent(
     onClearCache: () -> Unit,
     onOpenLogs: () -> Unit,
 ) {
+    if (category == StorageCategoryKey.IMAGES) {
+        StorageImagesScaffoldContent(
+            innerPadding = innerPadding,
+            usageState = usageState,
+            assistants = assistants,
+            selectedAssistantId = selectedAssistantId,
+            onSelectAssistant = onSelectAssistant,
+            attachmentStatsState = attachmentStatsState,
+            assistantImagesState = assistantImagesState,
+            onClearAssistantImages = onClearAssistantImages,
+            onDeleteAssistantImages = onDeleteAssistantImages,
+        )
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.padding(innerPadding),
         contentPadding = PaddingValues(12.dp),
@@ -57,24 +75,7 @@ fun StorageCategoryScaffoldContent(
 
         when (category) {
             StorageCategoryKey.IMAGES -> {
-                item(key = "assistant_filter") {
-                    AssistantFilterRow(
-                        assistants = assistants,
-                        selected = selectedAssistantId,
-                        onSelect = onSelectAssistant,
-                    )
-                }
-
-                item(key = "assistant") {
-                    AssistantAttachmentsCard(
-                        title = stringResource(R.string.storage_images_assistant_title),
-                        kind = AttachmentKind.Images,
-                        assistants = assistants,
-                        selectedAssistantId = selectedAssistantId,
-                        statsState = attachmentStatsState,
-                        onConfirmClear = onClearAssistantImages,
-                    )
-                }
+                // handled in StorageImagesScaffoldContent
             }
 
             StorageCategoryKey.FILES -> {
@@ -144,7 +145,7 @@ fun StorageCategoryScaffoldContent(
 }
 
 @Composable
-private fun CategoryUsageCard(
+internal fun CategoryUsageCard(
     usageState: UiState<StorageCategoryUsage>,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -202,7 +203,7 @@ private fun CategoryUsageCard(
 }
 
 @Composable
-private fun AssistantFilterRow(
+internal fun AssistantFilterRow(
     assistants: List<Assistant>,
     selected: Uuid?,
     onSelect: (Uuid?) -> Unit,
@@ -236,4 +237,3 @@ private fun AssistantFilterRow(
         }
     }
 }
-

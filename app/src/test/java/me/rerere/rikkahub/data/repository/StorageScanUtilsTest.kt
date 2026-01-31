@@ -1,70 +1,64 @@
 package me.rerere.rikkahub.data.repository
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 
 class StorageScanUtilsTest {
     @Test
-    fun fileUrlRegex_findsFileUrls() {
-        val input = """
-            {
-              "a": "file:///data/user/0/me.rerere.rikkahub/files/upload/a.png",
-              "b": "hello file:///data/user/0/me.rerere.rikkahub/files/upload/b.jpg world"
-            }
-        """.trimIndent()
+    fun `toLocalFileOrNull supports file url absolute and relative paths`() {
+        val filesDir = Files.createTempDirectory("filesDir").toFile()
+        val uploadFile = File(filesDir, "upload/test.png")
 
-        val urls = StorageScanUtils.fileUrlRegex
-            .findAll(input)
-            .map { it.value }
-            .toList()
+        val absolutePath = StorageScanUtils.normalizePath(uploadFile)
+        val fileUrl = "file:///" + absolutePath.replace('\\', '/')
 
-        assertEquals(
-            listOf(
-                "file:///data/user/0/me.rerere.rikkahub/files/upload/a.png",
-                "file:///data/user/0/me.rerere.rikkahub/files/upload/b.jpg",
-            ),
-            urls
-        )
+        val fromAbsolute = StorageScanUtils.toLocalFileOrNull(absolutePath, filesDir)
+        val fromFileUrl = StorageScanUtils.toLocalFileOrNull(fileUrl, filesDir)
+        val fromRelative = StorageScanUtils.toLocalFileOrNull("upload/test.png", filesDir)
+
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(fromAbsolute!!))
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(fromFileUrl!!))
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(fromRelative!!))
+
+        assertNull(StorageScanUtils.toLocalFileOrNull("data:image/png;base64,abc", filesDir))
+        assertNull(StorageScanUtils.toLocalFileOrNull("https://example.com/a.png", filesDir))
     }
 
     @Test
-    fun isImageExtension_works() {
-        assertTrue(StorageScanUtils.isImageExtension("png"))
-        assertTrue(StorageScanUtils.isImageExtension("JPG"))
-        assertTrue(StorageScanUtils.isImageExtension("webp"))
-        assertFalse(StorageScanUtils.isImageExtension(""))
-        assertFalse(StorageScanUtils.isImageExtension("mp4"))
+    fun `toLocalFileOrNull rejects paths outside filesDir`() {
+        val filesDir = Files.createTempDirectory("filesDir").toFile()
+        val outside = Files.createTempDirectory("outside").toFile()
+        val outsideFile = File(outside, "upload/test.png")
+
+        val absolutePath = StorageScanUtils.normalizePath(outsideFile)
+        val fileUrl = "file:///" + absolutePath.replace('\\', '/')
+
+        assertNull(StorageScanUtils.toLocalFileOrNull(absolutePath, filesDir))
+        assertNull(StorageScanUtils.toLocalFileOrNull(fileUrl, filesDir))
     }
 
     @Test
-    fun isInChildOf_works() {
-        val root = File(System.getProperty("java.io.tmpdir"), "storageScanUtils_${System.nanoTime()}")
-        val parent = File(root, "parent")
-        val childDir = File(parent, "child")
-        val childFile = File(childDir, "a.txt")
-        val sibling = File(root, "sibling/a.txt")
+    fun `extractReferencedFilePathsFromText finds both file urls and absolute paths`() {
+        val filesDir = Files.createTempDirectory("filesDir").toFile()
+        val uploadFile = File(filesDir, "upload/test.png")
+        val absolutePath = StorageScanUtils.normalizePath(uploadFile)
+        val fileUrl = "file:///" + absolutePath.replace('\\', '/')
 
-        try {
-            childDir.mkdirs()
-            childFile.writeText("x")
-            sibling.parentFile?.mkdirs()
-            sibling.writeText("y")
-
-            assertTrue(StorageScanUtils.isInChildOf(childFile, parent))
-            assertFalse(StorageScanUtils.isInChildOf(sibling, parent))
-        } finally {
-            runCatching { root.deleteRecursively() }
+        val text = buildString {
+            append("a=\"")
+            append(absolutePath)
+            append("\" ")
+            append("b=\"")
+            append(fileUrl)
+            append("\"")
         }
-    }
 
-    @Test
-    fun storageCategoryKey_fromKeyOrNull() {
-        assertEquals(StorageCategoryKey.IMAGES, StorageCategoryKey.fromKeyOrNull("images"))
-        assertEquals(StorageCategoryKey.CHAT_RECORDS, StorageCategoryKey.fromKeyOrNull("chat_records"))
-        assertEquals(null, StorageCategoryKey.fromKeyOrNull("nope"))
+        val found = StorageScanUtils.extractReferencedFilePathsFromText(text, filesDir)
+        assertTrue(found.contains(absolutePath))
+        assertEquals(1, found.size)
     }
 }
-

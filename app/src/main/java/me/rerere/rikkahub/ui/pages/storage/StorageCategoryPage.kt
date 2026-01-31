@@ -45,6 +45,7 @@ fun StorageCategoryPage(
     val usageState by vm.categoryUsage.collectAsStateWithLifecycle()
     val attachmentStatsState by vm.assistantAttachmentStats.collectAsStateWithLifecycle()
     val conversationCountState by vm.assistantConversationCount.collectAsStateWithLifecycle()
+    val assistantImagesState by vm.assistantImages.collectAsStateWithLifecycle()
     val orphanScanState by vm.orphanScan.collectAsStateWithLifecycle()
     val actionState by vm.action.collectAsStateWithLifecycle()
 
@@ -97,6 +98,8 @@ fun StorageCategoryPage(
             attachmentStatsState = attachmentStatsState,
             conversationCountState = conversationCountState,
             onClearAssistantImages = { assistantId -> vm.clearAssistantImages(assistantId) },
+            assistantImagesState = assistantImagesState,
+            onDeleteAssistantImages = { assistantId, absolutePaths -> vm.deleteAssistantImages(assistantId, absolutePaths) },
             onClearAssistantFiles = { assistantId -> vm.clearAssistantFiles(assistantId) },
             onClearAssistantChats = { assistantId, mode -> vm.clearAssistantChats(assistantId, mode) },
             orphanScanState = orphanScanState,
