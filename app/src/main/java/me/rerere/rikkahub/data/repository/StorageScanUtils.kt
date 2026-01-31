@@ -5,6 +5,7 @@ import java.net.URI
 
 internal object StorageScanUtils {
     internal val fileUrlRegex: Regex = Regex("""file:[^\s"]+""")
+    internal val contentUrlRegex: Regex = Regex("""content:[^\s"]+""")
 
     private val imageExtensions = setOf(
         "png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif", "avif",
@@ -38,7 +39,24 @@ internal object StorageScanUtils {
         if (raw.isBlank()) return null
 
         val file = when {
-            raw.startsWith("file:") -> runCatching { File(URI(raw)) }.getOrNull()
+            raw.startsWith("file:") -> runCatching { File(URI(raw)) }
+                .getOrNull()
+                ?: runCatching { File(raw.removePrefix("file:")) }.getOrNull()
+
+            raw.startsWith("content:") -> {
+                val uri = runCatching { URI(raw) }.getOrNull() ?: return null
+                val segments = uri.path
+                    ?.split('/')
+                    ?.asSequence()
+                    ?.filter { it.isNotBlank() }
+                    ?.toList()
+                    .orEmpty()
+                val root = segments.firstOrNull()
+                if (root != "upload") return null
+                val relativePath = segments.drop(1).joinToString(File.separator)
+                File(filesDir, relativePath)
+            }
+
             File(raw).isAbsolute -> File(raw)
             relativePathPrefixes.any { raw.startsWith(it) } -> File(filesDir, raw)
             else -> null
@@ -56,6 +74,11 @@ internal object StorageScanUtils {
         val localPathRegex = Regex(Regex.escape(filesDirPath) + """[^\s"]+""")
 
         fileUrlRegex.findAll(text).forEach { match ->
+            val file = toLocalFileOrNull(match.value, filesDir) ?: return@forEach
+            result += normalizePath(file)
+        }
+
+        contentUrlRegex.findAll(text).forEach { match ->
             val file = toLocalFileOrNull(match.value, filesDir) ?: return@forEach
             result += normalizePath(file)
         }

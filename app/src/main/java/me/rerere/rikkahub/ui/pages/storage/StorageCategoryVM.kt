@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
+import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.DeleteResult
 import me.rerere.rikkahub.data.repository.OrphanScanResult
@@ -55,6 +56,9 @@ class StorageCategoryVM(
     private val _assistantImages = MutableStateFlow<UiState<List<AssistantImageEntry>>>(UiState.Idle)
     val assistantImages: StateFlow<UiState<List<AssistantImageEntry>>> = _assistantImages.asStateFlow()
 
+    private val _assistantFiles = MutableStateFlow<UiState<List<AssistantFileEntry>>>(UiState.Idle)
+    val assistantFiles: StateFlow<UiState<List<AssistantFileEntry>>> = _assistantFiles.asStateFlow()
+
     private val _orphanScan = MutableStateFlow<UiState<OrphanScanResult>>(UiState.Idle)
     val orphanScan: StateFlow<UiState<OrphanScanResult>> = _orphanScan.asStateFlow()
 
@@ -91,6 +95,7 @@ class StorageCategoryVM(
             _assistantAttachmentStats.value = UiState.Idle
             _assistantConversationCount.value = UiState.Idle
             _assistantImages.value = UiState.Idle
+            _assistantFiles.value = UiState.Idle
             return
         }
 
@@ -110,10 +115,12 @@ class StorageCategoryVM(
             val loadAttachmentStats = category == StorageCategoryKey.FILES || category == StorageCategoryKey.CHAT_RECORDS
             val loadConversationCount = category == StorageCategoryKey.CHAT_RECORDS
             val loadImages = category == StorageCategoryKey.IMAGES
+            val loadFiles = category == StorageCategoryKey.FILES
 
             _assistantAttachmentStats.value = if (loadAttachmentStats) UiState.Loading else UiState.Idle
             _assistantConversationCount.value = if (loadConversationCount) UiState.Loading else UiState.Idle
             _assistantImages.value = if (loadImages) UiState.Loading else UiState.Idle
+            _assistantFiles.value = if (loadFiles) UiState.Loading else UiState.Idle
 
             val statsState = if (loadAttachmentStats) {
                 runCatching { storageRepo.getAssistantAttachmentStats(assistantId) }
@@ -143,9 +150,20 @@ class StorageCategoryVM(
                 UiState.Idle
             }
 
+            val filesState = if (loadFiles) {
+                runCatching { storageRepo.getAssistantFileEntries(assistantId) }
+                    .fold(
+                        onSuccess = { UiState.Success(it) },
+                        onFailure = { UiState.Error(it) },
+                    )
+            } else {
+                UiState.Idle
+            }
+
             _assistantAttachmentStats.value = statsState
             _assistantConversationCount.value = countState
             _assistantImages.value = imagesState
+            _assistantFiles.value = filesState
         }
     }
 

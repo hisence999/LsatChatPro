@@ -15,13 +15,16 @@ class StorageScanUtilsTest {
 
         val absolutePath = StorageScanUtils.normalizePath(uploadFile)
         val fileUrl = "file:///" + absolutePath.replace('\\', '/')
+        val contentUrl = "content://example.provider/upload/upload/test.png"
 
         val fromAbsolute = StorageScanUtils.toLocalFileOrNull(absolutePath, filesDir)
         val fromFileUrl = StorageScanUtils.toLocalFileOrNull(fileUrl, filesDir)
+        val fromContentUrl = StorageScanUtils.toLocalFileOrNull(contentUrl, filesDir)
         val fromRelative = StorageScanUtils.toLocalFileOrNull("upload/test.png", filesDir)
 
         assertEquals(absolutePath, StorageScanUtils.normalizePath(fromAbsolute!!))
         assertEquals(absolutePath, StorageScanUtils.normalizePath(fromFileUrl!!))
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(fromContentUrl!!))
         assertEquals(absolutePath, StorageScanUtils.normalizePath(fromRelative!!))
 
         assertNull(StorageScanUtils.toLocalFileOrNull("data:image/png;base64,abc", filesDir))
@@ -47,6 +50,7 @@ class StorageScanUtilsTest {
         val uploadFile = File(filesDir, "upload/test.png")
         val absolutePath = StorageScanUtils.normalizePath(uploadFile)
         val fileUrl = "file:///" + absolutePath.replace('\\', '/')
+        val contentUrl = "content://example.provider/upload/upload/test.png"
 
         val text = buildString {
             append("a=\"")
@@ -54,6 +58,9 @@ class StorageScanUtilsTest {
             append("\" ")
             append("b=\"")
             append(fileUrl)
+            append("\" ")
+            append("c=\"")
+            append(contentUrl)
             append("\"")
         }
 

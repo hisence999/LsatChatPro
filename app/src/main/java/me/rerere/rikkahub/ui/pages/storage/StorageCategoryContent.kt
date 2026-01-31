@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
+import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
 import me.rerere.rikkahub.data.repository.OrphanScanResult
@@ -39,6 +40,7 @@ fun StorageCategoryScaffoldContent(
     attachmentStatsState: UiState<AssistantAttachmentStats>,
     conversationCountState: UiState<Int>,
     assistantImagesState: UiState<List<AssistantImageEntry>>,
+    assistantFilesState: UiState<List<AssistantFileEntry>>,
     onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
     onClearAssistantChats: (Uuid, AssistantChatCleanupMode) -> Unit,
@@ -56,6 +58,18 @@ fun StorageCategoryScaffoldContent(
             onSelectAssistant = onSelectAssistant,
             assistantImagesState = assistantImagesState,
             onDeleteAssistantImages = onDeleteAssistantImages,
+        )
+        return
+    }
+
+    if (category == StorageCategoryKey.FILES) {
+        StorageFilesScaffoldContent(
+            innerPadding = innerPadding,
+            assistants = assistants,
+            selectedAssistantId = selectedAssistantId,
+            onSelectAssistant = onSelectAssistant,
+            assistantFilesState = assistantFilesState,
+            onClearAssistantFiles = onClearAssistantFiles,
         )
         return
     }
