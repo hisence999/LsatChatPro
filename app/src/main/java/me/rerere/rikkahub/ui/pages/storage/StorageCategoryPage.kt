@@ -101,6 +101,7 @@ fun StorageCategoryPage(
             assistantImagesState = assistantImagesState,
             assistantFilesState = assistantFilesState,
             onDeleteAssistantImages = { assistantId, absolutePaths -> vm.deleteAssistantImages(assistantId, absolutePaths) },
+            onDeleteAssistantFiles = { assistantId, absolutePaths -> vm.deleteAssistantFiles(assistantId, absolutePaths) },
             onClearAssistantFiles = { assistantId -> vm.clearAssistantFiles(assistantId) },
             onClearAssistantChats = { assistantId, mode -> vm.clearAssistantChats(assistantId, mode) },
             orphanScanState = orphanScanState,

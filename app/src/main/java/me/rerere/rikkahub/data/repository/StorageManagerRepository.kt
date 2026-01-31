@@ -490,6 +490,19 @@ class StorageManagerRepository(
         result
     }
 
+    suspend fun deleteAssistantFileEntries(absolutePaths: List<String>): DeleteResult = withContext(Dispatchers.IO) {
+        val uploadDir = File(context.filesDir, "upload")
+        val files = absolutePaths
+            .asSequence()
+            .map { File(it) }
+            .filter { file -> StorageScanUtils.isInChildOf(file, uploadDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
+            .toList()
+        val result = deleteFiles(files)
+        invalidateOverviewCache()
+        result
+    }
+
     suspend fun scanOrphans(previewLimit: Int = 40): OrphanScanResult = withContext(Dispatchers.IO) {
         val settings = settingsStore.settingsFlow.value
         val referencedFilePaths = buildReferencedFilePathSet(settings = settings)

@@ -198,6 +198,19 @@ class StorageCategoryVM(
         }
     }
 
+    fun deleteAssistantFiles(assistantId: Uuid, absolutePaths: List<String>) {
+        viewModelScope.launch {
+            _action.value = UiState.Loading
+            _action.value = runCatching { storageRepo.deleteAssistantFileEntries(absolutePaths) }
+                .fold(
+                    onSuccess = { UiState.Success(it) },
+                    onFailure = { UiState.Error(it) },
+                )
+            refreshUsage()
+            reloadAssistantData(assistantId)
+        }
+    }
+
     fun clearAssistantFiles(assistantId: Uuid) {
         viewModelScope.launch {
             _action.value = UiState.Loading

@@ -42,6 +42,7 @@ fun StorageCategoryScaffoldContent(
     assistantImagesState: UiState<List<AssistantImageEntry>>,
     assistantFilesState: UiState<List<AssistantFileEntry>>,
     onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
+    onDeleteAssistantFiles: (Uuid, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
     onClearAssistantChats: (Uuid, AssistantChatCleanupMode) -> Unit,
     orphanScanState: UiState<OrphanScanResult>,
@@ -69,7 +70,7 @@ fun StorageCategoryScaffoldContent(
             selectedAssistantId = selectedAssistantId,
             onSelectAssistant = onSelectAssistant,
             assistantFilesState = assistantFilesState,
-            onClearAssistantFiles = onClearAssistantFiles,
+            onDeleteAssistantFiles = onDeleteAssistantFiles,
         )
         return
     }
