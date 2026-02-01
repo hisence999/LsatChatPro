@@ -100,8 +100,8 @@ fun StorageCategoryPage(
             conversationCountState = conversationCountState,
             assistantImagesState = assistantImagesState,
             assistantFilesState = assistantFilesState,
-            onDeleteAssistantImages = { assistantId, absolutePaths -> vm.deleteAssistantImages(assistantId, absolutePaths) },
-            onDeleteAssistantFiles = { assistantId, absolutePaths -> vm.deleteAssistantFiles(assistantId, absolutePaths) },
+            onDeleteImages = { assistantId, absolutePaths -> vm.deleteImages(assistantId, absolutePaths) },
+            onDeleteFiles = { assistantId, absolutePaths -> vm.deleteFiles(assistantId, absolutePaths) },
             onClearAssistantFiles = { assistantId -> vm.clearAssistantFiles(assistantId) },
             onClearAssistantChats = { assistantId, mode -> vm.clearAssistantChats(assistantId, mode) },
             orphanScanState = orphanScanState,
@@ -109,6 +109,8 @@ fun StorageCategoryPage(
             onClearAllOrphans = { vm.clearAllOrphans() },
             onClearCache = { vm.clearCache() },
             onOpenLogs = { navController.navigate(Screen.RequestLogs) },
+            onLoadMoreImages = { vm.loadMoreImages() },
+            onLoadMoreFiles = { vm.loadMoreFiles() },
         )
     }
 }

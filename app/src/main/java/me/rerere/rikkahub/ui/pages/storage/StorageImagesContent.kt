@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteForever
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,8 +71,9 @@ fun StorageImagesScaffoldContent(
     assistants: List<Assistant>,
     selectedAssistantId: Uuid?,
     onSelectAssistant: (Uuid?) -> Unit,
-    assistantImagesState: UiState<List<AssistantImageEntry>>,
-    onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
+    assistantImagesState: UiState<AttachmentListState<AssistantImageEntry>>,
+    onDeleteImages: (Uuid?, List<String>) -> Unit,
+    onLoadMoreImages: () -> Unit,
 ) {
     val context = LocalContext.current
     val haptics = rememberPremiumHaptics()
@@ -79,9 +82,12 @@ fun StorageImagesScaffoldContent(
     var showConfirmDelete by rememberSaveable(selectedAssistantId) { mutableStateOf(false) }
     var previewIndex by rememberSaveable(selectedAssistantId) { mutableStateOf<Int?>(null) }
 
-    val images = (assistantImagesState as? UiState.Success<List<AssistantImageEntry>>)
-        ?.data
-        .orEmpty()
+    val imagesState = assistantImagesState as? UiState.Success<AttachmentListState<AssistantImageEntry>>
+    val images = imagesState?.data?.items.orEmpty()
+    val totalCount = imagesState?.data?.totalCount ?: 0
+    val totalBytes = imagesState?.data?.totalBytes ?: 0L
+    val canLoadMore = imagesState?.data?.hasMore == true
+    val isLoadingMore = imagesState?.data?.isLoadingMore == true
 
     LaunchedEffect(images) {
         if (selectedPaths.isEmpty()) return@LaunchedEffect
@@ -111,8 +117,25 @@ fun StorageImagesScaffoldContent(
         )
     }
 
+    val gridState = rememberLazyGridState()
+    val shouldLoadMore by remember(canLoadMore, isLoadingMore, gridState) {
+        derivedStateOf {
+            if (!canLoadMore || isLoadingMore) return@derivedStateOf false
+            val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val totalItems = gridState.layoutInfo.totalItemsCount
+            totalItems > 0 && lastVisible >= totalItems - 4
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            onLoadMoreImages()
+        }
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 110.dp),
+        state = gridState,
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
@@ -134,10 +157,13 @@ fun StorageImagesScaffoldContent(
                 imagesState = assistantImagesState,
                 selectedCount = selectedCount,
                 selectedBytesText = selectedBytesText,
+                totalCount = totalCount,
+                totalBytes = totalBytes,
                 onSelectAll = {
-                    if (assistantImagesState is UiState.Success && assistantImagesState.data.isNotEmpty()) {
+                    if (assistantImagesState is UiState.Success && assistantImagesState.data.items.isNotEmpty()) {
                         haptics.perform(HapticPattern.Pop)
-                        selectedPaths = assistantImagesState.data.asSequence()
+                        selectedPaths = assistantImagesState.data.items
+                            .asSequence()
                             .map { it.absolutePath }
                             .toSet()
                     }
@@ -182,16 +208,32 @@ fun StorageImagesScaffoldContent(
                 )
             }
         }
+
+        if (isLoadingMore) {
+            item(key = "images_loading_more", span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    text = stringResource(R.string.storage_manager_loading_placeholder),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
+        }
     }
 
-    if (showConfirmDelete && selectedAssistantId != null) {
+    if (showConfirmDelete) {
+        val descRes = if (selectedAssistantId == null) {
+            R.string.storage_confirm_delete_selected_images_desc_global
+        } else {
+            R.string.storage_confirm_delete_selected_images_desc
+        }
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
             title = { Text(stringResource(R.string.storage_confirm_delete_selected_images_title)) },
             text = {
                 Text(
                     text = stringResource(
-                        R.string.storage_confirm_delete_selected_images_desc,
+                        descRes,
                         selectedCount,
                         selectedBytesText,
                     )
@@ -204,7 +246,7 @@ fun StorageImagesScaffoldContent(
                         showConfirmDelete = false
                         val targets = selectedPaths.toList()
                         selectedPaths = emptySet()
-                        onDeleteAssistantImages(selectedAssistantId, targets)
+                        onDeleteImages(selectedAssistantId, targets)
                     }
                 ) { Text(stringResource(R.string.confirm)) }
             },
@@ -220,9 +262,11 @@ fun StorageImagesScaffoldContent(
 @Composable
 private fun AssistantImagesGalleryCard(
     selectedAssistantId: Uuid?,
-    imagesState: UiState<List<AssistantImageEntry>>,
+    imagesState: UiState<AttachmentListState<AssistantImageEntry>>,
     selectedCount: Int,
     selectedBytesText: String,
+    totalCount: Int,
+    totalBytes: Long,
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit,
     onRequestDelete: () -> Unit,
@@ -248,11 +292,10 @@ private fun AssistantImagesGalleryCard(
 
             if (selectedAssistantId == null) {
                 Text(
-                    text = stringResource(R.string.storage_select_assistant_hint),
+                    text = stringResource(R.string.storage_all_assistants_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                return@Column
             }
 
             when (imagesState) {
@@ -271,20 +314,23 @@ private fun AssistantImagesGalleryCard(
                 )
 
                 is UiState.Success -> {
-                    if (imagesState.data.isEmpty()) {
+                    if (totalCount == 0) {
+                        val emptyHint = if (selectedAssistantId == null) {
+                            R.string.storage_images_empty_global_hint
+                        } else {
+                            R.string.storage_images_empty_hint
+                        }
                         Text(
-                            text = stringResource(R.string.storage_images_empty_hint),
+                            text = stringResource(emptyHint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         return@Column
                     }
 
-                    val totalBytes = imagesState.data.sumOf { it.bytes }
                     val totalBytesText = runCatching { Formatter.formatShortFileSize(context, totalBytes) }
                         .getOrNull()
                         ?: "${totalBytes} B"
-                    val totalCount = imagesState.data.size
 
                     Text(
                         text = if (selectedCount > 0) {

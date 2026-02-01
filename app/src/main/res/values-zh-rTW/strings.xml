@@ -559,6 +559,7 @@
   <string name="storage_filter_all_assistants">全部</string>
   <string name="storage_assistant_unnamed">未命名助手</string>
   <string name="storage_select_assistant_hint">請選擇助手</string>
+  <string name="storage_all_assistants_hint">目前顯示全部助手</string>
 
   <string name="storage_images_assistant_title">依助手清理圖片</string>
   <string name="storage_files_assistant_title">依助手清理檔案</string>
@@ -570,10 +571,12 @@
   <string name="storage_images_preview_title">圖片選擇</string>
   <string name="storage_images_preview_hint">點按預覽 · 長按選擇</string>
   <string name="storage_images_empty_hint">未找到該助手的圖片</string>
+  <string name="storage_images_empty_global_hint">未找到聊天圖片</string>
   <string name="storage_images_total_summary">全部：%1$s · %2$d 張</string>
   <string name="storage_files_preview_title">檔案列表</string>
   <string name="storage_files_preview_hint">點按開啟 · 長按選擇</string>
   <string name="storage_files_empty_hint">未找到該助手的檔案</string>
+  <string name="storage_files_empty_global_hint">未找到聊天檔案</string>
   <string name="storage_files_total_summary">總計：%1$s · %2$d 個檔案</string>
   <string name="storage_images_selected_summary">已選擇：%1$s · %2$d 張</string>
   <string name="storage_files_selected_summary">已選擇：%1$s · %2$d 個檔案</string>
@@ -597,8 +600,10 @@
   <string name="storage_confirm_clear_files_desc">僅刪除該助手聊天中的附件檔案（只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_delete_selected_images_title">刪除所選圖片？</string>
   <string name="storage_confirm_delete_selected_images_desc">僅刪除該助手聊天中的 %1$d 個圖片檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史圖片連結可能失效。</string>
+  <string name="storage_confirm_delete_selected_images_desc_global">僅刪除所有助手聊天中的 %1$d 個圖片檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史圖片連結可能失效。</string>
   <string name="storage_confirm_delete_selected_files_title">刪除所選檔案？</string>
   <string name="storage_confirm_delete_selected_files_desc">僅刪除該助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
+  <string name="storage_confirm_delete_selected_files_desc_global">僅刪除所有助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_clear_records_title">清理聊天記錄？</string>
   <string name="storage_confirm_clear_records_desc">刪除該助手的聊天記錄；不刪除檔案。</string>
   <string name="storage_confirm_clear_attachments_title">清理附件？</string>

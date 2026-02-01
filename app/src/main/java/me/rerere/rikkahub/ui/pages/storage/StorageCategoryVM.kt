@@ -24,11 +24,41 @@ import me.rerere.rikkahub.data.repository.StorageManagerRepository
 import me.rerere.rikkahub.utils.UiState
 import kotlin.uuid.Uuid
 
+data class AttachmentListState<T>(
+    val items: List<T>,
+    val totalCount: Int,
+    val totalBytes: Long,
+    val hasMore: Boolean,
+    val isLoadingMore: Boolean,
+)
+
+internal fun <T> buildAttachmentListState(
+    allItems: List<T>,
+    limit: Int,
+    totalBytes: Long,
+    isLoadingMore: Boolean = false,
+): AttachmentListState<T> {
+    val safeLimit = limit.coerceAtLeast(0)
+    val totalCount = allItems.size
+    val items = if (safeLimit >= totalCount) allItems else allItems.take(safeLimit)
+    return AttachmentListState(
+        items = items,
+        totalCount = totalCount,
+        totalBytes = totalBytes,
+        hasMore = items.size < totalCount,
+        isLoadingMore = isLoadingMore,
+    )
+}
+
 class StorageCategoryVM(
     categoryKey: String,
     private val settingsStore: SettingsStore,
     private val storageRepo: StorageManagerRepository,
 ) : ViewModel() {
+    companion object {
+        private const val GLOBAL_ATTACHMENT_PAGE_SIZE = 20
+    }
+
     val category: StorageCategoryKey = StorageCategoryKey.fromKeyOrNull(categoryKey)
         ?: StorageCategoryKey.CHAT_RECORDS
 
@@ -53,11 +83,11 @@ class StorageCategoryVM(
     private val _assistantConversationCount = MutableStateFlow<UiState<Int>>(UiState.Idle)
     val assistantConversationCount: StateFlow<UiState<Int>> = _assistantConversationCount.asStateFlow()
 
-    private val _assistantImages = MutableStateFlow<UiState<List<AssistantImageEntry>>>(UiState.Idle)
-    val assistantImages: StateFlow<UiState<List<AssistantImageEntry>>> = _assistantImages.asStateFlow()
+    private val _assistantImages = MutableStateFlow<UiState<AttachmentListState<AssistantImageEntry>>>(UiState.Idle)
+    val assistantImages: StateFlow<UiState<AttachmentListState<AssistantImageEntry>>> = _assistantImages.asStateFlow()
 
-    private val _assistantFiles = MutableStateFlow<UiState<List<AssistantFileEntry>>>(UiState.Idle)
-    val assistantFiles: StateFlow<UiState<List<AssistantFileEntry>>> = _assistantFiles.asStateFlow()
+    private val _assistantFiles = MutableStateFlow<UiState<AttachmentListState<AssistantFileEntry>>>(UiState.Idle)
+    val assistantFiles: StateFlow<UiState<AttachmentListState<AssistantFileEntry>>> = _assistantFiles.asStateFlow()
 
     private val _orphanScan = MutableStateFlow<UiState<OrphanScanResult>>(UiState.Idle)
     val orphanScan: StateFlow<UiState<OrphanScanResult>> = _orphanScan.asStateFlow()
@@ -65,8 +95,21 @@ class StorageCategoryVM(
     private val _action = MutableStateFlow<UiState<DeleteResult>>(UiState.Idle)
     val action: StateFlow<UiState<DeleteResult>> = _action.asStateFlow()
 
+    private var globalImageEntries: List<AssistantImageEntry> = emptyList()
+    private var globalImageBytes: Long = 0L
+    private var globalImageLimit: Int = GLOBAL_ATTACHMENT_PAGE_SIZE
+
+    private var globalFileEntries: List<AssistantFileEntry> = emptyList()
+    private var globalFileBytes: Long = 0L
+    private var globalFileLimit: Int = GLOBAL_ATTACHMENT_PAGE_SIZE
+
     init {
         refreshUsage()
+        when (category) {
+            StorageCategoryKey.IMAGES -> loadGlobalImages()
+            StorageCategoryKey.FILES -> loadGlobalFiles()
+            else -> Unit
+        }
     }
 
     fun refreshUsage(force: Boolean = false) {
@@ -96,6 +139,12 @@ class StorageCategoryVM(
             _assistantConversationCount.value = UiState.Idle
             _assistantImages.value = UiState.Idle
             _assistantFiles.value = UiState.Idle
+
+            when (category) {
+                StorageCategoryKey.IMAGES -> loadGlobalImages()
+                StorageCategoryKey.FILES -> loadGlobalFiles()
+                else -> Unit
+            }
             return
         }
 
@@ -143,7 +192,10 @@ class StorageCategoryVM(
             val imagesState = if (loadImages) {
                 runCatching { storageRepo.getAssistantImageEntries(assistantId) }
                     .fold(
-                        onSuccess = { UiState.Success(it) },
+                        onSuccess = { entries ->
+                            val bytes = entries.sumOf { it.bytes }
+                            UiState.Success(buildAttachmentListState(entries, entries.size, bytes))
+                        },
                         onFailure = { UiState.Error(it) },
                     )
             } else {
@@ -153,7 +205,10 @@ class StorageCategoryVM(
             val filesState = if (loadFiles) {
                 runCatching { storageRepo.getAssistantFileEntries(assistantId) }
                     .fold(
-                        onSuccess = { UiState.Success(it) },
+                        onSuccess = { entries ->
+                            val bytes = entries.sumOf { it.bytes }
+                            UiState.Success(buildAttachmentListState(entries, entries.size, bytes))
+                        },
                         onFailure = { UiState.Error(it) },
                     )
             } else {
@@ -185,7 +240,7 @@ class StorageCategoryVM(
         }
     }
 
-    fun deleteAssistantImages(assistantId: Uuid, absolutePaths: List<String>) {
+    fun deleteImages(assistantId: Uuid?, absolutePaths: List<String>) {
         viewModelScope.launch {
             _action.value = UiState.Loading
             _action.value = runCatching { storageRepo.deleteAssistantImageEntries(absolutePaths) }
@@ -194,11 +249,15 @@ class StorageCategoryVM(
                     onFailure = { UiState.Error(it) },
                 )
             refreshUsage()
-            reloadAssistantData(assistantId)
+            if (assistantId == null) {
+                loadGlobalImages()
+            } else {
+                reloadAssistantData(assistantId)
+            }
         }
     }
 
-    fun deleteAssistantFiles(assistantId: Uuid, absolutePaths: List<String>) {
+    fun deleteFiles(assistantId: Uuid?, absolutePaths: List<String>) {
         viewModelScope.launch {
             _action.value = UiState.Loading
             _action.value = runCatching { storageRepo.deleteAssistantFileEntries(absolutePaths) }
@@ -207,7 +266,11 @@ class StorageCategoryVM(
                     onFailure = { UiState.Error(it) },
                 )
             refreshUsage()
-            reloadAssistantData(assistantId)
+            if (assistantId == null) {
+                loadGlobalFiles()
+            } else {
+                reloadAssistantData(assistantId)
+            }
         }
     }
 
@@ -279,6 +342,86 @@ class StorageCategoryVM(
                     onFailure = { UiState.Error(it) },
                 )
             refreshUsage()
+        }
+    }
+
+    fun loadMoreImages() {
+        if (category != StorageCategoryKey.IMAGES) return
+        if (_selectedAssistantId.value != null) return
+        val current = _assistantImages.value as? UiState.Success ?: return
+        val data = current.data
+        if (!data.hasMore || data.isLoadingMore) return
+
+        _assistantImages.value = UiState.Success(data.copy(isLoadingMore = true))
+        viewModelScope.launch {
+            globalImageLimit = minOf(globalImageLimit + GLOBAL_ATTACHMENT_PAGE_SIZE, globalImageEntries.size)
+            _assistantImages.value = UiState.Success(
+                buildAttachmentListState(
+                    allItems = globalImageEntries,
+                    limit = globalImageLimit,
+                    totalBytes = globalImageBytes,
+                )
+            )
+        }
+    }
+
+    fun loadMoreFiles() {
+        if (category != StorageCategoryKey.FILES) return
+        if (_selectedAssistantId.value != null) return
+        val current = _assistantFiles.value as? UiState.Success ?: return
+        val data = current.data
+        if (!data.hasMore || data.isLoadingMore) return
+
+        _assistantFiles.value = UiState.Success(data.copy(isLoadingMore = true))
+        viewModelScope.launch {
+            globalFileLimit = minOf(globalFileLimit + GLOBAL_ATTACHMENT_PAGE_SIZE, globalFileEntries.size)
+            _assistantFiles.value = UiState.Success(
+                buildAttachmentListState(
+                    allItems = globalFileEntries,
+                    limit = globalFileLimit,
+                    totalBytes = globalFileBytes,
+                )
+            )
+        }
+    }
+
+    private fun loadGlobalImages() {
+        viewModelScope.launch {
+            globalImageLimit = GLOBAL_ATTACHMENT_PAGE_SIZE
+            _assistantImages.value = UiState.Loading
+            _assistantImages.value = runCatching {
+                val entries = storageRepo.getAllImageEntries()
+                globalImageEntries = entries
+                globalImageBytes = entries.sumOf { it.bytes }
+                buildAttachmentListState(
+                    allItems = entries,
+                    limit = globalImageLimit,
+                    totalBytes = globalImageBytes,
+                )
+            }.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it) },
+            )
+        }
+    }
+
+    private fun loadGlobalFiles() {
+        viewModelScope.launch {
+            globalFileLimit = GLOBAL_ATTACHMENT_PAGE_SIZE
+            _assistantFiles.value = UiState.Loading
+            _assistantFiles.value = runCatching {
+                val entries = storageRepo.getAllFileEntries()
+                globalFileEntries = entries
+                globalFileBytes = entries.sumOf { it.bytes }
+                buildAttachmentListState(
+                    allItems = entries,
+                    limit = globalFileLimit,
+                    totalBytes = globalFileBytes,
+                )
+            }.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it) },
+            )
         }
     }
 }

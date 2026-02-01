@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteForever
@@ -39,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,8 +73,9 @@ fun StorageFilesScaffoldContent(
     assistants: List<Assistant>,
     selectedAssistantId: Uuid?,
     onSelectAssistant: (Uuid?) -> Unit,
-    assistantFilesState: UiState<List<AssistantFileEntry>>,
-    onDeleteAssistantFiles: (Uuid, List<String>) -> Unit,
+    assistantFilesState: UiState<AttachmentListState<AssistantFileEntry>>,
+    onDeleteFiles: (Uuid?, List<String>) -> Unit,
+    onLoadMoreFiles: () -> Unit,
 ) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
@@ -81,9 +84,12 @@ fun StorageFilesScaffoldContent(
     var selectedPaths by rememberSaveable(selectedAssistantId) { mutableStateOf(emptySet<String>()) }
     var showConfirmDelete by rememberSaveable(selectedAssistantId) { mutableStateOf(false) }
 
-    val files = (assistantFilesState as? UiState.Success<List<AssistantFileEntry>>)
-        ?.data
-        .orEmpty()
+    val filesState = assistantFilesState as? UiState.Success<AttachmentListState<AssistantFileEntry>>
+    val files = filesState?.data?.items.orEmpty()
+    val totalCount = filesState?.data?.totalCount ?: 0
+    val totalBytes = filesState?.data?.totalBytes ?: 0L
+    val canLoadMore = filesState?.data?.hasMore == true
+    val isLoadingMore = filesState?.data?.isLoadingMore == true
 
     LaunchedEffect(files) {
         if (selectedPaths.isEmpty()) return@LaunchedEffect
@@ -101,7 +107,24 @@ fun StorageFilesScaffoldContent(
         .getOrNull()
         ?: "${selectedBytes} B"
 
+    val listState = rememberLazyListState()
+    val shouldLoadMore by remember(canLoadMore, isLoadingMore, listState) {
+        derivedStateOf {
+            if (!canLoadMore || isLoadingMore) return@derivedStateOf false
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val totalItems = listState.layoutInfo.totalItemsCount
+            totalItems > 0 && lastVisible >= totalItems - 3
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            onLoadMoreFiles()
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
@@ -122,12 +145,14 @@ fun StorageFilesScaffoldContent(
                 filesState = assistantFilesState,
                 selectedCount = selectedCount,
                 selectedBytesText = selectedBytesText,
+                totalCount = totalCount,
+                totalBytes = totalBytes,
                 onSelectAll = {
-                    if (selectedAssistantId == null) return@AssistantFilesCard
                     if (assistantFilesState !is UiState.Success) return@AssistantFilesCard
-                    if (assistantFilesState.data.isEmpty()) return@AssistantFilesCard
+                    if (assistantFilesState.data.items.isEmpty()) return@AssistantFilesCard
                     haptics.perform(HapticPattern.Pop)
-                    selectedPaths = assistantFilesState.data.asSequence()
+                    selectedPaths = assistantFilesState.data.items
+                        .asSequence()
                         .map { it.absolutePath }
                         .toSet()
                 },
@@ -144,7 +169,7 @@ fun StorageFilesScaffoldContent(
             )
         }
 
-        if (selectedAssistantId != null && assistantFilesState is UiState.Success) {
+        if (assistantFilesState is UiState.Success) {
             items(
                 items = files,
                 key = { it.absolutePath },
@@ -195,16 +220,31 @@ fun StorageFilesScaffoldContent(
                 )
             }
         }
+
+        if (isLoadingMore) {
+            item(key = "files_loading_more") {
+                Text(
+                    text = stringResource(R.string.storage_manager_loading_placeholder),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 
-    if (showConfirmDelete && selectedAssistantId != null) {
+    if (showConfirmDelete) {
+        val descRes = if (selectedAssistantId == null) {
+            R.string.storage_confirm_delete_selected_files_desc_global
+        } else {
+            R.string.storage_confirm_delete_selected_files_desc
+        }
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
             title = { Text(stringResource(R.string.storage_confirm_delete_selected_files_title)) },
             text = {
                 Text(
                     text = stringResource(
-                        R.string.storage_confirm_delete_selected_files_desc,
+                        descRes,
                         selectedCount,
                         selectedBytesText,
                     )
@@ -217,7 +257,7 @@ fun StorageFilesScaffoldContent(
                         showConfirmDelete = false
                         val targets = selectedPaths.toList()
                         selectedPaths = emptySet()
-                        onDeleteAssistantFiles(selectedAssistantId, targets)
+                        onDeleteFiles(selectedAssistantId, targets)
                     }
                 ) { Text(stringResource(R.string.confirm)) }
             },
@@ -233,9 +273,11 @@ fun StorageFilesScaffoldContent(
 @Composable
 private fun AssistantFilesCard(
     selectedAssistantId: Uuid?,
-    filesState: UiState<List<AssistantFileEntry>>,
+    filesState: UiState<AttachmentListState<AssistantFileEntry>>,
     selectedCount: Int,
     selectedBytesText: String,
+    totalCount: Int,
+    totalBytes: Long,
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit,
     onRequestDelete: () -> Unit,
@@ -261,11 +303,10 @@ private fun AssistantFilesCard(
 
             if (selectedAssistantId == null) {
                 Text(
-                    text = stringResource(R.string.storage_select_assistant_hint),
+                    text = stringResource(R.string.storage_all_assistants_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                return@Column
             }
 
             when (filesState) {
@@ -284,20 +325,23 @@ private fun AssistantFilesCard(
                 )
 
                 is UiState.Success -> {
-                    if (filesState.data.isEmpty()) {
+                    if (totalCount == 0) {
+                        val emptyHint = if (selectedAssistantId == null) {
+                            R.string.storage_files_empty_global_hint
+                        } else {
+                            R.string.storage_files_empty_hint
+                        }
                         Text(
-                            text = stringResource(R.string.storage_files_empty_hint),
+                            text = stringResource(emptyHint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         return@Column
                     }
 
-                    val totalBytes = filesState.data.sumOf { it.bytes }
                     val totalBytesText = runCatching { Formatter.formatShortFileSize(context, totalBytes) }
                         .getOrNull()
                         ?: "${totalBytes} B"
-                    val totalCount = filesState.data.size
 
                     Text(
                         text = if (selectedCount > 0) {

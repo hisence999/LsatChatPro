@@ -386,6 +386,45 @@ class StorageManagerRepository(
             .toList()
     }
 
+    suspend fun getAllImageEntries(): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
+        val conversations = conversationRepository.getAllConversations().first()
+        val imageUrls = LinkedHashSet<String>()
+
+        conversations.forEach { conversation ->
+            conversation.messageNodes.forEach { node ->
+                node.messages.forEach { message ->
+                    message.parts.forEach { part ->
+                        when (part) {
+                            is UIMessagePart.Image -> imageUrls += part.url
+                            is UIMessagePart.Document -> if (part.mime.startsWith("image/")) imageUrls += part.url
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        }
+
+        val uploadDir = File(context.filesDir, "upload")
+        imageUrls
+            .asSequence()
+            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .distinctBy { StorageScanUtils.normalizePath(it) }
+            .filter { file ->
+                StorageScanUtils.isInChildOf(file, uploadDir)
+            }
+            .map { file ->
+                val path = StorageScanUtils.normalizePath(file)
+                AssistantImageEntry(
+                    absolutePath = path,
+                    bytes = file.lengthSafe(),
+                    lastModified = runCatching { file.lastModified() }.getOrNull() ?: 0L,
+                    url = "file://$path",
+                )
+            }
+            .sortedByDescending { it.lastModified }
+            .toList()
+    }
+
     suspend fun getAssistantFileEntries(assistantId: Uuid): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
         data class Candidate(
             val url: String,
@@ -395,6 +434,97 @@ class StorageManagerRepository(
 
         val conversations = conversationRepository.getConversationsOfAssistant(assistantId).first()
         val candidates = ArrayList<Candidate>(64)
+
+        conversations.forEach { conversation ->
+            conversation.messageNodes.forEach { node ->
+                node.messages.forEach { message ->
+                    message.parts.forEach { part ->
+                        when (part) {
+                            is UIMessagePart.Document -> {
+                                if (!part.mime.startsWith("image/")) {
+                                    candidates += Candidate(
+                                        url = part.url,
+                                        fileName = part.fileName,
+                                        mime = part.mime,
+                                    )
+                                }
+                            }
+
+                            is UIMessagePart.Video -> candidates += Candidate(
+                                url = part.url,
+                                fileName = "",
+                                mime = "video/*",
+                            )
+
+                            is UIMessagePart.Audio -> candidates += Candidate(
+                                url = part.url,
+                                fileName = "",
+                                mime = "audio/*",
+                            )
+
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        }
+
+        val uploadDir = File(context.filesDir, "upload")
+        val byPath = LinkedHashMap<String, AssistantFileEntry>()
+
+        candidates.forEach { candidate ->
+            val file = StorageScanUtils.toLocalFileOrNull(candidate.url, context.filesDir) ?: return@forEach
+            if (!StorageScanUtils.isInChildOf(file, uploadDir)) return@forEach
+
+            val normalizedPath = StorageScanUtils.normalizePath(file)
+            val bytes = file.lengthSafe()
+            val lastModified = runCatching { file.lastModified() }.getOrNull() ?: 0L
+
+            val fallbackName = File(normalizedPath).name
+            val desiredName = candidate.fileName.trim().ifBlank { fallbackName }
+            val desiredMime = candidate.mime.trim()
+
+            val existing = byPath[normalizedPath]
+            val merged = if (existing == null) {
+                AssistantFileEntry(
+                    absolutePath = normalizedPath,
+                    bytes = bytes,
+                    lastModified = lastModified,
+                    fileName = desiredName,
+                    mime = desiredMime,
+                )
+            } else {
+                val existingFallbackName = File(existing.absolutePath).name
+                val mergedName = when {
+                    existing.fileName.isBlank() -> desiredName
+                    desiredName.isBlank() -> existing.fileName
+                    existing.fileName == existingFallbackName && desiredName != existingFallbackName -> desiredName
+                    else -> existing.fileName
+                }
+                val mergedMime = if (existing.mime.isBlank()) desiredMime else existing.mime
+                existing.copy(
+                    bytes = bytes,
+                    lastModified = maxOf(existing.lastModified, lastModified),
+                    fileName = mergedName,
+                    mime = mergedMime,
+                )
+            }
+            byPath[normalizedPath] = merged
+        }
+
+        byPath.values
+            .sortedByDescending { it.lastModified }
+    }
+
+    suspend fun getAllFileEntries(): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
+        data class Candidate(
+            val url: String,
+            val fileName: String,
+            val mime: String,
+        )
+
+        val conversations = conversationRepository.getAllConversations().first()
+        val candidates = ArrayList<Candidate>(128)
 
         conversations.forEach { conversation ->
             conversation.messageNodes.forEach { node ->

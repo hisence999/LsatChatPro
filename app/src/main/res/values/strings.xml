@@ -736,6 +736,7 @@
     <string name="storage_filter_all_assistants">All</string>
     <string name="storage_assistant_unnamed">Unnamed assistant</string>
     <string name="storage_select_assistant_hint">Select an assistant to continue</string>
+    <string name="storage_all_assistants_hint">Showing all assistants</string>
 
     <string name="storage_images_assistant_title">Assistant images</string>
     <string name="storage_files_assistant_title">Assistant files</string>
@@ -747,10 +748,12 @@
     <string name="storage_images_preview_title">Image selection</string>
     <string name="storage_images_preview_hint">Tap to preview · Long press to select</string>
     <string name="storage_images_empty_hint">No images found for this assistant</string>
+    <string name="storage_images_empty_global_hint">No images found in chats</string>
     <string name="storage_images_total_summary">All: %1$s · %2$d images</string>
     <string name="storage_files_preview_title">File list</string>
     <string name="storage_files_preview_hint">Tap to open · Long press to select</string>
     <string name="storage_files_empty_hint">No files found for this assistant</string>
+    <string name="storage_files_empty_global_hint">No files found in chats</string>
     <string name="storage_files_total_summary">All: %1$s · %2$d files</string>
     <string name="storage_images_selected_summary">Selected: %1$s · %2$d images</string>
     <string name="storage_files_selected_summary">Selected: %1$s · %2$d files</string>
@@ -774,8 +777,10 @@
     <string name="storage_confirm_clear_files_desc">This deletes attachment files from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_delete_selected_images_title">Delete selected images?</string>
     <string name="storage_confirm_delete_selected_images_desc">This deletes %1$d image files (%2$s) from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
+    <string name="storage_confirm_delete_selected_images_desc_global">This deletes %1$d image files (%2$s) from all assistants’ chats (files only). Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_delete_selected_files_title">Delete selected files?</string>
     <string name="storage_confirm_delete_selected_files_desc">This deletes %1$d attachment files (%2$s) from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
+    <string name="storage_confirm_delete_selected_files_desc_global">This deletes %1$d attachment files (%2$s) from all assistants’ chats (files only). Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_clear_records_title">Clear chat records?</string>
     <string name="storage_confirm_clear_records_desc">This deletes this assistant’s chat records. Files will be kept.</string>
     <string name="storage_confirm_clear_attachments_title">Clear attachments?</string>

@@ -39,10 +39,10 @@ fun StorageCategoryScaffoldContent(
     onSelectAssistant: (Uuid?) -> Unit,
     attachmentStatsState: UiState<AssistantAttachmentStats>,
     conversationCountState: UiState<Int>,
-    assistantImagesState: UiState<List<AssistantImageEntry>>,
-    assistantFilesState: UiState<List<AssistantFileEntry>>,
-    onDeleteAssistantImages: (Uuid, List<String>) -> Unit,
-    onDeleteAssistantFiles: (Uuid, List<String>) -> Unit,
+    assistantImagesState: UiState<AttachmentListState<AssistantImageEntry>>,
+    assistantFilesState: UiState<AttachmentListState<AssistantFileEntry>>,
+    onDeleteImages: (Uuid?, List<String>) -> Unit,
+    onDeleteFiles: (Uuid?, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
     onClearAssistantChats: (Uuid, AssistantChatCleanupMode) -> Unit,
     orphanScanState: UiState<OrphanScanResult>,
@@ -50,6 +50,8 @@ fun StorageCategoryScaffoldContent(
     onClearAllOrphans: () -> Unit,
     onClearCache: () -> Unit,
     onOpenLogs: () -> Unit,
+    onLoadMoreImages: () -> Unit,
+    onLoadMoreFiles: () -> Unit,
 ) {
     if (category == StorageCategoryKey.IMAGES) {
         StorageImagesScaffoldContent(
@@ -58,7 +60,8 @@ fun StorageCategoryScaffoldContent(
             selectedAssistantId = selectedAssistantId,
             onSelectAssistant = onSelectAssistant,
             assistantImagesState = assistantImagesState,
-            onDeleteAssistantImages = onDeleteAssistantImages,
+            onDeleteImages = onDeleteImages,
+            onLoadMoreImages = onLoadMoreImages,
         )
         return
     }
@@ -70,7 +73,8 @@ fun StorageCategoryScaffoldContent(
             selectedAssistantId = selectedAssistantId,
             onSelectAssistant = onSelectAssistant,
             assistantFilesState = assistantFilesState,
-            onDeleteAssistantFiles = onDeleteAssistantFiles,
+            onDeleteFiles = onDeleteFiles,
+            onLoadMoreFiles = onLoadMoreFiles,
         )
         return
     }
