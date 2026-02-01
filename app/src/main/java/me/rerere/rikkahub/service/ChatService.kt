@@ -332,7 +332,7 @@ class ChatService(
         val lastAt = liveUpdateLastNotifyAtMs[conversationId] ?: 0L
         val lastState = liveUpdateLastNotifiedState[conversationId]
 
-        val shouldNotify = force || lastState != state || now - lastAt >= 750L
+        val shouldNotify = force || lastState != state || now - lastAt >= 600L
         if (!shouldNotify) return
 
         liveUpdateLastNotifyAtMs[conversationId] = now
@@ -727,12 +727,12 @@ class ChatService(
         val lastUserText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.USER }
             ?.toContentText()
-            ?.trim()
+            ?.let { ChatLiveUpdateTextFormatter.normalizePreviewText(it) }
             ?.takeIf { it.isNotBlank() }
         val lastAssistantText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.ASSISTANT }
             ?.toContentText()
-            ?.trim()
+            ?.let { ChatLiveUpdateTextFormatter.normalizePreviewText(it) }
             ?.takeIf { it.isNotBlank() }
 
         fun String?.short(): String? = this?.takeLast(80)?.takeIf { it.isNotBlank() }
