@@ -119,6 +119,7 @@ class StorageManagerRepository(
         val settings = settingsStore.settingsFlow.value
 
         val requestLogCount = runCatching { aiRequestLogDao.countAll() }.getOrNull() ?: 0
+        val conversationCount = runCatching { conversationDAO.getConversationCount() }.getOrNull() ?: 0
 
         val dbUsage = countDatabaseUsage()
         val cacheUsage = countDirUsage(context.cacheDir)
@@ -190,7 +191,7 @@ class StorageManagerRepository(
         val categories = listOf(
             StorageCategoryUsage(StorageCategoryKey.IMAGES, imagesBytes, imagesCount),
             StorageCategoryUsage(StorageCategoryKey.FILES, filesBytes, filesCount),
-            StorageCategoryUsage(StorageCategoryKey.CHAT_RECORDS, dbUsage.bytes, dbUsage.count),
+            StorageCategoryUsage(StorageCategoryKey.CHAT_RECORDS, dbUsage.bytes, conversationCount),
             StorageCategoryUsage(StorageCategoryKey.CACHE, cacheUsage.bytes, cacheUsage.count),
             StorageCategoryUsage(StorageCategoryKey.HISTORY_FILES, historyBytes, historyCount),
             StorageCategoryUsage(StorageCategoryKey.LOGS, bytes = 0L, fileCount = requestLogCount),
@@ -218,10 +219,11 @@ class StorageManagerRepository(
 
     suspend fun getChatRecordsUsage(): StorageCategoryUsage = withContext(Dispatchers.IO) {
         val usage = countDatabaseUsage()
+        val conversationCount = runCatching { conversationDAO.getConversationCount() }.getOrNull() ?: 0
         StorageCategoryUsage(
             category = StorageCategoryKey.CHAT_RECORDS,
             bytes = usage.bytes,
-            fileCount = usage.count,
+            fileCount = conversationCount,
         )
     }
 
