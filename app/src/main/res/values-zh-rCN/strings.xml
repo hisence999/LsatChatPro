@@ -24,7 +24,7 @@
     <string name="storage_filter_all_assistants">全部</string>
     <string name="storage_assistant_unnamed">未命名助手</string>
     <string name="storage_select_assistant_hint">请选择助手</string>
-    <string name="storage_all_assistants_hint">当前显示全部</string>
+    <string name="storage_all_assistants_hint">当前显示全部助手</string>
 
     <string name="storage_images_assistant_title">按助手清理图片</string>
     <string name="storage_files_assistant_title">按助手清理文件</string>

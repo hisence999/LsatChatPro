@@ -559,7 +559,7 @@
   <string name="storage_filter_all_assistants">全部</string>
   <string name="storage_assistant_unnamed">未命名助手</string>
   <string name="storage_select_assistant_hint">請選擇助手</string>
-  <string name="storage_all_assistants_hint">目前顯示全部</string>
+  <string name="storage_all_assistants_hint">目前顯示全部助手</string>
 
   <string name="storage_images_assistant_title">依助手清理圖片</string>
   <string name="storage_files_assistant_title">依助手清理檔案</string>
