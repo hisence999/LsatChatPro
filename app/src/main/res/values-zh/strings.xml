@@ -407,7 +407,9 @@
   <string name="notification_keep_alive_content_generating_multi">正在生成 %1$d 个对话…</string>
   <string name="notification_keep_alive_content_cancelled">已取消生成</string>
   <string name="notification_keep_alive_content_error">生成失败</string>
+  <string name="notification_live_update_waiting">等待中</string>
   <string name="notification_live_update_inference">推理中</string>
+  <string name="notification_live_update_tool_call">工具调用中</string>
   <string name="notification_live_update_output">输出中</string>
   <string name="notification_live_update_done">输出完成</string>
   <string name="notification_live_update_error">生成异常</string>

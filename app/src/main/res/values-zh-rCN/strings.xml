@@ -107,4 +107,14 @@
 
     <string name="request_logs_export_empty">暂无可导出的日志</string>
     <string name="request_logs_export_failed">导出失败：%1$s</string>
+
+    <string name="notification_channel_chat_completed">聊天完成</string>
+    <string name="notification_channel_chat_live_update">聊天 Live Update</string>
+    <string name="notification_chat_done_title">聊天消息已生成</string>
+    <string name="notification_live_update_waiting">等待中</string>
+    <string name="notification_live_update_inference">推理中</string>
+    <string name="notification_live_update_tool_call">工具调用中</string>
+    <string name="notification_live_update_output">输出中</string>
+    <string name="notification_live_update_done">输出完成</string>
+    <string name="notification_live_update_error">生成异常</string>
 </resources>

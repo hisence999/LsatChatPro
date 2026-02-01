@@ -494,7 +494,9 @@
     <string name="notification_channel_chat_completed">Chat Completed</string>
     <string name="notification_channel_chat_live_update">Chat Live Update</string>
     <string name="notification_chat_done_title">Message Generated</string>
+    <string name="notification_live_update_waiting">Waiting</string>
     <string name="notification_live_update_inference">Reasoning</string>
+    <string name="notification_live_update_tool_call">Using tools</string>
     <string name="notification_live_update_output">Generating</string>
     <string name="notification_live_update_done">Generation completed</string>
     <string name="notification_live_update_error">Generation failed</string>

@@ -272,7 +272,7 @@ class ChatService(
         ChatLiveUpdateDismissalTracker.clear(conversationId)
         val sessionId = System.currentTimeMillis()
         liveUpdateSessionIds[conversationId] = sessionId
-        liveUpdateStates[conversationId] = ChatLiveUpdateState.INFERENCE
+        liveUpdateStates[conversationId] = ChatLiveUpdateState.WAITING
         liveUpdateLastNotifyAtMs.remove(conversationId)
         liveUpdateLastNotifiedState.remove(conversationId)
         liveUpdateSmallIcons.remove(conversationId)
@@ -727,11 +727,13 @@ class ChatService(
             ?.trim()
             ?.takeIf { it.isNotBlank() }
 
-        fun String?.short(): String? = this?.take(80)?.takeIf { it.isNotBlank() }
+        fun String?.short(): String? = this?.takeLast(80)?.takeIf { it.isNotBlank() }
         fun String?.long(): String? = this?.take(420)?.takeIf { it.isNotBlank() }
 
         return when (state) {
+            ChatLiveUpdateState.WAITING -> lastUserText.short() to lastUserText.long()
             ChatLiveUpdateState.INFERENCE -> lastUserText.short() to lastUserText.long()
+            ChatLiveUpdateState.TOOL_CALL -> lastUserText.short() to lastUserText.long()
             ChatLiveUpdateState.OUTPUT -> lastAssistantText.short() to lastAssistantText.long()
             ChatLiveUpdateState.DONE -> lastAssistantText.short() to lastAssistantText.long()
             ChatLiveUpdateState.ERROR -> {
@@ -1128,7 +1130,7 @@ class ChatService(
                 warmUpLiveUpdateIcon(conversationId, settings)
                 notifyLiveUpdate(
                     conversationId = conversationId,
-                    state = ChatLiveUpdateState.INFERENCE,
+                    state = ChatLiveUpdateState.WAITING,
                     settings = settings,
                     force = true,
                     error = null,
@@ -1165,6 +1167,9 @@ class ChatService(
                         force = true,
                         error = null,
                     )
+                }
+                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                    sendGenerationDoneNotification(conversationId)
                 }
                 return@runCatching
             }
@@ -1383,9 +1388,8 @@ class ChatService(
                                 force = true,
                                 error = null,
                             )
-                        } else {
-                            sendGenerationDoneNotification(conversationId)
                         }
+                        sendGenerationDoneNotification(conversationId)
                     }
                 }
             }.collect { chunk ->
@@ -1401,12 +1405,13 @@ class ChatService(
                         updateConversation(conversationId, updatedConversation)
 
                         if (useLiveUpdate) {
-                            val previousState = liveUpdateStates.put(conversationId, ChatLiveUpdateState.OUTPUT)
+                            val resolvedState = ChatLiveUpdateStateResolver.resolve(updatedConversation.currentMessages)
+                            val previousState = liveUpdateStates.put(conversationId, resolvedState)
                             notifyLiveUpdate(
                                 conversationId = conversationId,
-                                state = ChatLiveUpdateState.OUTPUT,
+                                state = resolvedState,
                                 settings = settings,
-                                force = previousState != ChatLiveUpdateState.OUTPUT,
+                                force = previousState != resolvedState,
                                 error = null,
                             )
                         }
@@ -1743,12 +1748,13 @@ class ChatService(
                         updateConversation(conversationId, updated)
 
                         if (useLiveUpdate) {
-                            val previousState = liveUpdateStates.put(conversationId, ChatLiveUpdateState.OUTPUT)
+                            val resolvedState = ChatLiveUpdateStateResolver.resolve(updated.currentMessages)
+                            val previousState = liveUpdateStates.put(conversationId, resolvedState)
                             notifyLiveUpdate(
                                 conversationId = conversationId,
-                                state = ChatLiveUpdateState.OUTPUT,
+                                state = resolvedState,
                                 settings = settings,
-                                force = previousState != ChatLiveUpdateState.OUTPUT,
+                                force = previousState != resolvedState,
                                 error = null,
                             )
                         }

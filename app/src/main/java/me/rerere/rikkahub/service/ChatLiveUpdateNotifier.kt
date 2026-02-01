@@ -24,14 +24,26 @@ private const val ANDROID_EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromo
 private const val FLAG_PROMOTED_ONGOING = 0x40000
 
 enum class ChatLiveUpdateState {
+    WAITING,
     INFERENCE,
+    TOOL_CALL,
     OUTPUT,
     DONE,
     ERROR,
 }
 
 internal fun ChatLiveUpdateState.isOngoing(): Boolean {
-    return this == ChatLiveUpdateState.INFERENCE || this == ChatLiveUpdateState.OUTPUT
+    return when (this) {
+        ChatLiveUpdateState.WAITING,
+        ChatLiveUpdateState.INFERENCE,
+        ChatLiveUpdateState.TOOL_CALL,
+        ChatLiveUpdateState.OUTPUT,
+        -> true
+
+        ChatLiveUpdateState.DONE,
+        ChatLiveUpdateState.ERROR,
+        -> false
+    }
 }
 
 private fun ChatLiveUpdateState.isAutoCancel(): Boolean {
@@ -115,7 +127,9 @@ class ChatLiveUpdateNotifier(
 
     private fun stateTitle(state: ChatLiveUpdateState): String {
         return when (state) {
+            ChatLiveUpdateState.WAITING -> context.getString(R.string.notification_live_update_waiting)
             ChatLiveUpdateState.INFERENCE -> context.getString(R.string.notification_live_update_inference)
+            ChatLiveUpdateState.TOOL_CALL -> context.getString(R.string.notification_live_update_tool_call)
             ChatLiveUpdateState.OUTPUT -> context.getString(R.string.notification_live_update_output)
             ChatLiveUpdateState.DONE -> context.getString(R.string.notification_live_update_done)
             ChatLiveUpdateState.ERROR -> context.getString(R.string.notification_live_update_error)
