@@ -563,7 +563,7 @@
 
   <string name="storage_images_assistant_title">依助手清理圖片</string>
   <string name="storage_files_assistant_title">依助手清理檔案</string>
-  <string name="storage_chat_records_assistant_title">依助手清理聊天記錄</string>
+  <string name="storage_chat_records_assistant_title">聊天記錄</string>
   <string name="storage_assistant_file_stats">%1$s · %2$d 個檔案</string>
   <string name="storage_chat_records_count">%1$d 個會話</string>
   <string name="storage_chat_records_attachments_hint">附件：%1$s · %2$d 個檔案</string>
@@ -580,10 +580,15 @@
   <string name="storage_files_total_summary">總計：%1$s · %2$d 個檔案</string>
   <string name="storage_images_selected_summary">已選擇：%1$s · %2$d 張</string>
   <string name="storage_files_selected_summary">已選擇：%1$s · %2$d 個檔案</string>
+  <string name="storage_chat_records_preview_hint">長按選擇</string>
+  <string name="storage_chat_records_empty_hint">暫無聊天記錄</string>
+  <string name="storage_chat_records_month_label">%1$d年%2$d月</string>
+  <string name="storage_chat_records_months_total_summary">總計：%1$d 個月 · %2$d 個會話</string>
+  <string name="storage_chat_records_months_selected_summary">已選：%1$d 個月 · %2$d 個會話</string>
 
   <string name="storage_action_clear_images">清理圖片</string>
   <string name="storage_action_clear_files">清理檔案</string>
-  <string name="storage_action_clear_records_only">僅清理聊天記錄</string>
+  <string name="storage_action_clear_records_only">清理</string>
   <string name="storage_action_clear_attachments_only">僅清理附件</string>
   <string name="storage_action_clear_records_and_attachments">清理聊天記錄+附件</string>
   <string name="storage_action_select_all">全選</string>
@@ -605,7 +610,7 @@
   <string name="storage_confirm_delete_selected_files_desc">僅刪除該助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_delete_selected_files_desc_global">僅刪除所有助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_clear_records_title">清理聊天記錄？</string>
-  <string name="storage_confirm_clear_records_desc">刪除該助手的聊天記錄；不刪除檔案。</string>
+  <string name="storage_confirm_clear_records_desc">刪除所選月份的聊天記錄；不刪除檔案。</string>
   <string name="storage_confirm_clear_attachments_title">清理附件？</string>
   <string name="storage_confirm_clear_attachments_desc">刪除該助手聊天中的附件檔案；聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_clear_records_and_attachments_title">清理聊天記錄與附件？</string>

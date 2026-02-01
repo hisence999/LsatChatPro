@@ -16,6 +16,7 @@ import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
 import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
+import me.rerere.rikkahub.data.repository.ChatRecordsMonthEntry
 import me.rerere.rikkahub.data.repository.DeleteResult
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
@@ -89,6 +90,9 @@ class StorageCategoryVM(
     private val _assistantFiles = MutableStateFlow<UiState<AttachmentListState<AssistantFileEntry>>>(UiState.Idle)
     val assistantFiles: StateFlow<UiState<AttachmentListState<AssistantFileEntry>>> = _assistantFiles.asStateFlow()
 
+    private val _chatRecordMonths = MutableStateFlow<UiState<List<ChatRecordsMonthEntry>>>(UiState.Idle)
+    val chatRecordMonths: StateFlow<UiState<List<ChatRecordsMonthEntry>>> = _chatRecordMonths.asStateFlow()
+
     private val _orphanScan = MutableStateFlow<UiState<OrphanScanResult>>(UiState.Idle)
     val orphanScan: StateFlow<UiState<OrphanScanResult>> = _orphanScan.asStateFlow()
 
@@ -108,6 +112,7 @@ class StorageCategoryVM(
         when (category) {
             StorageCategoryKey.IMAGES -> loadGlobalImages()
             StorageCategoryKey.FILES -> loadGlobalFiles()
+            StorageCategoryKey.CHAT_RECORDS -> loadChatRecordMonths(assistantId = null)
             else -> Unit
         }
     }
@@ -143,6 +148,7 @@ class StorageCategoryVM(
             when (category) {
                 StorageCategoryKey.IMAGES -> loadGlobalImages()
                 StorageCategoryKey.FILES -> loadGlobalFiles()
+                StorageCategoryKey.CHAT_RECORDS -> loadChatRecordMonths(assistantId = null)
                 else -> Unit
             }
             return
@@ -156,6 +162,10 @@ class StorageCategoryVM(
             -> reloadAssistantData(id)
 
             else -> Unit
+        }
+
+        if (category == StorageCategoryKey.CHAT_RECORDS) {
+            loadChatRecordMonths(assistantId = id)
         }
     }
 
@@ -219,6 +229,41 @@ class StorageCategoryVM(
             _assistantConversationCount.value = countState
             _assistantImages.value = imagesState
             _assistantFiles.value = filesState
+        }
+    }
+
+    private fun loadChatRecordMonths(assistantId: Uuid?) {
+        if (category != StorageCategoryKey.CHAT_RECORDS) return
+        viewModelScope.launch {
+            _chatRecordMonths.value = UiState.Loading
+            _chatRecordMonths.value = runCatching { storageRepo.getChatRecordsMonthEntries(assistantId) }
+                .fold(
+                    onSuccess = { UiState.Success(it) },
+                    onFailure = { UiState.Error(it) },
+                )
+        }
+    }
+
+    fun clearChatRecordsByYearMonths(assistantId: Uuid?, yearMonths: Set<String>) {
+        if (category != StorageCategoryKey.CHAT_RECORDS) return
+        if (yearMonths.isEmpty()) return
+
+        viewModelScope.launch {
+            _action.value = UiState.Loading
+            _action.value = runCatching {
+                storageRepo.clearChatRecordsByYearMonths(
+                    assistantId = assistantId,
+                    yearMonths = yearMonths,
+                )
+            }.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it) },
+            )
+            refreshUsage()
+            loadChatRecordMonths(assistantId)
+            if (assistantId != null) {
+                reloadAssistantData(assistantId)
+            }
         }
     }
 

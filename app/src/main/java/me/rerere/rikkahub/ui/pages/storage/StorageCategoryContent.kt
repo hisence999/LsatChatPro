@@ -19,7 +19,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
 import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
-import me.rerere.rikkahub.data.repository.AssistantChatCleanupMode
+import me.rerere.rikkahub.data.repository.ChatRecordsMonthEntry
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
 import me.rerere.rikkahub.data.repository.StorageCategoryUsage
@@ -41,10 +41,11 @@ fun StorageCategoryScaffoldContent(
     conversationCountState: UiState<Int>,
     assistantImagesState: UiState<AttachmentListState<AssistantImageEntry>>,
     assistantFilesState: UiState<AttachmentListState<AssistantFileEntry>>,
+    chatRecordMonthsState: UiState<List<ChatRecordsMonthEntry>>,
     onDeleteImages: (Uuid?, List<String>) -> Unit,
     onDeleteFiles: (Uuid?, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
-    onClearAssistantChats: (Uuid, AssistantChatCleanupMode) -> Unit,
+    onClearChatRecordMonths: (Uuid?, Set<String>) -> Unit,
     orphanScanState: UiState<OrphanScanResult>,
     onScanOrphans: () -> Unit,
     onClearAllOrphans: () -> Unit,
@@ -79,6 +80,20 @@ fun StorageCategoryScaffoldContent(
         return
     }
 
+    if (category == StorageCategoryKey.CHAT_RECORDS) {
+        StorageChatRecordsScaffoldContent(
+            innerPadding = innerPadding,
+            assistants = assistants,
+            selectedAssistantId = selectedAssistantId,
+            onSelectAssistant = onSelectAssistant,
+            monthEntriesState = chatRecordMonthsState,
+            conversationCountState = conversationCountState,
+            attachmentStatsState = attachmentStatsState,
+            onClearChatRecordMonths = onClearChatRecordMonths,
+        )
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.padding(innerPadding),
         contentPadding = PaddingValues(12.dp),
@@ -94,44 +109,11 @@ fun StorageCategoryScaffoldContent(
             }
 
             StorageCategoryKey.FILES -> {
-                item(key = "assistant_filter") {
-                    AssistantFilterRow(
-                        assistants = assistants,
-                        selected = selectedAssistantId,
-                        onSelect = onSelectAssistant,
-                    )
-                }
-
-                item(key = "assistant") {
-                    AssistantAttachmentsCard(
-                        title = stringResource(R.string.storage_files_assistant_title),
-                        kind = AttachmentKind.Files,
-                        assistants = assistants,
-                        selectedAssistantId = selectedAssistantId,
-                        statsState = attachmentStatsState,
-                        onConfirmClear = onClearAssistantFiles,
-                    )
-                }
+                // handled in StorageFilesScaffoldContent
             }
 
             StorageCategoryKey.CHAT_RECORDS -> {
-                item(key = "assistant_filter") {
-                    AssistantFilterRow(
-                        assistants = assistants,
-                        selected = selectedAssistantId,
-                        onSelect = onSelectAssistant,
-                    )
-                }
-
-                item(key = "assistant") {
-                    AssistantChatRecordsCard(
-                        assistants = assistants,
-                        selectedAssistantId = selectedAssistantId,
-                        conversationCountState = conversationCountState,
-                        attachmentStatsState = attachmentStatsState,
-                        onConfirmClear = onClearAssistantChats,
-                    )
-                }
+                // handled in StorageChatRecordsScaffoldContent
             }
 
             StorageCategoryKey.CACHE -> {

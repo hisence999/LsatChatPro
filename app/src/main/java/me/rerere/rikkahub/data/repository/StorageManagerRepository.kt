@@ -12,6 +12,8 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.model.Avatar
 import java.io.File
+import java.time.YearMonth
+import java.time.ZoneId
 import kotlin.uuid.Uuid
 
 enum class StorageCategoryKey(val key: String) {
@@ -78,6 +80,11 @@ data class AssistantFileEntry(
     val lastModified: Long,
     val fileName: String,
     val mime: String,
+)
+
+data class ChatRecordsMonthEntry(
+    val yearMonth: String,
+    val conversationCount: Int,
 )
 
 enum class AssistantChatCleanupMode {
@@ -215,6 +222,56 @@ class StorageManagerRepository(
             category = StorageCategoryKey.CHAT_RECORDS,
             bytes = usage.bytes,
             fileCount = usage.count,
+        )
+    }
+
+    suspend fun getChatRecordsMonthEntries(assistantId: Uuid?): List<ChatRecordsMonthEntry> = withContext(Dispatchers.IO) {
+        val rows = if (assistantId == null) {
+            conversationDAO.getConversationMonthCounts()
+        } else {
+            conversationDAO.getConversationMonthCountsOfAssistant(assistantId.toString())
+        }
+
+        rows.map { ChatRecordsMonthEntry(yearMonth = it.yearMonth, conversationCount = it.count) }
+    }
+
+    suspend fun clearChatRecordsByYearMonths(
+        assistantId: Uuid?,
+        yearMonths: Set<String>,
+    ): DeleteResult = withContext(Dispatchers.IO) {
+        val zoneId = ZoneId.systemDefault()
+        val ids = LinkedHashSet<String>(yearMonths.size * 8)
+
+        yearMonths.forEach { yearMonth ->
+            val ym = runCatching { YearMonth.parse(yearMonth) }.getOrNull() ?: return@forEach
+            val startMs = ym.atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endMs = ym.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+            val monthIds = if (assistantId == null) {
+                conversationDAO.getConversationIdsByUpdateAtRange(startMs = startMs, endMs = endMs)
+            } else {
+                conversationDAO.getConversationIdsOfAssistantByUpdateAtRange(
+                    assistantId = assistantId.toString(),
+                    startMs = startMs,
+                    endMs = endMs,
+                )
+            }
+            ids.addAll(monthIds)
+        }
+
+        var deletedCount = 0
+        var failedCount = 0
+        ids.forEach { conversationId ->
+            val ok = runCatching { conversationRepository.deleteConversationById(conversationId, deleteFiles = false) }
+                .isSuccess
+            if (ok) deletedCount += 1 else failedCount += 1
+        }
+
+        invalidateOverviewCache()
+        DeleteResult(
+            deletedCount = deletedCount,
+            failedCount = failedCount,
+            deletedBytes = 0L,
         )
     }
 

@@ -197,6 +197,34 @@ class ConversationRepository(
         }
     }
 
+    suspend fun deleteConversationById(conversationId: String, deleteFiles: Boolean = true) {
+        val entity = if (deleteFiles) {
+            conversationDAO.getConversationById(conversationId)
+        } else {
+            null
+        }
+
+        conversationDAO.deleteById(conversationId)
+        chatEpisodeDAO.deleteEpisodeByConversationId(conversationId)
+
+        val toolResultIds = toolResultArchiveDao.getIdsByConversationId(conversationId)
+        toolResultArchiveDao.deleteByConversationId(conversationId)
+        if (toolResultIds.isNotEmpty()) {
+            embeddingCacheDAO.deleteByMemoryIds(MemoryType.TOOL_RESULT, toolResultIds)
+        }
+
+        val toolResultChunkIds = toolResultArchiveChunkDao.getIdsByConversationId(conversationId)
+        toolResultArchiveChunkDao.deleteByConversationId(conversationId)
+        if (toolResultChunkIds.isNotEmpty()) {
+            embeddingCacheDAO.deleteByMemoryIds(MemoryType.TOOL_RESULT_CHUNK, toolResultChunkIds)
+        }
+
+        if (deleteFiles && entity != null) {
+            val conversation = conversationEntityToConversation(entity)
+            context.deleteChatFiles(conversation.files)
+        }
+    }
+
     suspend fun deleteConversationOfAssistant(assistantId: Uuid, deleteFiles: Boolean = true) {
         getConversationsOfAssistant(assistantId).first().forEach { conversation ->
             deleteConversation(conversation, deleteFiles = deleteFiles)

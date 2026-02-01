@@ -21,6 +21,11 @@ data class ConversationNodesScanRow(
     val nodes: String,
 )
 
+data class ConversationMonthCount(
+    val yearMonth: String,
+    val count: Int,
+)
+
 @Dao
 interface ConversationDAO {
     @Query("SELECT * FROM conversationentity ORDER BY is_pinned DESC, update_at DESC")
@@ -68,6 +73,18 @@ interface ConversationDAO {
     @Query("SELECT * FROM conversationentity WHERE id = :id")
     suspend fun getConversationById(id: String): ConversationEntity?
 
+    @Query("SELECT strftime('%Y-%m', update_at / 1000, 'unixepoch', 'localtime') as yearMonth, COUNT(*) as count FROM conversationentity GROUP BY yearMonth ORDER BY yearMonth DESC")
+    suspend fun getConversationMonthCounts(): List<ConversationMonthCount>
+
+    @Query("SELECT strftime('%Y-%m', update_at / 1000, 'unixepoch', 'localtime') as yearMonth, COUNT(*) as count FROM conversationentity WHERE assistant_id = :assistantId GROUP BY yearMonth ORDER BY yearMonth DESC")
+    suspend fun getConversationMonthCountsOfAssistant(assistantId: String): List<ConversationMonthCount>
+
+    @Query("SELECT id FROM conversationentity WHERE update_at >= :startMs AND update_at < :endMs")
+    suspend fun getConversationIdsByUpdateAtRange(startMs: Long, endMs: Long): List<String>
+
+    @Query("SELECT id FROM conversationentity WHERE assistant_id = :assistantId AND update_at >= :startMs AND update_at < :endMs")
+    suspend fun getConversationIdsOfAssistantByUpdateAtRange(assistantId: String, startMs: Long, endMs: Long): List<String>
+
     @Insert
     suspend fun insert(conversation: ConversationEntity)
 
@@ -76,6 +93,9 @@ interface ConversationDAO {
 
     @Delete
     suspend fun delete(conversation: ConversationEntity)
+
+    @Query("DELETE FROM conversationentity WHERE id = :id")
+    suspend fun deleteById(id: String)
 
     @Query("DELETE FROM conversationentity")
     suspend fun deleteAll()
