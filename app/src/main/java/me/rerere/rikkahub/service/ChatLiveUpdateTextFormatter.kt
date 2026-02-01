@@ -19,5 +19,12 @@ internal object ChatLiveUpdateTextFormatter {
         }
         return builder.toString().trim()
     }
-}
 
+    fun tail(text: String, maxChars: Int): String {
+        if (maxChars <= 0) return ""
+        val normalized = normalizePreviewText(text)
+        if (normalized.isBlank()) return ""
+        if (normalized.length <= maxChars) return normalized
+        return "…" + normalized.takeLast(maxChars - 1)
+    }
+}

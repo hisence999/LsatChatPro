@@ -10,5 +10,11 @@ class ChatLiveUpdateTextFormatterTest {
         val output = ChatLiveUpdateTextFormatter.normalizePreviewText(input)
         assertEquals("Hello world ! Nice to meet you", output)
     }
-}
 
+    @Test
+    fun `tail returns ellipsis plus tail`() {
+        val input = "A\nB\nC\nD"
+        val output = ChatLiveUpdateTextFormatter.tail(input, maxChars = 4)
+        assertEquals("…C D", output)
+    }
+}

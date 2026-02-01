@@ -727,16 +727,16 @@ class ChatService(
         val lastUserText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.USER }
             ?.toContentText()
-            ?.let { ChatLiveUpdateTextFormatter.normalizePreviewText(it) }
             ?.takeIf { it.isNotBlank() }
         val lastAssistantText = conversation.currentMessages
             .lastOrNull { it.role == MessageRole.ASSISTANT }
             ?.toContentText()
-            ?.let { ChatLiveUpdateTextFormatter.normalizePreviewText(it) }
             ?.takeIf { it.isNotBlank() }
 
-        fun String?.short(): String? = this?.takeLast(80)?.takeIf { it.isNotBlank() }
-        fun String?.long(): String? = this?.takeLast(420)?.takeIf { it.isNotBlank() }
+        fun String?.short(): String? = this?.let { ChatLiveUpdateTextFormatter.tail(it, maxChars = 80) }
+            ?.takeIf { it.isNotBlank() }
+        fun String?.long(): String? = this?.let { ChatLiveUpdateTextFormatter.tail(it, maxChars = 420) }
+            ?.takeIf { it.isNotBlank() }
 
         return when (state) {
             ChatLiveUpdateState.WAITING -> lastUserText.short() to lastUserText.long()
@@ -753,7 +753,7 @@ class ChatService(
                     }
                     if (!lastUserText.isNullOrBlank()) {
                         if (isNotEmpty()) append("\n\n")
-                        append(lastUserText.takeLast(420))
+                        append(ChatLiveUpdateTextFormatter.tail(lastUserText, maxChars = 420))
                     }
                 }.take(600)
             }
