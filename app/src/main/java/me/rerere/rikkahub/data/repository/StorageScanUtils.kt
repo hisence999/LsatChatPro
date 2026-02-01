@@ -65,6 +65,11 @@ internal object StorageScanUtils {
         return file.takeIf { isInChildOf(it, filesDir) }
     }
 
+    internal fun toExistingLocalFileOrNull(value: String, filesDir: File): File? {
+        val file = toLocalFileOrNull(value, filesDir) ?: return null
+        return file.takeIf { it.exists() && it.isFile }
+    }
+
     internal fun extractReferencedFilePathsFromText(text: String, filesDir: File): Set<String> {
         if (text.isBlank()) return emptySet()
 

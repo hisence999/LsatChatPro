@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.repository
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,6 +43,27 @@ class StorageScanUtilsTest {
 
         assertNull(StorageScanUtils.toLocalFileOrNull(absolutePath, filesDir))
         assertNull(StorageScanUtils.toLocalFileOrNull(fileUrl, filesDir))
+    }
+
+    @Test
+    fun `toExistingLocalFileOrNull rejects missing files`() {
+        val filesDir = Files.createTempDirectory("filesDir").toFile()
+        val missingFile = File(filesDir, "upload/missing.png")
+
+        val absolutePath = StorageScanUtils.normalizePath(missingFile)
+        val fileUrl = "file:///" + absolutePath.replace('\\', '/')
+
+        assertNotNull(StorageScanUtils.toLocalFileOrNull(absolutePath, filesDir))
+        assertNotNull(StorageScanUtils.toLocalFileOrNull(fileUrl, filesDir))
+        assertNull(StorageScanUtils.toExistingLocalFileOrNull(absolutePath, filesDir))
+        assertNull(StorageScanUtils.toExistingLocalFileOrNull(fileUrl, filesDir))
+
+        requireNotNull(missingFile.parentFile).mkdirs()
+        missingFile.writeBytes(byteArrayOf(1, 2, 3))
+
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(StorageScanUtils.toExistingLocalFileOrNull(absolutePath, filesDir)!!))
+        assertEquals(absolutePath, StorageScanUtils.normalizePath(StorageScanUtils.toExistingLocalFileOrNull(fileUrl, filesDir)!!))
+        assertNull(StorageScanUtils.toExistingLocalFileOrNull("upload/", filesDir))
     }
 
     @Test

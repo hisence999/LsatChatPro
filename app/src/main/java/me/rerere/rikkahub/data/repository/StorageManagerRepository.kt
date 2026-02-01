@@ -309,7 +309,7 @@ class StorageManagerRepository(
 
         val images = imageUrls
             .asSequence()
-            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .mapNotNull { StorageScanUtils.toExistingLocalFileOrNull(it, context.filesDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 // Safety: only delete chat attachments in upload/, avoid touching avatars/images dirs.
@@ -319,7 +319,7 @@ class StorageManagerRepository(
 
         val files = fileUrls
             .asSequence()
-            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .mapNotNull { StorageScanUtils.toExistingLocalFileOrNull(it, context.filesDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 StorageScanUtils.isInChildOf(file, uploadDir)
@@ -362,7 +362,7 @@ class StorageManagerRepository(
         val uploadDir = File(context.filesDir, "upload")
         val targetFiles = (imageUrls + fileUrls)
             .asSequence()
-            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .mapNotNull { StorageScanUtils.toExistingLocalFileOrNull(it, context.filesDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 StorageScanUtils.isInChildOf(file, uploadDir)
@@ -428,7 +428,7 @@ class StorageManagerRepository(
         val uploadDir = File(context.filesDir, "upload")
         imageUrls
             .asSequence()
-            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .mapNotNull { StorageScanUtils.toExistingLocalFileOrNull(it, context.filesDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 StorageScanUtils.isInChildOf(file, uploadDir)
@@ -467,7 +467,7 @@ class StorageManagerRepository(
         val uploadDir = File(context.filesDir, "upload")
         imageUrls
             .asSequence()
-            .mapNotNull { StorageScanUtils.toLocalFileOrNull(it, context.filesDir) }
+            .mapNotNull { StorageScanUtils.toExistingLocalFileOrNull(it, context.filesDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .filter { file ->
                 StorageScanUtils.isInChildOf(file, uploadDir)
@@ -533,7 +533,7 @@ class StorageManagerRepository(
         val byPath = LinkedHashMap<String, AssistantFileEntry>()
 
         candidates.forEach { candidate ->
-            val file = StorageScanUtils.toLocalFileOrNull(candidate.url, context.filesDir) ?: return@forEach
+            val file = StorageScanUtils.toExistingLocalFileOrNull(candidate.url, context.filesDir) ?: return@forEach
             if (!StorageScanUtils.isInChildOf(file, uploadDir)) return@forEach
 
             val normalizedPath = StorageScanUtils.normalizePath(file)
@@ -624,7 +624,7 @@ class StorageManagerRepository(
         val byPath = LinkedHashMap<String, AssistantFileEntry>()
 
         candidates.forEach { candidate ->
-            val file = StorageScanUtils.toLocalFileOrNull(candidate.url, context.filesDir) ?: return@forEach
+            val file = StorageScanUtils.toExistingLocalFileOrNull(candidate.url, context.filesDir) ?: return@forEach
             if (!StorageScanUtils.isInChildOf(file, uploadDir)) return@forEach
 
             val normalizedPath = StorageScanUtils.normalizePath(file)
