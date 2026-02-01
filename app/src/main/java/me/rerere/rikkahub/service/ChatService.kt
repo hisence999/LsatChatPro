@@ -136,6 +136,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
+private const val CHAT_GENERATION_DONE_NOTIFICATION_ID = 1
 
 private val inputTransformers by lazy {
     listOf(
@@ -234,7 +235,10 @@ class ChatService(
         when (event) {
             Lifecycle.Event.ON_START -> {
                 _isForeground.value = true
-                appScope.launch { cancelOngoingLiveUpdates() }
+                appScope.launch {
+                    cancelOngoingLiveUpdates()
+                    cancelGenerationDoneNotification()
+                }
             }
 
             Lifecycle.Event.ON_STOP -> {
@@ -296,6 +300,10 @@ class ChatService(
                 liveUpdateNotifier.cancel(conversationId)
             }
         }
+    }
+
+    private fun cancelGenerationDoneNotification() {
+        NotificationManagerCompat.from(context).cancel(CHAT_GENERATION_DONE_NOTIFICATION_ID)
     }
 
     private fun notifyOngoingLiveUpdates(force: Boolean) {
@@ -728,7 +736,7 @@ class ChatService(
             ?.takeIf { it.isNotBlank() }
 
         fun String?.short(): String? = this?.takeLast(80)?.takeIf { it.isNotBlank() }
-        fun String?.long(): String? = this?.take(420)?.takeIf { it.isNotBlank() }
+        fun String?.long(): String? = this?.takeLast(420)?.takeIf { it.isNotBlank() }
 
         return when (state) {
             ChatLiveUpdateState.WAITING -> lastUserText.short() to lastUserText.long()
@@ -745,7 +753,7 @@ class ChatService(
                     }
                     if (!lastUserText.isNullOrBlank()) {
                         if (isNotEmpty()) append("\n\n")
-                        append(lastUserText.take(420))
+                        append(lastUserText.takeLast(420))
                     }
                 }.take(600)
             }
@@ -1160,13 +1168,7 @@ class ChatService(
                 )
                 if (useLiveUpdate) {
                     liveUpdateStates.remove(conversationId)
-                    notifyLiveUpdate(
-                        conversationId = conversationId,
-                        state = ChatLiveUpdateState.DONE,
-                        settings = settings,
-                        force = true,
-                        error = null,
-                    )
+                    liveUpdateNotifier.cancel(conversationId)
                 }
                 if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
                     sendGenerationDoneNotification(conversationId)
@@ -1380,15 +1382,7 @@ class ChatService(
 
                     // Show notification if app is not in foreground
                     if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        if (useLiveUpdate) {
-                            notifyLiveUpdate(
-                                conversationId = conversationId,
-                                state = ChatLiveUpdateState.DONE,
-                                settings = settings,
-                                force = true,
-                                error = null,
-                            )
-                        }
+                        if (useLiveUpdate) liveUpdateNotifier.cancel(conversationId)
                         sendGenerationDoneNotification(conversationId)
                     }
                 }
@@ -4808,7 +4802,7 @@ class ChatService(
         ) {
             return
         }
-        NotificationManagerCompat.from(context).notify(1, notification.build())
+        NotificationManagerCompat.from(context).notify(CHAT_GENERATION_DONE_NOTIFICATION_ID, notification.build())
     }
 
     private fun getPendingIntent(context: Context, conversationId: Uuid): PendingIntent {
