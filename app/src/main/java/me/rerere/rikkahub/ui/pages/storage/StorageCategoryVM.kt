@@ -410,7 +410,7 @@ class StorageCategoryVM(
             globalFileLimit = GLOBAL_ATTACHMENT_PAGE_SIZE
             _assistantFiles.value = UiState.Loading
             _assistantFiles.value = runCatching {
-                val entries = storageRepo.getAllFileEntries()
+                val entries = storageRepo.getAllManagedFileEntries()
                 globalFileEntries = entries
                 globalFileBytes = entries.sumOf { it.bytes }
                 buildAttachmentListState(

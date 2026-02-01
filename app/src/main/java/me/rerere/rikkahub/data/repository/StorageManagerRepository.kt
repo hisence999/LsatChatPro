@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.model.Avatar
 import java.io.File
+import java.net.URLConnection
 import kotlin.uuid.Uuid
 
 enum class StorageCategoryKey(val key: String) {
@@ -607,6 +608,112 @@ class StorageManagerRepository(
             .sortedByDescending { it.lastModified }
     }
 
+    /**
+     * Returns the full file list shown in Storage Manager → Files.
+     *
+     * It should match what the overview counts:
+     * - Referenced non-image files in filesDir/upload
+     * - All files under referenced skill folders in filesDir/skills
+     */
+    suspend fun getAllManagedFileEntries(): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
+        val settings = settingsStore.settingsFlow.value
+        val referencedFilePaths = buildReferencedFilePathSet(settings = settings)
+        val referencedSkillIds = settings.skills.map { it.id.toString() }.toSet()
+
+        val uploadDir = File(context.filesDir, "upload")
+        val skillsDir = File(context.filesDir, "skills")
+
+        val byPath = LinkedHashMap<String, AssistantFileEntry>(2_048)
+
+        // 1) Start with chat-derived entries to preserve best-effort fileName/mime.
+        getAllFileEntries()
+            .asSequence()
+            .filter { entry ->
+                val file = File(entry.absolutePath)
+                file.isFile && !StorageScanUtils.isImageExtension(file.extension)
+            }
+            .forEach { entry ->
+                val normalized = StorageScanUtils.normalizePath(File(entry.absolutePath))
+                byPath[normalized] = entry.copy(absolutePath = normalized)
+            }
+
+        // 2) Include any referenced non-image files in upload/, even if not referenced by chats.
+        if (uploadDir.exists()) {
+            uploadDir.walkTopDown()
+                .filter { it.isFile }
+                .forEach { file ->
+                    val normalizedPath = StorageScanUtils.normalizePath(file)
+                    if (normalizedPath !in referencedFilePaths) return@forEach
+                    if (StorageScanUtils.isImageExtension(file.extension)) return@forEach
+
+                    val bytes = file.lengthSafe()
+                    val lastModified = runCatching { file.lastModified() }.getOrNull() ?: 0L
+                    val existing = byPath[normalizedPath]
+                    val merged = if (existing == null) {
+                        AssistantFileEntry(
+                            absolutePath = normalizedPath,
+                            bytes = bytes,
+                            lastModified = lastModified,
+                            fileName = file.name,
+                            mime = guessMimeFromName(file.name),
+                        )
+                    } else {
+                        val mergedName = existing.fileName.ifBlank { file.name }
+                        val mergedMime = existing.mime.ifBlank { guessMimeFromName(file.name) }
+                        existing.copy(
+                            bytes = bytes,
+                            lastModified = maxOf(existing.lastModified, lastModified),
+                            fileName = mergedName,
+                            mime = mergedMime,
+                        )
+                    }
+                    byPath[normalizedPath] = merged
+                }
+        }
+
+        // 3) Include referenced skill packages as part of "Files" (matches overview counting logic).
+        if (skillsDir.exists()) {
+            skillsDir.listFiles().orEmpty().forEach { entry ->
+                if (!entry.exists()) return@forEach
+
+                val isUuidFolder = entry.isDirectory && runCatching { Uuid.parse(entry.name) }.isSuccess
+                val includeFolder = !isUuidFolder || entry.name in referencedSkillIds
+                if (!includeFolder) return@forEach
+
+                entry.walkTopDown()
+                    .filter { it.isFile }
+                    .forEach { file ->
+                        val normalizedPath = StorageScanUtils.normalizePath(file)
+                        val bytes = file.lengthSafe()
+                        val lastModified = runCatching { file.lastModified() }.getOrNull() ?: 0L
+                        val existing = byPath[normalizedPath]
+                        val merged = if (existing == null) {
+                            AssistantFileEntry(
+                                absolutePath = normalizedPath,
+                                bytes = bytes,
+                                lastModified = lastModified,
+                                fileName = file.name,
+                                mime = guessMimeFromName(file.name),
+                            )
+                        } else {
+                            val mergedName = existing.fileName.ifBlank { file.name }
+                            val mergedMime = existing.mime.ifBlank { guessMimeFromName(file.name) }
+                            existing.copy(
+                                bytes = bytes,
+                                lastModified = maxOf(existing.lastModified, lastModified),
+                                fileName = mergedName,
+                                mime = mergedMime,
+                            )
+                        }
+                        byPath[normalizedPath] = merged
+                    }
+            }
+        }
+
+        byPath.values
+            .sortedByDescending { it.lastModified }
+    }
+
     suspend fun deleteAssistantImageEntries(absolutePaths: List<String>): DeleteResult = withContext(Dispatchers.IO) {
         val uploadDir = File(context.filesDir, "upload")
         val files = absolutePaths
@@ -622,10 +729,11 @@ class StorageManagerRepository(
 
     suspend fun deleteAssistantFileEntries(absolutePaths: List<String>): DeleteResult = withContext(Dispatchers.IO) {
         val uploadDir = File(context.filesDir, "upload")
+        val skillsDir = File(context.filesDir, "skills")
         val files = absolutePaths
             .asSequence()
             .map { File(it) }
-            .filter { file -> StorageScanUtils.isInChildOf(file, uploadDir) }
+            .filter { file -> StorageScanUtils.isInChildOf(file, uploadDir) || StorageScanUtils.isInChildOf(file, skillsDir) }
             .distinctBy { StorageScanUtils.normalizePath(it) }
             .toList()
         val result = deleteFiles(files)
@@ -963,6 +1071,12 @@ class StorageManagerRepository(
     }
 
     private fun File.lengthSafe(): Long = runCatching { length() }.getOrNull() ?: 0L
+
+    private fun guessMimeFromName(name: String): String {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return ""
+        return runCatching { URLConnection.guessContentTypeFromName(trimmed) }.getOrNull().orEmpty()
+    }
 
     private fun deleteFiles(files: List<File>): DeleteResult {
         var deletedCount = 0

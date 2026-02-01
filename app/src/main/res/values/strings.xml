@@ -736,7 +736,7 @@
     <string name="storage_filter_all_assistants">All</string>
     <string name="storage_assistant_unnamed">Unnamed assistant</string>
     <string name="storage_select_assistant_hint">Select an assistant to continue</string>
-    <string name="storage_all_assistants_hint">Showing all assistants</string>
+    <string name="storage_all_assistants_hint">Showing all</string>
 
     <string name="storage_images_assistant_title">Assistant images</string>
     <string name="storage_files_assistant_title">Assistant files</string>
