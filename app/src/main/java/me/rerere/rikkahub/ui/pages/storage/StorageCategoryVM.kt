@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.ChatRecordsMonthEntry
 import me.rerere.rikkahub.data.repository.DeleteResult
+import me.rerere.rikkahub.data.repository.LightConversationEntity
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
 import me.rerere.rikkahub.data.repository.StorageCategoryUsage
@@ -244,6 +245,17 @@ class StorageCategoryVM(
         }
     }
 
+    suspend fun getChatRecordConversationsByYearMonth(
+        assistantId: Uuid?,
+        yearMonth: String,
+    ): List<LightConversationEntity> {
+        if (category != StorageCategoryKey.CHAT_RECORDS) return emptyList()
+        return storageRepo.getChatRecordConversationsByYearMonth(
+            assistantId = assistantId,
+            yearMonth = yearMonth,
+        )
+    }
+
     fun clearChatRecordsByYearMonths(assistantId: Uuid?, yearMonths: Set<String>) {
         if (category != StorageCategoryKey.CHAT_RECORDS) return
         if (yearMonths.isEmpty()) return
@@ -254,6 +266,49 @@ class StorageCategoryVM(
                 storageRepo.clearChatRecordsByYearMonths(
                     assistantId = assistantId,
                     yearMonths = yearMonths,
+                )
+            }.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it) },
+            )
+            refreshUsage()
+            loadChatRecordMonths(assistantId)
+            if (assistantId != null) {
+                reloadAssistantData(assistantId)
+            }
+        }
+    }
+
+    fun clearChatRecordsSelection(
+        assistantId: Uuid?,
+        yearMonths: Set<String>,
+        conversationIds: Set<String>,
+    ) {
+        if (category != StorageCategoryKey.CHAT_RECORDS) return
+        if (yearMonths.isEmpty() && conversationIds.isEmpty()) return
+
+        viewModelScope.launch {
+            _action.value = UiState.Loading
+            _action.value = runCatching {
+                val byYearMonths = if (yearMonths.isEmpty()) {
+                    DeleteResult(0, 0, 0L)
+                } else {
+                    storageRepo.clearChatRecordsByYearMonths(
+                        assistantId = assistantId,
+                        yearMonths = yearMonths,
+                    )
+                }
+
+                val byConversationIds = if (conversationIds.isEmpty()) {
+                    DeleteResult(0, 0, 0L)
+                } else {
+                    storageRepo.clearChatRecordsByConversationIds(conversationIds)
+                }
+
+                DeleteResult(
+                    deletedCount = byYearMonths.deletedCount + byConversationIds.deletedCount,
+                    failedCount = byYearMonths.failedCount + byConversationIds.failedCount,
+                    deletedBytes = byYearMonths.deletedBytes + byConversationIds.deletedBytes,
                 )
             }.fold(
                 onSuccess = { UiState.Success(it) },

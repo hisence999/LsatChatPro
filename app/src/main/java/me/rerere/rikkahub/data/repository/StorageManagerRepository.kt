@@ -237,6 +237,26 @@ class StorageManagerRepository(
         rows.map { ChatRecordsMonthEntry(yearMonth = it.yearMonth, conversationCount = it.count) }
     }
 
+    suspend fun getChatRecordConversationsByYearMonth(
+        assistantId: Uuid?,
+        yearMonth: String,
+    ): List<LightConversationEntity> = withContext(Dispatchers.IO) {
+        val ym = runCatching { YearMonth.parse(yearMonth) }.getOrNull() ?: return@withContext emptyList()
+        val zoneId = ZoneId.systemDefault()
+        val startMs = ym.atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endMs = ym.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+        if (assistantId == null) {
+            conversationDAO.getLightConversationsByUpdateAtRange(startMs = startMs, endMs = endMs)
+        } else {
+            conversationDAO.getLightConversationsOfAssistantByUpdateAtRange(
+                assistantId = assistantId.toString(),
+                startMs = startMs,
+                endMs = endMs,
+            )
+        }
+    }
+
     suspend fun clearChatRecordsByYearMonths(
         assistantId: Uuid?,
         yearMonths: Set<String>,
@@ -264,6 +284,27 @@ class StorageManagerRepository(
         var deletedCount = 0
         var failedCount = 0
         ids.forEach { conversationId ->
+            val ok = runCatching { conversationRepository.deleteConversationById(conversationId, deleteFiles = false) }
+                .isSuccess
+            if (ok) deletedCount += 1 else failedCount += 1
+        }
+
+        invalidateOverviewCache()
+        DeleteResult(
+            deletedCount = deletedCount,
+            failedCount = failedCount,
+            deletedBytes = 0L,
+        )
+    }
+
+    suspend fun clearChatRecordsByConversationIds(
+        conversationIds: Set<String>,
+    ): DeleteResult = withContext(Dispatchers.IO) {
+        if (conversationIds.isEmpty()) return@withContext DeleteResult(0, 0, 0L)
+
+        var deletedCount = 0
+        var failedCount = 0
+        conversationIds.forEach { conversationId ->
             val ok = runCatching { conversationRepository.deleteConversationById(conversationId, deleteFiles = false) }
                 .isSuccess
             if (ok) deletedCount += 1 else failedCount += 1

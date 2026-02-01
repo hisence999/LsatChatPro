@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.repository.AssistantAttachmentStats
 import me.rerere.rikkahub.data.repository.AssistantFileEntry
 import me.rerere.rikkahub.data.repository.AssistantImageEntry
 import me.rerere.rikkahub.data.repository.ChatRecordsMonthEntry
+import me.rerere.rikkahub.data.repository.LightConversationEntity
 import me.rerere.rikkahub.data.repository.OrphanScanResult
 import me.rerere.rikkahub.data.repository.StorageCategoryKey
 import me.rerere.rikkahub.data.repository.StorageCategoryUsage
@@ -45,7 +46,8 @@ fun StorageCategoryScaffoldContent(
     onDeleteImages: (Uuid?, List<String>) -> Unit,
     onDeleteFiles: (Uuid?, List<String>) -> Unit,
     onClearAssistantFiles: (Uuid) -> Unit,
-    onClearChatRecordMonths: (Uuid?, Set<String>) -> Unit,
+    onLoadChatRecordConversationsByYearMonth: suspend (Uuid?, String) -> List<LightConversationEntity>,
+    onClearChatRecordSelection: (Uuid?, Set<String>, Set<String>) -> Unit,
     orphanScanState: UiState<OrphanScanResult>,
     onScanOrphans: () -> Unit,
     onClearAllOrphans: () -> Unit,
@@ -89,7 +91,8 @@ fun StorageCategoryScaffoldContent(
             monthEntriesState = chatRecordMonthsState,
             conversationCountState = conversationCountState,
             attachmentStatsState = attachmentStatsState,
-            onClearChatRecordMonths = onClearChatRecordMonths,
+            onLoadChatRecordConversationsByYearMonth = onLoadChatRecordConversationsByYearMonth,
+            onClearChatRecordSelection = onClearChatRecordSelection,
         )
         return
     }

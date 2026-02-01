@@ -105,8 +105,18 @@ fun StorageCategoryPage(
             onDeleteImages = { assistantId, absolutePaths -> vm.deleteImages(assistantId, absolutePaths) },
             onDeleteFiles = { assistantId, absolutePaths -> vm.deleteFiles(assistantId, absolutePaths) },
             onClearAssistantFiles = { assistantId -> vm.clearAssistantFiles(assistantId) },
-            onClearChatRecordMonths = { assistantId, yearMonths ->
-                vm.clearChatRecordsByYearMonths(assistantId, yearMonths)
+            onLoadChatRecordConversationsByYearMonth = { assistantId, yearMonth ->
+                vm.getChatRecordConversationsByYearMonth(
+                    assistantId = assistantId,
+                    yearMonth = yearMonth,
+                )
+            },
+            onClearChatRecordSelection = { assistantId, yearMonths, conversationIds ->
+                vm.clearChatRecordsSelection(
+                    assistantId = assistantId,
+                    yearMonths = yearMonths,
+                    conversationIds = conversationIds,
+                )
             },
             orphanScanState = orphanScanState,
             onScanOrphans = { vm.scanOrphans() },

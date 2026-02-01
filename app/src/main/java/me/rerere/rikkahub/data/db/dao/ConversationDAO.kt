@@ -85,6 +85,12 @@ interface ConversationDAO {
     @Query("SELECT id FROM conversationentity WHERE assistant_id = :assistantId AND update_at >= :startMs AND update_at < :endMs")
     suspend fun getConversationIdsOfAssistantByUpdateAtRange(assistantId: String, startMs: Long, endMs: Long): List<String>
 
+    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt, is_consolidated as isConsolidated FROM conversationentity WHERE update_at >= :startMs AND update_at < :endMs ORDER BY is_pinned DESC, update_at DESC")
+    suspend fun getLightConversationsByUpdateAtRange(startMs: Long, endMs: Long): List<LightConversationEntity>
+
+    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt, is_consolidated as isConsolidated FROM conversationentity WHERE assistant_id = :assistantId AND update_at >= :startMs AND update_at < :endMs ORDER BY is_pinned DESC, update_at DESC")
+    suspend fun getLightConversationsOfAssistantByUpdateAtRange(assistantId: String, startMs: Long, endMs: Long): List<LightConversationEntity>
+
     @Insert
     suspend fun insert(conversation: ConversationEntity)
 
