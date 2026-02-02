@@ -1491,6 +1491,10 @@
   <!-- Display -->
   <string name="setting_display_page_show_context_stacks_title">顯示上下文堆疊</string>
   <string name="setting_display_page_show_context_stacks_desc">在消息工具列顯示上下文來源（模式、記憶、世界書）</string>
+  <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型檢索逾時時間</string>
+  <string name="setting_display_page_embedding_retrieval_timeout_desc">逾時後將跳過該次檢索，單位：秒</string>
+  <string name="setting_display_page_use_last_turn_memory_title">使用上一輪記憶</string>
+  <string name="setting_display_page_use_last_turn_memory_desc">跳過記憶檢索後，使用上一輪注入的記憶</string>
   <string name="setting_display_page_mcp_tool_call_timeout_title">MCP工具調用逾時時間</string>
   <string name="setting_display_page_mcp_tool_call_timeout_desc">單位：秒</string>
   <string name="setting_display_page_show_assistant_avatar_title">顯示助手頭像</string>

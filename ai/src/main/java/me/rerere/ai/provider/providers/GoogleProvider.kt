@@ -65,6 +65,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import org.apache.commons.text.StringEscapeUtils
+import java.util.concurrent.TimeUnit
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -742,7 +743,8 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
     override suspend fun createEmbedding(
         providerSetting: ProviderSetting.Google,
         input: List<String>,
-        model: Model
+        model: Model,
+        callTimeoutSeconds: Long?,
     ): List<List<Float>> = withContext(Dispatchers.IO) {
         if (input.isEmpty()) {
             return@withContext emptyList()
@@ -785,7 +787,11 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     .build()
             )
 
-            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            val call = client.configureClientWithProxy(providerSetting.proxy).newCall(request)
+            if (callTimeoutSeconds != null && callTimeoutSeconds > 0) {
+                call.timeout().timeout(callTimeoutSeconds, TimeUnit.SECONDS)
+            }
+            val response = call.await()
             val bodyStr = response.body?.string() ?: ""
             
             Log.d(TAG, "createEmbedding: responseCode=${response.code}")
@@ -841,7 +847,11 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     .build()
             )
 
-            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            val call = client.configureClientWithProxy(providerSetting.proxy).newCall(request)
+            if (callTimeoutSeconds != null && callTimeoutSeconds > 0) {
+                call.timeout().timeout(callTimeoutSeconds, TimeUnit.SECONDS)
+            }
+            val response = call.await()
             val bodyStr = response.body?.string() ?: ""
             
             Log.d(TAG, "createEmbedding batch: responseCode=${response.code}")

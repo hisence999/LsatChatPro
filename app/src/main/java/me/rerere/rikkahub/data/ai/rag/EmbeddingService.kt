@@ -6,6 +6,7 @@ import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getEmbeddingRetrievalTimeoutSeconds
 
 data class EmbeddingResult(
     val embeddings: List<List<Float>>,
@@ -68,13 +69,18 @@ class EmbeddingService(
         // Check if provider supports embeddings
         val providerSetting = model.findProvider(settings.providers) ?: error("Provider not found for embedding model")
         val provider = providerManager.getProviderByType(providerSetting)
+        val callTimeoutSeconds = when (source) {
+            AIRequestSource.MEMORY_RETRIEVAL,
+            AIRequestSource.TOOL_RESULT_RAG -> settings.getEmbeddingRetrievalTimeoutSeconds().toLong()
+            else -> null
+        }
         
         val startAt = System.currentTimeMillis()
         var failure: Throwable? = null
         var embeddingResult: List<List<Float>> = emptyList()
         try {
             // Check if provider supports embeddings (OpenAI does, others may not)
-            embeddingResult = provider.createEmbedding(providerSetting, texts, model)
+            embeddingResult = provider.createEmbedding(providerSetting, texts, model, callTimeoutSeconds)
             if (embeddingResult.isEmpty() && texts.isNotEmpty()) {
                 error("Provider ${providerSetting::class.simpleName} does not support embeddings or returned empty result")
             }

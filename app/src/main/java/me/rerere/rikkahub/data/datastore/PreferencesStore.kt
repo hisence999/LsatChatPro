@@ -982,6 +982,8 @@ data class DisplaySetting(
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
     val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
+    val embeddingRetrievalTimeoutSeconds: Int = 2, // Timeout for embedding-based retrieval (memories, tool results)
+    val useLastTurnMemoryOnSkip: Boolean = true, // Reuse last injected memories when retrieval is skipped
 )
 
 fun DisplaySetting.coerceForConflicts(): DisplaySetting {
@@ -1061,6 +1063,10 @@ fun Settings.hasConversationWorkspaceRoot(conversationId: Uuid): Boolean {
 
 fun Settings.getMcpToolCallTimeoutSeconds(): Int {
     return mcpToolCallTimeoutSeconds.coerceAtLeast(1)
+}
+
+fun Settings.getEmbeddingRetrievalTimeoutSeconds(): Int {
+    return displaySetting.embeddingRetrievalTimeoutSeconds.coerceAtLeast(1)
 }
 
 /**

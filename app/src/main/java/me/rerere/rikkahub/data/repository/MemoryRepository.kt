@@ -373,6 +373,172 @@ class MemoryRepository(
         ).map { it.first }
     }
 
+    suspend fun retrieveRelevantMemoriesByEmbedding(
+        assistantId: String,
+        queryEmbedding: List<Float>,
+        limit: Int = 5,
+        similarityThreshold: Float = 0.5f,
+        includeCore: Boolean = true,
+        includeEpisodes: Boolean = true
+    ): List<AssistantMemory> {
+        return retrieveRelevantMemoriesWithScoresByEmbedding(
+            assistantId = assistantId,
+            queryEmbedding = queryEmbedding,
+            limit = limit,
+            similarityThreshold = similarityThreshold,
+            includeCore = includeCore,
+            includeEpisodes = includeEpisodes,
+        ).map { it.first }
+    }
+
+    suspend fun retrieveRelevantMemoriesWithScoresByEmbedding(
+        assistantId: String,
+        queryEmbedding: List<Float>,
+        limit: Int = 5,
+        similarityThreshold: Float = 0.5f,
+        includeCore: Boolean = true,
+        includeEpisodes: Boolean = true
+    ): List<Pair<AssistantMemory, Float>> {
+        data class ScoredCandidate(
+            val item: Any,
+            val score: Float,
+            val isMemory: Boolean,
+            val isPinned: Boolean,
+        ) {
+            val key: String = when {
+                isMemory -> "m:${(item as MemoryEntity).id}"
+                else -> "e:${(item as ChatEpisodeEntity).id}"
+            }
+        }
+
+        val limitInt = limit.coerceAtLeast(0)
+
+        // Get both core memories and episodes
+        val memories = if (includeCore) memoryDAO.getMemoriesOfAssistant(assistantId) else emptyList()
+        val episodes = if (includeEpisodes) chatEpisodeDAO.getEpisodesOfAssistant(assistantId) else emptyList()
+
+        val scoredCore = memories.mapNotNull { memory ->
+            if (memory.pinned) {
+                val score = runCatching {
+                    val embedding = getOrCreateEmbedding(
+                        memoryId = memory.id,
+                        memoryType = MemoryType.CORE,
+                        content = memory.content,
+                        assistantId = assistantId,
+                        existingEmbedding = memory.embedding,
+                        existingModelId = memory.embeddingModelId
+                    )
+                    if (embedding != null) {
+                        val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
+                        similarity * 1.05f
+                    } else {
+                        1f
+                    }
+                }.getOrDefault(1f)
+                ScoredCandidate(item = memory, score = score, isMemory = true, isPinned = true)
+            } else {
+                val embedding = getOrCreateEmbedding(
+                    memoryId = memory.id,
+                    memoryType = MemoryType.CORE,
+                    content = memory.content,
+                    assistantId = assistantId,
+                    existingEmbedding = memory.embedding,
+                    existingModelId = memory.embeddingModelId
+                ) ?: return@mapNotNull null
+
+                val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
+                val score = similarity * 1.05f
+                if (score >= similarityThreshold) {
+                    ScoredCandidate(item = memory, score = score, isMemory = true, isPinned = false)
+                } else {
+                    null
+                }
+            }
+        }
+
+        val scoredEpisodes = episodes.mapNotNull { episode ->
+            val embedding = getOrCreateEmbedding(
+                memoryId = episode.id,
+                memoryType = MemoryType.EPISODIC,
+                content = episode.content,
+                assistantId = assistantId,
+                existingEmbedding = episode.embedding,
+                existingModelId = episode.embeddingModelId
+            ) ?: return@mapNotNull null
+
+            val similarity = VectorEngine.cosineSimilarity(queryEmbedding, embedding)
+
+            // Calculate Recency Score (7 days half-life)
+            val ageInMillis = System.currentTimeMillis() - episode.startTime
+            val ageInDays = ageInMillis / (1000.0 * 60 * 60 * 24)
+            val recency = (1.0 / (1.0 + (ageInDays / 7.0))).toFloat()
+
+            val score = (similarity * 0.7f) + (recency * 0.3f)
+
+            if (score >= similarityThreshold) {
+                ScoredCandidate(item = episode, score = score, isMemory = false, isPinned = false)
+            } else {
+                null
+            }
+        }
+
+        val pinnedCandidates = scoredCore.filter { it.isPinned }
+        val unpinnedCandidates = (scoredCore.filterNot { it.isPinned } + scoredEpisodes)
+            .sortedByDescending { it.score }
+            .take(limitInt)
+
+        val mergedByKey = LinkedHashMap<String, ScoredCandidate>()
+        (pinnedCandidates + unpinnedCandidates).forEach { candidate ->
+            mergedByKey.putIfAbsent(candidate.key, candidate)
+        }
+
+        val finalCandidates = mergedByKey.values
+            .sortedWith(compareByDescending<ScoredCandidate> { it.isPinned }.thenByDescending { it.score })
+
+        // Update lastAccessedAt for included items (pinned + top-k)
+        finalCandidates.forEach { candidate ->
+            if (candidate.isMemory) {
+                val memory = candidate.item as MemoryEntity
+                memoryDAO.updateMemory(memory.copy(lastAccessedAt = System.currentTimeMillis()))
+            } else {
+                val episode = candidate.item as ChatEpisodeEntity
+                chatEpisodeDAO.insertEpisode(episode.copy(lastAccessedAt = System.currentTimeMillis()))
+            }
+        }
+
+        return finalCandidates.mapNotNull { candidate ->
+            if (candidate.isMemory) {
+                val memory = candidate.item as MemoryEntity
+                Pair(
+                    AssistantMemory(
+                        id = memory.id,
+                        content = memory.content,
+                        type = memory.type,
+                        hasEmbedding = memory.embedding != null,
+                        embeddingModelId = memory.embeddingModelId,
+                        timestamp = memory.createdAt,
+                        pinned = memory.pinned,
+                    ),
+                    candidate.score
+                )
+            } else {
+                val episode = candidate.item as ChatEpisodeEntity
+                Pair(
+                    AssistantMemory(
+                        id = -episode.id,
+                        content = episode.content,
+                        type = MemoryType.EPISODIC,
+                        hasEmbedding = episode.embedding != null,
+                        embeddingModelId = episode.embeddingModelId,
+                        timestamp = episode.startTime,
+                        significance = episode.significance,
+                    ),
+                    candidate.score
+                )
+            }
+        }
+    }
+
     suspend fun retrieveRelevantMemoriesWithScores(
         assistantId: String,
         query: String,

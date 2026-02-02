@@ -34,6 +34,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.math.BigDecimal
+import java.util.concurrent.TimeUnit
 
 class OpenAIProvider(
     private val client: OkHttpClient
@@ -270,7 +271,8 @@ class OpenAIProvider(
     override suspend fun createEmbedding(
         providerSetting: ProviderSetting.OpenAI,
         input: List<String>,
-        model: Model
+        model: Model,
+        callTimeoutSeconds: Long?,
     ): List<List<Float>> = withContext(Dispatchers.IO) {
         val key = keyRoulette.next(providerSetting.apiKey)
         val requestBody = json.encodeToString(
@@ -290,8 +292,11 @@ class OpenAIProvider(
             .post(requestBody.toRequestBody("application/json".toMediaType()))
             .build()
 
-        val response =
-            client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+        val call = client.configureClientWithProxy(providerSetting.proxy).newCall(request)
+        if (callTimeoutSeconds != null && callTimeoutSeconds > 0) {
+            call.timeout().timeout(callTimeoutSeconds, TimeUnit.SECONDS)
+        }
+        val response = call.await()
         if (!response.isSuccessful) {
             error("Failed to create embedding: ${response.code} ${response.body?.string()}")
         }

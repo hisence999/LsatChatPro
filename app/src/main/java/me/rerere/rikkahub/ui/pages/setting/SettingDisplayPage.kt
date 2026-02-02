@@ -46,6 +46,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.KeepAliveMode
 import me.rerere.rikkahub.data.datastore.MessageInputStyle
+import me.rerere.rikkahub.data.datastore.getEmbeddingRetrievalTimeoutSeconds
 import me.rerere.rikkahub.data.datastore.getMcpToolCallTimeoutSeconds
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -385,6 +386,45 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 checked = displaySetting.showContextStacks,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showContextStacks = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_embedding_retrieval_timeout_title),
+                        subtitle = stringResource(R.string.setting_display_page_embedding_retrieval_timeout_desc),
+                        trailing = {
+                            var timeoutText by remember(settings.getEmbeddingRetrievalTimeoutSeconds()) {
+                                mutableStateOf(settings.getEmbeddingRetrievalTimeoutSeconds().toString())
+                            }
+
+                            OutlinedTextField(
+                                value = timeoutText,
+                                onValueChange = { value ->
+                                    val filtered = value.filter { it.isDigit() }
+                                    val parsed = filtered.toIntOrNull()
+                                    val safe = parsed?.coerceAtLeast(1)
+
+                                    timeoutText = (safe ?: filtered).toString()
+
+                                    if (safe != null) {
+                                        updateDisplaySetting(displaySetting.copy(embeddingRetrievalTimeoutSeconds = safe))
+                                    }
+                                },
+                                modifier = Modifier.widthIn(min = 80.dp, max = 120.dp),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_use_last_turn_memory_title),
+                        subtitle = stringResource(R.string.setting_display_page_use_last_turn_memory_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.useLastTurnMemoryOnSkip,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(useLastTurnMemoryOnSkip = it))
                                 }
                             )
                         }

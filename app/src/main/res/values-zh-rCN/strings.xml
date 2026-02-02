@@ -117,4 +117,9 @@
     <string name="notification_live_update_output">输出中</string>
     <string name="notification_live_update_done">输出完成</string>
     <string name="notification_live_update_error">生成异常</string>
+
+    <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型检索超时时间</string>
+    <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
+    <string name="setting_display_page_use_last_turn_memory_title">使用上一轮记忆</string>
+    <string name="setting_display_page_use_last_turn_memory_desc">跳过记忆检索后，使用上一轮注入的记忆</string>
 </resources>
