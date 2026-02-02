@@ -387,6 +387,12 @@ private fun sanitizePartForLog(part: UIMessagePart, system: Boolean): UIMessageP
             metadata = null,
         )
 
+        is UIMessagePart.ToolApproval -> part.copy(
+            toolCallId = part.toolCallId.truncateInline(120),
+            toolName = part.toolName.truncateInline(120),
+            metadata = null,
+        )
+
         is UIMessagePart.ToolResult -> part.copy(
             toolCallId = part.toolCallId.truncateInline(120),
             toolName = part.toolName.truncateInline(120),

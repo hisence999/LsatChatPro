@@ -122,4 +122,14 @@
     <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
     <string name="setting_display_page_use_last_turn_memory_title">使用上一轮记忆</string>
     <string name="setting_display_page_use_last_turn_memory_desc">跳过记忆检索后，使用上一轮注入的记忆</string>
+
+    <string name="setting_mcp_page_tool_require_approval">需要审批</string>
+
+    <string name="mcp_tool_approval_prompt">是否允许调用 %1$s</string>
+    <string name="mcp_tool_approval_title">MCP 工具审批</string>
+    <string name="mcp_tool_approval_subtitle">工具：%1$s</string>
+    <string name="mcp_tool_approval_approve">批准</string>
+    <string name="mcp_tool_approval_reject">拒绝</string>
+    <string name="mcp_tool_approval_approved_calling">已批准，正在调用 %1$s…</string>
+    <string name="mcp_tool_approval_rejected_result">用户拒绝本次调用</string>
 </resources>

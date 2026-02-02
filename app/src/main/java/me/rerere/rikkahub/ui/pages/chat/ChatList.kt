@@ -354,6 +354,7 @@ private fun SharedTransitionScope.ChatListNormal(
                             node = node,
                             previousRole = previousRole,
                             isLast = isLast,
+                            conversationId = conversation.id,
                             onCitationClick = onCitationClick,
                             model = message.modelId?.let { settings.findModelById(it) },
                             assistant = assistantForMessage,

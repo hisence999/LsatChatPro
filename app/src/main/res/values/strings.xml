@@ -327,6 +327,13 @@
     <string name="chat_message_tool_call_skill">Calling skill %1$s</string>
     <string name="chat_message_tool_call_result">Result</string>
     <string name="chat_message_tool_call_title">Tool Call</string>
+    <string name="mcp_tool_approval_prompt">Allow calling %1$s?</string>
+    <string name="mcp_tool_approval_title">MCP tool approval</string>
+    <string name="mcp_tool_approval_subtitle">Tool: %1$s</string>
+    <string name="mcp_tool_approval_approve">Approve</string>
+    <string name="mcp_tool_approval_reject">Reject</string>
+    <string name="mcp_tool_approval_approved_calling">Approved, calling %1$s…</string>
+    <string name="mcp_tool_approval_rejected_result">User declined this call</string>
     <string name="chat_message_tool_create_memory">Created memory</string>
     <string name="chat_message_tool_delete_memory">Deleted memory</string>
     <string name="chat_message_tool_edit_memory">Updated memory</string>
@@ -665,6 +672,7 @@
     <string name="setting_mcp_page_delete_header">Delete Header</string>
     <string name="setting_mcp_page_enable">Enable</string>
     <string name="setting_mcp_page_enable_desc">Enable this MCP server</string>
+    <string name="setting_mcp_page_tool_require_approval">Require approval</string>
     <string name="setting_mcp_page_header_name">Header Name</string>
     <string name="setting_mcp_page_header_name_placeholder">e.g. Authorization</string>
     <string name="setting_mcp_page_header_value">Header Value</string>

@@ -31,6 +31,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UsedLorebookEntry
 import me.rerere.ai.ui.UsedMemory
 import me.rerere.ai.ui.UsedMode
@@ -64,11 +65,13 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.ToolResultArchiveRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.rikkahub.R
 import java.util.Locale
 import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 private val MEMORY_TOOL_NAMES = setOf("create_memory", "edit_memory", "delete_memory")
+private const val MCP_TOOL_APPROVAL_REJECTED_TEXT = "User declined this call"
 
 /**
  * Result of building messages, includes both the messages and info about activated context sources.
@@ -113,6 +116,7 @@ class GenerationHandler(
         maxSteps: Int = 256,
         enabledModeIds: Set<Uuid> = emptySet(),
         source: AIRequestSource = AIRequestSource.OTHER,
+        toolApprovalHandler: ToolApprovalHandler? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -195,18 +199,118 @@ class GenerationHandler(
                 // no tool calls, break
                 break
             }
-            // handle tool calls
-            val results = arrayListOf<UIMessagePart.ToolResult>()
-            toolCalls.forEachIndexed { index, toolCall ->
+
+            val lastMessageIndex = messages.lastIndex
+            val lastMessage = messages[lastMessageIndex]
+            val resolvedToolCalls = toolCalls.mapIndexed { index, toolCall ->
                 val resolvedToolCallId = toolCall.toolCallId.ifBlank {
                     "gen_${toolCall.toolName}_${index}_${Uuid.random()}"
                 }
+                toolCall.copy(toolCallId = resolvedToolCallId)
+            }
+            if (resolvedToolCalls != toolCalls) {
+                var toolCallIndex = 0
+                messages = messages.toMutableList().apply {
+                    set(
+                        lastMessageIndex,
+                        lastMessage.copy(
+                            parts = lastMessage.parts.map { part ->
+                                if (part is UIMessagePart.ToolCall && toolCallIndex < resolvedToolCalls.size) {
+                                    resolvedToolCalls[toolCallIndex++]
+                                } else {
+                                    part
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+
+            suspend fun updateToolApproval(
+                toolCallId: String,
+                toolName: String,
+                state: ToolApprovalState,
+            ) {
+                val currentLastMessage = messages[lastMessageIndex]
+                val parts = currentLastMessage.parts.toMutableList()
+                val idx = parts.indexOfFirst { part ->
+                    part is UIMessagePart.ToolApproval && part.toolCallId == toolCallId
+                }
+                if (idx >= 0) {
+                    val existing = parts[idx] as UIMessagePart.ToolApproval
+                    parts[idx] = existing.copy(state = state)
+                } else {
+                    parts.add(
+                        UIMessagePart.ToolApproval(
+                            toolCallId = toolCallId,
+                            toolName = toolName,
+                            state = state,
+                        )
+                    )
+                }
+                messages = messages.toMutableList().apply {
+                    set(lastMessageIndex, currentLastMessage.copy(parts = parts))
+                }
+                emit(
+                    GenerationChunk.Messages(
+                        messages.transforms(
+                            transformers = outputTransformers,
+                            context = context,
+                            model = model,
+                            assistant = assistant,
+                        )
+                    )
+                )
+            }
+
+            // handle tool calls
+            val results = arrayListOf<UIMessagePart.ToolResult>()
+            resolvedToolCalls.forEach { toolCall ->
+                val resolvedToolCallId = toolCall.toolCallId
                 runCatching {
                     val tool = toolsInternal.find { tool -> tool.name == toolCall.toolName }
                         ?: error("Tool ${toolCall.toolName} not found")
                     val args = json.parseToJsonElement(toolCall.arguments.ifBlank { "{}" })
-                    Log.i(TAG, "generateText: executing tool ${tool.name} with args: $args")
-                    val result = tool.execute(args)
+
+                    val result = if (tool.requiresUserApproval) {
+                        val rejectionText = MCP_TOOL_APPROVAL_REJECTED_TEXT
+                        val cid = conversationId
+                        val handler = toolApprovalHandler
+                        if (cid == null || handler == null) {
+                            JsonPrimitive(rejectionText)
+                        } else {
+                            updateToolApproval(
+                                toolCallId = resolvedToolCallId,
+                                toolName = toolCall.toolName,
+                                state = ToolApprovalState.Pending,
+                            )
+                            val approved = runCatching {
+                                handler.requestApproval(
+                                    ToolApprovalRequest(
+                                        conversationId = cid,
+                                        toolCallId = resolvedToolCallId,
+                                        toolName = toolCall.toolName,
+                                        arguments = args,
+                                    )
+                                )
+                            }.getOrElse { false }
+                            updateToolApproval(
+                                toolCallId = resolvedToolCallId,
+                                toolName = toolCall.toolName,
+                                state = if (approved) ToolApprovalState.Approved else ToolApprovalState.Rejected,
+                            )
+                            if (approved) {
+                                Log.i(TAG, "generateText: executing tool ${tool.name} with args: $args")
+                                tool.execute(args)
+                            } else {
+                                JsonPrimitive(rejectionText)
+                            }
+                        }
+                    } else {
+                        Log.i(TAG, "generateText: executing tool ${tool.name} with args: $args")
+                        tool.execute(args)
+                    }
+
                     results += UIMessagePart.ToolResult(
                         toolName = toolCall.toolName,
                         toolCallId = resolvedToolCallId,

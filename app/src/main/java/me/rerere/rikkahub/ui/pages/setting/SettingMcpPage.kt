@@ -871,24 +871,67 @@ private fun McpToolsConfigure(
                             }
                         }
                     }
-                    HapticSwitch(
-                        checked = tool.enable,
-                        onCheckedChange = { newVal ->
-                            update(
-                                config.clone(
-                                    commonOptions = config.commonOptions.copy(
-                                        tools = config.commonOptions.tools.map {
-                                            if (tool.name == it.name) {
-                                                it.copy(enable = newVal)
-                                            } else {
-                                                it
-                                            }
-                                        }
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_mcp_page_enable),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            )
+                            HapticSwitch(
+                                checked = tool.enable,
+                                onCheckedChange = { newVal ->
+                                    update(
+                                        config.clone(
+                                            commonOptions = config.commonOptions.copy(
+                                                tools = config.commonOptions.tools.map {
+                                                    if (tool.name == it.name) {
+                                                        it.copy(enable = newVal)
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
+                                            )
+                                        )
                                     )
-                                )
+                                }
                             )
                         }
-                    )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_mcp_page_tool_require_approval),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            )
+                            HapticSwitch(
+                                checked = tool.requireApproval,
+                                onCheckedChange = { newVal ->
+                                    update(
+                                        config.clone(
+                                            commonOptions = config.commonOptions.copy(
+                                                tools = config.commonOptions.tools.map {
+                                                    if (tool.name == it.name) {
+                                                        it.copy(requireApproval = newVal)
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
+                                            )
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

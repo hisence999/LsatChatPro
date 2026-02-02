@@ -372,6 +372,13 @@ fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
 }
 
 @Serializable
+enum class ToolApprovalState {
+    Pending,
+    Approved,
+    Rejected,
+}
+
+@Serializable
 sealed class UIMessagePart {
     abstract val priority: Int
     abstract val metadata: JsonObject?
@@ -461,6 +468,16 @@ sealed class UIMessagePart {
             )
         }
 
+        override val priority: Int = 0
+    }
+
+    @Serializable
+    data class ToolApproval(
+        val toolCallId: String,
+        val toolName: String,
+        val state: ToolApprovalState = ToolApprovalState.Pending,
+        override var metadata: JsonObject? = null,
+    ) : UIMessagePart() {
         override val priority: Int = 0
     }
 

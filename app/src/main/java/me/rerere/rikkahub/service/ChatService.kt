@@ -23,6 +23,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,6 +74,8 @@ import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
 import me.rerere.rikkahub.data.ai.AIRequestSource
+import me.rerere.rikkahub.data.ai.ToolApprovalHandler
+import me.rerere.rikkahub.data.ai.ToolApprovalRequest
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.ai.tools.LorebookTools
@@ -210,6 +213,39 @@ class ChatService(
     private val workspaceFileToolConfirmations = LinkedHashMap<String, WorkspaceFileToolConfirmation>()
     private val workspaceFileToolConfirmationTtlMs = 5 * 60 * 1000L
     private val workspaceFileToolMaxConfirmations = 100
+
+    private val toolApprovalEarlyResponses = ConcurrentHashMap<String, Boolean>()
+    private val toolApprovalDeferreds = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
+
+    private fun toolApprovalKey(conversationId: Uuid, toolCallId: String): String {
+        return "${conversationId}:${toolCallId}"
+    }
+
+    fun respondToolApproval(conversationId: Uuid, toolCallId: String, approved: Boolean) {
+        if (toolCallId.isBlank()) return
+        val key = toolApprovalKey(conversationId, toolCallId)
+        val deferred = toolApprovalDeferreds[key]
+        if (deferred != null) {
+            deferred.complete(approved)
+        } else {
+            toolApprovalEarlyResponses[key] = approved
+        }
+    }
+
+    private suspend fun awaitToolApproval(request: ToolApprovalRequest): Boolean {
+        if (request.toolCallId.isBlank()) return false
+        val key = toolApprovalKey(request.conversationId, request.toolCallId)
+        toolApprovalEarlyResponses.remove(key)?.let { early ->
+            return early
+        }
+        val deferred = CompletableDeferred<Boolean>()
+        toolApprovalDeferreds[key] = deferred
+        try {
+            return deferred.await()
+        } finally {
+            toolApprovalDeferreds.remove(key)
+        }
+    }
 
     fun setPendingUiWelcomePhraseForAppContext(conversationId: Uuid, welcomePhrase: String) {
         val normalized = welcomePhrase.replace("\r", "").trim()
@@ -1406,6 +1442,7 @@ class ChatService(
                                 name = tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
+                                requiresUserApproval = tool.requireApproval,
                                 execute = {
                                     mcpManager.callTool(tool.name, it.jsonObject)
                                 },
@@ -1416,6 +1453,7 @@ class ChatService(
                 truncateIndex = conversation.truncateIndex,
                 enabledModeIds = conversation.enabledModeIds,
                 source = AIRequestSource.CHAT,
+                toolApprovalHandler = ToolApprovalHandler { request -> awaitToolApproval(request) },
             ).onCompletion { cause ->
                 finalizeGenerationKeepAlive(cause)
                 // Calculate generation duration from first token (excludes TTFT)
@@ -1673,6 +1711,7 @@ class ChatService(
                                 name = tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
+                                requiresUserApproval = tool.requireApproval,
                                 execute = {
                                     mcpManager.callToolForAssistant(seatAssistant, tool.name, it.jsonObject)
                                 },
@@ -1826,6 +1865,7 @@ class ChatService(
                 enabledModeIds = conversation.enabledModeIds,
                 maxSteps = seatMaxSteps,
                 source = AIRequestSource.CHAT,
+                toolApprovalHandler = ToolApprovalHandler { request -> awaitToolApproval(request) },
             ).collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {

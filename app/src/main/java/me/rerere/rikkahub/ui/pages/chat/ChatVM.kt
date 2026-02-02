@@ -325,6 +325,14 @@ class ChatVM(
         chatService.setPendingUiWelcomePhraseForAppContext(_conversationId, welcomePhrase)
     }
 
+    fun respondToolApproval(toolCallId: String, approved: Boolean) {
+        chatService.respondToolApproval(
+            conversationId = _conversationId,
+            toolCallId = toolCallId,
+            approved = approved,
+        )
+    }
+
     fun handleMessageSend(
         content: List<UIMessagePart>,
         answer: Boolean = true,

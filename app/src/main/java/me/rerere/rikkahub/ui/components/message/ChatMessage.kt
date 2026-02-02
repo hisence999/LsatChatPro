@@ -104,6 +104,7 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.uuid.Uuid
 
 private val EmptyJson = JsonObject(emptyMap())
 
@@ -112,6 +113,7 @@ fun ChatMessage(
     node: MessageNode,
     previousRole: MessageRole?,
     isLast: Boolean,
+    conversationId: Uuid? = null,
     onCitationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
@@ -203,6 +205,7 @@ fun ChatMessage(
                 parts = message.parts,
                 annotations = message.annotations,
                 isLast = isLast,
+                conversationId = conversationId,
                 onCitationClick = onCitationClick,
                 loading = loading,
                 model = model,
@@ -319,6 +322,7 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     isLast: Boolean,
+    conversationId: Uuid?,
     onCitationClick: (String) -> Unit,
     loading: Boolean,
     onBubbleClick: () -> Unit = {},
@@ -426,15 +430,30 @@ private fun MessagePartsBlock(
 
     // Tool Calls
     if (isLast) {
+        val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
+            .associateBy { it.toolCallId }
         parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
-            key(index) {
-                ToolCallItem(
-                    toolName = toolCall.toolName,
-                    arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
-                        .getOrElse { EmptyJson },
-                    content = null,
-                    loading = loading,
-                )
+            key(toolCall.toolCallId.ifBlank { index.toString() }) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ToolCallItem(
+                        toolName = toolCall.toolName,
+                        arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                            .getOrElse { EmptyJson },
+                        content = null,
+                        loading = loading,
+                    )
+                    toolApprovalsById[toolCall.toolCallId]?.let { approval ->
+                        ToolApprovalItem(
+                            conversationId = conversationId,
+                            toolCallId = approval.toolCallId,
+                            toolName = approval.toolName,
+                            state = approval.state,
+                            loading = loading,
+                        )
+                    }
+                }
             }
         }
     }

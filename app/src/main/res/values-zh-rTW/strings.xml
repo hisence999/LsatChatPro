@@ -237,6 +237,13 @@
   <string name="chat_message_tool_call_skill">調用技能 %1$s</string>
   <string name="chat_message_tool_call_result">調用結果</string>
   <string name="chat_message_tool_call_title">工具調用</string>
+  <string name="mcp_tool_approval_prompt">是否允許調用 %1$s</string>
+  <string name="mcp_tool_approval_title">MCP 工具審批</string>
+  <string name="mcp_tool_approval_subtitle">工具：%1$s</string>
+  <string name="mcp_tool_approval_approve">批准</string>
+  <string name="mcp_tool_approval_reject">拒絕</string>
+  <string name="mcp_tool_approval_approved_calling">已批准，正在調用 %1$s…</string>
+  <string name="mcp_tool_approval_rejected_result">用戶拒絕本次調用</string>
   <string name="chat_message_tool_create_memory">創建了記憶</string>
   <string name="chat_message_tool_delete_memory">刪除了記憶</string>
   <string name="chat_message_tool_edit_memory">更新了記憶</string>
@@ -482,6 +489,7 @@
   <string name="setting_mcp_page_delete_header">刪除請求頭</string>
   <string name="setting_mcp_page_enable">啟用</string>
   <string name="setting_mcp_page_enable_desc">是否啟用此MCP伺服器</string>
+  <string name="setting_mcp_page_tool_require_approval">需要審批</string>
   <string name="setting_mcp_page_header_name">請求頭名稱</string>
   <string name="setting_mcp_page_header_name_placeholder">例如：Authorization</string>
   <string name="setting_mcp_page_header_value">請求頭值</string>

@@ -447,6 +447,7 @@ class ScheduledTaskWorker(
                         name = tool.name,
                         description = tool.description ?: "",
                         parameters = { tool.inputSchema },
+                        requiresUserApproval = tool.requireApproval,
                         execute = { args ->
                             val obj = args as? JsonObject ?: JsonObject(emptyMap())
                             mcpManager.callToolForAssistant(assistantForRun, tool.name, obj)
