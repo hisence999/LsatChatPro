@@ -77,38 +77,49 @@ def _preload_native_lib_by_name(
     if lib_filename in _PRELOADED_NATIVE_LIB_NAMES:
         return True
 
+    def log(msg: str):
+        if not log_errors:
+            return
+        try:
+            stream = log_stream if log_stream is not None else sys.stderr
+            print(msg, file=stream)
+        except Exception:
+            pass
+
     try:
-        import ctypes
+        from java.lang import System as JavaSystem
     except Exception:
-        if log_errors:
-            try:
-                stream = log_stream if log_stream is not None else sys.stderr
-                print(f"[native] ctypes not available, skip preload {lib_filename}", file=stream)
-            except Exception:
-                pass
-        return False
+        JavaSystem = None
 
     path = _find_file_in_roots(lib_filename, roots)
     if not path:
-        if log_errors:
-            try:
-                stream = log_stream if log_stream is not None else sys.stderr
-                print(f"[native] not found: {lib_filename}", file=stream)
-            except Exception:
-                pass
+        log(f"[native] not found: {lib_filename}")
         return False
 
+    # Prefer Java's System.load on Android, which loads the library into the same namespace
+    # used by JNI-loaded libraries. This avoids namespace mismatch issues on newer Android
+    # versions where dlopen callers may not share the same search space.
+    if JavaSystem is not None:
+        try:
+            JavaSystem.load(path)
+            _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
+            return True
+        except Exception as e:
+            log(f"[native] System.load failed for {lib_filename} from {path}: {e}")
+
     try:
-        ctypes.CDLL(path, mode=getattr(ctypes, "RTLD_GLOBAL", None) or 0)
+        import os
+        import ctypes
+
+        mode = 0
+        for mod in (os, ctypes):
+            mode |= int(getattr(mod, "RTLD_NOW", 0) or 0)
+            mode |= int(getattr(mod, "RTLD_GLOBAL", 0) or 0)
+        ctypes.CDLL(path, mode=mode or 0)
         _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
         return True
     except Exception as e:
-        if log_errors:
-            try:
-                stream = log_stream if log_stream is not None else sys.stderr
-                print(f"[native] failed to load {lib_filename} from {path}: {e}", file=stream)
-            except Exception:
-                pass
+        log(f"[native] ctypes.CDLL failed for {lib_filename} from {path}: {e}")
         return False
 
 
@@ -265,8 +276,9 @@ def run_script(
 
                     sys.path[:] = ordered_prefix + [p for p in prev_sys_path if p not in seen]
 
-                _preload_native_lib_by_name("libgfortran.so.3", extra_paths)
-                _preload_native_lib_by_name("libopenblas.so", extra_paths)
+                _preload_native_lib_by_name("libc++_shared.so", extra_paths, log_errors=True)
+                _preload_native_lib_by_name("libgfortran.so.3", extra_paths, log_errors=True)
+                _preload_native_lib_by_name("libopenblas.so", extra_paths, log_errors=True)
 
                 patched_pathlib = _patch_pathlib_write_text_newline()
 
@@ -312,12 +324,18 @@ def run_script(
             err_buf.write("\n")
             err_buf.write(formatted_tb)
 
-            if ("libopenblas.so" in formatted_tb) or ("libopenblas.so" in (error or "")):
-                err_buf.write("\n[native] dependency diagnostics (NumPy/OpenBLAS)\n")
+            missing_markers = (
+                "libopenblas.so",
+                "libgfortran.so",
+                "libc++_shared.so",
+            )
+            if any(m in formatted_tb for m in missing_markers) or any(m in (error or "") for m in missing_markers):
+                err_buf.write("\n[native] dependency diagnostics (NumPy)\n")
+                _preload_native_lib_by_name("libc++_shared.so", extra_paths, log_errors=True, log_stream=err_buf)
                 _preload_native_lib_by_name("libgfortran.so.3", extra_paths, log_errors=True, log_stream=err_buf)
                 _preload_native_lib_by_name("libopenblas.so", extra_paths, log_errors=True, log_stream=err_buf)
                 err_buf.write(
-                    "[native] hint: 请同时导入并启用 chaquopy-libgfortran 与 chaquopy-openblas，并重启 App。\n"
+                    "[native] hint: 请导入并启用 chaquopy-libcxx、chaquopy-openblas、chaquopy-libgfortran（ABI 匹配），并重启 App。\n"
                 )
     finally:
         try:
