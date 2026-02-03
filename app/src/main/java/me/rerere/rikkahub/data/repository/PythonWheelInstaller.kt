@@ -46,11 +46,6 @@ class PythonWheelInstaller(
         for (uri in uris) {
             val displayName = queryDisplayName(uri)
             val fileSizeBytes = querySize(uri)
-            val nameForCheck = (displayName ?: uri.lastPathSegment).orEmpty()
-            if (!nameForCheck.lowercase().endsWith(".whl")) {
-                failed += Failure(displayName = displayName, reason = "请选择 .whl 文件")
-                continue
-            }
 
             val result = runCatching {
                 importSingleWheel(uri = uri, displayName = displayName, fileSizeBytes = fileSizeBytes)

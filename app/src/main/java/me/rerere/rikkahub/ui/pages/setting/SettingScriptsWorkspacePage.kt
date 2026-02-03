@@ -355,9 +355,7 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                             showWheelImportRiskDialog = false
                             wheelImportLauncher.launch(
                                 arrayOf(
-                                    "application/zip",
-                                    "application/x-zip-compressed",
-                                    "application/octet-stream",
+                                    "*/*",
                                 )
                             )
                         }
