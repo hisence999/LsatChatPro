@@ -141,6 +141,7 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
 private const val CHAT_GENERATION_DONE_NOTIFICATION_ID = 1
+private const val FALLBACK_TITLE_MAX_CODE_POINTS = 15
 
 private val inputTransformers by lazy {
     listOf(
@@ -1023,11 +1024,16 @@ class ChatService(
                 val currentConversation = getConversationFlow(conversationId).value
 
                 // 添加消息到列表
-                val newConversation = currentConversation.copy(
-                    messageNodes = currentConversation.messageNodes + UIMessage(
-                        role = MessageRole.USER,
-                        parts = content,
-                    ).toMessageNode(),
+                val userMessageNode = UIMessage(
+                    role = MessageRole.USER,
+                    parts = content,
+                ).toMessageNode()
+                val newConversationRaw = currentConversation.copy(
+                    messageNodes = currentConversation.messageNodes + userMessageNode,
+                )
+                val fallbackTitle = buildFallbackTitleFromConversation(newConversationRaw)
+                val newConversation = newConversationRaw.copy(
+                    title = currentConversation.title.ifBlank { fallbackTitle },
                 )
                 saveConversation(conversationId, newConversation)
 
@@ -4667,9 +4673,11 @@ class ChatService(
         conversation: Conversation,
         force: Boolean = false
     ) {
+        val fallbackTitle = buildFallbackTitleFromConversation(conversation)
         val shouldGenerate = when {
             force -> true
             conversation.title.isBlank() -> true
+            fallbackTitle.isNotBlank() && conversation.title.trim() == fallbackTitle -> true
             else -> false
         }
         if (!shouldGenerate) {
@@ -4743,11 +4751,17 @@ class ChatService(
                 )
             }
 
+            val titleTrimmed = titleText.trim()
+            if (titleTrimmed.isBlank()) {
+                Log.w(TAG, "generateTitle: model returned blank title, keeping existing title")
+                return
+            }
+
             // 生成完，conversation可能不是最新了，因此需要重新获取
             conversationRepo.getConversationById(conversation.id)?.let {
                 saveConversation(
                     conversationId,
-                    it.copy(title = titleText)
+                    it.copy(title = titleTrimmed)
                 )
             }
 
@@ -4755,7 +4769,7 @@ class ChatService(
                 tryRenameAutoWorkDirAfterTitleGenerated(
                     settingsSnapshot = settings,
                     conversationId = conversationId,
-                    title = titleText,
+                    title = titleTrimmed,
                 )
             }.onFailure {
                 Log.w(TAG, "generateTitle: work dir rename skipped: ${it.message}", it)
@@ -4763,6 +4777,30 @@ class ChatService(
         }.onFailure {
             Log.e(TAG, "generateTitle failed: ${it.message}", it)
         }
+    }
+
+    private fun buildFallbackTitleFromConversation(conversation: Conversation): String {
+        conversation.messageNodes.forEach { node ->
+            if (node.role != MessageRole.USER) return@forEach
+            val message = node.messages.getOrNull(node.selectIndex) ?: node.messages.lastOrNull() ?: return@forEach
+            val candidate = buildFallbackTitleFromText(message.toContentText())
+            if (candidate.isNotBlank()) return candidate
+        }
+        return ""
+    }
+
+    private fun buildFallbackTitleFromText(text: String): String {
+        val normalized = text.trim().replace(Regex("\\s+"), " ")
+        if (normalized.isBlank()) return ""
+        return normalized.takeFirstCodePoints(FALLBACK_TITLE_MAX_CODE_POINTS)
+    }
+
+    private fun String.takeFirstCodePoints(maxCodePoints: Int): String {
+        if (maxCodePoints <= 0 || this.isEmpty()) return ""
+        val codePointCount = this.codePointCount(0, this.length)
+        if (codePointCount <= maxCodePoints) return this
+        val endIndex = this.offsetByCodePoints(0, maxCodePoints)
+        return this.substring(0, endIndex)
     }
 
     private suspend fun tryRenameAutoWorkDirAfterTitleGenerated(
