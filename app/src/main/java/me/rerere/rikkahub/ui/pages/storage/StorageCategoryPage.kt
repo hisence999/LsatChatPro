@@ -78,7 +78,7 @@ fun StorageCategoryPage(
                     IconButton(
                         onClick = {
                             haptics.perform(HapticPattern.Pop)
-                            vm.refreshUsage(force = true)
+                            vm.refresh(force = true)
                         }
                     ) {
                         Icon(Icons.Rounded.Refresh, contentDescription = null)

@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.model.Avatar
 import java.io.File
 import java.time.YearMonth
 import java.time.ZoneId
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 enum class StorageCategoryKey(val key: String) {
@@ -101,14 +102,50 @@ class StorageManagerRepository(
     private val genMediaDAO: GenMediaDAO,
     private val aiRequestLogDao: AIRequestLogDao,
 ) {
+    private companion object {
+        private const val ATTACHMENT_LIST_CACHE_MAX_AGE_MS = 10 * 60_000L
+    }
+
     private val overviewCache = TimedSuspendCache<StorageOverview>(
         maxAgeMs = 30 * 60_000L,
     )
 
+    private val allImageEntriesCache = TimedSuspendCache<List<AssistantImageEntry>>(
+        maxAgeMs = ATTACHMENT_LIST_CACHE_MAX_AGE_MS,
+    )
+
+    private val allFileEntriesCache = TimedSuspendCache<List<AssistantFileEntry>>(
+        maxAgeMs = ATTACHMENT_LIST_CACHE_MAX_AGE_MS,
+    )
+
+    private val assistantImageEntriesCaches = ConcurrentHashMap<Uuid, TimedSuspendCache<List<AssistantImageEntry>>>()
+    private val assistantFileEntriesCaches = ConcurrentHashMap<Uuid, TimedSuspendCache<List<AssistantFileEntry>>>()
+
     fun peekOverviewCache(): StorageOverview? = overviewCache.peek()?.value
+
+    fun peekAllImageEntriesCache(): List<AssistantImageEntry>? = allImageEntriesCache.peek()?.value
+    fun peekAllFileEntriesCache(): List<AssistantFileEntry>? = allFileEntriesCache.peek()?.value
+
+    fun peekAssistantImageEntriesCache(assistantId: Uuid): List<AssistantImageEntry>? {
+        return assistantImageEntriesCaches[assistantId]?.peek()?.value
+    }
+
+    fun peekAssistantFileEntriesCache(assistantId: Uuid): List<AssistantFileEntry>? {
+        return assistantFileEntriesCaches[assistantId]?.peek()?.value
+    }
 
     fun invalidateOverviewCache() {
         overviewCache.invalidate()
+    }
+
+    private fun invalidateImageEntriesCaches() {
+        allImageEntriesCache.invalidate()
+        assistantImageEntriesCaches.values.forEach { it.invalidate() }
+    }
+
+    private fun invalidateFileEntriesCaches() {
+        allFileEntriesCache.invalidate()
+        assistantFileEntriesCaches.values.forEach { it.invalidate() }
     }
 
     suspend fun loadOverview(forceRefresh: Boolean = false): StorageOverview {
@@ -290,6 +327,8 @@ class StorageManagerRepository(
         }
 
         invalidateOverviewCache()
+        invalidateImageEntriesCaches()
+        invalidateFileEntriesCaches()
         DeleteResult(
             deletedCount = deletedCount,
             failedCount = failedCount,
@@ -311,6 +350,8 @@ class StorageManagerRepository(
         }
 
         invalidateOverviewCache()
+        invalidateImageEntriesCaches()
+        invalidateFileEntriesCaches()
         DeleteResult(
             deletedCount = deletedCount,
             failedCount = failedCount,
@@ -414,6 +455,8 @@ class StorageManagerRepository(
 
         val result = deleteFiles(targetFiles)
         invalidateOverviewCache()
+        if (clearImages) invalidateImageEntriesCaches()
+        if (clearFiles) invalidateFileEntriesCaches()
         result
     }
 
@@ -441,6 +484,8 @@ class StorageManagerRepository(
             }
         }
         invalidateOverviewCache()
+        invalidateImageEntriesCaches()
+        invalidateFileEntriesCaches()
         result
     }
 
@@ -450,7 +495,21 @@ class StorageManagerRepository(
             ?: 0
     }
 
-    suspend fun getAssistantImageEntries(assistantId: Uuid): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
+    private fun getAssistantImageEntriesCache(assistantId: Uuid): TimedSuspendCache<List<AssistantImageEntry>> {
+        return assistantImageEntriesCaches.computeIfAbsent(assistantId) {
+            TimedSuspendCache(maxAgeMs = ATTACHMENT_LIST_CACHE_MAX_AGE_MS)
+        }
+    }
+
+    suspend fun getAssistantImageEntries(
+        assistantId: Uuid,
+        forceRefresh: Boolean = false,
+    ): List<AssistantImageEntry> {
+        return getAssistantImageEntriesCache(assistantId)
+            .get(forceRefresh = forceRefresh) { computeAssistantImageEntries(assistantId) }
+    }
+
+    private suspend fun computeAssistantImageEntries(assistantId: Uuid): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
         val conversations = conversationRepository.getConversationsOfAssistant(assistantId).first()
         val imageUrls = LinkedHashSet<String>()
 
@@ -489,7 +548,11 @@ class StorageManagerRepository(
             .toList()
     }
 
-    suspend fun getAllImageEntries(): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
+    suspend fun getAllImageEntries(forceRefresh: Boolean = false): List<AssistantImageEntry> {
+        return allImageEntriesCache.get(forceRefresh = forceRefresh) { computeAllImageEntries() }
+    }
+
+    private suspend fun computeAllImageEntries(): List<AssistantImageEntry> = withContext(Dispatchers.IO) {
         val conversations = conversationRepository.getAllConversations().first()
         val imageUrls = LinkedHashSet<String>()
 
@@ -528,7 +591,21 @@ class StorageManagerRepository(
             .toList()
     }
 
-    suspend fun getAssistantFileEntries(assistantId: Uuid): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
+    private fun getAssistantFileEntriesCache(assistantId: Uuid): TimedSuspendCache<List<AssistantFileEntry>> {
+        return assistantFileEntriesCaches.computeIfAbsent(assistantId) {
+            TimedSuspendCache(maxAgeMs = ATTACHMENT_LIST_CACHE_MAX_AGE_MS)
+        }
+    }
+
+    suspend fun getAssistantFileEntries(
+        assistantId: Uuid,
+        forceRefresh: Boolean = false,
+    ): List<AssistantFileEntry> {
+        return getAssistantFileEntriesCache(assistantId)
+            .get(forceRefresh = forceRefresh) { computeAssistantFileEntries(assistantId) }
+    }
+
+    private suspend fun computeAssistantFileEntries(assistantId: Uuid): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
         data class Candidate(
             val url: String,
             val fileName: String,
@@ -619,7 +696,11 @@ class StorageManagerRepository(
             .sortedByDescending { it.lastModified }
     }
 
-    suspend fun getAllFileEntries(): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
+    suspend fun getAllFileEntries(forceRefresh: Boolean = false): List<AssistantFileEntry> {
+        return allFileEntriesCache.get(forceRefresh = forceRefresh) { computeAllFileEntries() }
+    }
+
+    private suspend fun computeAllFileEntries(): List<AssistantFileEntry> = withContext(Dispatchers.IO) {
         data class Candidate(
             val url: String,
             val fileName: String,
@@ -720,6 +801,7 @@ class StorageManagerRepository(
             .toList()
         val result = deleteFiles(files)
         invalidateOverviewCache()
+        invalidateImageEntriesCaches()
         result
     }
 
@@ -733,6 +815,7 @@ class StorageManagerRepository(
             .toList()
         val result = deleteFiles(files)
         invalidateOverviewCache()
+        invalidateFileEntriesCaches()
         result
     }
 
