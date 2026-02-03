@@ -367,8 +367,8 @@ fun ToolApprovalItem(
                         ToolApprovalButton(
                             text = stringResource(R.string.mcp_tool_approval_reject),
                             icon = Icons.Rounded.Close,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             enabled = !locked && canRespond,
                             onClick = {
                                 if (locked || !canRespond) return@ToolApprovalButton
