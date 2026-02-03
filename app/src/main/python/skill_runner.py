@@ -9,6 +9,109 @@ import sys
 import traceback
 
 
+_PRELOADED_NATIVE_LIB_NAMES = set()
+
+
+def _iter_candidate_lib_dirs(roots):
+    for root in roots:
+        if not root:
+            continue
+        root = str(root)
+        if not os.path.isdir(root):
+            continue
+
+        yield root
+
+        try:
+            children = os.listdir(root)
+        except Exception:
+            children = []
+
+        for child in children:
+            if child.endswith(".libs"):
+                d = os.path.join(root, child)
+                if os.path.isdir(d):
+                    yield d
+
+        for rel in (
+            "numpy.libs",
+            os.path.join("numpy", ".libs"),
+            os.path.join("numpy", "core", ".libs"),
+            ".libs",
+            "libs",
+            "lib",
+        ):
+            d = os.path.join(root, rel)
+            if os.path.isdir(d):
+                yield d
+
+
+def _find_file_in_roots(filename: str, roots):
+    for d in _iter_candidate_lib_dirs(roots):
+        p = os.path.join(d, filename)
+        if os.path.isfile(p):
+            return p
+
+    for root in roots:
+        if not root:
+            continue
+        root = str(root)
+        if not os.path.isdir(root):
+            continue
+        try:
+            for dirpath, _, filenames in os.walk(root):
+                if filename in filenames:
+                    return os.path.join(dirpath, filename)
+        except Exception:
+            continue
+
+    return None
+
+
+def _preload_native_lib_by_name(
+    lib_filename: str,
+    roots,
+    log_errors: bool = False,
+    log_stream=None,
+) -> bool:
+    if lib_filename in _PRELOADED_NATIVE_LIB_NAMES:
+        return True
+
+    try:
+        import ctypes
+    except Exception:
+        if log_errors:
+            try:
+                stream = log_stream if log_stream is not None else sys.stderr
+                print(f"[native] ctypes not available, skip preload {lib_filename}", file=stream)
+            except Exception:
+                pass
+        return False
+
+    path = _find_file_in_roots(lib_filename, roots)
+    if not path:
+        if log_errors:
+            try:
+                stream = log_stream if log_stream is not None else sys.stderr
+                print(f"[native] not found: {lib_filename}", file=stream)
+            except Exception:
+                pass
+        return False
+
+    try:
+        ctypes.CDLL(path, mode=getattr(ctypes, "RTLD_GLOBAL", None) or 0)
+        _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
+        return True
+    except Exception as e:
+        if log_errors:
+            try:
+                stream = log_stream if log_stream is not None else sys.stderr
+                print(f"[native] failed to load {lib_filename} from {path}: {e}", file=stream)
+            except Exception:
+                pass
+        return False
+
+
 def _truncate(text: str, max_chars: int):
     if max_chars <= 0:
         return "", bool(text)
@@ -119,6 +222,8 @@ def run_script(
     if isinstance(raw_argv, list) and all(isinstance(x, str) for x in raw_argv):
         argv = raw_argv
 
+    extra_paths = _coerce_sys_paths(extra_sys_paths)
+
     out_buf = io.StringIO()
     err_buf = io.StringIO()
 
@@ -143,7 +248,7 @@ def run_script(
                 if script_dir:
                     prefix_paths.append(script_dir)
 
-                for p in _coerce_sys_paths(extra_sys_paths):
+                for p in extra_paths:
                     if p is None:
                         continue
                     p = str(p)
@@ -159,6 +264,9 @@ def run_script(
                             ordered_prefix.append(p)
 
                     sys.path[:] = ordered_prefix + [p for p in prev_sys_path if p not in seen]
+
+                _preload_native_lib_by_name("libgfortran.so.3", extra_paths)
+                _preload_native_lib_by_name("libopenblas.so", extra_paths)
 
                 patched_pathlib = _patch_pathlib_write_text_newline()
 
@@ -194,8 +302,23 @@ def run_script(
                 error = "SystemExit: 2（可能是 argparse 参数错误：请检查 argv（或 input.argv），或改用 run(input) 入口）"
             else:
                 error = str(e) or e.__class__.__name__
+
+            formatted_tb = ""
+            try:
+                formatted_tb = traceback.format_exc()
+            except Exception:
+                formatted_tb = ""
+
             err_buf.write("\n")
-            err_buf.write(traceback.format_exc())
+            err_buf.write(formatted_tb)
+
+            if ("libopenblas.so" in formatted_tb) or ("libopenblas.so" in (error or "")):
+                err_buf.write("\n[native] dependency diagnostics (NumPy/OpenBLAS)\n")
+                _preload_native_lib_by_name("libgfortran.so.3", extra_paths, log_errors=True, log_stream=err_buf)
+                _preload_native_lib_by_name("libopenblas.so", extra_paths, log_errors=True, log_stream=err_buf)
+                err_buf.write(
+                    "[native] hint: 请同时导入并启用 chaquopy-libgfortran 与 chaquopy-openblas，并重启 App。\n"
+                )
     finally:
         try:
             os.chdir(prev_cwd)
