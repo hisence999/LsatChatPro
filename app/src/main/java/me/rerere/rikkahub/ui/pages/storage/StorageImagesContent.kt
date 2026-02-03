@@ -11,8 +11,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material3.AlertDialog
@@ -284,19 +285,6 @@ private fun AssistantImagesGalleryCard(
                 text = stringResource(R.string.storage_images_preview_title),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Text(
-                text = stringResource(R.string.storage_images_preview_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (selectedAssistantId == null) {
-                Text(
-                    text = stringResource(R.string.storage_all_assistants_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
             when (imagesState) {
                 UiState.Idle,
@@ -342,25 +330,35 @@ private fun AssistantImagesGalleryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
-                    FlowRow(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        FilledTonalButton(onClick = onSelectAll) {
-                            Icon(Icons.Rounded.SelectAll, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.storage_action_select_all))
-                        }
-
+                        val hasSelection = selectedCount > 0
                         FilledTonalButton(
-                            enabled = selectedCount > 0,
-                            onClick = onClearSelection,
+                            modifier = Modifier.weight(1f),
+                            onClick = if (hasSelection) onClearSelection else onSelectAll,
                         ) {
-                            Text(stringResource(R.string.storage_action_clear_selection))
+                            Icon(
+                                imageVector = if (hasSelection) Icons.Rounded.ClearAll else Icons.Rounded.SelectAll,
+                                contentDescription = null,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(
+                                    if (hasSelection) {
+                                        R.string.storage_action_clear_selection
+                                    } else {
+                                        R.string.storage_action_select_all
+                                    },
+                                ),
+                            )
                         }
 
                         FilledTonalButton(
-                            enabled = selectedCount > 0,
+                            modifier = Modifier.weight(1f),
+                            enabled = hasSelection,
                             onClick = onRequestDelete,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -369,7 +367,9 @@ private fun AssistantImagesGalleryCard(
                         ) {
                             Icon(Icons.Rounded.DeleteForever, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.storage_action_delete_selected))
+                            Text(
+                                text = stringResource(R.string.storage_action_delete_selected),
+                            )
                         }
                     }
                 }

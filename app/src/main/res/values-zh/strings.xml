@@ -690,7 +690,7 @@
   <string name="storage_action_clear_records_and_attachments">清理聊天记录+附件</string>
   <string name="storage_action_select_all">全选</string>
   <string name="storage_action_clear_selection">取消选择</string>
-  <string name="storage_action_delete_selected">删除所选</string>
+  <string name="storage_action_delete_selected">删除</string>
   <string name="storage_action_clear_cache">清理缓存</string>
   <string name="storage_action_scan">扫描</string>
   <string name="storage_action_clear_orphans">清理</string>

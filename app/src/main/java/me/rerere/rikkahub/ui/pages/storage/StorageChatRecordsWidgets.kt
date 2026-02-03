@@ -11,7 +11,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material3.ButtonDefaults
@@ -74,12 +74,6 @@ internal fun ChatRecordsActionCard(
             Text(
                 text = stringResource(R.string.storage_chat_records_assistant_title),
                 style = MaterialTheme.typography.titleMedium,
-            )
-
-            Text(
-                text = stringResource(R.string.storage_chat_records_preview_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (selectedAssistantId != null) {
@@ -154,28 +148,37 @@ internal fun ChatRecordsActionCard(
                 }
             }
 
-            FlowRow(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                val canSelectAll = monthEntriesState is UiState.Success && monthEntriesState.data.isNotEmpty()
+                val hasSelection = selectedMonthCount > 0
                 FilledTonalButton(
-                    enabled = monthEntriesState is UiState.Success && monthEntriesState.data.isNotEmpty(),
-                    onClick = onSelectAll,
+                    modifier = Modifier.weight(1f),
+                    enabled = if (hasSelection) true else canSelectAll,
+                    onClick = if (hasSelection) onClearSelection else onSelectAll,
                 ) {
-                    Icon(Icons.Rounded.SelectAll, contentDescription = null)
+                    Icon(
+                        imageVector = if (hasSelection) Icons.Rounded.ClearAll else Icons.Rounded.SelectAll,
+                        contentDescription = null,
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.storage_action_select_all))
+                    Text(
+                        text = stringResource(
+                            if (hasSelection) {
+                                R.string.storage_action_clear_selection
+                            } else {
+                                R.string.storage_action_select_all
+                            },
+                        ),
+                    )
                 }
 
                 FilledTonalButton(
-                    enabled = selectedMonthCount > 0,
-                    onClick = onClearSelection,
-                ) {
-                    Text(stringResource(R.string.storage_action_clear_selection))
-                }
-
-                FilledTonalButton(
-                    enabled = selectedMonthCount > 0,
+                    modifier = Modifier.weight(1f),
+                    enabled = hasSelection,
                     onClick = onRequestClear,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -304,4 +307,3 @@ internal fun ChatRecordsMonthRow(
         }
     }
 }
-

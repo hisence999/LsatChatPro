@@ -12,7 +12,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.SelectAll
@@ -295,19 +295,6 @@ private fun AssistantFilesCard(
                 text = stringResource(R.string.storage_files_preview_title),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Text(
-                text = stringResource(R.string.storage_files_preview_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (selectedAssistantId == null) {
-                Text(
-                    text = stringResource(R.string.storage_all_assistants_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
             when (filesState) {
                 UiState.Idle,
@@ -348,30 +335,42 @@ private fun AssistantFilesCard(
                             stringResource(R.string.storage_files_selected_summary, selectedBytesText, selectedCount)
                         } else {
                             stringResource(R.string.storage_files_total_summary, totalBytesText, totalCount)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                         },
+                         style = MaterialTheme.typography.bodyMedium,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                     )
 
-                    FlowRow(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        FilledTonalButton(onClick = onSelectAll) {
-                            Icon(Icons.Rounded.SelectAll, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.storage_action_select_all))
-                        }
-
+                        val hasSelection = selectedCount > 0
                         FilledTonalButton(
-                            enabled = selectedCount > 0,
-                            onClick = onClearSelection,
+                            modifier = Modifier.weight(1f),
+                            onClick = if (hasSelection) onClearSelection else onSelectAll,
                         ) {
-                            Text(stringResource(R.string.storage_action_clear_selection))
+                            Icon(
+                                imageVector = if (hasSelection) Icons.Rounded.ClearAll else Icons.Rounded.SelectAll,
+                                contentDescription = null,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(
+                                    if (hasSelection) {
+                                        R.string.storage_action_clear_selection
+                                    } else {
+                                        R.string.storage_action_select_all
+                                    },
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
 
                         FilledTonalButton(
-                            enabled = selectedCount > 0,
+                            modifier = Modifier.weight(1f),
+                            enabled = hasSelection,
                             onClick = onRequestDelete,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -380,7 +379,11 @@ private fun AssistantFilesCard(
                         ) {
                             Icon(Icons.Rounded.DeleteForever, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.storage_action_delete_selected))
+                            Text(
+                                text = stringResource(R.string.storage_action_delete_selected),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }
