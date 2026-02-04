@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.gradle_user_home
 /local.properties
 /.idea
 .DS_Store
@@ -7,6 +8,8 @@
 /captures
 .externalNativeBuild
 .cxx
+**/__pycache__/
+*.pyc
 app/app.key
 local.properties
 .cursor

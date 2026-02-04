@@ -10,6 +10,209 @@ import traceback
 
 
 _PRELOADED_NATIVE_LIB_NAMES = set()
+_PRELOADED_NATIVE_LIB_PATHS = set()
+
+
+def _looks_like_native_lib_filename(filename: str) -> bool:
+    if not filename:
+        return False
+    name = str(filename)
+    if ".so" not in name:
+        return False
+    return True
+
+
+def _looks_like_dependency_lib_filename(filename: str) -> bool:
+    # 尽量只预加载“依赖库”，避免把 Python 扩展模块（例如 xxx.cpython-313.so）提前加载。
+    if not _looks_like_native_lib_filename(filename):
+        return False
+    name = str(filename)
+    return name.startswith("lib")
+
+
+def _preload_native_lib_by_path(path: str, log_errors: bool = False, log_stream=None) -> bool:
+    if not path:
+        return False
+    path = str(path)
+    if path in _PRELOADED_NATIVE_LIB_PATHS:
+        return True
+
+    lib_filename = os.path.basename(path)
+    if lib_filename in _PRELOADED_NATIVE_LIB_NAMES:
+        _PRELOADED_NATIVE_LIB_PATHS.add(path)
+        return True
+
+    def log(msg: str):
+        if not log_errors:
+            return
+        try:
+            stream = log_stream if log_stream is not None else sys.stderr
+            print(msg, file=stream)
+        except Exception:
+            pass
+
+    try:
+        from java.lang import System as JavaSystem
+    except Exception:
+        JavaSystem = None
+
+    if JavaSystem is not None:
+        try:
+            JavaSystem.load(path)
+            _PRELOADED_NATIVE_LIB_PATHS.add(path)
+            _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
+            return True
+        except Exception as e:
+            msg = str(e) or ""
+            # “已加载”本质上也是成功：库已在进程里，可以满足后续按名字 dlopen 的调用。
+            if "already loaded" in msg:
+                _PRELOADED_NATIVE_LIB_PATHS.add(path)
+                _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
+                return True
+            log(f"[native] System.load failed for {lib_filename} from {path}: {e}")
+
+    try:
+        import ctypes
+
+        mode = 0
+        for mod in (os, ctypes):
+            mode |= int(getattr(mod, "RTLD_NOW", 0) or 0)
+            mode |= int(getattr(mod, "RTLD_GLOBAL", 0) or 0)
+        ctypes.CDLL(path, mode=mode or 0)
+        _PRELOADED_NATIVE_LIB_PATHS.add(path)
+        _PRELOADED_NATIVE_LIB_NAMES.add(lib_filename)
+        return True
+    except Exception as e:
+        log(f"[native] ctypes.CDLL failed for {lib_filename} from {path}: {e}")
+        return False
+
+
+def _collect_native_lib_paths(roots, max_files: int = 200):
+    """
+    从 wheel 的 sys.path 目录里收集可能的 .so 依赖库路径（lib*.so* + 常见的 .libs 目录）。
+    这是“尽量不报错”的兜底，不能 100% 保证所有第三方轮子都能用。
+    """
+    if max_files <= 0:
+        return []
+
+    seen = set()
+    out = []
+
+    # 1) 快速路径：常见的 .libs / lib / numpy.libs 等目录，通常依赖库都在这里。
+    for d in _iter_candidate_lib_dirs(roots):
+        try:
+            filenames = os.listdir(d)
+        except Exception:
+            continue
+
+        dir_base = os.path.basename(d)
+        is_known_dep_dir = (
+            dir_base.endswith(".libs")
+            or dir_base in ("lib", "libs", ".libs", "numpy.libs")
+        )
+        accept = _looks_like_native_lib_filename if is_known_dep_dir else _looks_like_dependency_lib_filename
+
+        for fn in filenames:
+            if not accept(fn):
+                continue
+            p = os.path.join(d, fn)
+            if not os.path.isfile(p):
+                continue
+            if p in seen:
+                continue
+            seen.add(p)
+            out.append(p)
+            if len(out) >= max_files:
+                return out
+
+    # 2) 兜底：递归扫描每个 root，只抓 lib*.so*（依赖库），避免把扩展模块都扫进来。
+    for root in roots:
+        if len(out) >= max_files:
+            break
+        if not root:
+            continue
+        root = str(root)
+        if not os.path.isdir(root):
+            continue
+        try:
+            for dirpath, _, filenames in os.walk(root):
+                for fn in filenames:
+                    if not _looks_like_dependency_lib_filename(fn):
+                        continue
+                    p = os.path.join(dirpath, fn)
+                    if p in seen:
+                        continue
+                    seen.add(p)
+                    out.append(p)
+                    if len(out) >= max_files:
+                        break
+                if len(out) >= max_files:
+                    break
+        except Exception:
+            continue
+
+    return out
+
+
+def _preload_native_deps(roots, log_errors: bool = False, log_stream=None):
+    """
+    尝试预加载 wheel 里自带的依赖库（lib*.so*）。
+    目的：解决很多库会按名字 dlopen("libxxx.so")，导致 Android namespace 找不到的问题。
+    """
+    # 先加载一些“被依赖最多”的库，提升成功率（失败也不影响后续继续）。
+    for name in ("libc++_shared.so", "libgfortran.so.3", "libopenblas.so"):
+        _preload_native_lib_by_name(name, roots, log_errors=log_errors, log_stream=log_stream)
+
+    # 统一扫描后按路径加载（比逐个按名字查找更省）。
+    candidates = _collect_native_lib_paths(roots, max_files=200)
+    if not candidates:
+        return {"loaded": 0, "failed": 0}
+
+    # 尝试多轮加载：依赖顺序不一定对，缺少依赖时会失败，等后面库加载后再试一次。
+    pending = list(candidates)
+    loaded = 0
+    failed = 0
+    for _ in range(4):
+        if not pending:
+            break
+        next_pending = []
+        progress = 0
+        for path in pending:
+            ok = _preload_native_lib_by_path(path, log_errors=log_errors, log_stream=log_stream)
+            if ok:
+                progress += 1
+                loaded += 1
+            else:
+                next_pending.append(path)
+        pending = next_pending
+        if progress == 0:
+            break
+    failed += len(pending)
+    return {"loaded": loaded, "failed": failed}
+
+
+def _extract_missing_native_libs(text: str):
+    if not text:
+        return []
+    try:
+        import re
+
+        patterns = [
+            r'library ["\']([^"\']+\.so(?:\.[0-9]+)*)["\'] not found',
+            r'cannot locate ["\']?([^"\']+\.so(?:\.[0-9]+)*)["\']?',
+        ]
+        out = []
+        seen = set()
+        for pat in patterns:
+            for m in re.finditer(pat, text):
+                name = (m.group(1) or "").strip()
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                out.append(name)
+        return out
+    except Exception:
+        return []
 
 
 def _iter_candidate_lib_dirs(roots):
@@ -276,9 +479,9 @@ def run_script(
 
                     sys.path[:] = ordered_prefix + [p for p in prev_sys_path if p not in seen]
 
-                _preload_native_lib_by_name("libc++_shared.so", extra_paths, log_errors=True)
-                _preload_native_lib_by_name("libgfortran.so.3", extra_paths, log_errors=True)
-                _preload_native_lib_by_name("libopenblas.so", extra_paths, log_errors=True)
+                # 兜底：预加载 wheel 自带的依赖库（lib*.so*）。
+                # 解决很多库会按名字 dlopen("libxxx.so")，导致 Android namespace 找不到的问题。
+                _preload_native_deps(extra_paths)
 
                 patched_pathlib = _patch_pathlib_write_text_newline()
 
@@ -324,18 +527,44 @@ def run_script(
             err_buf.write("\n")
             err_buf.write(formatted_tb)
 
-            missing_markers = (
-                "libopenblas.so",
-                "libgfortran.so",
-                "libc++_shared.so",
+            numpy_markers = ("libopenblas.so", "libgfortran.so", "libc++_shared.so")
+            pillow_markers = ("libjpeg_chaquopy.so",)
+            has_numpy_marker = any(m in formatted_tb for m in numpy_markers) or any(
+                m in (error or "") for m in numpy_markers
             )
-            if any(m in formatted_tb for m in missing_markers) or any(m in (error or "") for m in missing_markers):
+            has_pillow_marker = any(m in formatted_tb for m in pillow_markers) or any(
+                m in (error or "") for m in pillow_markers
+            )
+
+            if has_numpy_marker:
                 err_buf.write("\n[native] dependency diagnostics (NumPy)\n")
                 _preload_native_lib_by_name("libc++_shared.so", extra_paths, log_errors=True, log_stream=err_buf)
                 _preload_native_lib_by_name("libgfortran.so.3", extra_paths, log_errors=True, log_stream=err_buf)
                 _preload_native_lib_by_name("libopenblas.so", extra_paths, log_errors=True, log_stream=err_buf)
                 err_buf.write(
                     "[native] hint: 请导入并启用 chaquopy-libcxx、chaquopy-openblas、chaquopy-libgfortran（ABI 匹配），并重启 App。\n"
+                )
+
+            if has_pillow_marker:
+                err_buf.write("\n[native] dependency diagnostics (Pillow)\n")
+                _preload_native_lib_by_name("libjpeg_chaquopy.so", extra_paths, log_errors=True, log_stream=err_buf)
+                err_buf.write(
+                    "[native] hint: 请导入并启用 chaquopy-libjpeg（与设备 ABI 匹配，例如 arm64-v8a / x86_64），并重启 App。\n"
+                )
+
+            # 通用：解析 “dlopen failed: library "xxx.so" not found” 这类错误，尽量给出可执行的下一步。
+            missing_libs = _extract_missing_native_libs(
+                (formatted_tb or "") + "\n" + (error or "")
+            )
+            if missing_libs:
+                err_buf.write("\n[native] dependency diagnostics (General)\n")
+                for name in missing_libs[:5]:
+                    err_buf.write(f"[native] missing: {name}\n")
+                    _preload_native_lib_by_name(name, extra_paths, log_errors=True, log_stream=err_buf)
+                if len(missing_libs) > 5:
+                    err_buf.write(f"[native] ... and {len(missing_libs) - 5} more\n")
+                err_buf.write(
+                    "[native] hint: 请确认依赖 wheel 已导入且处于启用状态、ABI 与设备一致（arm64-v8a/x86_64），并在安装/启用后重启 App。\n"
                 )
     finally:
         try:
