@@ -85,11 +85,26 @@ fun SettingChaquoPypiPackagePage(packageName: String) {
 
     val filtered = remember(wheels, query) {
         val q = query.trim().lowercase(Locale.getDefault())
-        if (q.isBlank()) {
+        val base = if (q.isBlank()) {
             wheels
         } else {
             wheels.filter { it.fileName.lowercase(Locale.getDefault()).contains(q) }
         }
+
+        val sdkInt = Build.VERSION.SDK_INT
+        val supportedAbis = Build.SUPPORTED_ABIS.toList()
+        base.sortedWith(
+            compareByDescending<ChaquoPypiRepository.WheelIndexEntry> { entry ->
+                val parsed = ChaquoPypiRepository.WheelFilename.parse(entry.fileName)
+                analyzeCompatibility(
+                    parsed = parsed,
+                    sdkInt = sdkInt,
+                    supportedAbis = supportedAbis,
+                ).ok
+            }
+                .thenByDescending { it.lastModified?.trim().orEmpty() }
+                .thenBy { it.fileName }
+        )
     }
 
     Scaffold(
