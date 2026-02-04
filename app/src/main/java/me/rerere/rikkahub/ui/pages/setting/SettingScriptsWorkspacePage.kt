@@ -48,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.PythonWheel
 import me.rerere.rikkahub.data.repository.PythonWheelInstaller
 import me.rerere.rikkahub.data.repository.PythonWheelRepository
@@ -56,6 +57,7 @@ import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.components.SettingGroupItem
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.theme.AppShapes
@@ -69,6 +71,7 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val navController = LocalNavController.current
     val toaster = LocalToaster.current
     val haptics = rememberPremiumHaptics()
 
@@ -205,6 +208,12 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                         title = stringResource(R.string.python_wheels_title),
                         subtitle = stringResource(R.string.python_wheels_description),
                         onClick = { showWheelImportRiskDialog = true }
+                    )
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.python_wheels_online_fetch_title),
+                        subtitle = stringResource(R.string.python_wheels_online_fetch_description),
+                        onClick = { navController.navigate(Screen.SettingChaquoPypi) }
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))

@@ -132,4 +132,20 @@
     <string name="mcp_tool_approval_reject">拒绝</string>
     <string name="mcp_tool_approval_approved_calling">已批准，正在调用 %1$s…</string>
     <string name="mcp_tool_approval_rejected_result">用户拒绝本次调用</string>
+
+    <string name="python_wheels_online_fetch_title">在线获取依赖</string>
+    <string name="python_wheels_online_fetch_description">浏览 Chaquopy PyPI 并下载 .whl</string>
+    <string name="python_wheels_online_fetch_dialog_title">在线获取 .whl</string>
+    <string name="python_wheels_online_fetch_package_label">依赖名</string>
+    <string name="python_wheels_online_fetch_version_label">版本（可选）</string>
+    <string name="python_wheels_online_fetch_action">下载并安装</string>
+    <string name="python_wheels_online_fetch_working">处理中…</string>
+    <string name="python_wheels_online_fetch_search_packages_placeholder">搜索依赖</string>
+    <string name="python_wheels_online_fetch_packages_load_failed_title">加载依赖列表失败</string>
+    <string name="python_wheels_online_fetch_packages_empty">未找到匹配的依赖</string>
+    <string name="python_wheels_online_fetch_search_wheels_placeholder">搜索 .whl</string>
+    <string name="python_wheels_online_fetch_wheels_load_failed_title">加载 .whl 失败</string>
+    <string name="python_wheels_online_fetch_wheels_empty">未找到可用的 .whl</string>
+    <string name="python_wheels_online_fetch_incompatible_hint">可能不适配当前设备或 Python 版本</string>
+    <string name="python_wheels_online_fetch_install_incompatible_note">该 .whl 可能不适配当前设备或 Python 版本。</string>
 </resources>

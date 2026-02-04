@@ -89,6 +89,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingLorebooksPage
 import me.rerere.rikkahub.ui.pages.setting.SettingLorebookDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSkillsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingScriptsWorkspacePage
+import me.rerere.rikkahub.ui.pages.setting.SettingChaquoPypiPage
+import me.rerere.rikkahub.ui.pages.setting.SettingChaquoPypiPackagePage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
@@ -546,6 +548,15 @@ class RouteActivity : ComponentActivity() {
                         SettingScriptsWorkspacePage()
                     }
 
+                    composable<Screen.SettingChaquoPypi> {
+                        SettingChaquoPypiPage()
+                    }
+
+                    composable<Screen.SettingChaquoPypiPackage> { backStackEntry ->
+                        val route = backStackEntry.toRoute<Screen.SettingChaquoPypiPackage>()
+                        SettingChaquoPypiPackagePage(packageName = route.packageName)
+                    }
+
                     composable<Screen.SettingRpOptimizations> {
                         SettingRpOptimizationsPage()
                     }
@@ -679,6 +690,12 @@ sealed interface Screen {
 
     @Serializable
     data object SettingScriptsWorkspace : Screen
+
+    @Serializable
+    data object SettingChaquoPypi : Screen
+
+    @Serializable
+    data class SettingChaquoPypiPackage(val packageName: String) : Screen
 
     @Serializable
     data object SettingRpOptimizations : Screen

@@ -71,6 +71,46 @@ class PythonWheelInstaller(
         BatchResult(success = success, duplicated = duplicated, failed = failed)
     }
 
+    suspend fun importFromFiles(files: List<File>): BatchResult = withContext(Dispatchers.IO) {
+        if (files.isEmpty()) return@withContext BatchResult()
+
+        val existing = repository.readManifest().wheels
+        val existingBySha = existing.associateBy { it.sha256 }
+        val importedSha = HashSet<String>()
+
+        val success = mutableListOf<PythonWheel>()
+        val duplicated = mutableListOf<PythonWheel>()
+        val failed = mutableListOf<Failure>()
+
+        for (file in files) {
+            val displayName = file.name
+            val fileSizeBytes = runCatching { file.length() }.getOrNull()
+
+            val result = runCatching {
+                if (!file.exists() || !file.isFile) error("文件不存在")
+                importSingleWheel(file = file, displayName = displayName, fileSizeBytes = fileSizeBytes)
+            }.getOrElse { e ->
+                failed += Failure(displayName = displayName, reason = e.message ?: "未知错误")
+                null
+            } ?: continue
+
+            val duplicate = existingBySha[result.sha256] ?: success.firstOrNull { it.sha256 == result.sha256 }
+            if (duplicate != null || importedSha.contains(result.sha256)) {
+                runCatching { repository.wheelRootDir(result.id).deleteRecursively() }
+                duplicated += (duplicate ?: result)
+                continue
+            }
+
+            importedSha += result.sha256
+            repository.updateManifest { manifest ->
+                manifest.copy(wheels = manifest.wheels + result)
+            }
+            success += result
+        }
+
+        BatchResult(success = success, duplicated = duplicated, failed = failed)
+    }
+
     private fun importSingleWheel(
         uri: Uri,
         displayName: String?,
@@ -86,6 +126,43 @@ class PythonWheelInstaller(
 
         try {
             val sha256 = copyToPrivateFileAndSha256(uri = uri, outFile = wheelFile)
+            val unzipResult = safeUnpackWheelZip(wheelFile = wheelFile, destDir = unpackedDir)
+            val sysPaths = computeSysPaths(unpackedDir)
+            val (pkgName, pkgVersion) = parseMetadataNameVersion(unpackedDir, sysPaths)
+
+            return PythonWheel(
+                id = id,
+                displayName = displayName ?: wheelFile.name,
+                packageName = pkgName,
+                packageVersion = pkgVersion,
+                sha256 = sha256,
+                fileSizeBytes = fileSizeBytes ?: wheelFile.length(),
+                installedAt = System.currentTimeMillis(),
+                enabled = true,
+                sysPaths = sysPaths,
+                hasNativeCode = unzipResult.hasNativeCode,
+            )
+        } catch (e: Exception) {
+            runCatching { rootDir.deleteRecursively() }
+            throw e
+        }
+    }
+
+    private fun importSingleWheel(
+        file: File,
+        displayName: String?,
+        fileSizeBytes: Long?,
+    ): PythonWheel {
+        val id = java.util.UUID.randomUUID().toString()
+
+        val rootDir = repository.wheelRootDir(id)
+        val wheelFile = repository.wheelFile(id)
+        val unpackedDir = repository.wheelUnpackedDir(id)
+        rootDir.mkdirs()
+        unpackedDir.mkdirs()
+
+        try {
+            val sha256 = copyToPrivateFileAndSha256(file = file, outFile = wheelFile)
             val unzipResult = safeUnpackWheelZip(wheelFile = wheelFile, destDir = unpackedDir)
             val sysPaths = computeSysPaths(unpackedDir)
             val (pkgName, pkgVersion) = parseMetadataNameVersion(unpackedDir, sysPaths)
@@ -124,6 +201,30 @@ class PythonWheelInstaller(
                     digest.update(buffer, 0, read)
                     total += read
                     if (total > MAX_WHEEL_BYTES) error("文件过大")
+                }
+            }
+        }
+
+        return digest.digest().toHexLower()
+    }
+
+    private fun copyToPrivateFileAndSha256(file: File, outFile: File): String {
+        outFile.parentFile?.mkdirs()
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(file).use { input ->
+            BufferedInputStream(input).use { stream ->
+                FileOutputStream(outFile).use { out ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var total = 0L
+                    while (true) {
+                        val read = stream.read(buffer)
+                        if (read <= 0) break
+                        out.write(buffer, 0, read)
+                        digest.update(buffer, 0, read)
+                        total += read
+                        if (total > MAX_WHEEL_BYTES) error("文件过大")
+                    }
                 }
             }
         }
