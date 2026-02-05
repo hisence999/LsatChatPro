@@ -4,8 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
@@ -27,9 +32,10 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -78,6 +85,8 @@ import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -86,14 +95,15 @@ import kotlinx.coroutines.flow.mapLatest
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.RpStyleRule
 import me.rerere.rikkahub.ui.components.table.DataTable
-import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadExternalStorage
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadMediaImages
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadMediaVideo
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.utils.LocalFileUrlUtils
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
@@ -619,7 +629,7 @@ private fun MarkdownNode(
                     imageUrl = imageUrl,
                     altText = altText,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.CardMedium)
                         .widthIn(min = 120.dp)
                         .heightIn(min = 120.dp),
                 )
@@ -748,21 +758,59 @@ private fun PermissionGatedMarkdownImage(
         return
     }
 
+    val hintText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        stringResource(R.string.permission_read_media_images_desc)
+    } else {
+        stringResource(R.string.permission_read_external_storage_desc)
+    }
+
     val activity = context as? ComponentActivity
     if (activity == null) {
-        OutlinedCard(modifier = modifier) {
-            Box(
+        Card(
+            modifier = modifier,
+            shape = AppShapes.CardMedium,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        ) {
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.permission_read_external_storage_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Image,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.permission_diaog_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = hintText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
         return
@@ -791,51 +839,130 @@ private fun PermissionGatedMarkdownImage(
         .filter { it.required }
         .any { it in permissionState.permanentlyDeniedPermissions }
 
-    val hintText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        stringResource(R.string.permission_read_media_images_desc)
+    val haptics = rememberPremiumHaptics()
+    val iconImage = if (requiredPermanentlyDenied) Icons.Rounded.Settings else Icons.Rounded.Image
+    val iconTint = if (requiredPermanentlyDenied) {
+        MaterialTheme.colorScheme.error
     } else {
-        stringResource(R.string.permission_read_external_storage_desc)
+        MaterialTheme.colorScheme.primary
     }
 
-    OutlinedCard(modifier = modifier) {
+    Card(
+        modifier = modifier,
+        shape = AppShapes.CardMedium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = stringResource(R.string.permission_diaog_title),
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = hintText,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Tag(
-                type = TagType.INFO,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = iconImage,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(18.dp),
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.permission_diaog_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = hintText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            PermissionActionButton(
+                text = if (requiredPermanentlyDenied) {
+                    stringResource(R.string.permission_go_to_settings)
+                } else {
+                    stringResource(R.string.permission_grant)
+                },
+                icon = if (requiredPermanentlyDenied) Icons.Rounded.Settings else Icons.Rounded.Check,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 onClick = {
+                    haptics.perform(HapticPattern.Pop)
                     if (requiredPermanentlyDenied) {
                         permissionState.openAppSettings()
                     } else {
                         permissionState.requestPermissions()
                     }
-                }
-            ) {
-                Text(
-                    text = if (requiredPermanentlyDenied) {
-                        stringResource(R.string.permission_go_to_settings)
-                    } else {
-                        stringResource(R.string.permission_grant)
-                    },
-                )
-            }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionActionButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "permission_action_button_scale",
+    )
+
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        color = containerColor,
+        contentColor = contentColor,
+        shape = AppShapes.ButtonPill,
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
