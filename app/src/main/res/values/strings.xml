@@ -1717,6 +1717,21 @@
     <string name="python_wheels_deleted_success">Deleted</string>
     <string name="python_wheels_deleted_failed">Delete failed</string>
 
+    <string name="python_wheels_dependency_check_action">Check dependencies</string>
+    <string name="python_wheels_dependency_check_title">Dependency check</string>
+    <string name="python_wheels_dependency_list_title">Dependencies</string>
+    <string name="python_wheels_dependency_loading">Loading\u2026</string>
+    <string name="python_wheels_dependency_empty">No Requires-Dist found</string>
+    <string name="python_wheels_dependency_status_installed">Installed</string>
+    <string name="python_wheels_dependency_status_missing">Missing</string>
+    <string name="python_wheels_dependency_install_action">Install</string>
+    <string name="python_wheels_dependency_install_success">Installed %1$s</string>
+    <string name="python_wheels_dependency_install_duplicated">%1$s is already installed</string>
+    <string name="python_wheels_dependency_install_failed">Failed to install %1$s</string>
+    <string name="python_wheels_dependency_optional_title">Optional (%1$d)</string>
+    <string name="python_wheels_dependency_optional_show">Tap to expand</string>
+    <string name="python_wheels_dependency_optional_hide">Tap to collapse</string>
+
 </resources>
 
 

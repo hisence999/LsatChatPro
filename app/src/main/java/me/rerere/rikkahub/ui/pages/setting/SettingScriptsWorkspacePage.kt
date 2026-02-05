@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,19 +17,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,7 +59,10 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.PythonWheel
+import me.rerere.rikkahub.data.repository.ChaquoPypiRepository
+import me.rerere.rikkahub.data.repository.PythonPackageRequirement
 import me.rerere.rikkahub.data.repository.PythonWheelInstaller
+import me.rerere.rikkahub.data.repository.PythonWheelMetadataParser
 import me.rerere.rikkahub.data.repository.PythonWheelRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
@@ -63,7 +75,10 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
 import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.context.LocalToaster
+import okhttp3.OkHttpClient
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import java.io.File
 
 @Composable
 fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
@@ -75,11 +90,19 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
     val toaster = LocalToaster.current
     val haptics = rememberPremiumHaptics()
 
+    val okHttpClient: OkHttpClient = koinInject()
+    val chaquoPypiRepository = remember(okHttpClient) { ChaquoPypiRepository(okHttpClient) }
+
     val wheelRepository = remember { PythonWheelRepository(context) }
     val wheelInstaller = remember { PythonWheelInstaller(context, wheelRepository) }
 
     var pythonWheels by remember { mutableStateOf<List<PythonWheel>>(emptyList()) }
     var deletingPythonWheel by remember { mutableStateOf<PythonWheel?>(null) }
+    var dependencySheetWheel by remember { mutableStateOf<PythonWheel?>(null) }
+    var dependencySheetLoading by remember { mutableStateOf(false) }
+    var dependencySheetErrorMessage by remember { mutableStateOf<String?>(null) }
+    var dependencySheetItems by remember { mutableStateOf<List<PythonPackageRequirement>>(emptyList()) }
+    var installingDependencyName by remember { mutableStateOf<String?>(null) }
 
     var showEnableScriptExecutionDialog by remember { mutableStateOf(false) }
     var showWheelImportRiskDialog by remember { mutableStateOf(false) }
@@ -240,6 +263,27 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                                         }
                                     }
                                 },
+                                onCheckDependencies = {
+                                    dependencySheetWheel = wheel
+                                    dependencySheetLoading = true
+                                    dependencySheetErrorMessage = null
+                                    dependencySheetItems = emptyList()
+                                    val targetWheelId = wheel.id
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                PythonWheelMetadataParser.readRequiresDistFromWheel(
+                                                    unpackedDir = wheelRepository.wheelUnpackedDir(targetWheelId),
+                                                    sysPaths = wheel.sysPaths,
+                                                )
+                                            }
+                                        }
+                                        if (dependencySheetWheel?.id != targetWheelId) return@launch
+                                        dependencySheetItems = result.getOrDefault(emptyList())
+                                        dependencySheetErrorMessage = result.exceptionOrNull()?.message
+                                        dependencySheetLoading = false
+                                    }
+                                },
                                 onDelete = {
                                     deletingPythonWheel = wheel
                                 },
@@ -291,6 +335,83 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                     )
                 }
             }
+        }
+
+        dependencySheetWheel?.let { wheel ->
+            WheelDependenciesBottomSheet(
+                wheel = wheel,
+                installedWheels = pythonWheels,
+                loading = dependencySheetLoading,
+                errorMessage = dependencySheetErrorMessage,
+                requirements = dependencySheetItems,
+                installingDependencyName = installingDependencyName,
+                onDismiss = {
+                    dependencySheetWheel = null
+                    dependencySheetLoading = false
+                    dependencySheetErrorMessage = null
+                    dependencySheetItems = emptyList()
+                },
+                onInstall = { requirement ->
+                    val normalized = requirement.normalizedName
+                    if (!installingDependencyName.isNullOrBlank()) return@WheelDependenciesBottomSheet
+
+                    installingDependencyName = normalized
+                    scope.launch {
+                        try {
+                            val report = withContext(Dispatchers.IO) {
+                                val bestWheel = chaquoPypiRepository.resolveBestWheel(
+                                    packageName = requirement.name,
+                                    version = requirement.exactVersionOrNull(),
+                                    pythonVersionMajorMinor = CHAQUOPY_PYTHON_VERSION_MAJOR_MINOR,
+                                    preferredAbis = Build.SUPPORTED_ABIS.toList(),
+                                    sdkInt = Build.VERSION.SDK_INT,
+                                )
+
+                                val tempDir = File(context.cacheDir, "python/wheels/online-deps").apply { mkdirs() }
+                                val tempFile = File(tempDir, bestWheel.fileName)
+                                runCatching { if (tempFile.exists()) tempFile.delete() }
+                                chaquoPypiRepository.downloadWheel(bestWheel.url, tempFile)
+                                try {
+                                    wheelInstaller.importFromFiles(listOf(tempFile))
+                                } finally {
+                                    runCatching { tempFile.delete() }
+                                }
+                            }
+
+                            pythonWheels = withContext(Dispatchers.IO) {
+                                wheelRepository.listWheels().sortedByDescending { it.installedAt }
+                            }
+
+                            val message = when {
+                                report.success.isNotEmpty() -> context.getString(
+                                    R.string.python_wheels_dependency_install_success,
+                                    requirement.name,
+                                )
+
+                                report.duplicated.isNotEmpty() -> context.getString(
+                                    R.string.python_wheels_dependency_install_duplicated,
+                                    requirement.name,
+                                )
+
+                                report.failed.isNotEmpty() -> context.getString(
+                                    R.string.python_wheels_dependency_install_failed,
+                                    requirement.name,
+                                )
+
+                                else -> context.getString(
+                                    R.string.python_wheels_dependency_install_failed,
+                                    requirement.name,
+                                )
+                            }
+                            toaster.show(message = message)
+                        } catch (e: Exception) {
+                            toaster.show(message = e.message ?: context.getString(R.string.unknown))
+                        } finally {
+                            installingDependencyName = null
+                        }
+                    }
+                },
+            )
         }
 
         if (showEnableScriptExecutionDialog) {
@@ -437,6 +558,7 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
 private fun WheelInstalledItem(
     wheel: PythonWheel,
     onToggleEnabled: (Boolean) -> Unit,
+    onCheckDependencies: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -518,6 +640,14 @@ private fun WheelInstalledItem(
                     onCheckedChange = onToggleEnabled,
                 )
                 HapticIconButton(
+                    onClick = onCheckDependencies,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AccountTree,
+                        contentDescription = stringResource(R.string.python_wheels_dependency_check_action),
+                    )
+                }
+                HapticIconButton(
                     hapticPattern = HapticPattern.Thud,
                     onClick = onDelete,
                 ) {
@@ -525,6 +655,283 @@ private fun WheelInstalledItem(
                         imageVector = Icons.Rounded.Delete,
                         contentDescription = stringResource(R.string.delete),
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WheelDependenciesBottomSheet(
+    wheel: PythonWheel,
+    installedWheels: List<PythonWheel>,
+    loading: Boolean,
+    errorMessage: String?,
+    requirements: List<PythonPackageRequirement>,
+    installingDependencyName: String?,
+    onDismiss: () -> Unit,
+    onInstall: (PythonPackageRequirement) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val installedSet = remember(installedWheels) {
+        installedWheels
+            .mapNotNull { it.packageName?.takeIf { name -> name.isNotBlank() } }
+            .map(PythonWheelMetadataParser::normalizePackageName)
+            .toSet()
+    }
+
+    val wheelLabel = wheel.packageName?.takeIf { it.isNotBlank() } ?: wheel.displayName
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = 24.dp, top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item(key = "header") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.python_wheels_dependency_check_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = wheelLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            if (loading) {
+                item(key = "loading") {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(
+                            text = stringResource(R.string.python_wheels_dependency_loading),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            errorMessage?.takeIf { it.isNotBlank() }?.let { msg ->
+                item(key = "error") {
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
+
+            if (!loading && errorMessage.isNullOrBlank()) {
+                if (requirements.isEmpty()) {
+                    item(key = "empty") {
+                        Text(
+                            text = stringResource(R.string.python_wheels_dependency_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                } else {
+                    item(key = "deps_group") {
+                        SettingsGroup(title = stringResource(R.string.python_wheels_dependency_list_title)) {
+                            val required = requirements.filterNot { it.isOptional }
+                            val optional = requirements.filter { it.isOptional }
+
+                            required.forEach { req ->
+                                val installed = req.normalizedName in installedSet
+                                val isInstalling = installingDependencyName == req.normalizedName
+                                val isBusy = !installingDependencyName.isNullOrBlank() && !isInstalling
+                                val status = if (installed) {
+                                    stringResource(R.string.python_wheels_dependency_status_installed)
+                                } else {
+                                    stringResource(R.string.python_wheels_dependency_status_missing)
+                                }
+
+                                val title = buildString {
+                                    append(req.name)
+                                    req.extras?.takeIf { it.isNotBlank() }?.let { extras ->
+                                        append("[").append(extras).append("]")
+                                    }
+                                }
+
+                                val subtitle = buildString {
+                                    append(status)
+                                    req.versionSpec?.takeIf { it.isNotBlank() }?.let { spec ->
+                                        append(" · ").append(spec)
+                                    }
+                                    req.marker?.takeIf { it.isNotBlank() }?.let { marker ->
+                                        append(" · ").append(marker)
+                                    }
+                                }
+
+                                SettingGroupItem(
+                                    title = title,
+                                    subtitle = subtitle,
+                                    trailing = {
+                                        when {
+                                            installed -> {
+                                                Text(
+                                                    text = stringResource(R.string.python_wheels_dependency_status_installed),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+
+                                            isInstalling -> {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
+
+                                            isBusy -> {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Download,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(24.dp),
+                                                )
+                                            }
+
+                                            else -> {
+                                                HapticIconButton(
+                                                    hapticPattern = HapticPattern.Thud,
+                                                    onClick = { onInstall(req) },
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Download,
+                                                        contentDescription = stringResource(R.string.python_wheels_dependency_install_action),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onClick = null,
+                                )
+                            }
+
+                            if (optional.isNotEmpty()) {
+                                var optionalExpanded by remember(wheel.id) { mutableStateOf(false) }
+
+                                SettingGroupItem(
+                                    title = stringResource(
+                                        R.string.python_wheels_dependency_optional_title,
+                                        optional.size,
+                                    ),
+                                    subtitle = if (optionalExpanded) {
+                                        stringResource(R.string.python_wheels_dependency_optional_hide)
+                                    } else {
+                                        stringResource(R.string.python_wheels_dependency_optional_show)
+                                    },
+                                    trailing = {
+                                        Icon(
+                                            imageVector = if (optionalExpanded) {
+                                                Icons.Rounded.KeyboardArrowUp
+                                            } else {
+                                                Icons.Rounded.KeyboardArrowDown
+                                            },
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    },
+                                    onClick = { optionalExpanded = !optionalExpanded },
+                                )
+
+                                if (optionalExpanded) {
+                                    optional.forEach { req ->
+                                        val installed = req.normalizedName in installedSet
+                                        val isInstalling = installingDependencyName == req.normalizedName
+                                        val isBusy = !installingDependencyName.isNullOrBlank() && !isInstalling
+                                        val status = if (installed) {
+                                            stringResource(R.string.python_wheels_dependency_status_installed)
+                                        } else {
+                                            stringResource(R.string.python_wheels_dependency_status_missing)
+                                        }
+
+                                        val title = buildString {
+                                            append(req.name)
+                                            req.extras?.takeIf { it.isNotBlank() }?.let { extras ->
+                                                append("[").append(extras).append("]")
+                                            }
+                                        }
+
+                                        val subtitle = buildString {
+                                            append(status)
+                                            req.versionSpec?.takeIf { it.isNotBlank() }?.let { spec ->
+                                                append(" · ").append(spec)
+                                            }
+                                            req.marker?.takeIf { it.isNotBlank() }?.let { marker ->
+                                                append(" · ").append(marker)
+                                            }
+                                        }
+
+                                        SettingGroupItem(
+                                            title = title,
+                                            subtitle = subtitle,
+                                            trailing = {
+                                                when {
+                                                    installed -> {
+                                                        Text(
+                                                            text = stringResource(R.string.python_wheels_dependency_status_installed),
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        )
+                                                    }
+
+                                                    isInstalling -> {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(20.dp),
+                                                            strokeWidth = 2.dp,
+                                                        )
+                                                    }
+
+                                                    isBusy -> {
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.Download,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(24.dp),
+                                                        )
+                                                    }
+
+                                                    else -> {
+                                                        HapticIconButton(
+                                                            hapticPattern = HapticPattern.Thud,
+                                                            onClick = { onInstall(req) },
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.Download,
+                                                                contentDescription = stringResource(R.string.python_wheels_dependency_install_action),
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onClick = null,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -560,3 +967,5 @@ private fun HapticIconButton(
         content()
     }
 }
+
+private const val CHAQUOPY_PYTHON_VERSION_MAJOR_MINOR = "3.13"

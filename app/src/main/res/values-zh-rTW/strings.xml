@@ -1708,4 +1708,19 @@
     <string name="python_wheels_deleted_success">已刪除</string>
     <string name="python_wheels_deleted_failed">刪除失敗</string>
 
+    <string name="python_wheels_dependency_check_action">相依性檢查</string>
+    <string name="python_wheels_dependency_check_title">相依性檢查</string>
+    <string name="python_wheels_dependency_list_title">相依性清單</string>
+    <string name="python_wheels_dependency_loading">載入中\u2026</string>
+    <string name="python_wheels_dependency_empty">未找到 Requires-Dist</string>
+    <string name="python_wheels_dependency_status_installed">已安裝</string>
+    <string name="python_wheels_dependency_status_missing">缺失</string>
+    <string name="python_wheels_dependency_install_action">安裝</string>
+    <string name="python_wheels_dependency_install_success">已安裝 %1$s</string>
+    <string name="python_wheels_dependency_install_duplicated">%1$s 已安裝</string>
+    <string name="python_wheels_dependency_install_failed">安裝 %1$s 失敗</string>
+    <string name="python_wheels_dependency_optional_title">可選（%1$d）</string>
+    <string name="python_wheels_dependency_optional_show">點按展開</string>
+    <string name="python_wheels_dependency_optional_hide">點按收起</string>
+
 </resources>

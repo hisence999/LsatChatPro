@@ -148,4 +148,19 @@
     <string name="python_wheels_online_fetch_wheels_empty">未找到可用的 .whl</string>
     <string name="python_wheels_online_fetch_incompatible_hint">可能不适配当前设备或 Python 版本</string>
     <string name="python_wheels_online_fetch_install_incompatible_note">该 .whl 可能不适配当前设备或 Python 版本。</string>
+
+    <string name="python_wheels_dependency_check_action">依赖检查</string>
+    <string name="python_wheels_dependency_check_title">依赖检查</string>
+    <string name="python_wheels_dependency_list_title">依赖列表</string>
+    <string name="python_wheels_dependency_loading">加载中…</string>
+    <string name="python_wheels_dependency_empty">未找到 Requires-Dist</string>
+    <string name="python_wheels_dependency_status_installed">已安装</string>
+    <string name="python_wheels_dependency_status_missing">缺失</string>
+    <string name="python_wheels_dependency_install_action">安装</string>
+    <string name="python_wheels_dependency_install_success">已安装 %1$s</string>
+    <string name="python_wheels_dependency_install_duplicated">%1$s 已安装</string>
+    <string name="python_wheels_dependency_install_failed">安装 %1$s 失败</string>
+    <string name="python_wheels_dependency_optional_title">可选（%1$d）</string>
+    <string name="python_wheels_dependency_optional_show">点按展开</string>
+    <string name="python_wheels_dependency_optional_hide">点按收起</string>
 </resources>
