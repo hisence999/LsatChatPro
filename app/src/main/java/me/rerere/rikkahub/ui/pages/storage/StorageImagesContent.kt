@@ -273,6 +273,8 @@ private fun AssistantImagesGalleryCard(
     onRequestDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    val hasSelection = selectedCount > 0
+    val isReady = imagesState is UiState.Success && totalCount > 0
     Card(
         shape = AppShapes.CardLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -313,65 +315,64 @@ private fun AssistantImagesGalleryCard(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        return@Column
+                    } else {
+                        val totalBytesText = runCatching { Formatter.formatShortFileSize(context, totalBytes) }
+                            .getOrNull()
+                            ?: "${totalBytes} B"
+
+                        Text(
+                            text = if (selectedCount > 0) {
+                                stringResource(R.string.storage_images_selected_summary, selectedBytesText, selectedCount)
+                            } else {
+                                stringResource(R.string.storage_images_total_summary, totalBytesText, totalCount)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
+                }
+            }
 
-                    val totalBytesText = runCatching { Formatter.formatShortFileSize(context, totalBytes) }
-                        .getOrNull()
-                        ?: "${totalBytes} B"
-
-                    Text(
-                        text = if (selectedCount > 0) {
-                            stringResource(R.string.storage_images_selected_summary, selectedBytesText, selectedCount)
-                        } else {
-                            stringResource(R.string.storage_images_total_summary, totalBytesText, totalCount)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilledTonalButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = hasSelection || isReady,
+                    onClick = if (hasSelection) onClearSelection else onSelectAll,
+                ) {
+                    Icon(
+                        imageVector = if (hasSelection) Icons.Rounded.ClearAll else Icons.Rounded.SelectAll,
+                        contentDescription = null,
                     )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            if (hasSelection) {
+                                R.string.storage_action_clear_selection
+                            } else {
+                                R.string.storage_action_select_all
+                            },
+                        ),
+                    )
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        val hasSelection = selectedCount > 0
-                        FilledTonalButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = if (hasSelection) onClearSelection else onSelectAll,
-                        ) {
-                            Icon(
-                                imageVector = if (hasSelection) Icons.Rounded.ClearAll else Icons.Rounded.SelectAll,
-                                contentDescription = null,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(
-                                    if (hasSelection) {
-                                        R.string.storage_action_clear_selection
-                                    } else {
-                                        R.string.storage_action_select_all
-                                    },
-                                ),
-                            )
-                        }
-
-                        FilledTonalButton(
-                            modifier = Modifier.weight(1f),
-                            enabled = hasSelection,
-                            onClick = onRequestDelete,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            ),
-                        ) {
-                            Icon(Icons.Rounded.DeleteForever, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.storage_action_delete_selected),
-                            )
-                        }
-                    }
+                FilledTonalButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = isReady && hasSelection,
+                    onClick = onRequestDelete,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.storage_action_delete_selected),
+                    )
                 }
             }
         }
