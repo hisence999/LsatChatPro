@@ -401,10 +401,17 @@
   <string name="permission_desc_require_permission">為了提供更優質的使用體驗，應用程式需要下列權限：</string>
   <string name="permission_diaog_title">權限請求</string>
   <string name="permission_go_to_settings">前往設定</string>
+  <string name="permission_grant">授權</string>
   <string name="permission_notification">通知</string>
   <string name="permission_notification_desc">傳送通知</string>
   <string name="permission_permanently_denied">永久拒絕</string>
   <string name="permission_required">必要</string>
+  <string name="permission_read_media_images">圖片</string>
+  <string name="permission_read_media_images_desc">允許讀取圖片，用於在訊息中顯示本地圖片</string>
+  <string name="permission_read_media_video">影片</string>
+  <string name="permission_read_media_video_desc">允許讀取影片，用於在訊息中顯示本地影片</string>
+  <string name="permission_read_external_storage">圖片與影片</string>
+  <string name="permission_read_external_storage_desc">允許讀取圖片與影片，用於在訊息中顯示本地媒體內容</string>
   <string name="photo">照片</string>
   <string name="pin_chat">置頂聊天</string>
   <string name="pinned_chats">置頂對話</string>

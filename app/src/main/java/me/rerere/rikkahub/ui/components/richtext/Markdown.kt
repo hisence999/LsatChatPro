@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.components.richtext
 
+import android.content.Context
 import android.content.Intent
+import android.os.Build
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,8 +11,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,6 +52,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.Placeholder
@@ -56,6 +63,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -75,9 +83,18 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.RpStyleRule
 import me.rerere.rikkahub.ui.components.table.DataTable
+import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadExternalStorage
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadMediaImages
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadMediaVideo
+import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.utils.LocalFileUrlUtils
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
@@ -598,10 +615,9 @@ private fun MarkdownNode(
             Column(
                 modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 这里可以使用Coil等图片加载库加载图片
-                ZoomableAsyncImage(
-                    model = imageUrl,
-                    contentDescription = altText,
+                PermissionGatedMarkdownImage(
+                    imageUrl = imageUrl,
+                    altText = altText,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .widthIn(min = 120.dp)
@@ -709,6 +725,129 @@ private fun MarkdownNode(
             }
         }
     }
+}
+
+@Composable
+private fun PermissionGatedMarkdownImage(
+    imageUrl: String,
+    altText: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val appOwnedDirPrefixes = remember(context) { buildAppOwnedDirPrefixes(context) }
+    val needsMediaPermission = remember(imageUrl, appOwnedDirPrefixes) {
+        LocalFileUrlUtils.needsExternalMediaPermission(imageUrl, appOwnedDirPrefixes)
+    }
+
+    if (!needsMediaPermission) {
+        ZoomableAsyncImage(
+            model = imageUrl,
+            contentDescription = altText,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val activity = context as? ComponentActivity
+    if (activity == null) {
+        OutlinedCard(modifier = modifier) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.permission_read_external_storage_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        return
+    }
+
+    val permissions = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            setOf(PermissionReadMediaImages, PermissionReadMediaVideo)
+        } else {
+            setOf(PermissionReadExternalStorage)
+        }
+    }
+    val permissionState = rememberPermissionState(permissions = permissions)
+    PermissionManager(permissionState = permissionState)
+
+    if (permissionState.allRequiredPermissionsGranted) {
+        ZoomableAsyncImage(
+            model = imageUrl,
+            contentDescription = altText,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val requiredPermanentlyDenied = permissions
+        .filter { it.required }
+        .any { it in permissionState.permanentlyDeniedPermissions }
+
+    val hintText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        stringResource(R.string.permission_read_media_images_desc)
+    } else {
+        stringResource(R.string.permission_read_external_storage_desc)
+    }
+
+    OutlinedCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.permission_diaog_title),
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = hintText,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Tag(
+                type = TagType.INFO,
+                onClick = {
+                    if (requiredPermanentlyDenied) {
+                        permissionState.openAppSettings()
+                    } else {
+                        permissionState.requestPermissions()
+                    }
+                }
+            ) {
+                Text(
+                    text = if (requiredPermanentlyDenied) {
+                        stringResource(R.string.permission_go_to_settings)
+                    } else {
+                        stringResource(R.string.permission_grant)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun buildAppOwnedDirPrefixes(context: Context): List<String> {
+    return listOfNotNull(
+        context.dataDir.absolutePath,
+        context.filesDir.absolutePath,
+        context.cacheDir.absolutePath,
+        context.getExternalFilesDir(null)?.absolutePath,
+        context.externalCacheDir?.absolutePath,
+    )
 }
 
 @Composable

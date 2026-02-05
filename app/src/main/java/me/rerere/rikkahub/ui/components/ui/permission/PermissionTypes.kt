@@ -67,3 +67,27 @@ val PermissionNotification = PermissionInfo(
     usage = { Text(stringResource(R.string.permission_notification_desc)) },
     required = true
 )
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+val PermissionReadMediaImages = PermissionInfo(
+    permission = Manifest.permission.READ_MEDIA_IMAGES,
+    displayName = { Text(stringResource(R.string.permission_read_media_images)) },
+    usage = { Text(stringResource(R.string.permission_read_media_images_desc)) },
+    required = true
+)
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+val PermissionReadMediaVideo = PermissionInfo(
+    permission = Manifest.permission.READ_MEDIA_VIDEO,
+    displayName = { Text(stringResource(R.string.permission_read_media_video)) },
+    usage = { Text(stringResource(R.string.permission_read_media_video_desc)) },
+    required = false
+)
+
+@Suppress("DEPRECATION")
+val PermissionReadExternalStorage = PermissionInfo(
+    permission = Manifest.permission.READ_EXTERNAL_STORAGE,
+    displayName = { Text(stringResource(R.string.permission_read_external_storage)) },
+    usage = { Text(stringResource(R.string.permission_read_external_storage_desc)) },
+    required = true
+)

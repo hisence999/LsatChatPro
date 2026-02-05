@@ -517,10 +517,17 @@
     <string name="permission_desc_require_permission">App requires following permissions:</string>
     <string name="permission_diaog_title">Permission Request</string>
     <string name="permission_go_to_settings">Go to Settings</string>
+    <string name="permission_grant">Grant</string>
     <string name="permission_notification">Notification</string>
     <string name="permission_notification_desc">Send notifications</string>
     <string name="permission_permanently_denied">Permanently Denied</string>
     <string name="permission_required">Required</string>
+    <string name="permission_read_media_images">Photos</string>
+    <string name="permission_read_media_images_desc">Allow reading photos to display local images in messages</string>
+    <string name="permission_read_media_video">Videos</string>
+    <string name="permission_read_media_video_desc">Allow reading videos to display local videos in messages</string>
+    <string name="permission_read_external_storage">Photos &amp; Videos</string>
+    <string name="permission_read_external_storage_desc">Allow reading photos and videos to display local media in messages</string>
     <string name="photo">Photo</string>
     <string name="pin_chat">Pin Chat</string>
     <string name="pinned_chats">Pinned Chats</string>

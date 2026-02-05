@@ -163,4 +163,12 @@
     <string name="python_wheels_dependency_optional_title">可选（%1$d）</string>
     <string name="python_wheels_dependency_optional_show">点按展开</string>
     <string name="python_wheels_dependency_optional_hide">点按收起</string>
+
+    <string name="permission_grant">授权</string>
+    <string name="permission_read_media_images">图片</string>
+    <string name="permission_read_media_images_desc">允许读取图片，用于在消息中显示本地图片</string>
+    <string name="permission_read_media_video">视频</string>
+    <string name="permission_read_media_video_desc">允许读取视频，用于在消息中显示本地视频</string>
+    <string name="permission_read_external_storage">图片与视频</string>
+    <string name="permission_read_external_storage_desc">允许读取图片与视频，用于在消息中显示本地媒体内容</string>
 </resources>

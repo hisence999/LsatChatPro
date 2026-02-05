@@ -426,10 +426,17 @@
   <string name="permission_desc_require_permission">为了提供更好的用户体验，应用需要以下权限：</string>
   <string name="permission_diaog_title">权限请求</string>
   <string name="permission_go_to_settings">前往设置</string>
+  <string name="permission_grant">授权</string>
   <string name="permission_notification">通知</string>
   <string name="permission_notification_desc">发送通知</string>
   <string name="permission_permanently_denied">已永久拒绝</string>
   <string name="permission_required">必需</string>
+  <string name="permission_read_media_images">图片</string>
+  <string name="permission_read_media_images_desc">允许读取图片，用于在消息中显示本地图片</string>
+  <string name="permission_read_media_video">视频</string>
+  <string name="permission_read_media_video_desc">允许读取视频，用于在消息中显示本地视频</string>
+  <string name="permission_read_external_storage">图片与视频</string>
+  <string name="permission_read_external_storage_desc">允许读取图片与视频，用于在消息中显示本地媒体内容</string>
   <string name="photo">照片</string>
   <string name="pin_chat">置顶聊天</string>
   <string name="pinned_chats">置顶聊天</string>
