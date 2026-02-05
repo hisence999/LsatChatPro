@@ -102,8 +102,10 @@ fun StorageCategoryScaffoldContent(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "usage") {
-            CategoryUsageCard(usageState = usageState)
+        if (category == StorageCategoryKey.LOGS) {
+            item(key = "usage") {
+                CategoryUsageCard(usageState = usageState)
+            }
         }
 
         when (category) {
@@ -121,13 +123,17 @@ fun StorageCategoryScaffoldContent(
 
             StorageCategoryKey.CACHE -> {
                 item(key = "cache") {
-                    StorageCacheCard(onClearCache = onClearCache)
+                    StorageCacheCard(
+                        usageState = usageState,
+                        onClearCache = onClearCache,
+                    )
                 }
             }
 
             StorageCategoryKey.HISTORY_FILES -> {
                 item(key = "history") {
                     HistoryFilesCard(
+                        usageState = usageState,
                         scanState = orphanScanState,
                         onScan = onScanOrphans,
                         onClearAll = onClearAllOrphans,

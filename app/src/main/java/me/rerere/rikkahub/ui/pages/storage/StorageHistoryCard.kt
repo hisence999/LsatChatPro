@@ -6,15 +6,20 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,13 +28,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.OrphanEntry
 import me.rerere.rikkahub.data.repository.OrphanScanResult
+import me.rerere.rikkahub.data.repository.StorageCategoryUsage
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.theme.AppShapes
@@ -38,83 +46,150 @@ import java.io.File
 
 @Composable
 fun HistoryFilesCard(
+    usageState: UiState<StorageCategoryUsage>,
     scanState: UiState<OrphanScanResult>,
     onScan: () -> Unit,
     onClearAll: () -> Unit,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val haptics = rememberPremiumHaptics()
     var confirmClear by rememberSaveable { mutableStateOf(false) }
 
-    Card(
-        shape = AppShapes.CardLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Card(
+            shape = AppShapes.CardLarge,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
-            Text(
-                text = stringResource(R.string.storage_history_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(R.string.storage_history_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Column(
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                FilledTonalButton(
-                    onClick = {
-                        haptics.perform(HapticPattern.Pop)
-                        onScan()
-                    }
-                ) { Text(stringResource(R.string.storage_action_scan)) }
-
-                FilledTonalButton(
-                    onClick = {
-                        haptics.perform(HapticPattern.Pop)
-                        confirmClear = true
-                    },
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    ),
-                ) { Text(stringResource(R.string.storage_action_clear_orphans)) }
-            }
-
-            when (scanState) {
-                UiState.Idle -> Unit
-                UiState.Loading -> Text(
-                    text = stringResource(R.string.storage_manager_loading_placeholder),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(
+                    text = stringResource(R.string.storage_history_title),
+                    style = MaterialTheme.typography.titleMedium,
                 )
-                is UiState.Error -> Text(
-                    text = scanState.error.message ?: "Error",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                is UiState.Success -> {
+
+                if (scanState is UiState.Success) {
                     val result = scanState.data
                     val sizeText = runCatching { Formatter.formatShortFileSize(context, result.totalBytes) }
                         .getOrNull()
                         ?: "${result.totalBytes} B"
                     Text(
-                        text = stringResource(R.string.storage_history_scan_summary, sizeText, result.totalCount),
+                        text = stringResource(R.string.storage_category_usage_value, sizeText, result.totalCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
+                } else {
+                    when (usageState) {
+                        UiState.Idle,
+                        UiState.Loading,
+                        -> Text(
+                            text = stringResource(R.string.storage_manager_loading_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        is UiState.Error -> Text(
+                            text = usageState.error.message ?: "Error",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+
+                        is UiState.Success -> {
+                            val bytes = usageState.data.bytes
+                            val count = usageState.data.fileCount
+                            val sizeText = runCatching { Formatter.formatShortFileSize(context, bytes) }.getOrNull()
+                                ?: "${bytes} B"
+
+                            Text(
+                                text = stringResource(R.string.storage_category_usage_value, sizeText, count),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilledTonalButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            haptics.perform(HapticPattern.Pop)
+                            onScan()
+                        }
                     ) {
-                        OrphanPreviewList(entries = result.preview)
+                        Icon(Icons.Rounded.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.storage_action_scan))
+                    }
+
+                    FilledTonalButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            haptics.perform(HapticPattern.Pop)
+                            confirmClear = true
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
+                    ) {
+                        Icon(Icons.Rounded.DeleteForever, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.storage_action_clear_orphans))
+                    }
+                }
+            }
+        }
+
+        if (scanState != UiState.Idle) {
+            Card(
+                shape = AppShapes.CardLarge,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    when (scanState) {
+                        UiState.Idle -> Unit
+
+                        UiState.Loading -> Text(
+                            text = stringResource(R.string.storage_manager_loading_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        is UiState.Error -> Text(
+                            text = scanState.error.message ?: "Error",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+
+                        is UiState.Success -> {
+                            val result = scanState.data
+                            val sizeText = runCatching { Formatter.formatShortFileSize(context, result.totalBytes) }
+                                .getOrNull()
+                                ?: "${result.totalBytes} B"
+                            Text(
+                                text = stringResource(R.string.storage_history_scan_summary, sizeText, result.totalCount),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                            ) {
+                                OrphanPreviewList(entries = result.preview)
+                            }
+                        }
                     }
                 }
             }
@@ -188,4 +263,3 @@ private fun OrphanPreviewList(entries: List<OrphanEntry>) {
         }
     }
 }
-
