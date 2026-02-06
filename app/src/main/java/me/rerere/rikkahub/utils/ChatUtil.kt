@@ -22,6 +22,28 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatUtil"
+private val MANAGED_CHAT_DIR_NAMES = setOf("upload", "avatars", "images", "custom_icons")
+
+internal fun isManagedChatFile(filesDir: File, file: File): Boolean {
+    val canonicalFilesDir = runCatching { filesDir.canonicalFile }.getOrNull() ?: return false
+    val canonicalTarget = runCatching { file.canonicalFile }.getOrNull() ?: return false
+    return MANAGED_CHAT_DIR_NAMES.any { dirName ->
+        val managedDir = runCatching { canonicalFilesDir.resolve(dirName).canonicalFile }.getOrNull() ?: return@any false
+        canonicalTarget.isStrictChildOf(managedDir)
+    }
+}
+
+private fun File.isStrictChildOf(parent: File): Boolean {
+    val parentPath = parent.path.trimEnd(File.separatorChar)
+    val selfPath = path
+    return selfPath.startsWith("$parentPath${File.separator}")
+}
+
+private fun Uri.toManagedChatFileOrNull(filesDir: File): File? {
+    if (scheme != "file") return null
+    val localFile = runCatching { toFile() }.getOrNull() ?: return null
+    return localFile.takeIf { isManagedChatFile(filesDir, it) }
+}
 
 fun navigateToChatPage(
     navController: NavHostController,
@@ -207,10 +229,17 @@ fun Bitmap.compress(): ByteArray = ByteArrayOutputStream().use {
 }
 
 fun Context.deleteChatFiles(uris: List<Uri>) {
-    uris.filter { it.toString().startsWith("file:") }.forEach { uri ->
-        val file = uri.toFile()
-        if (file.exists()) {
-            file.delete()
+    val appFilesDir = filesDir
+    uris.forEach { uri ->
+        val file = uri.toManagedChatFileOrNull(appFilesDir) ?: run {
+            Log.w(TAG, "deleteChatFiles: skip unmanaged file uri=$uri")
+            return@forEach
+        }
+        if (!file.exists() || !file.isFile) {
+            return@forEach
+        }
+        if (!file.delete()) {
+            Log.w(TAG, "deleteChatFiles: failed to delete ${file.absolutePath}")
         }
     }
 }

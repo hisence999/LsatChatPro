@@ -11,6 +11,26 @@ import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
 import java.time.Instant
 import kotlin.uuid.Uuid
 
+private const val CHAT_UPLOAD_SEGMENT = "/upload/"
+
+internal fun collectChatUploadFileUrls(messageNodes: List<MessageNode>): List<String> {
+    return messageNodes
+        .asSequence()
+        .flatMap { node -> node.messages.asSequence() }
+        .flatMap { message -> message.parts.asSequence() }
+        .mapNotNull { part ->
+            when (part) {
+                is UIMessagePart.Image -> part.url
+                is UIMessagePart.Document -> part.url
+                is UIMessagePart.Video -> part.url
+                is UIMessagePart.Audio -> part.url
+                else -> null
+            }
+        }
+        .filter { url -> url.startsWith("file://") && url.contains(CHAT_UPLOAD_SEGMENT) }
+        .toList()
+}
+
 /**
  * 精简版的会话信息，用于列表显示，不包含消息内容以避免 OOM
  */
@@ -47,31 +67,8 @@ data class Conversation(
 ) {
     val files: List<Uri>
         get() {
-            val images = messageNodes
-                .flatMap { node -> node.messages.flatMap { it.parts } }
-                .filterIsInstance<UIMessagePart.Image>()
-                .mapNotNull {
-                    it.url.takeIf { it.startsWith("file://") }?.toUri()
-                }
-            val documents = messageNodes
-                .flatMap { node -> node.messages.flatMap { it.parts } }
-                .filterIsInstance<UIMessagePart.Document>()
-                .mapNotNull {
-                    it.url.takeIf { it.startsWith("file://") }?.toUri()
-                }
-            val videos = messageNodes
-                .flatMap { node -> node.messages.flatMap { it.parts } }
-                .filterIsInstance<UIMessagePart.Video>()
-                .mapNotNull {
-                    it.url.takeIf { it.startsWith("file://") }?.toUri()
-                }
-            val audios = messageNodes
-                .flatMap { node -> node.messages.flatMap { it.parts } }
-                .filterIsInstance<UIMessagePart.Audio>()
-                .mapNotNull {
-                    it.url.takeIf { it.startsWith("file://") }?.toUri()
-                }
-            return images + documents + videos + audios
+            return collectChatUploadFileUrls(messageNodes)
+                .map { url -> url.toUri() }
         }
 
     /**
