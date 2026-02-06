@@ -68,7 +68,21 @@ class StorageCategoryVM(
         ?: StorageCategoryKey.CHAT_RECORDS
 
     val assistants: StateFlow<List<Assistant>> = settingsStore.settingsFlow
-        .map { it.assistants }
+        .map { settings ->
+            buildList {
+                addAll(settings.assistants)
+                settings.groupChatTemplates.forEach { template ->
+                    if (none { it.id == template.id }) {
+                        add(
+                            Assistant(
+                                id = template.id,
+                                name = template.name,
+                            )
+                        )
+                    }
+                }
+            }
+        }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
