@@ -809,7 +809,10 @@
     <string name="storage_confirm_delete_selected_files_desc">This deletes %1$d attachment files (%2$s) from this assistant’s chats (files only). Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_delete_selected_files_desc_global">This deletes %1$d attachment files (%2$s) from all assistants’ chats (files only). Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_clear_records_title">Clear chat records?</string>
-    <string name="storage_confirm_clear_records_desc">This deletes chat records from the selected conversations. Files will be kept.</string>
+    <string name="storage_confirm_clear_records_desc">Delete selected chat records (files excluded). This action cannot be undone!</string>
+    <string name="storage_confirm_clear_records_verify_prompt">Type the selected conversation count (%1$d) to confirm.</string>
+    <string name="storage_confirm_clear_records_verify_label">Selected conversation count</string>
+    <string name="storage_confirm_clear_records_verify_hint">Enter %1$d</string>
     <string name="storage_confirm_clear_attachments_title">Clear attachments?</string>
     <string name="storage_confirm_clear_attachments_desc">This deletes attachment files from this assistant’s chats. Chat history will be kept, but links may break.</string>
     <string name="storage_confirm_clear_records_and_attachments_title">Clear records &amp; attachments?</string>

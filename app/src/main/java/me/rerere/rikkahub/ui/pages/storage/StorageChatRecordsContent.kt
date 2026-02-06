@@ -1,13 +1,18 @@
 package me.rerere.rikkahub.ui.pages.storage
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -18,7 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
@@ -43,8 +51,16 @@ fun StorageChatRecordsScaffoldContent(
     onClearChatRecordSelection: (Uuid?, Set<String>, Set<String>) -> Unit,
 ) {
     val haptics = rememberPremiumHaptics()
+    val focusManager = LocalFocusManager.current
 
     var showConfirmClear by rememberSaveable(selectedAssistantId) { mutableStateOf(false) }
+    var clearRecordConfirmInput by rememberSaveable(selectedAssistantId) { mutableStateOf("") }
+
+    LaunchedEffect(showConfirmClear) {
+        if (!showConfirmClear) {
+            clearRecordConfirmInput = ""
+        }
+    }
 
     var selections by remember(selectedAssistantId) { mutableStateOf<Map<String, ChatRecordMonthSelection>>(emptyMap()) }
 
@@ -166,30 +182,77 @@ fun StorageChatRecordsScaffoldContent(
             ?.name
             ?.trim()
             ?.ifBlank { null }
-        val assistantLabel = assistantName ?: stringResource(R.string.storage_filter_all_assistants)
+        val assistantLabel = assistantName
+            ?.takeIf { selectedAssistantId != null }
+        val requiresRecordCountConfirmation = selectedConversationCount > 10
+        val isRecordCountConfirmed = !requiresRecordCountConfirmation ||
+            clearRecordConfirmInput.toIntOrNull() == selectedConversationCount
 
         AlertDialog(
             onDismissRequest = { showConfirmClear = false },
             title = { Text(stringResource(R.string.storage_confirm_clear_records_title)) },
             text = {
-                Text(
-                    text = buildString {
-                        append(assistantLabel)
-                        append(" · ")
-                        append(stringResource(R.string.storage_confirm_clear_records_desc))
-                        append("\n")
-                        append(
-                            stringResource(
-                                R.string.storage_chat_records_months_selected_summary,
-                                selectedMonthCount,
-                                selectedConversationCount,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = buildString {
+                            assistantLabel?.let {
+                                append(it)
+                                append(" · ")
+                            }
+                            append(stringResource(R.string.storage_confirm_clear_records_desc))
+                            append("\n")
+                            append(
+                                stringResource(
+                                    R.string.storage_chat_records_months_selected_summary,
+                                    selectedMonthCount,
+                                    selectedConversationCount,
+                                )
                             )
+                        }
+                    )
+
+                    if (requiresRecordCountConfirmation) {
+                        Text(
+                            text = stringResource(
+                                R.string.storage_confirm_clear_records_verify_prompt,
+                                selectedConversationCount,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        OutlinedTextField(
+                            value = clearRecordConfirmInput,
+                            onValueChange = { newValue ->
+                                clearRecordConfirmInput = newValue.filter { it.isDigit() }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.storage_confirm_clear_records_verify_label)) },
+                            placeholder = {
+                                Text(
+                                    stringResource(
+                                        R.string.storage_confirm_clear_records_verify_hint,
+                                        selectedConversationCount,
+                                    )
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() },
+                            ),
                         )
                     }
-                )
+                }
             },
             confirmButton = {
                 TextButton(
+                    enabled = isRecordCountConfirmed,
                     onClick = {
                         haptics.perform(HapticPattern.Thud)
                         showConfirmClear = false

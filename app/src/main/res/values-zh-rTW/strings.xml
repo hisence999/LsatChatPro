@@ -626,7 +626,10 @@
   <string name="storage_confirm_delete_selected_files_desc">僅刪除該助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_delete_selected_files_desc_global">僅刪除所有助手聊天中的 %1$d 個附件檔案（%2$s，只刪檔案）。聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_clear_records_title">清理聊天記錄？</string>
-  <string name="storage_confirm_clear_records_desc">刪除所選會話的聊天記錄；不刪除檔案。</string>
+  <string name="storage_confirm_clear_records_desc">刪除所選聊天記錄(不包含檔案)，刪除後不可復原!</string>
+  <string name="storage_confirm_clear_records_verify_prompt">請輸入已選會話數（%1$d）後再確認。</string>
+  <string name="storage_confirm_clear_records_verify_label">輸入已選會話數</string>
+  <string name="storage_confirm_clear_records_verify_hint">請輸入 %1$d</string>
   <string name="storage_confirm_clear_attachments_title">清理附件？</string>
   <string name="storage_confirm_clear_attachments_desc">刪除該助手聊天中的附件檔案；聊天記錄會保留，歷史附件連結可能失效。</string>
   <string name="storage_confirm_clear_records_and_attachments_title">清理聊天記錄與附件？</string>
