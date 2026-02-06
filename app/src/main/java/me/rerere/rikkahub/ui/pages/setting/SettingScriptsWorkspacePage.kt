@@ -102,6 +102,8 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
     var dependencySheetLoading by remember { mutableStateOf(false) }
     var dependencySheetErrorMessage by remember { mutableStateOf<String?>(null) }
     var dependencySheetItems by remember { mutableStateOf<List<PythonPackageRequirement>>(emptyList()) }
+    var dependencySheetNoticeMessage by remember { mutableStateOf<String?>(null) }
+    var dependencySheetNoticeIsError by remember { mutableStateOf(false) }
     var installingDependencyName by remember { mutableStateOf<String?>(null) }
 
     var showEnableScriptExecutionDialog by remember { mutableStateOf(false) }
@@ -268,6 +270,8 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                                     dependencySheetLoading = true
                                     dependencySheetErrorMessage = null
                                     dependencySheetItems = emptyList()
+                                    dependencySheetNoticeMessage = null
+                                    dependencySheetNoticeIsError = false
                                     val targetWheelId = wheel.id
                                     scope.launch {
                                         val result = withContext(Dispatchers.IO) {
@@ -344,12 +348,16 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                 loading = dependencySheetLoading,
                 errorMessage = dependencySheetErrorMessage,
                 requirements = dependencySheetItems,
+                noticeMessage = dependencySheetNoticeMessage,
+                noticeIsError = dependencySheetNoticeIsError,
                 installingDependencyName = installingDependencyName,
                 onDismiss = {
                     dependencySheetWheel = null
                     dependencySheetLoading = false
                     dependencySheetErrorMessage = null
                     dependencySheetItems = emptyList()
+                    dependencySheetNoticeMessage = null
+                    dependencySheetNoticeIsError = false
                 },
                 onInstall = { requirement ->
                     val normalized = requirement.normalizedName
@@ -382,9 +390,10 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                                 wheelRepository.listWheels().sortedByDescending { it.installedAt }
                             }
 
+                            val installedSuccessfully = report.success.isNotEmpty()
                             val message = when {
-                                report.success.isNotEmpty() -> context.getString(
-                                    R.string.python_wheels_dependency_install_success,
+                                installedSuccessfully -> context.getString(
+                                    R.string.python_wheels_dependency_install_success_restart_required,
                                     requirement.name,
                                 )
 
@@ -403,9 +412,11 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                                     requirement.name,
                                 )
                             }
-                            toaster.show(message = message)
+                            dependencySheetNoticeMessage = message
+                            dependencySheetNoticeIsError = !installedSuccessfully && report.failed.isNotEmpty()
                         } catch (e: Exception) {
-                            toaster.show(message = e.message ?: context.getString(R.string.unknown))
+                            dependencySheetNoticeMessage = e.message ?: context.getString(R.string.unknown)
+                            dependencySheetNoticeIsError = true
                         } finally {
                             installingDependencyName = null
                         }
@@ -668,6 +679,8 @@ private fun WheelDependenciesBottomSheet(
     loading: Boolean,
     errorMessage: String?,
     requirements: List<PythonPackageRequirement>,
+    noticeMessage: String?,
+    noticeIsError: Boolean,
     installingDependencyName: String?,
     onDismiss: () -> Unit,
     onInstall: (PythonPackageRequirement) -> Unit,
@@ -707,6 +720,33 @@ private fun WheelDependenciesBottomSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            noticeMessage?.takeIf { it.isNotBlank() }?.let { msg ->
+                item(key = "notice") {
+                    Surface(
+                        color = if (noticeIsError) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        },
+                        contentColor = if (noticeIsError) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        },
+                        shape = AppShapes.CardMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    ) {
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
                 }
             }
 

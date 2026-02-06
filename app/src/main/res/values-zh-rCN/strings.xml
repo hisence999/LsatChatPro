@@ -161,6 +161,7 @@
     <string name="python_wheels_dependency_status_missing">缺失</string>
     <string name="python_wheels_dependency_install_action">安装</string>
     <string name="python_wheels_dependency_install_success">已安装 %1$s</string>
+    <string name="python_wheels_dependency_install_success_restart_required">已安装 %1$s，请重启 App 以应用更改。</string>
     <string name="python_wheels_dependency_install_duplicated">%1$s 已安装</string>
     <string name="python_wheels_dependency_install_failed">安装 %1$s 失败</string>
     <string name="python_wheels_dependency_optional_title">可选（%1$d）</string>
