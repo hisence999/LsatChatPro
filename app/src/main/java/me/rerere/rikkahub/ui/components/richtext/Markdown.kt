@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -154,8 +155,78 @@ private fun getRpColor(pattern: String): Color? {
 // Standard markdown patterns that are handled by the AST parser.
 // Note: some edge cases (e.g. **"quoted"**) may not be parsed as STRONG by the markdown parser,
 // so we keep a small fallback set of standard *wrapping* delimiters to handle them in plain text nodes.
-private val STANDARD_PATTERNS = setOf("*", "**", "~~", "`", "#", "##", "###", "####", "#####", "######", ">")
-private val FALLBACK_WRAPPING_PATTERNS = setOf("*", "**", "~~", "`")
+private val STANDARD_PATTERNS = setOf("*", "**", "***", "~~", "`", "#", "##", "###", "####", "#####", "######", ">")
+private val FALLBACK_WRAPPING_PATTERNS = listOf("***", "**", "*", "~~", "`")
+
+private data class PatternRegexStyle(
+    val regex: Regex,
+    val style: SpanStyle
+)
+
+private fun parseRpColor(colorHex: String): Color? {
+    return runCatching { Color(android.graphics.Color.parseColor(colorHex)) }.getOrNull()
+}
+
+private fun spanStyleForPattern(pattern: String, color: Color?): SpanStyle {
+    return when (pattern) {
+        "*" -> SpanStyle(fontStyle = FontStyle.Italic, color = color ?: Color.Unspecified)
+        "**" -> SpanStyle(fontWeight = FontWeight.SemiBold, color = color ?: Color.Unspecified)
+        "***" -> SpanStyle(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic, color = color ?: Color.Unspecified)
+        "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough, color = color ?: Color.Unspecified)
+        "`" -> SpanStyle(fontFamily = FontFamily.Monospace, color = color ?: Color.Unspecified)
+        else -> SpanStyle(color = color ?: Color.Unspecified)
+    }
+}
+
+private fun buildWrappingRegex(pattern: String): Regex {
+    val dotAll = setOf(RegexOption.DOT_MATCHES_ALL)
+    return when (pattern) {
+        "***" -> Regex("(?<!\\*)\\*\\*\\*(?![\\s*])(.+?)(?<![\\s*])\\*\\*\\*(?!\\*)", dotAll)
+        "**" -> Regex("(?<!\\*)\\*\\*(?![\\s*])(.+?)(?<![\\s*])\\*\\*(?!\\*)", dotAll)
+        "*" -> Regex("(?<!\\*)\\*(?![\\s*])(.+?)(?<![\\s*])\\*(?!\\*)", dotAll)
+        "~~" -> Regex("(?<!~)~~(?![\\s~])(.+?)(?<![\\s~])~~(?!~)", dotAll)
+        "`" -> Regex("(?<!`)`([^`\\n]+?)`(?!`)")
+        else -> {
+            val escaped = Regex.escape(pattern)
+            if (pattern.length >= 2 && pattern.all { it == pattern.first() }) {
+                val escapedChar = Regex.escape(pattern.first().toString())
+                Regex("(?<!$escapedChar)$escaped(.+?)$escaped(?!$escapedChar)", dotAll)
+            } else {
+                Regex("$escaped(.+?)$escaped", dotAll)
+            }
+        }
+    }
+}
+
+private fun buildPatternRegexes(rpStyleRules: List<RpStyleRule>): List<PatternRegexStyle> {
+    val enabledRulesByPattern = linkedMapOf<String, RpStyleRule>()
+    rpStyleRules.forEach { rule ->
+        if (rule.enabled && rule.pattern.isNotBlank() && !enabledRulesByPattern.containsKey(rule.pattern)) {
+            enabledRulesByPattern[rule.pattern] = rule
+        }
+    }
+
+    val fallbackRegexes = FALLBACK_WRAPPING_PATTERNS.map { pattern ->
+        PatternRegexStyle(
+            regex = buildWrappingRegex(pattern),
+            style = spanStyleForPattern(pattern, enabledRulesByPattern[pattern]?.let { parseRpColor(it.colorHex) })
+        )
+    }
+
+    val customRegexes = enabledRulesByPattern.values
+        .asSequence()
+        .filter { rule -> rule.pattern !in STANDARD_PATTERNS }
+        .mapNotNull { rule ->
+            val color = parseRpColor(rule.colorHex) ?: return@mapNotNull null
+            PatternRegexStyle(
+                regex = buildWrappingRegex(rule.pattern),
+                style = spanStyleForPattern(rule.pattern, color)
+            )
+        }
+        .toList()
+
+    return fallbackRegexes + customRegexes
+}
 
 /**
  * Append text to AnnotatedString.Builder, scanning for RP patterns in plain text nodes.
@@ -167,34 +238,7 @@ private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
     text: String,
     rpStyleRules: List<RpStyleRule>
 ) {
-    // Custom patterns + fallback wrapping delimiters
-    val rulesToScan = rpStyleRules.filter { rule ->
-        rule.enabled &&
-            rule.pattern.isNotBlank() &&
-            (rule.pattern !in STANDARD_PATTERNS || rule.pattern in FALLBACK_WRAPPING_PATTERNS)
-    }
-    
-    if (rulesToScan.isEmpty()) {
-        append(text)
-        return
-    }
-    
-    // Build a combined regex for all custom patterns
-    // Each pattern matches: pattern + content + pattern (non-greedy)
-    val patternRegexes = rulesToScan.mapNotNull { rule ->
-        val escaped = Regex.escape(rule.pattern)
-        runCatching {
-            val color = Color(android.graphics.Color.parseColor(rule.colorHex))
-            val spanStyle = when (rule.pattern) {
-                "*" -> SpanStyle(fontStyle = FontStyle.Italic, color = color)
-                "**" -> SpanStyle(fontWeight = FontWeight.SemiBold, color = color)
-                "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough, color = color)
-                "`" -> SpanStyle(fontFamily = FontFamily.Monospace, color = color)
-                else -> SpanStyle(color = color)
-            }
-            Regex("$escaped(.+?)$escaped") to spanStyle
-        }.getOrNull()
-    }
+    val patternRegexes = buildPatternRegexes(rpStyleRules)
     
     if (patternRegexes.isEmpty()) {
         append(text)
@@ -205,11 +249,14 @@ private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
     data class Match(val range: IntRange, val content: String, val style: SpanStyle)
     val allMatches = mutableListOf<Match>()
     
-    patternRegexes.forEach { (regex, style) ->
+    patternRegexes.forEach { patternRegex ->
+        val regex = patternRegex.regex
+        val style = patternRegex.style
         regex.findAll(text).forEach { matchResult ->
+            val content = matchResult.groups[1]?.value ?: return@forEach
             allMatches.add(Match(
                 range = matchResult.range,
-                content = matchResult.groupValues[1],
+                content = content,
                 style = style
             ))
         }
@@ -245,6 +292,84 @@ private fun AnnotatedString.Builder.appendTextWithCustomPatterns(
     // Append remaining text
     if (currentIndex < text.length) {
         append(text.substring(currentIndex))
+    }
+}
+
+private fun AnnotatedString.Builder.appendInlineChildrenWithFallback(
+    nodes: List<ASTNode>,
+    content: String,
+    trim: Boolean,
+    inlineContents: MutableMap<String, InlineTextContent>,
+    colorScheme: ColorScheme,
+    density: Density,
+    style: TextStyle,
+    onClickCitation: (String) -> Unit,
+    rpStyleRules: List<RpStyleRule>,
+) {
+    val textBuffer = StringBuilder()
+
+    fun flushTextBuffer() {
+        if (textBuffer.isEmpty()) return
+        val text = textBuffer
+            .toString()
+            .let { source -> if (trim) source.trim() else source }
+            .replace(BREAK_LINE_REGEX, "\n")
+        appendTextWithCustomPatterns(text, rpStyleRules)
+        textBuffer.clear()
+    }
+
+    nodes.fastForEach { child ->
+        if (child is LeafASTNode) {
+            textBuffer.append(child.getTextInNode(content))
+        } else {
+            flushTextBuffer()
+            appendMarkdownNodeContent(
+                node = child,
+                content = content,
+                trim = trim,
+                inlineContents = inlineContents,
+                colorScheme = colorScheme,
+                density = density,
+                style = style,
+                onClickCitation = onClickCitation,
+                rpStyleRules = rpStyleRules
+            )
+        }
+    }
+
+    flushTextBuffer()
+}
+
+internal fun buildAnnotatedStringWithCustomPatternsForTest(
+    text: String,
+    rpStyleRules: List<RpStyleRule> = emptyList()
+): AnnotatedString {
+    return buildAnnotatedString {
+        appendTextWithCustomPatterns(text, rpStyleRules)
+    }
+}
+
+internal fun buildAnnotatedStringWithMarkdownParserForTest(
+    content: String,
+    rpStyleRules: List<RpStyleRule> = emptyList()
+): AnnotatedString {
+    val preprocessed = preProcess(content)
+    val astTree = parser.buildMarkdownTreeFromString(preprocessed)
+    val paragraph = astTree.findChildOfTypeRecursive(MarkdownElementTypes.PARAGRAPH)
+        ?: return AnnotatedString(preprocessed)
+
+    return buildAnnotatedString {
+        appendInlineChildrenWithFallback(
+            nodes = paragraph.children,
+            content = preprocessed,
+            trim = false,
+            inlineContents = mutableMapOf(),
+            colorScheme = lightColorScheme(),
+            density = Density(1f),
+            style = TextStyle.Default,
+            onClickCitation = {},
+            rpStyleRules = rpStyleRules
+        )
     }
 }
 
@@ -1129,19 +1254,17 @@ private fun Paragraph(
     ) {
         val annotatedString = remember(content, rpStyleRules) {
             buildAnnotatedString {
-                node.children.fastForEach { child ->
-                    appendMarkdownNodeContent(
-                        node = child,
-                        content = content,
-                        inlineContents = inlineContents,
-                        colorScheme = colorScheme,
-                        onClickCitation = onClickCitation,
-                        style = textStyle,
-                        density = density,
-                        trim = trim,
-                        rpStyleRules = rpStyleRules,
-                    )
-                }
+                appendInlineChildrenWithFallback(
+                    nodes = node.children,
+                    content = content,
+                    trim = trim,
+                    inlineContents = inlineContents,
+                    colorScheme = colorScheme,
+                    density = density,
+                    style = textStyle,
+                    onClickCitation = onClickCitation,
+                    rpStyleRules = rpStyleRules,
+                )
             }
         }
         Text(
