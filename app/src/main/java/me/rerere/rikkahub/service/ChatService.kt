@@ -345,6 +345,10 @@ class ChatService(
     }
 
     private fun clearLiveUpdateSession(conversationId: Uuid) {
+        val lastState = liveUpdateLastNotifiedState[conversationId] ?: liveUpdateStates[conversationId]
+        if (lastState?.isOngoing() == true) {
+            liveUpdateNotifier.cancel(conversationId)
+        }
         liveUpdateSessionIds.remove(conversationId)
         liveUpdateStates.remove(conversationId)
         liveUpdateLastNotifyAtMs.remove(conversationId)
@@ -4941,6 +4945,11 @@ class ChatService(
 
     fun deleteConversation(conversation: Conversation) {
         appScope.launch {
+            getGenerationJob(conversation.id)?.cancel()
+            removeGenerationJob(conversation.id)
+            liveUpdateNotifier.cancel(conversation.id)
+            clearLiveUpdateSession(conversation.id)
+
             val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
 
             // Cancel any pending deletion for this conversation
@@ -5347,6 +5356,8 @@ class ChatService(
     fun cleanupConversation(conversationId: Uuid) {
         getGenerationJob(conversationId)?.cancel()
         removeGenerationJob(conversationId)
+        liveUpdateNotifier.cancel(conversationId)
+        clearLiveUpdateSession(conversationId)
         conversations.remove(conversationId)
 
         Log.i(
