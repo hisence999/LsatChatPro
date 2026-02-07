@@ -255,7 +255,7 @@ class ChatCompletionsAPI(
         val host = providerSetting.baseUrl.toHttpUrl().host
         return buildJsonObject {
             put("model", params.model.modelId)
-            put("messages", buildMessages(messages))
+            put("messages", buildMessages(messages, params.model.modelId))
 
             if (isModelAllowTemperature(params.model)) {
                 if (params.temperature != null) put("temperature", params.temperature)
@@ -376,12 +376,17 @@ class ChatCompletionsAPI(
         return !ModelRegistry.OPENAI_O_MODELS.match(model.modelId) && !ModelRegistry.GPT_5.match(model.modelId)
     }
 
-    private fun buildMessages(messages: List<UIMessage>) = buildJsonArray {
-        messages
-            .filter {
-                it.isValidToUpload()
-            }
-            .forEachIndexed { index, message ->
+    private fun buildMessages(
+        messages: List<UIMessage>,
+        modelId: String
+    ) = buildJsonArray {
+        val lastUserMessageIndex = messages.indexOfLast { it.role == MessageRole.USER }
+        val requireReasoningContentForToolCalls =
+            modelId.contains("deepseek", ignoreCase = true) || modelId.contains("kimi", ignoreCase = true)
+
+        messages.forEachIndexed { index, message ->
+            if (!message.isValidToUpload()) return@forEachIndexed
+
                 if (message.role == MessageRole.TOOL) {
                     message.getToolResults().forEach { result ->
                         add(buildJsonObject {
@@ -462,8 +467,20 @@ class ChatCompletionsAPI(
                                 }
                             })
                         }
+
+                    val reasoning = message.parts
+                        .filterIsInstance<UIMessagePart.Reasoning>()
+                        .firstOrNull()
+                        ?.reasoning
+                    val shouldAttachReasoningContent =
+                        message.role == MessageRole.ASSISTANT &&
+                            index > lastUserMessageIndex &&
+                            (!reasoning.isNullOrBlank() || (requireReasoningContentForToolCalls && message.getToolCalls().isNotEmpty()))
+                    if (shouldAttachReasoningContent) {
+                        put("reasoning_content", reasoning ?: "")
+                    }
                 })
-            }
+        }
     }
 
     private fun parseMessage(jsonObject: JsonObject): UIMessage {
