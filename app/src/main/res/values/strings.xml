@@ -247,6 +247,7 @@
     <string name="group_chat_template_intro">Group intro</string>
     <string name="group_chat_template_host_system_prompt">Host instructions</string>
     <string name="group_chat_template_seat_system_prompt_edit">Edit prompt</string>
+    <string name="group_chat_template_seat_system_prompt_restore">Restore</string>
     <string name="group_chat_template_system_prompt_suffix_optional">Appended to system prompt (optional)</string>
     <string name="group_chat_template_delete">Delete group chat</string>
     <string name="group_chat_template_create">New group chat</string>

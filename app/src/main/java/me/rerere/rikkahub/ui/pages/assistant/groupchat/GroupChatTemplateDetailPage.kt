@@ -548,29 +548,45 @@ fun GroupChatTemplateDetailPage(
                     minLines = 8,
                 )
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val resolvedSeatId = seatId ?: return@TextButton
-                        val normalized = localPrompt.takeIf { it != basePrompt }
-                        vm.updateSeatOverrides(resolvedSeatId) { overrides ->
-                            overrides.copy(systemPrompt = normalized)
-                        }
-                        showSeatPromptDialog = false
-                        seatPromptDialogSeatId = null
-                    }
-                ) {
-                    Text(stringResource(R.string.assistant_page_save))
-                }
-            },
+            confirmButton = {},
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showSeatPromptDialog = false
-                        seatPromptDialogSeatId = null
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    TextButton(
+                        onClick = {
+                            localPrompt = basePrompt
+                        },
+                        enabled = localPrompt != basePrompt,
+                    ) {
+                        Text(stringResource(R.string.group_chat_template_seat_system_prompt_restore))
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        TextButton(
+                            onClick = {
+                                showSeatPromptDialog = false
+                                seatPromptDialogSeatId = null
+                            }
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                val resolvedSeatId = seatId ?: return@TextButton
+                                val normalized = localPrompt.takeIf { it != basePrompt }
+                                vm.updateSeatOverrides(resolvedSeatId) { overrides ->
+                                    overrides.copy(systemPrompt = normalized)
+                                }
+                                showSeatPromptDialog = false
+                                seatPromptDialogSeatId = null
+                            }
+                        ) {
+                            Text(stringResource(R.string.assistant_page_save))
+                        }
+                    }
                 }
             },
         )

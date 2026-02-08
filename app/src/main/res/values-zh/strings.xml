@@ -1051,6 +1051,7 @@
     <string name="group_chat_template_intro">群聊简介</string>
     <string name="group_chat_template_host_system_prompt">主持提示词</string>
     <string name="group_chat_template_seat_system_prompt_edit">提示词修改</string>
+    <string name="group_chat_template_seat_system_prompt_restore">还原</string>
     <string name="group_chat_template_system_prompt_suffix_optional">作为追加系统提示词(可选)</string>
     <string name="group_chat_template_delete">删除群聊</string>
     <string name="group_chat_template_create">新建群聊</string>

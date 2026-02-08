@@ -958,6 +958,7 @@
   <string name="group_chat_template_intro">群聊簡介</string>
   <string name="group_chat_template_host_system_prompt">主持提示詞</string>
   <string name="group_chat_template_seat_system_prompt_edit">提示詞修改</string>
+  <string name="group_chat_template_seat_system_prompt_restore">還原</string>
   <string name="group_chat_template_system_prompt_suffix_optional">作為追加系統提示詞(可選)</string>
   <string name="group_chat_template_delete">刪除群聊</string>
   <string name="group_chat_template_create">新增群聊</string>
