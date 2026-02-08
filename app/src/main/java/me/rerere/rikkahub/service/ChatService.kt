@@ -1762,7 +1762,7 @@ class ChatService(
             if (hasExternalTools && !seatModel.abilities.contains(ModelAbility.TOOL)) {
                 _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
             }
-            val seatMaxSteps = if (hasExternalTools || useBuiltInSearch) 8 else 1
+            val seatMaxSteps = if (hasExternalTools || useBuiltInSearch) 256 else 1
             val seatMemories = if (seatAssistant.enableMemory && !temporaryConversations.contains(conversationId)) {
                 val assistantId = seatAssistant.id.toString()
                 val memoryCacheKey = buildMemoryCacheKey(conversationId, assistantId)
