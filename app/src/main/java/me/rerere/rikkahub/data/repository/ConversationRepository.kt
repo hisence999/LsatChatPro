@@ -5,6 +5,14 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -21,14 +29,6 @@ import me.rerere.rikkahub.data.db.entity.DailyActivityEntity
 import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.deleteChatFiles
 import java.time.Instant
@@ -49,6 +49,8 @@ class ConversationRepository(
     companion object {
         private const val PAGE_SIZE = 20
         private const val INITIAL_LOAD_SIZE = 40
+        private const val HUGE_NODES_JSON_THRESHOLD_CHARS = 1_500_000
+        private const val MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT = 320
     }
 
     suspend fun getRecentConversations(assistantId: Uuid, limit: Int = 10): List<Conversation> {
@@ -267,9 +269,7 @@ class ConversationRepository(
     }
 
     fun conversationEntityToConversation(conversationEntity: ConversationEntity): Conversation {
-        val messageNodes = JsonInstant
-            .decodeFromString<List<MessageNode>>(migrateLegacyNodesJson(conversationEntity.nodes))
-            .filter { it.messages.isNotEmpty() }
+        val messageNodes = decodeMessageNodesSafely(conversationEntity.nodes)
         val enabledModeIds = try {
             JsonInstant.decodeFromString<List<String>>(conversationEntity.enabledModeIds)
                 .map { Uuid.parse(it) }
@@ -405,34 +405,138 @@ class ConversationRepository(
         )
     }
     fun getAverageMessageLength(assistantId: Uuid): Flow<Int> {
-        return conversationDAO.getConversationsOfAssistant(assistantId.toString())
+        return conversationDAO.getLightConversationsOfAssistant(assistantId.toString())
             .map { list ->
-                val recent = list.take(50)
-                if (recent.isEmpty()) return@map 100 // Default estimate
+                when {
+                    list.isEmpty() -> 100
+                    list.size < 5 -> 120
+                    else -> 150
+                }
+            }
+    }
 
-                var totalLength = 0L
-                var messageCount = 0
+    private fun decodeMessageNodesSafely(nodesJson: String): List<MessageNode> {
+        val safeJson = if (nodesJson.length > HUGE_NODES_JSON_THRESHOLD_CHARS) {
+            extractLastJsonArrayElements(nodesJson, MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT)
+        } else {
+            nodesJson
+        }
 
-                recent.forEach { entity ->
-                    try {
-                        val nodes = JsonInstant.decodeFromString<List<MessageNode>>(migrateLegacyNodesJson(entity.nodes))
-                        nodes.forEach { node ->
-                            node.messages.forEach { msg ->
-                                totalLength += msg.toText().length
-                                messageCount++
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+        val migrated = migrateLegacyNodesJson(safeJson)
+        val decoded = JsonInstant.decodeFromString<List<MessageNode>>(migrated)
+        return decoded.mapNotNull { node ->
+            if (node.messages.isEmpty()) {
+                null
+            } else {
+                val safeSelectIndex = node.selectIndex.coerceIn(0, node.messages.lastIndex)
+                if (safeSelectIndex == node.selectIndex) {
+                    node
+                } else {
+                    node.copy(selectIndex = safeSelectIndex)
+                }
+            }
+        }
+    }
+
+    private fun extractLastJsonArrayElements(json: String, maxElements: Int): String {
+        if (maxElements <= 0) return "[]"
+
+        val start = json.indexOfFirst { !it.isWhitespace() }
+        val end = json.indexOfLast { !it.isWhitespace() }
+        if (start < 0 || end <= start || json[start] != '[' || json[end] != ']') {
+            return json
+        }
+
+        val ranges = ArrayDeque<IntRange>()
+        var inString = false
+        var escaped = false
+        var depth = 0
+        var elementStart = -1
+
+        for (index in (start + 1) until end) {
+            val char = json[index]
+
+            if (inString) {
+                if (escaped) {
+                    escaped = false
+                } else if (char == '\\') {
+                    escaped = true
+                } else if (char == '"') {
+                    inString = false
+                }
+                continue
+            }
+
+            when (char) {
+                '"' -> inString = true
+                '{', '[' -> {
+                    if (elementStart < 0) {
+                        elementStart = index
+                    }
+                    depth += 1
+                }
+
+                '}', ']' -> {
+                    if (depth > 0) {
+                        depth -= 1
                     }
                 }
 
-                if (messageCount > 0) {
-                    (totalLength / messageCount).toInt()
-                } else {
-                    100 // Default
+                ',' -> {
+                    if (depth == 0) {
+                        if (elementStart >= 0) {
+                            var elementEnd = index - 1
+                            while (elementEnd >= elementStart && json[elementEnd].isWhitespace()) {
+                                elementEnd -= 1
+                            }
+                            if (elementEnd >= elementStart) {
+                                ranges.addLast(elementStart..elementEnd)
+                                if (ranges.size > maxElements) {
+                                    ranges.removeFirst()
+                                }
+                            }
+                        }
+                        elementStart = -1
+                    }
+                }
+
+                else -> {
+                    if (!char.isWhitespace() && elementStart < 0) {
+                        elementStart = index
+                    }
                 }
             }
+        }
+
+        if (elementStart >= 0) {
+            var elementEnd = end - 1
+            while (elementEnd >= elementStart && json[elementEnd].isWhitespace()) {
+                elementEnd -= 1
+            }
+            if (elementEnd >= elementStart) {
+                ranges.addLast(elementStart..elementEnd)
+                if (ranges.size > maxElements) {
+                    ranges.removeFirst()
+                }
+            }
+        }
+
+        if (ranges.isEmpty()) {
+            return "[]"
+        }
+
+        val builder = StringBuilder()
+        builder.append('[')
+        var first = true
+        ranges.forEach { range ->
+            if (!first) {
+                builder.append(',')
+            }
+            builder.append(json, range.first, range.last + 1)
+            first = false
+        }
+        builder.append(']')
+        return builder.toString()
     }
 
     private fun migrateLegacyNodesJson(json: String): String {

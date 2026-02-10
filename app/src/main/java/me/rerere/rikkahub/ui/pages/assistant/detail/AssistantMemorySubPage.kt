@@ -24,10 +24,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -65,7 +68,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -80,7 +82,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.R
@@ -433,7 +434,11 @@ fun AssistantMemorySettings(
                 memories = memories,
                 assistant = assistant,
                 onAddMemory = { memoryDialogState.open(AssistantMemory(0, "")) },
-                onEditMemory = { memoryDialogState.open(it) },
+                onEditMemory = {
+                    assistantDetailVM.resolveMemoryForEditing(it) { resolved ->
+                        memoryDialogState.open(resolved)
+                    }
+                },
                 onDeleteMemory = onDeleteMemory,
                 onRegenerateEmbeddings = onRegenerateEmbeddings,
                 needsEmbeddingRegeneration = needsEmbeddingRegeneration,
@@ -1072,15 +1077,32 @@ private fun ManageMemoriesSection(
             )
         )
 
-        // Memory list with animation
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(24.dp))
-                .animateContentSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            displayMemories.forEachIndexed { index, memory ->
-                key(memory.id) {
+        if (displayMemories.isEmpty()) {
+            Surface(
+                color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (memorySearchQuery.isBlank()) stringResource(R.string.assistant_page_no_memories) else stringResource(R.string.assistant_page_no_matching_memories),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(24.dp)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .animateContentSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                itemsIndexed(
+                    items = displayMemories,
+                    key = { _, memory -> memory.id }
+                ) { index, memory ->
                     val position = when {
                         displayMemories.size == 1 -> "ONLY"
                         index == 0 -> "FIRST"
@@ -1095,21 +1117,6 @@ private fun ManageMemoriesSection(
                         currentEmbeddingModelId = currentEmbeddingModelId,
                         showType = showMemoryTypes,
                         position = position
-                    )
-                }
-            }
-            
-            if (displayMemories.isEmpty()) {
-                Surface(
-                    color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = if (memorySearchQuery.isBlank()) stringResource(R.string.assistant_page_no_memories) else stringResource(R.string.assistant_page_no_matching_memories),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp)
                     )
                 }
             }

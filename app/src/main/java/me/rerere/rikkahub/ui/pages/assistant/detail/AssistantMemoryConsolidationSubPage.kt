@@ -28,7 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Psychology
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
+import me.rerere.rikkahub.data.db.dao.ChatEpisodeUiEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.utils.toLocalString
 
@@ -39,7 +39,7 @@ fun AssistantMemoryConsolidationSubPage(
     onUpdate: (Assistant) -> Unit,
     onConsolidate: (Boolean) -> Unit
 ) {
-    val episodes: List<ChatEpisodeEntity> by vm.episodes.collectAsStateWithLifecycle(initialValue = emptyList())
+    val episodes: List<ChatEpisodeUiEntity> by vm.episodes.collectAsStateWithLifecycle(initialValue = emptyList())
     val stats by vm.episodeStats.collectAsStateWithLifecycle()
     val snackbarMessage: String? by vm.snackbarMessage.collectAsStateWithLifecycle(initialValue = null)
 

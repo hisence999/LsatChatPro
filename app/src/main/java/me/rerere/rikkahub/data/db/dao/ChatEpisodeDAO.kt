@@ -7,6 +7,23 @@ import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 
+data class ChatEpisodeUiEntity(
+    val id: Int,
+    val assistantId: String,
+    val content: String,
+    val embeddingModelId: String?,
+    val startTime: Long,
+    val endTime: Long,
+    val significance: Int,
+    val conversationId: String?,
+    val hasEmbedding: Boolean,
+)
+
+data class ChatEpisodeOverviewStats(
+    val totalEpisodes: Int,
+    val averageSignificance: Double?,
+)
+
 @Dao
 interface ChatEpisodeDAO {
     @Query("SELECT * FROM ChatEpisodeEntity WHERE assistant_id = :assistantId ORDER BY end_time DESC")
@@ -17,6 +34,44 @@ interface ChatEpisodeDAO {
 
     @Query("SELECT * FROM ChatEpisodeEntity WHERE assistant_id = :assistantId ORDER BY end_time DESC")
     fun getEpisodesOfAssistantFlow(assistantId: String): Flow<List<ChatEpisodeEntity>>
+
+    @Query(
+        """
+        SELECT
+            id,
+            assistant_id AS assistantId,
+            substr(content, 1, :contentPreviewLimit) AS content,
+            embedding_model_id AS embeddingModelId,
+            start_time AS startTime,
+            end_time AS endTime,
+            significance,
+            conversation_id AS conversationId,
+            CASE
+                WHEN embedding_model_id IS NULL OR embedding_model_id = '' THEN 0
+                ELSE 1
+            END AS hasEmbedding
+        FROM ChatEpisodeEntity
+        WHERE assistant_id = :assistantId
+        ORDER BY end_time DESC
+        LIMIT :limit
+        """
+    )
+    fun getEpisodesForUiFlow(
+        assistantId: String,
+        limit: Int,
+        contentPreviewLimit: Int,
+    ): Flow<List<ChatEpisodeUiEntity>>
+
+    @Query(
+        """
+        SELECT
+            COUNT(*) AS totalEpisodes,
+            AVG(significance) AS averageSignificance
+        FROM ChatEpisodeEntity
+        WHERE assistant_id = :assistantId
+        """
+    )
+    fun getEpisodeOverviewStatsFlow(assistantId: String): Flow<ChatEpisodeOverviewStats>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEpisode(episode: ChatEpisodeEntity): Long

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,10 +14,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
-import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.Avatar
@@ -26,6 +27,8 @@ import me.rerere.rikkahub.utils.deleteChatFiles
 import kotlin.uuid.Uuid
 
 private const val TAG = "AssistantDetailVM"
+private const val UI_EPISODE_LIMIT = 400
+private const val UI_EPISODE_CONTENT_PREVIEW_LIMIT = 1200
 
 class AssistantDetailVM(
     private val id: String,
@@ -63,18 +66,24 @@ class AssistantDetailVM(
         _memorySearchQuery.value = query
     }
 
+    private val uiEpisodesFlow = chatEpisodeDAO.getEpisodesForUiFlow(
+        assistantId = assistantId.toString(),
+        limit = UI_EPISODE_LIMIT,
+        contentPreviewLimit = UI_EPISODE_CONTENT_PREVIEW_LIMIT,
+    )
+
     val memories = combine(
         memoryRepository.getMemoriesOfAssistantFlow(assistantId.toString()),
-        chatEpisodeDAO.getEpisodesOfAssistantFlow(assistantId.toString()),
+        uiEpisodesFlow,
         _memorySearchQuery
     ) { coreMemories, episodes, query ->
         val core = coreMemories
-        val episodic = episodes.map { 
+        val episodic = episodes.map {
             AssistantMemory(
                 id = -it.id, // Negative ID to distinguish from core memories
-                content = it.content, 
+                content = it.content,
                 type = 1, // EPISODIC
-                hasEmbedding = it.embedding != null,
+                hasEmbedding = it.hasEmbedding,
                 embeddingModelId = it.embeddingModelId,
                 timestamp = it.startTime,
                 significance = it.significance
@@ -100,18 +109,17 @@ class AssistantDetailVM(
         scope = viewModelScope, started = SharingStarted.Lazily, initialValue = ""
     )
 
-    val episodes = chatEpisodeDAO.getEpisodesOfAssistantFlow(assistantId.toString())
+    val episodes = uiEpisodesFlow
         .stateIn(
             scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
         )
 
-    val episodeStats = combine(episodes, memories) { episodeList, memoryList ->
-        val totalEpisodes = episodeList.size
-        val avgSig = if (totalEpisodes > 0) {
-            episodeList.sumOf { it.significance }.toDouble() / totalEpisodes
-        } else {
-            0.0
-        }
+    val episodeStats = combine(
+        chatEpisodeDAO.getEpisodeOverviewStatsFlow(assistantId.toString()),
+        memories
+    ) { episodeOverview, memoryList ->
+        val totalEpisodes = episodeOverview.totalEpisodes
+        val avgSig = episodeOverview.averageSignificance ?: 0.0
         val coreCount = memoryList.count { it.type == 0 } // 0 is CORE
         EpisodeStats(totalEpisodes, avgSig, coreCount)
     }.stateIn(viewModelScope, SharingStarted.Lazily, EpisodeStats(0, 0.0, 0))
@@ -245,6 +253,34 @@ class AssistantDetailVM(
                     pinned = memory.pinned,
                 )
             }
+        }
+    }
+
+    fun resolveMemoryForEditing(memory: AssistantMemory, onResolved: (AssistantMemory) -> Unit) {
+        if (memory.type != 1 || memory.id >= 0) {
+            onResolved(memory)
+            return
+        }
+
+        viewModelScope.launch {
+            val fullEpisode = withContext(Dispatchers.IO) {
+                chatEpisodeDAO.getEpisodeById(-memory.id)
+            }
+
+            if (fullEpisode == null) {
+                onResolved(memory)
+                return@launch
+            }
+
+            onResolved(
+                memory.copy(
+                    content = fullEpisode.content,
+                    hasEmbedding = !fullEpisode.embedding.isNullOrBlank(),
+                    embeddingModelId = fullEpisode.embeddingModelId,
+                    timestamp = fullEpisode.startTime,
+                    significance = fullEpisode.significance,
+                )
+            )
         }
     }
 
