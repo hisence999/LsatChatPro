@@ -910,8 +910,27 @@ class ChatService(
     }
 
     // 初始化对话
-    suspend fun initializeConversation(conversationId: Uuid) {
-        val conversation = conversationRepo.getConversationById(conversationId)
+    suspend fun initializeConversation(conversationId: Uuid): Boolean {
+        val loadResult = conversationRepo.getConversationByIdCatching(conversationId)
+        val loadError = loadResult.exceptionOrNull()
+        if (loadError != null) {
+            Log.e(TAG, "initializeConversation: failed to load conversationId=$conversationId", loadError)
+
+            // Treat this chat as "temporary" so we don't keep hitting DB errors while user recovers.
+            temporaryConversations.add(conversationId)
+
+            appScope.launch {
+                _errorFlow.emit(
+                    IllegalStateException(
+                        context.getString(R.string.conversation_load_failed),
+                        loadError
+                    )
+                )
+            }
+            return false
+        }
+
+        val conversation = loadResult.getOrNull()
         if (conversation != null) {
             updateConversation(conversationId, conversation)
             val settingsSnapshot = settingsStore.settingsFlow.value
@@ -921,6 +940,7 @@ class ChatService(
             } else {
                 settingsStore.updateAssistant(conversation.assistantId)
             }
+            return true
         } else {
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
@@ -941,6 +961,7 @@ class ChatService(
             }
 
             updateConversation(conversationId, initialConversation)
+            return true
         }
     }
 

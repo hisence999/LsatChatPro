@@ -108,15 +108,21 @@ class ChatVM(
 
         // 初始化对话
         viewModelScope.launch {
+            var initializedOk = false
             try {
-                chatService.initializeConversation(_conversationId)
+                initializedOk = chatService.initializeConversation(_conversationId)
             } finally {
                 _conversationInitialized.value = true
             }
-        }
 
-        // 记住对话ID, 方便下次启动恢复
-        context.writeStringPreference("lastConversationId", _conversationId.toString())
+            // 记住对话ID, 方便下次启动恢复
+            // 如果初始化失败（例如：对话过大/损坏导致无法加载），清空该值避免下次启动 crash loop。
+            if (initializedOk) {
+                context.writeStringPreference("lastConversationId", _conversationId.toString())
+            } else {
+                context.writeStringPreference("lastConversationId", null)
+            }
+        }
     }
 
     override fun onCleared() {
@@ -610,7 +616,7 @@ class ChatVM(
 
     fun updatePinnedStatus(conversation: Conversation) {
         viewModelScope.launch {
-            conversationRepo.togglePinStatus(conversation.id)
+            conversationRepo.togglePinStatus(conversation.id, conversation.isPinned)
         }
     }
 

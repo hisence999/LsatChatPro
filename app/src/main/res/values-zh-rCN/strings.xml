@@ -176,4 +176,5 @@
     <string name="permission_read_external_storage">图片与视频</string>
     <string name="permission_read_external_storage_desc">允许读取图片与视频，用于在消息中显示本地媒体内容</string>
     <string name="group_chat_template_seat_system_prompt_restore">还原</string>
+    <string name="conversation_load_failed">无法加载该对话（可能过长）。请在侧边栏删除，或新建对话继续。</string>
 </resources>

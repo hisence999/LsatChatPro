@@ -277,19 +277,16 @@ fun ChatDrawerContent(
                             }
                             
                             // Navigate to new chat
-                            val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
-                                Uuid.random()
-                            } else {
-                                withContext(Dispatchers.IO) {
-                                    repo.getConversationsOfAssistant(target.id)
-                                        .first()
-                                        .firstOrNull()
-                                        ?.id
-                                } ?: Uuid.random()
-                            }
-                            navigateToChatPage(navController = navController, chatId = id)
-                        }
-                    },
+                             val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
+                                 Uuid.random()
+                             } else {
+                                 withContext(Dispatchers.IO) {
+                                     repo.getTopConversationIdOfAssistant(target.id)
+                                 } ?: Uuid.random()
+                             }
+                             navigateToChatPage(navController = navController, chatId = id)
+                         }
+                     },
                     modifier = Modifier.fillMaxWidth(),
                     onClickSetting = {
                         when (val target = settings.chatTarget) {

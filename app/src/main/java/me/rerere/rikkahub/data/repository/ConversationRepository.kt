@@ -5,6 +5,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -55,6 +56,11 @@ class ConversationRepository(
             assistantId = assistantId.toString(),
             limit = limit
         ).map { conversationEntityToConversation(it) }
+    }
+
+    suspend fun getTopConversationIdOfAssistant(assistantId: Uuid): Uuid? {
+        val id = conversationDAO.getTopConversationIdOfAssistant(assistantId.toString()) ?: return null
+        return runCatching { Uuid.parse(id) }.getOrNull()
     }
 
     fun getConversationsOfAssistant(assistantId: Uuid): Flow<List<Conversation>> {
@@ -133,11 +139,19 @@ class ConversationRepository(
         }
     }
 
+    suspend fun getConversationByIdCatching(uuid: Uuid): Result<Conversation?> {
+        return try {
+            val entity = conversationDAO.getConversationById(uuid.toString())
+            Result.success(entity?.let { conversationEntityToConversation(it) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
     suspend fun getConversationById(uuid: Uuid): Conversation? {
-        val entity = conversationDAO.getConversationById(uuid.toString())
-        return if (entity != null) {
-            conversationEntityToConversation(entity)
-        } else null
+        return getConversationByIdCatching(uuid).getOrNull()
     }
 
     suspend fun insertConversation(conversation: Conversation) {
@@ -293,10 +307,10 @@ class ConversationRepository(
             }
     }
 
-    suspend fun togglePinStatus(conversationId: Uuid) {
+    suspend fun togglePinStatus(conversationId: Uuid, currentIsPinned: Boolean) {
         conversationDAO.updatePinStatus(
             id = conversationId.toString(),
-            isPinned = !(getConversationById(conversationId)?.isPinned ?: false)
+            isPinned = !currentIsPinned
         )
     }
 
@@ -422,6 +436,10 @@ class ConversationRepository(
     }
 
     private fun migrateLegacyNodesJson(json: String): String {
+        // Fast path: most conversations are already in the new format.
+        // Avoid parsing + rebuilding huge JSON blobs on every load.
+        if (!json.contains("me.rerere.ai.ui.UIMessagePart.Thinking")) return json
+
         try {
             val element = JsonInstant.parseToJsonElement(json)
             if (element !is JsonArray) return json

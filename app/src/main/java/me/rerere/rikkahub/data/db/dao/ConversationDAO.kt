@@ -46,6 +46,9 @@ interface ConversationDAO {
     @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC LIMIT :limit")
     suspend fun getRecentConversationsOfAssistant(assistantId: String, limit: Int): List<ConversationEntity>
 
+    @Query("SELECT id FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC LIMIT 1")
+    suspend fun getTopConversationIdOfAssistant(assistantId: String): String?
+
     @Query("SELECT COUNT(*) FROM conversationentity")
     suspend fun getConversationCount(): Int
 

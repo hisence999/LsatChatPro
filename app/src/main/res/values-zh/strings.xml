@@ -1006,6 +1006,7 @@
   <string name="theme_name_ocean">海湾蓝</string>
   <string name="theme_name_sakura">樱花粉</string>
   <string name="theme_name_spring">原野绿</string>
+  <string name="conversation_load_failed">无法加载该对话（可能过长）。请在侧边栏删除，或新建对话继续。</string>
   <string name="tools_warning">当前模型未开启工具调用，请在设置内启用模型的工具能力，再使用技能/本地工具/搜索/MCP等功能</string>
   <string name="translate">翻译</string>
   <string name="translating">翻译中...</string>
