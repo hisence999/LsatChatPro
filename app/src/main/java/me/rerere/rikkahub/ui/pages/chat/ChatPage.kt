@@ -642,6 +642,9 @@ private fun ChatPageContent(
                     onRegenerate = {
                         vm.regenerateAtMessage(it)
                     },
+                    onContinue = {
+                        vm.continueAtMessage(it)
+                    },
                     onEdit = {
                         inputState.editingMessage = it.id
                         inputState.setContents(it.parts)

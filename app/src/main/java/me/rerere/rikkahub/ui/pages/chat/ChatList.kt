@@ -146,6 +146,7 @@ fun ChatList(
     initialSearchQuery: String? = null,
     onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onRegenerate: (UIMessage) -> Unit = {},
+    onContinue: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
@@ -179,6 +180,7 @@ fun ChatList(
                     recentlyRestoredNodeIds = recentlyRestoredNodeIds,
                     onAssistantAvatarLongPress = onAssistantAvatarLongPress,
                     onRegenerate = onRegenerate,
+                    onContinue = onContinue,
                     onEdit = onEdit,
                     onForkMessage = onForkMessage,
                     onDelete = onDelete,
@@ -200,6 +202,7 @@ private fun SharedTransitionScope.ChatListNormal(
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
     onAssistantAvatarLongPress: ((Assistant) -> Unit)?,
     onRegenerate: (UIMessage) -> Unit,
+    onContinue: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
@@ -333,6 +336,9 @@ private fun SharedTransitionScope.ChatListNormal(
                             previousMessage.speakerIdentity() != message.speakerIdentity()
                         val previousRole = if (speakerChanged) null else previousMessage?.role
                         val isLast = index == conversation.messageNodes.lastIndex
+                        val canContinue = isLast &&
+                            message.role == MessageRole.ASSISTANT &&
+                            groupChatTemplateForConversation == null
                         val assistantForMessage = message.speakerSeatId
                             ?.let { seatId ->
                                 groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
@@ -365,6 +371,10 @@ private fun SharedTransitionScope.ChatListNormal(
                             onRegenerate = {
                                 onRegenerate(message)
                             },
+                            onContinue = {
+                                onContinue(message)
+                            },
+                            canContinue = canContinue,
                             onEdit = {
                                 onEdit(message)
                             },

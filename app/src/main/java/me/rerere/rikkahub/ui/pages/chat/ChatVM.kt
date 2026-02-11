@@ -589,6 +589,11 @@ class ChatVM(
         chatService.regenerateAtMessage(_conversationId, message, regenerateAssistantMsg)
     }
 
+    fun continueAtMessage(message: UIMessage) {
+        analytics.logEvent("ai_continue_at_message", null)
+        chatService.continueAtMessage(_conversationId, message)
+    }
+
     fun saveConversationAsync() {
         viewModelScope.launch {
             chatService.saveConversation(_conversationId, conversation.value)

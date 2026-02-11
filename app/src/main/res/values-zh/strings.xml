@@ -467,6 +467,8 @@
   <string name="reasoning_off_desc">关闭推理功能，模型将直接回答问题。</string>
   <string name="reasoning_set_budget">设置推理预算 (%1$d tokens)</string>
   <string name="regenerate">重新生成</string>
+  <string name="chat_continue_only_last_assistant_message">仅支持对最新一条模型消息进行续写。</string>
+  <string name="chat_continue_group_chat_not_supported">群聊暂不支持续写。</string>
   <string name="render_with_webview">网页视图渲染</string>
   <string name="search_ability_scrape">抓取</string>
   <string name="search_ability_search">搜索</string>
@@ -1260,6 +1262,7 @@
     <string name="a11y_sent">已发送</string>
     <string name="a11y_show_more">查看更多</string>
     <string name="a11y_speed">速度</string>
+    <string name="a11y_continue_generation">继续续写</string>
     <string name="a11y_toggle_view_mode">切换视图模式</string>
     <string name="a11y_tts_settings">TTS 设置</string>
     <string name="a11y_logo">Logo</string>

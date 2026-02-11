@@ -1142,11 +1142,76 @@ class ChatService(
         }
     }
 
+    fun continueAtMessage(
+        conversationId: Uuid,
+        message: UIMessage,
+    ) {
+        getGenerationJob(conversationId)?.cancel()
+
+        val job = appScope.launch {
+            try {
+                val conversation = getConversationFlow(conversationId).value
+                val messageNode = conversation.getMessageNodeByMessageId(message.id)
+                val nodeIndex = messageNode?.let { node -> conversation.messageNodes.indexOf(node) } ?: -1
+                val isLastAssistantMessage =
+                    message.role == MessageRole.ASSISTANT &&
+                        nodeIndex == conversation.messageNodes.lastIndex
+
+                if (!isLastAssistantMessage) {
+                    _errorFlow.emit(
+                        IllegalStateException(context.getString(R.string.chat_continue_only_last_assistant_message))
+                    )
+                    return@launch
+                }
+
+                val settings = settingsStore.settingsFlow.first()
+                val isGroupChat = settings.groupChatTemplates.any { it.id == conversation.assistantId }
+                if (isGroupChat) {
+                    _errorFlow.emit(
+                        IllegalStateException(context.getString(R.string.chat_continue_group_chat_not_supported))
+                    )
+                    return@launch
+                }
+
+                val originalText = message.toContentText()
+                val continuePrompt = buildHiddenContinuePrompt(
+                    previousAssistantText = originalText,
+                    tailChars = CONTINUE_TAIL_CHARS_DEFAULT,
+                )
+
+                handleMessageComplete(
+                    conversationId = conversationId,
+                    messageRange = 0..nodeIndex,
+                    continueRequest = HiddenContinueRequestConfig(prompt = continuePrompt),
+                    continuationDedupeConfig = ContinuationDedupeConfig(
+                        targetMessageId = message.id,
+                        originalText = originalText,
+                    ),
+                )
+
+                _generationDoneFlow.emit(conversationId)
+            } catch (e: Exception) {
+                _errorFlow.emit(e)
+            }
+        }
+
+        setGenerationJob(conversationId, job)
+        job.invokeOnCompletion {
+            setGenerationJob(conversationId, null)
+            appScope.launch {
+                delay(500)
+                checkAllConversationsReferences()
+            }
+        }
+    }
+
     // 处理消息补全
     private suspend fun handleMessageComplete(
         conversationId: Uuid,
         messageRange: ClosedRange<Int>? = null,
         groupChatSpeakerSeatIdsOverride: List<Uuid>? = null,
+        continueRequest: HiddenContinueRequestConfig? = null,
+        continuationDedupeConfig: ContinuationDedupeConfig? = null,
     ) {
         val settings = settingsStore.settingsFlow.first()
         val useLiveUpdate = shouldUseLiveUpdate(settings)
@@ -1221,6 +1286,10 @@ class ChatService(
             } else {
                 null
             }
+            val continueRequestTransformer = continueRequest
+                ?.prompt
+                ?.takeIf { prompt -> prompt.isNotBlank() }
+                ?.let { prompt -> HiddenContinueRequestTransformer(prompt) }
 
             if (useLiveUpdate) {
                 startLiveUpdateSession(conversationId)
@@ -1400,6 +1469,7 @@ class ChatService(
                 },
                 inputTransformers = buildList {
                     appContextTransformer?.let(::add)
+                    continueRequestTransformer?.let(::add)
                     addAll(inputTransformers)
                     add(templateTransformer)
                 },
@@ -1577,7 +1647,14 @@ class ChatService(
             if (shouldConsumeWelcomePhraseAppContext) {
                 pendingUiWelcomePhraseForAppContext.remove(conversationId)
             }
-            val finalConversation = getConversationFlow(conversationId).value
+            var finalConversation = getConversationFlow(conversationId).value
+            continuationDedupeConfig?.let { config ->
+                val dedupedConversation = applyContinuationDedupe(finalConversation, config)
+                if (dedupedConversation != finalConversation) {
+                    finalConversation = dedupedConversation
+                    updateConversation(conversationId, dedupedConversation)
+                }
+            }
             saveConversation(conversationId, finalConversation)
 
             addConversationReference(conversationId) // 添加引用

@@ -1,9 +1,13 @@
 
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -33,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -60,6 +65,8 @@ import me.rerere.rikkahub.data.datastore.getEffectiveDisplaySetting
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
+import me.rerere.rikkahub.ui.hooks.HapticPattern
+import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toLocalString
 
@@ -69,6 +76,8 @@ fun ColumnScope.ChatMessageActionButtons(
     node: MessageNode,
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
+    onContinue: () -> Unit,
+    canContinue: Boolean,
     onOpenActionSheet: () -> Unit,
     onEditLorebookEntry: ((UsedLorebookEntry) -> Unit)? = null,
     onModeClick: ((me.rerere.ai.ui.UsedMode) -> Unit)? = null,
@@ -77,6 +86,7 @@ fun ColumnScope.ChatMessageActionButtons(
     val context = LocalContext.current
     val settings = LocalSettings.current
     val effectiveDisplay = settings.getEffectiveDisplaySetting()
+    val haptics = rememberPremiumHaptics(enabled = effectiveDisplay.enableUIHaptics)
     var isPendingDelete by remember { mutableStateOf(false) }
     var showContextSheet by remember { mutableStateOf(false) }
     
@@ -85,6 +95,13 @@ fun ColumnScope.ChatMessageActionButtons(
     val usedMemories = message.usedMemories ?: emptyList()
     val hasContextSources = usedEntries.isNotEmpty() || usedModes.isNotEmpty() || usedMemories.isNotEmpty()
     val showContextStacks = effectiveDisplay.showContextStacks && hasContextSources
+    val regenerateInteractionSource = remember { MutableInteractionSource() }
+    val isRegeneratePressed by regenerateInteractionSource.collectIsPressedAsState()
+    val regenerateScale by animateFloatAsState(
+        targetValue = if (isRegeneratePressed) 0.85f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "message_regenerate_scale"
+    )
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -140,8 +157,29 @@ fun ColumnScope.ChatMessageActionButtons(
 
         Icon(
             Icons.Rounded.Refresh, stringResource(R.string.regenerate), modifier = Modifier
+                .graphicsLayer {
+                    scaleX = regenerateScale
+                    scaleY = regenerateScale
+                }
                 .clip(CircleShape)
-                .clickable { onRegenerate() }
+                .combinedClickable(
+                    interactionSource = regenerateInteractionSource,
+                    indication = LocalIndication.current,
+                    onClick = { onRegenerate() },
+                    onLongClick = if (canContinue) {
+                        {
+                            haptics.perform(HapticPattern.Pop)
+                            onContinue()
+                        }
+                    } else {
+                        null
+                    },
+                    onLongClickLabel = if (canContinue) {
+                        stringResource(R.string.a11y_continue_generation)
+                    } else {
+                        null
+                    }
+                )
                 .padding(8.dp)
                 .size(16.dp)
         )

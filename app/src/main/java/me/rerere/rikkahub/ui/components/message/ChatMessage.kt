@@ -168,6 +168,8 @@ fun ChatMessage(
     onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
+    onContinue: () -> Unit,
+    canContinue: Boolean,
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
@@ -305,6 +307,8 @@ fun ChatMessage(
             ChatMessageActionButtons(
                 message = message,
                 onRegenerate = onRegenerate,
+                onContinue = onContinue,
+                canContinue = canContinue,
                 node = node,
                 onUpdate = onUpdate,
                 onOpenActionSheet = {

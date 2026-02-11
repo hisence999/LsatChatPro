@@ -407,6 +407,8 @@ fun AssistantPromptSubPage(
                                     onCitationClick = {},
                                     onFork = {},
                                     onRegenerate = {},
+                                    onContinue = {},
+                                    canContinue = false,
                                     onEdit = {},
                                     onShare = {},
                                     onDelete = {},
