@@ -35,18 +35,23 @@ internal fun buildHiddenContinuePrompt(
 
     return buildString {
         appendLine("[CONTINUE_REQUEST_BEGIN]")
-        appendLine("请紧接上一条助手消息继续写。")
-        appendLine("硬性要求：")
-        appendLine("- 只输出续写后的新内容。")
-        appendLine("- 不要重复、改写、总结或复述任何已经写过的句子。")
-        appendLine("- 不要解释你在续写，也不要输出提示语（例如“继续如下”）。")
-        appendLine("- 保持与上一条回复一致的语言、语气和格式。")
+        appendLine("Continue directly from the previous assistant message.")
+        appendLine()
+        appendLine("Hard requirements:")
+        appendLine("- Output only the new continuation.")
+        appendLine("- Do not repeat, paraphrase, summarize, or rewrite any existing text.")
+        appendLine("- Do not explain that you are continuing, and do not add any preface.")
+        appendLine("- Keep exactly the same language, tone, and formatting as the previous assistant message.")
+        appendLine("- Preserve structural continuity (headings, lists, code blocks, punctuation style).")
         if (normalizedTail.isNotBlank()) {
-            appendLine("上一条回复末尾参考片段（仅用于衔接，不要重复）：")
+            appendLine()
+            appendLine("Reference tail from the previous assistant message (for continuity only; do not repeat):")
             appendLine("<<<")
             appendLine(normalizedTail)
             appendLine(">>>")
         }
+        appendLine()
+        appendLine("If the previous assistant message is incomplete, continue from the first unfinished thought.")
         appendLine("[CONTINUE_REQUEST_END]")
     }.trim()
 }
