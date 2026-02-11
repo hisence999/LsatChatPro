@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,7 +40,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,15 +56,63 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.ToastType
+import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun SettingAboutPage() {
+fun SettingAboutPage(vm: SettingVM = koinViewModel()) {
     val context = LocalContext.current
+    val navController = LocalNavController.current
+    val toaster = LocalToaster.current
+    val haptics = rememberPremiumHaptics()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+
+    var logoTapCount by rememberSaveable { mutableIntStateOf(0) }
+    var lastLogoTapTs by rememberSaveable { mutableLongStateOf(0L) }
+
+    fun onLogoTap() {
+        val now = System.currentTimeMillis()
+        logoTapCount = if (now - lastLogoTapTs <= 1500L) logoTapCount + 1 else 1
+        lastLogoTapTs = now
+
+        haptics.perform(HapticPattern.Pop)
+
+        if (logoTapCount >= 3) {
+            logoTapCount = 0
+            val alreadyEnabled = settings.developerMode
+            if (!alreadyEnabled) {
+                vm.updateSettings(settings.copy(developerMode = true))
+                toaster.show(
+                    message = context.getString(R.string.setting_about_page_developer_unlocked),
+                    type = ToastType.Success
+                )
+            } else {
+                toaster.show(
+                    message = context.getString(R.string.setting_about_page_developer_already_enabled),
+                    type = ToastType.Info
+                )
+            }
+            haptics.perform(HapticPattern.Success)
+            navController.navigate(Screen.Developer)
+        }
+    }
+
+    val logoInteractionSource = remember { MutableInteractionSource() }
+    val logoPressed by logoInteractionSource.collectIsPressedAsState()
+    val logoScale by animateFloatAsState(
+        targetValue = if (logoPressed) 0.85f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "about_logo_scale"
+    )
 
     Scaffold(
         topBar = {
@@ -83,7 +136,17 @@ fun SettingAboutPage() {
             Image(
                 painter = painterResource(R.mipmap.ic_launcher_lastchat_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(240.dp)
+                modifier = Modifier
+                    .size(240.dp)
+                    .graphicsLayer {
+                        scaleX = logoScale
+                        scaleY = logoScale
+                    }
+                    .clickable(
+                        interactionSource = logoInteractionSource,
+                        indication = null,
+                        onClick = ::onLogoTap
+                    )
             )
 
             // App Name

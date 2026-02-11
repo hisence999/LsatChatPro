@@ -26,7 +26,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -57,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
-import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudUpload
@@ -119,20 +117,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     BackButton()
-                },
-                actions = {
-                    if(settings.developerMode) {
-                        IconButton(
-                            onClick = {
-                                navController.navigate(Screen.Developer)
-                            }
-                        ) {
-                            Icon(
-                                Icons.Rounded.Build,
-                                contentDescription = stringResource(R.string.developer_page_tab_developer)
-                            )
-                        }
-                    }
                 }
             )
         },

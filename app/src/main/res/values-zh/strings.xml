@@ -1314,6 +1314,8 @@
     <string name="setting_about_page_source_code_title">源代码</string>
     <string name="setting_about_page_system_info_title">系统信息</string>
     <string name="setting_about_page_version_format">v%1$s</string>
+    <string name="setting_about_page_developer_unlocked">开发者模式已开启</string>
+    <string name="setting_about_page_developer_already_enabled">开发者模式已开启</string>
     <string name="unknown">未知</string>
     <string name="setting_search_page_api_key">API Key</string>
     <string name="setting_search_page_api_url">API URL</string>
@@ -1400,7 +1402,12 @@
   <string name="setting_provider_page_override_name_format">%1$s（重写）</string>
   <string name="developer_page_title">开发者页面</string>
   <string name="developer_page_tab_developer">开发者</string>
+  <string name="developer_page_tab_debug_tools">调试工具</string>
   <string name="developer_page_tab_request_logs">请求日志</string>
+  <string name="developer_option_markdown_font_debug_title">显示 Markdown 字体诊断</string>
+  <string name="developer_option_markdown_font_debug_desc">在聊天气泡下显示字体来源和字重等诊断信息。</string>
+  <string name="developer_option_markdown_font_debug_tip">开启后回到聊天页，发送包含 **粗体** 的消息观察效果。</string>
+  <string name="developer_option_request_logs_title">打开请求日志</string>
   <string name="setting_request_logs_desc">查看 AI 请求日志。</string>
   <string name="setting_request_logs_enable_developer_mode_first">需要先开启开发者模式。</string>
   <string name="request_logs_empty">还没有请求日志</string>

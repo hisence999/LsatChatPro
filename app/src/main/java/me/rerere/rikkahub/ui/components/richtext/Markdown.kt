@@ -170,8 +170,8 @@ private fun parseRpColor(colorHex: String): Color? {
 private fun spanStyleForPattern(pattern: String, color: Color?): SpanStyle {
     return when (pattern) {
         "*" -> SpanStyle(fontStyle = FontStyle.Italic, color = color ?: Color.Unspecified)
-        "**" -> SpanStyle(fontWeight = FontWeight.SemiBold, color = color ?: Color.Unspecified)
-        "***" -> SpanStyle(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic, color = color ?: Color.Unspecified)
+        "**" -> SpanStyle(fontWeight = FontWeight.Bold, color = color ?: Color.Unspecified)
+        "***" -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, color = color ?: Color.Unspecified)
         "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough, color = color ?: Color.Unspecified)
         "`" -> SpanStyle(fontFamily = FontFamily.Monospace, color = color ?: Color.Unspecified)
         else -> SpanStyle(color = color ?: Color.Unspecified)
@@ -714,7 +714,7 @@ private fun MarkdownNode(
         }
 
         MarkdownElementTypes.STRONG -> {
-            ProvideTextStyle(TextStyle(fontWeight = FontWeight.SemiBold)) {
+            ProvideTextStyle(TextStyle(fontWeight = FontWeight.Bold)) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
                         node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
@@ -1390,7 +1390,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
             // Check for RP color rule for pattern "**" (strong emphasis)
             val strongRule = rpStyleRules.find { it.pattern == "**" && it.enabled }
             val strongColor = strongRule?.let { runCatching { Color(android.graphics.Color.parseColor(it.colorHex)) }.getOrNull() }
-            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = strongColor ?: Color.Unspecified)) {
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = strongColor ?: Color.Unspecified)) {
                 node.children.trim(MarkdownTokenTypes.EMPH, 2).fastForEach {
                     appendMarkdownNodeContent(
                         node = it,

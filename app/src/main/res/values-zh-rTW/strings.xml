@@ -1303,6 +1303,8 @@
   <string name="setting_about_page_source_code_title">源代碼</string>
   <string name="setting_about_page_system_info_title">系統信息</string>
   <string name="setting_about_page_version_format">v%1$s</string>
+  <string name="setting_about_page_developer_unlocked">開發者模式已啟用</string>
+  <string name="setting_about_page_developer_already_enabled">開發者模式已啟用</string>
   <string name="unknown">未知</string>
   <string name="setting_search_page_api_key">API Key</string>
   <string name="setting_search_page_api_url">API URL</string>
@@ -1381,6 +1383,11 @@
   <string name="setting_provider_page_override_name_format">%1$s（重寫）</string>
   <string name="developer_page_title">開發者頁面</string>
   <string name="developer_page_tab_developer">開發者</string>
+  <string name="developer_page_tab_debug_tools">偵錯工具</string>
+  <string name="developer_option_markdown_font_debug_title">顯示 Markdown 字型診斷</string>
+  <string name="developer_option_markdown_font_debug_desc">在聊天氣泡下顯示字型來源與字重等診斷資訊。</string>
+  <string name="developer_option_markdown_font_debug_tip">啟用後回到聊天頁，發送包含 **粗體** 的訊息觀察效果。</string>
+  <string name="developer_option_request_logs_title">打開請求日誌</string>
   <string name="a11y_messages">消息</string>
   <string name="a11y_chat_options">對話選項</string>
   <string name="a11y_make_normal_chat">轉為普通對話</string>

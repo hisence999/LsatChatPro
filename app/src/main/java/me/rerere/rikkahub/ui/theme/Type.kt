@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import me.rerere.rikkahub.R
+import kotlin.math.roundToInt
 
 /**
  * Material 3 Expressive Typography using Google Sans Flex variable font.
@@ -327,13 +328,26 @@ fun rememberFontFamilyFromConfig(config: me.rerere.rikkahub.data.datastore.FontC
             me.rerere.rikkahub.data.datastore.FontSource.System -> {
                 // Use Google Sans Flex with roundness control
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    createDynamicFontFamily(
-                        resourceId = R.font.google_sans_flex,
-                        weight = config.weight,
-                        width = config.width,
-                        roundness = config.roundness,
-                        grade = config.grade
-                    )
+                    if (shouldUseWeightSynthesisFallback()) {
+                        // Xiaomi / HyperOS compatibility:
+                        // Some devices flatten variable-font weight differences.
+                        // Use a single base weight and let text engine synthesize bold.
+                        createSingleWeightDynamicFontFamily(
+                            resourceId = R.font.google_sans_flex,
+                            baseWeight = config.weight,
+                            width = config.width,
+                            roundness = config.roundness,
+                            grade = config.grade
+                        )
+                    } else {
+                        createDynamicFontFamily(
+                            resourceId = R.font.google_sans_flex,
+                            weight = config.weight,
+                            width = config.width,
+                            roundness = config.roundness,
+                            grade = config.grade
+                        )
+                    }
                 } else {
                     GoogleSansFlexExpressive
                 }
@@ -421,6 +435,35 @@ fun rememberFontFamilyFromConfig(config: me.rerere.rikkahub.data.datastore.FontC
             }
         }
     }
+}
+
+private fun shouldUseWeightSynthesisFallback(): Boolean {
+    val manufacturer = Build.MANUFACTURER.lowercase()
+    val brand = Build.BRAND.lowercase()
+    return manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ||
+        brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")
+}
+
+private fun createSingleWeightDynamicFontFamily(
+    resourceId: Int,
+    baseWeight: Float,
+    width: Float,
+    roundness: Float,
+    grade: Float
+): FontFamily {
+    val clampedWeight = baseWeight.roundToInt().coerceIn(100, 900)
+    return FontFamily(
+        Font(
+            resourceId,
+            weight = FontWeight.Normal,
+            variationSettings = FontVariation.Settings(
+                FontVariation.weight(clampedWeight),
+                FontVariation.width(width),
+                FontVariation.Setting("ROND", roundness),
+                FontVariation.Setting("GRAD", grade)
+            )
+        )
+    )
 }
 
 /**

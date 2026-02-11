@@ -111,6 +111,7 @@ class SettingsStore(
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
         val LIVE_UPDATE_DEFAULT_APPLIED = booleanPreferencesKey("live_update_default_applied")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
+        val SHOW_MARKDOWN_FONT_DEBUG_INFO = booleanPreferencesKey("show_markdown_font_debug_info")
         val ENABLE_RAG_LOGGING = booleanPreferencesKey("enable_rag_logging")
 
         // 模型选择
@@ -367,6 +368,7 @@ class SettingsStore(
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 developerMode = preferences[DEVELOPER_MODE] == true,
+                showMarkdownFontDebugInfo = preferences[SHOW_MARKDOWN_FONT_DEBUG_INFO] != false,
                 enableRagLogging = preferences[ENABLE_RAG_LOGGING] == true,
                 displaySetting = decodeDisplaySettingCompat(preferences[DISPLAY_SETTING]),
                 textSelectionConfig = preferences[TEXT_SELECTION_CONFIG]?.let {
@@ -585,6 +587,7 @@ class SettingsStore(
             preferences[DYNAMIC_COLOR] = finalSettingsToSave.dynamicColor
             preferences[THEME_ID] = finalSettingsToSave.themeId
             preferences[DEVELOPER_MODE] = finalSettingsToSave.developerMode
+            preferences[SHOW_MARKDOWN_FONT_DEBUG_INFO] = finalSettingsToSave.showMarkdownFontDebugInfo
             preferences[ENABLE_RAG_LOGGING] = finalSettingsToSave.enableRagLogging
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(finalSettingsToSave.displaySetting)
             preferences[TEXT_SELECTION_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.textSelectionConfig)
@@ -692,6 +695,7 @@ data class Settings(
     val dynamicColor: Boolean = true,
     val themeId: String = PresetThemes[0].id,
     val developerMode: Boolean = false,
+    val showMarkdownFontDebugInfo: Boolean = false,
     val enableRagLogging: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
     val textSelectionConfig: TextSelectionConfig = TextSelectionConfig(),

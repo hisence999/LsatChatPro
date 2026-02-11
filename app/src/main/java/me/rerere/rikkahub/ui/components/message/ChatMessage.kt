@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -63,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
@@ -86,6 +90,8 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.FontConfig
+import me.rerere.rikkahub.data.datastore.FontSource
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Conversation
@@ -103,10 +109,48 @@ import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
 private val EmptyJson = JsonObject(emptyMap())
+
+private fun hasGlyphInConfiguredFont(context: android.content.Context, config: FontConfig, sample: String): Boolean? {
+    val typeface = runCatching {
+        when (config.fontSource) {
+            FontSource.System -> ResourcesCompat.getFont(context, R.font.google_sans_flex)
+            FontSource.SystemCode -> ResourcesCompat.getFont(context, R.font.google_sans_code)
+            FontSource.Custom -> config.customFontPath
+                ?.let { path -> kotlin.runCatching { Typeface.createFromFile(path) }.getOrNull() }
+        }
+    }.getOrNull() ?: return null
+
+    val paint = Paint().apply { this.typeface = typeface }
+    return runCatching { paint.hasGlyph(sample) }.getOrNull()
+}
+
+@Composable
+private fun MarkdownFontDebugInfo(role: MessageRole) {
+    val context = LocalContext.current
+    val settings = LocalSettings.current
+    if (!settings.developerMode || !settings.showMarkdownFontDebugInfo) return
+
+    val contentConfig = settings.displaySetting.fontSettings.contentFont
+    val style = LocalTextStyle.current
+    val styleWeight = style.fontWeight?.weight
+    val configuredWeight = contentConfig.weight.roundToInt()
+    val styleFamily = style.fontFamily?.toString() ?: "null"
+    val glyphZh = remember(contentConfig, context) { hasGlyphInConfiguredFont(context, contentConfig, "测试") }
+
+    Text(
+        text = "字体诊断 role=${role.name} 设备=${Build.MANUFACTURER} src=${contentConfig.fontSource.name} cfgW=$configuredWeight styleW=${styleWeight ?: "null"} zhGlyph=${glyphZh ?: "unknown"} family=$styleFamily",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 4.dp)
+    )
+}
 
 @Composable
 fun ChatMessage(
@@ -361,7 +405,7 @@ private fun MessagePartsBlock(
     }
 
     // Text
-    parts.filterIsInstance<UIMessagePart.Text>().fastForEach { part ->
+    parts.filterIsInstance<UIMessagePart.Text>().fastForEachIndexed { index, part ->
         if (role == MessageRole.USER) {
             Card(
                 onClick = onBubbleClick,
@@ -385,27 +429,35 @@ private fun MessagePartsBlock(
                             handleClickCitation(id)
                         }
                     )
+                    if (index == 0) {
+                        MarkdownFontDebugInfo(role = role)
+                    }
                 }
             }
         } else {
-            MarkdownBlock(
-                content = part.text.replaceRegexes(
-                    assistant = assistant,
-                    scope = AssistantAffectScope.ASSISTANT,
-                    visual = true,
-                ),
-                onClickCitation = { id ->
-                    handleClickCitation(id)
-                },
-                modifier = Modifier
-                    .clickable(onClick = onBubbleClick)
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = 0.7f,
-                            stiffness = 300f
+            Column {
+                MarkdownBlock(
+                    content = part.text.replaceRegexes(
+                        assistant = assistant,
+                        scope = AssistantAffectScope.ASSISTANT,
+                        visual = true,
+                    ),
+                    onClickCitation = { id ->
+                        handleClickCitation(id)
+                    },
+                    modifier = Modifier
+                        .clickable(onClick = onBubbleClick)
+                        .animateContentSize(
+                            animationSpec = spring(
+                                dampingRatio = 0.7f,
+                                stiffness = 300f
+                            )
                         )
-                    )
-            )
+                )
+                if (index == 0) {
+                    MarkdownFontDebugInfo(role = role)
+                }
+            }
         }
     }
 
