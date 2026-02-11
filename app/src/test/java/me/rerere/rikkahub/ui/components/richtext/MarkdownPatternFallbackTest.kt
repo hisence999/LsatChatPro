@@ -21,7 +21,7 @@ class MarkdownPatternFallbackTest {
         val strongSpan = annotated.spanStyles.firstOrNull { span ->
             span.start <= start &&
                 span.end >= end &&
-                span.item.fontWeight == FontWeight.Bold
+                span.item.fontWeight == FontWeight.SemiBold
         }
 
         assertNotNull(strongSpan)
@@ -35,7 +35,7 @@ class MarkdownPatternFallbackTest {
 
         val span = annotated.spanStyles.firstOrNull()
         assertNotNull(span)
-        assertEquals(FontWeight.Bold, span?.item?.fontWeight)
+        assertEquals(FontWeight.SemiBold, span?.item?.fontWeight)
         assertEquals(FontStyle.Italic, span?.item?.fontStyle)
     }
 
@@ -45,7 +45,7 @@ class MarkdownPatternFallbackTest {
 
         assertEquals("* hello *", annotated.text)
         val styledSpan = annotated.spanStyles.firstOrNull {
-            it.item.fontStyle == FontStyle.Italic || it.item.fontWeight == FontWeight.Bold
+            it.item.fontStyle == FontStyle.Italic || it.item.fontWeight == FontWeight.SemiBold
         }
 
         assertNull(styledSpan)
@@ -64,7 +64,7 @@ class MarkdownPatternFallbackTest {
         val strongSpan = annotated.spanStyles.firstOrNull { span ->
             span.start <= start &&
                 span.end >= end &&
-                span.item.fontWeight == FontWeight.Bold
+                span.item.fontWeight == FontWeight.SemiBold
         }
 
         assertNotNull(strongSpan)
@@ -83,7 +83,7 @@ class MarkdownPatternFallbackTest {
         val strongSpan = annotated.spanStyles.firstOrNull { span ->
             span.start <= start &&
                 span.end >= end &&
-                span.item.fontWeight == FontWeight.Bold
+                span.item.fontWeight == FontWeight.SemiBold
         }
 
         assertNotNull(strongSpan)
