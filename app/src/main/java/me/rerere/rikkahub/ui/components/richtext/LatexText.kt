@@ -17,8 +17,9 @@ import androidx.compose.ui.unit.TextUnit
 import ru.noties.jlatexmath.JLatexMathDrawable
 
 fun assumeLatexSize(latex: String, fontSize: Float): Rect {
+    val processedLatex = processLatex(latex)
     return runCatching {
-        JLatexMathDrawable.builder(latex)
+        JLatexMathDrawable.builder(processedLatex)
             .textSize(fontSize)
             .padding(0)
             .build()
