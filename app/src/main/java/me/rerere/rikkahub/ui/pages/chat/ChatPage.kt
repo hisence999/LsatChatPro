@@ -69,6 +69,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -780,6 +781,7 @@ private fun ChatPageContent(
                                 )
                                 val fontSizeRatio = setting.displaySetting.fontSizeRatio
                                 val welcomeTextStyle = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Medium,
                                     fontSize = MaterialTheme.typography.headlineSmall.fontSize * fontSizeRatio,
                                     lineHeight = 34.sp * fontSizeRatio,
                                     color = MaterialTheme.colorScheme.onSurface,
