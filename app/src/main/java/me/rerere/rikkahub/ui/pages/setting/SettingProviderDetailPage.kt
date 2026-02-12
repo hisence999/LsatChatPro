@@ -29,8 +29,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -775,22 +773,9 @@ private fun ModelList(
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onUpdateProvider(providerSetting.moveMove(from.index, to.index))
     }
-    val density = LocalDensity.current
     val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
     
-    // State for swipe neighbor tracking
-    var draggingIndex by remember { mutableStateOf(-1) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var isUnlocked by remember { mutableStateOf(false) }
-    var neighborsUnlocked by remember { mutableStateOf(false) }
-    
-    
     val canDelete = providerSetting.models.size > 1
-    
-    // Reset neighborsUnlocked when offset returns to 0
-    if (dragOffset == 0f && neighborsUnlocked) {
-        neighborsUnlocked = false
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -815,28 +800,6 @@ private fun ModelList(
                     else -> ItemPosition.MIDDLE
                 }
                 
-                // Calculate neighbor offset
-                val thresholdPx = with(density) { 35.dp.toPx() }
-                if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
-                    neighborsUnlocked = true
-                }
-                
-                val shouldNeighborFollow = draggingIndex >= 0 && 
-                    draggingIndex != index && 
-                    !isUnlocked && 
-                    !neighborsUnlocked
-                
-                val neighborOffset = if (shouldNeighborFollow) {
-                    val distance = kotlin.math.abs(index - draggingIndex)
-                    when (distance) {
-                        1 -> dragOffset * 0.35f
-                        2 -> dragOffset * 0.12f
-                        else -> 0f
-                    }
-                } else {
-                    0f
-                }
-                
                 ReorderableItem(
                     state = reorderableLazyListState,
                     key = item.id
@@ -847,18 +810,6 @@ private fun ModelList(
                             model = item,
                             position = position,
                             canDelete = canDelete,
-                            neighborOffset = neighborOffset,
-                            onDragProgress = { offset, unlocked ->
-                                draggingIndex = index
-                                dragOffset = offset
-                                isUnlocked = unlocked
-                            },
-                            onDragEnd = {
-                                if (draggingIndex == index) {
-                                    draggingIndex = -1
-                                    dragOffset = 0f
-                                }
-                            },
                             onDelete = {
                                 onUpdateProvider(providerSetting.delModel(item))
                             },
@@ -2082,9 +2033,6 @@ private fun ModelCard(
     model: Model,
     position: ItemPosition,
     canDelete: Boolean,
-    neighborOffset: Float,
-    onDragProgress: (Float, Boolean) -> Unit,
-    onDragEnd: () -> Unit,
     onDelete: () -> Unit,
     onEdit: (Model) -> Unit,
     parentProvider: ProviderSetting,
@@ -2176,15 +2124,7 @@ private fun ModelCard(
         }
     }
 
-    PhysicsSwipeToDelete(
-        position = position,
-        deleteEnabled = canDelete,
-        neighborOffset = neighborOffset,
-        onDragProgress = onDragProgress,
-        onDragEnd = onDragEnd,
-        onDelete = onDelete,
-        modifier = modifier.fillMaxWidth()
-    ) {
+    val cardContent: @Composable () -> Unit = {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2236,6 +2176,14 @@ private fun ModelCard(
             }
             dragHandle()
         }
+    }
+    PhysicsSwipeToDelete(
+        position = position,
+        deleteEnabled = canDelete,
+        onDelete = onDelete,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        cardContent()
     }
 }
 

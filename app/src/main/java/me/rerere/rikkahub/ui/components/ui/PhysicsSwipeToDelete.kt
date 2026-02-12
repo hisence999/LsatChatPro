@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,24 +40,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 /**
  * Position of item in a group for corner radius calculation
@@ -184,24 +178,18 @@ fun PhysicsSwipeToDelete(
     
     // Calculate shape based on animated position and unlock progress
     // Only apply unlock progress if this item is being dragged (not neighbor influence)
-    val shape by remember {
-        derivedStateOf {
-            // Only interpolate corners for own unlock progress (not neighbor influence)
-            val ownUnlockProgress = if (neighborOffset == 0f) unlockProgress else 0f
-            
-            val finalTopStart = animatedTopRadius + (groupRadiusPx - animatedTopRadius) * ownUnlockProgress
-            val finalTopEnd = animatedTopRadius + (groupRadiusPx - animatedTopRadius) * ownUnlockProgress
-            val finalBottomEnd = animatedBottomRadius + (groupRadiusPx - animatedBottomRadius) * ownUnlockProgress
-            val finalBottomStart = animatedBottomRadius + (groupRadiusPx - animatedBottomRadius) * ownUnlockProgress
-            
-            RoundedCornerShape(
-                topStart = with(density) { finalTopStart.toDp() },
-                topEnd = with(density) { finalTopEnd.toDp() },
-                bottomEnd = with(density) { finalBottomEnd.toDp() },
-                bottomStart = with(density) { finalBottomStart.toDp() }
-            )
-        }
-    }
+    // Only interpolate corners for own unlock progress (not neighbor influence)
+    val ownUnlockProgress = if (neighborOffset == 0f) unlockProgress else 0f
+    val finalTopStart = animatedTopRadius + (groupRadiusPx - animatedTopRadius) * ownUnlockProgress
+    val finalTopEnd = animatedTopRadius + (groupRadiusPx - animatedTopRadius) * ownUnlockProgress
+    val finalBottomEnd = animatedBottomRadius + (groupRadiusPx - animatedBottomRadius) * ownUnlockProgress
+    val finalBottomStart = animatedBottomRadius + (groupRadiusPx - animatedBottomRadius) * ownUnlockProgress
+    val shape = RoundedCornerShape(
+        topStart = with(density) { finalTopStart.toDp() },
+        topEnd = with(density) { finalTopEnd.toDp() },
+        bottomEnd = with(density) { finalBottomEnd.toDp() },
+        bottomStart = with(density) { finalBottomStart.toDp() }
+    )
     
     // Background color
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainerLowest
@@ -267,111 +255,117 @@ fun PhysicsSwipeToDelete(
         }
         
         // Foreground content with swipe gesture
-        Box(
+        Surface(
+            shape = shape,
+            color = fadeColor,
             modifier = Modifier
                 .fillMaxWidth()
-                .offset { IntOffset(totalOffset.roundToInt(), 0) }
-                .clip(shape)
-                .background(fadeColor)
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            isDragging = true
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            onDragEnd?.invoke() // Call immediately so neighbors reset right away
-                            scope.launch {
-                                // When delete is disabled, always spring back regardless of threshold
-                                if (!deleteEnabled) {
-                                    // Spring back with haptic feedback
-                                    if (offsetX.value.absoluteValue > 10f) {
-                                        haptics.perform(HapticPattern.Thud)
-                                    }
-                                    offsetX.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = 0.55f,
-                                            stiffness = Spring.StiffnessMediumLow
-                                        )
-                                    )
-                                } else if (offsetX.value.absoluteValue > unlockThresholdPx) {
-                                    // Snap to reveal position
-                                    if (!isUnlocked) {
-                                        haptics.perform(HapticPattern.Pop)
-                                        isUnlocked = true
-                                    }
-                                    offsetX.animateTo(
-                                        targetValue = -revealDistancePx,
-                                        animationSpec = spring(
-                                            dampingRatio = 0.6f, // Bouncy/Clicky for snap
-                                            stiffness = 300f     // Consistent stiffness
-                                        )
-                                    )
-                                } else {
-                                    // Snap back to locked
-                                    if (isUnlocked) {
-                                        haptics.perform(HapticPattern.Thud)
-                                        isUnlocked = false
-                                    }
-                                    offsetX.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = 0.55f,
-                                            stiffness = Spring.StiffnessLow // Slower lock animation
-                                        )
-                                    )
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                            scope.launch {
-                                offsetX.animateTo(
-                                    targetValue = if (isUnlocked) -revealDistancePx else 0f,
-                                    animationSpec = spring(dampingRatio = 0.6f)
-                                )
-                            }
-                            onDragEnd?.invoke()
-                        },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            
-                            val currentOffset = offsetX.value
-                            val newOffset: Float
-                            
-                            // Only allow left swipe (negative direction)
-                            if (dragAmount < 0 || currentOffset < 0) {
-                                // Apply friction - movement is slower than finger
-                                val friction = if (currentOffset.absoluteValue < unlockThresholdPx && !isUnlocked) {
-                                    // Extra resistance before unlock threshold (magnetic pull)
-                                    dragFriction * (1f - magneticPullStrength * (currentOffset.absoluteValue / unlockThresholdPx))
-                                } else {
-                                    dragFriction
-                                }
-                                
-                                newOffset = (currentOffset + dragAmount * friction)
-                                    .coerceIn(-revealDistancePx * 1.2f, 0f)
-                                
-                                scope.launch {
-                                    offsetX.snapTo(newOffset)
-                                }
-                                
-                                // Haptic feedback when crossing threshold
-                                val wasUnderThreshold = currentOffset.absoluteValue < unlockThresholdPx
-                                val isOverThreshold = newOffset.absoluteValue >= unlockThresholdPx
-                                
-                                if (wasUnderThreshold && isOverThreshold && !isUnlocked) {
-                                    haptics.perform(HapticPattern.Pop)
-                                } else if (!wasUnderThreshold && !isOverThreshold && currentOffset.absoluteValue > 0) {
-                                    haptics.perform(HapticPattern.Tick)
-                                }
-                            }
-                        }
-                    )
+                .graphicsLayer {
+                    translationX = totalOffset
                 }
         ) {
-            content()
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                isDragging = true
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                onDragEnd?.invoke() // Call immediately so neighbors reset right away
+                                scope.launch {
+                                    // When delete is disabled, always spring back regardless of threshold
+                                    if (!deleteEnabled) {
+                                        // Spring back with haptic feedback
+                                        if (offsetX.value.absoluteValue > 10f) {
+                                            haptics.perform(HapticPattern.Thud)
+                                        }
+                                        offsetX.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(
+                                                dampingRatio = 0.55f,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
+                                        )
+                                    } else if (offsetX.value.absoluteValue > unlockThresholdPx) {
+                                        // Snap to reveal position
+                                        if (!isUnlocked) {
+                                            haptics.perform(HapticPattern.Pop)
+                                            isUnlocked = true
+                                        }
+                                        offsetX.animateTo(
+                                            targetValue = -revealDistancePx,
+                                            animationSpec = spring(
+                                                dampingRatio = 0.6f, // Bouncy/Clicky for snap
+                                                stiffness = 300f     // Consistent stiffness
+                                            )
+                                        )
+                                    } else {
+                                        // Snap back to locked
+                                        if (isUnlocked) {
+                                            haptics.perform(HapticPattern.Thud)
+                                            isUnlocked = false
+                                        }
+                                        offsetX.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(
+                                                dampingRatio = 0.55f,
+                                                stiffness = Spring.StiffnessLow // Slower lock animation
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                scope.launch {
+                                    offsetX.animateTo(
+                                        targetValue = if (isUnlocked) -revealDistancePx else 0f,
+                                        animationSpec = spring(dampingRatio = 0.6f)
+                                    )
+                                }
+                                onDragEnd?.invoke()
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                
+                                val currentOffset = offsetX.value
+                                val newOffset: Float
+                                
+                                // Only allow left swipe (negative direction)
+                                if (dragAmount < 0 || currentOffset < 0) {
+                                    // Apply friction - movement is slower than finger
+                                    val friction = if (currentOffset.absoluteValue < unlockThresholdPx && !isUnlocked) {
+                                        // Extra resistance before unlock threshold (magnetic pull)
+                                        dragFriction * (1f - magneticPullStrength * (currentOffset.absoluteValue / unlockThresholdPx))
+                                    } else {
+                                        dragFriction
+                                    }
+                                    
+                                    newOffset = (currentOffset + dragAmount * friction)
+                                        .coerceIn(-revealDistancePx * 1.2f, 0f)
+                                    
+                                    scope.launch {
+                                        offsetX.snapTo(newOffset)
+                                    }
+                                    
+                                    // Haptic feedback when crossing threshold
+                                    val wasUnderThreshold = currentOffset.absoluteValue < unlockThresholdPx
+                                    val isOverThreshold = newOffset.absoluteValue >= unlockThresholdPx
+                                    
+                                    if (wasUnderThreshold && isOverThreshold && !isUnlocked) {
+                                        haptics.perform(HapticPattern.Pop)
+                                    } else if (!wasUnderThreshold && !isOverThreshold && currentOffset.absoluteValue > 0) {
+                                        haptics.perform(HapticPattern.Tick)
+                                    }
+                                }
+                            }
+                        )
+                    }
+            ) {
+                content()
+            }
         }
     }
 }

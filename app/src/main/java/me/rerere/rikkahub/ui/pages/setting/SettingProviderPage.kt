@@ -97,7 +97,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -115,7 +114,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -154,7 +152,6 @@ import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import me.rerere.rikkahub.data.model.Tag as DataTag
-
 
 @Composable
 fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
@@ -389,25 +386,11 @@ private fun ProviderListView(
     onAddProvider: (ProviderSetting) -> Unit
 ) {
     val lazyListState = rememberLazyListState()
-    val density = LocalDensity.current
-    
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onReorder(from.index, to.index)
     }
     
-    // State for swipe neighbor tracking
-    var draggingIndex by remember { mutableStateOf(-1) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var isUnlocked by remember { mutableStateOf(false) }
-    var neighborsUnlocked by remember { mutableStateOf(false) }
-    
-    
     val canDelete = allProviders.size > 1
-    
-    // Reset neighborsUnlocked when offset returns to 0
-    if (dragOffset == 0f && neighborsUnlocked) {
-        neighborsUnlocked = false
-    }
     
     // Check for matching preset when no providers found
     val matchingPreset = remember(searchQuery, providers) {
@@ -493,83 +476,53 @@ private fun ProviderListView(
                     else -> ItemPosition.MIDDLE
                 }
                 
-                // Calculate neighbor offset
-                val thresholdPx = with(density) { 35.dp.toPx() }
-                if (draggingIndex >= 0 && !neighborsUnlocked && kotlin.math.abs(dragOffset) >= thresholdPx) {
-                    neighborsUnlocked = true
-                }
-                
-                val shouldNeighborFollow = draggingIndex >= 0 && 
-                    draggingIndex != index && 
-                    !isUnlocked && 
-                    !neighborsUnlocked
-                
-                val neighborOffset = if (shouldNeighborFollow) {
-                    val distance = kotlin.math.abs(index - draggingIndex)
-                    when (distance) {
-                        1 -> dragOffset * 0.35f
-                        2 -> dragOffset * 0.12f
-                        else -> 0f
-                    }
-                } else {
-                    0f
-                }
-                
 
                 ReorderableItem(
                     state = reorderableState,
                     key = provider.id
                 ) { isDragging ->
+                    val itemModifier = Modifier
+                        .scale(if (isDragging) 0.95f else 1f)
+                        .fillMaxWidth()
+                    val itemContent: @Composable () -> Unit = {
+                        ProviderItemContent(
+                            provider = provider,
+                            providerTags = settings.providerTags,
+                            haptics = haptics,
+                            dragHandle = {
+                                IconButton(
+                                    onClick = {},
+                                    modifier = Modifier
+                                        .longPressDraggableHandle(
+                                            onDragStarted = {
+                                                haptics.perform(HapticPattern.Pop)
+                                            },
+                                            onDragStopped = {
+                                                haptics.perform(HapticPattern.Thud)
+                                            }
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.DragIndicator,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onNavigateToDetail(provider)
+                            }
+                        )
+                    }
                     androidx.compose.runtime.key(canDelete) {
                         PhysicsSwipeToDelete(
                             position = position,
                             deleteEnabled = canDelete,
-                            neighborOffset = neighborOffset,
-                            onDragProgress = { offset, unlocked ->
-                                draggingIndex = index
-                                dragOffset = offset
-                                isUnlocked = unlocked
-                            },
-                            onDragEnd = {
-                                if (draggingIndex == index) {
-                                    draggingIndex = -1
-                                    dragOffset = 0f
-                                }
-                            },
                             onDelete = {
                                 onDeleteRequest(provider)
                             },
-                            modifier = Modifier
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .fillMaxWidth()
+                            modifier = itemModifier
                         ) {
-                            ProviderItemContent(
-                                provider = provider,
-                                providerTags = settings.providerTags,
-                                haptics = haptics,
-                                dragHandle = {
-                                    IconButton(
-                                        onClick = {},
-                                        modifier = Modifier
-                                            .longPressDraggableHandle(
-                                                onDragStarted = {
-                                                    haptics.perform(HapticPattern.Pop)
-                                                },
-                                                onDragStopped = {
-                                                    haptics.perform(HapticPattern.Thud)
-                                                }
-                                            )
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.DragIndicator,
-                                            contentDescription = null
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    onNavigateToDetail(provider)
-                                }
-                            )
+                            itemContent()
                         }
                     }
             }
