@@ -202,7 +202,9 @@ fun AssistantDetailPage(
                 AssistantModelSubPage(
                     assistant = assistant,
                     providers = providers,
-                    onUpdate = { onUpdate(it) }
+                    onUpdate = { onUpdate(it) },
+                    onApplyBackgroundPromptToAll = { vm.applyBackgroundPromptToAll(it) },
+                    onApplyConsolidationPromptToAll = { vm.applyConsolidationPromptToAll(it) },
                 )
             }
 

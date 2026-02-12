@@ -15,6 +15,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_MEMORY_CONSOLIDATION_PROMPT
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -39,6 +40,7 @@ import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.utils.applyPlaceholders
 
 class MemoryConsolidationWorker(
     context: Context,
@@ -210,24 +212,13 @@ class MemoryConsolidationWorker(
                 """.trimIndent()
             } else ""
             
-            val prompt = """
-                Analyze the following conversation and create a "Memory Episode".
-                
-                **Language**: Detect the primary language of the conversation (prioritize the user's messages; if mixed, follow the most recent user message). Write the "summary" in that language.
-                
-                $contextSection
-                1. **Summary**: Concise summary of what happened (under 100 words).
-                2. **Significance**: Rate the emotional impact or importance of this conversation from 1-10 (10 = life-changing, 1 = trivial).
-                
-                Conversation:
-                $messagesText
-                
-                Output JSON format (return only JSON, no extra text):
-                {
-                    "summary": "...",
-                    "significance": 5
-                }
-            """.trimIndent()
+            val promptTemplate = assistant.consolidationPrompt.ifBlank {
+                DEFAULT_MEMORY_CONSOLIDATION_PROMPT
+            }
+            val prompt = promptTemplate.applyPlaceholders(
+                "context_section" to contextSection,
+                "messages_text" to messagesText,
+            )
             
             val params = TextGenerationParams(model = model, temperature = 0.5f)
             val requestMessages = listOf(UIMessage.user(prompt))

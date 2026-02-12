@@ -1293,6 +1293,11 @@
     <string name="assistant_page_refresh_welcome_phrases_desc">Generate a new set of greetings now.</string>
     <string name="assistant_page_custom_prompt_desc">Instructions for spontaneous messages. Use {{history}} and {{memories}}.</string>
     <string name="assistant_page_custom_prompt_title">Custom Prompt</string>
+    <string name="assistant_page_background_prompt_vars">Variables: {assistant_name}, {last_notification_info}, {{history}}, {{memories}}</string>
+    <string name="assistant_page_consolidation_prompt_vars">Variables: {context_section}, {messages_text}</string>
+    <string name="assistant_page_apply_to_global">Apply to Global</string>
+    <string name="assistant_page_apply_prompt_global_confirm_title">Apply to all assistants?</string>
+    <string name="assistant_page_apply_prompt_global_confirm_message">Applying globally will overwrite existing prompts.</string>
     <string name="assistant_page_debugger_id_format">ID: %1$d</string>
     <string name="assistant_page_debugger_no_results">No memories retrieved. Try lowering the similarity threshold or check if embeddings are generated.</string>
     <string name="assistant_page_debugger_query_label">Test Query</string>

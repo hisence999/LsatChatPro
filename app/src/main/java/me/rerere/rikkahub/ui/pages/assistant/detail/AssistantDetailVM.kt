@@ -284,6 +284,28 @@ class AssistantDetailVM(
         }
     }
 
+    fun applyBackgroundPromptToAll(prompt: String) {
+        viewModelScope.launch {
+            val currentSettings = settingsStore.settingsFlow.value
+            settingsStore.update(
+                settings = currentSettings.copy(
+                    assistants = currentSettings.assistants.map { it.copy(backgroundPrompt = prompt) }
+                )
+            )
+        }
+    }
+
+    fun applyConsolidationPromptToAll(prompt: String) {
+        viewModelScope.launch {
+            val currentSettings = settingsStore.settingsFlow.value
+            settingsStore.update(
+                settings = currentSettings.copy(
+                    assistants = currentSettings.assistants.map { it.copy(consolidationPrompt = prompt) }
+                )
+            )
+        }
+    }
+
     fun deleteMemory(memory: AssistantMemory) {
         viewModelScope.launch {
             if (memory.id > 0) {

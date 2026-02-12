@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_BACKGROUND_PROMPT
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -85,32 +86,12 @@ class SpontaneousWorker(
             )
             val memoryContext = memories.joinToString("\n") { "- ${it.content}" }
             
-            val customPrompt = assistant.spontaneousPrompt.ifBlank {
-                """
-                You are ${assistant.name}. You are running in the background to check in on the user. Be casual and friendly.
-                
-                Recent chat history:
-                {{history}}
-                
-                Relevant Memories:
-                {{memories}}
-                $lastNotificationInfo
-                
-                Do you want to send a spontaneous notification to the user right now?
-                Consider the context. Only send if:
-                - It's genuinely helpful or relevant
-                - You have a good reason (explain it in the "reason" field)
-                - It's not repetitive or annoying
-                
-                Output JSON format:
-                {
-                    "send": true/false,
-                    "reason": "Why you want to send this notification",
-                    "title": "Notification Title",
-                    "content": "Notification Content"
-                }
-                """.trimIndent()
-            }
+            val customPrompt = assistant.backgroundPrompt
+                .ifBlank { DEFAULT_BACKGROUND_PROMPT }
+                .applyPlaceholders(
+                    "assistant_name" to assistant.name,
+                    "last_notification_info" to lastNotificationInfo,
+                )
 
             val history = conversation.currentMessages.takeLast(5).joinToString("\n") { "${it.role}: ${it.toText()}" }
             val prompt = customPrompt

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,16 +15,28 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,9 +44,13 @@ import androidx.compose.ui.unit.dp
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_BACKGROUND_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_MEMORY_CONSOLIDATION_PROMPT
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.pages.setting.components.SettingsGroup
@@ -49,8 +66,13 @@ import me.rerere.rikkahub.utils.toFixed
 fun AssistantModelSubPage(
     assistant: Assistant,
     providers: List<ProviderSetting>,
-    onUpdate: (Assistant) -> Unit
+    onUpdate: (Assistant) -> Unit,
+    onApplyBackgroundPromptToAll: (String) -> Unit,
+    onApplyConsolidationPromptToAll: (String) -> Unit,
 ) {
+    var showBackgroundPromptSheet by remember { mutableStateOf(false) }
+    var showConsolidationPromptSheet by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -117,12 +139,24 @@ fun AssistantModelSubPage(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    ModelSelector(
-                        modelId = assistant.backgroundModelId,
-                        providers = providers,
-                        type = ModelType.CHAT,
-                        onSelect = { onUpdate(assistant.copy(backgroundModelId = it.id)) },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            ModelSelector(
+                                modelId = assistant.backgroundModelId,
+                                providers = providers,
+                                type = ModelType.CHAT,
+                                onSelect = { onUpdate(assistant.copy(backgroundModelId = it.id)) },
+                                modifier = Modifier.wrapContentWidth(),
+                            )
+                        }
+                        IconButton(onClick = { showBackgroundPromptSheet = true }) {
+                            Icon(Icons.Rounded.Settings, contentDescription = null)
+                        }
+                    }
                 }
             }
             
@@ -149,14 +183,48 @@ fun AssistantModelSubPage(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    ModelSelector(
-                        modelId = assistant.summarizerModelId,
-                        providers = providers,
-                        type = ModelType.CHAT,
-                        onSelect = { onUpdate(assistant.copy(summarizerModelId = it.id)) },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            ModelSelector(
+                                modelId = assistant.summarizerModelId,
+                                providers = providers,
+                                type = ModelType.CHAT,
+                                onSelect = { onUpdate(assistant.copy(summarizerModelId = it.id)) },
+                                modifier = Modifier.wrapContentWidth(),
+                            )
+                        }
+                        IconButton(onClick = { showConsolidationPromptSheet = true }) {
+                            Icon(Icons.Rounded.Settings, contentDescription = null)
+                        }
+                    }
                 }
             }
+        }
+
+        if (showBackgroundPromptSheet) {
+            AssistantPromptEditorSheet(
+                prompt = assistant.backgroundPrompt,
+                defaultPrompt = DEFAULT_BACKGROUND_PROMPT,
+                promptVariablesText = stringResource(R.string.assistant_page_background_prompt_vars),
+                onDismiss = { showBackgroundPromptSheet = false },
+                onPromptChange = { onUpdate(assistant.copy(backgroundPrompt = it)) },
+                onApplyToGlobal = onApplyBackgroundPromptToAll,
+            )
+        }
+
+        if (showConsolidationPromptSheet) {
+            AssistantPromptEditorSheet(
+                prompt = assistant.consolidationPrompt,
+                defaultPrompt = DEFAULT_MEMORY_CONSOLIDATION_PROMPT,
+                promptVariablesText = stringResource(R.string.assistant_page_consolidation_prompt_vars),
+                onDismiss = { showConsolidationPromptSheet = false },
+                onPromptChange = { onUpdate(assistant.copy(consolidationPrompt = it)) },
+                onApplyToGlobal = onApplyConsolidationPromptToAll,
+            )
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -335,5 +403,88 @@ fun AssistantModelSubPage(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun AssistantPromptEditorSheet(
+    prompt: String,
+    defaultPrompt: String,
+    promptVariablesText: String,
+    onDismiss: () -> Unit,
+    onPromptChange: (String) -> Unit,
+    onApplyToGlobal: (String) -> Unit,
+) {
+    var showApplyConfirm by remember { mutableStateOf(false) }
+    var editorPrompt by remember(prompt, defaultPrompt) { mutableStateOf(prompt.ifBlank { defaultPrompt }) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FormItem(
+                label = {
+                    Text(stringResource(R.string.setting_model_page_prompt))
+                },
+                description = {
+                    Text(promptVariablesText)
+                }
+            ) {
+                OutlinedTextField(
+                    value = editorPrompt,
+                    onValueChange = {
+                        editorPrompt = it
+                        onPromptChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 10,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    TextButton(
+                        onClick = {
+                            editorPrompt = defaultPrompt
+                            onPromptChange(defaultPrompt)
+                        }
+                    ) {
+                        Text(stringResource(R.string.setting_model_page_reset_to_default))
+                    }
+                    TextButton(onClick = { showApplyConfirm = true }) {
+                        Text(stringResource(R.string.assistant_page_apply_to_global))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showApplyConfirm) {
+        AlertDialog(
+            onDismissRequest = { showApplyConfirm = false },
+            title = { Text(stringResource(R.string.assistant_page_apply_prompt_global_confirm_title)) },
+            text = { Text(stringResource(R.string.assistant_page_apply_prompt_global_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onApplyToGlobal(editorPrompt)
+                        showApplyConfirm = false
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApplyConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }

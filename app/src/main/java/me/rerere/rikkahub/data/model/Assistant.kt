@@ -58,6 +58,7 @@ data class Assistant(
     val maxTokenUsage: Int = 81920, // 80k default
     val contextPriority: ContextPriority = ContextPriority.BALANCED,
     val summarizerModelId: Uuid? = null, // Model used for memory summarization
+    val consolidationPrompt: String = "", // Memory consolidation prompt
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useRagMemoryRetrieval: Boolean = true, // If true, use vector-based RAG. If false, inject all memories
@@ -94,6 +95,7 @@ data class Assistant(
     val background: String? = null,
     val learningMode: Boolean = false,
     val enableSpontaneous: Boolean = false, // 是否启用自发消息
+    val backgroundPrompt: String = "", // 后台任务提示词
     val spontaneousPrompt: String = "", // 自发消息的Prompt
     val enabledLorebookIds: Set<Uuid> = emptySet(), // Lorebooks enabled for this assistant
 
