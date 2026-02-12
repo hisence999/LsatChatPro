@@ -97,6 +97,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -191,6 +192,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    var providerAddScrollTrigger by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -207,6 +209,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                 providers = listOf(it) + settings.providers
                             )
                         )
+                        providerAddScrollTrigger++
                     }
                     AddButton(
                         enableHaptics = settings.displaySetting.enableUIHaptics
@@ -216,6 +219,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                 providers = listOf(it) + settings.providers
                             )
                         )
+                        providerAddScrollTrigger++
                     }
                 }
             )
@@ -269,6 +273,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 settings = settings,
                 haptics = haptics,
                 searchQuery = searchQuery,
+                addScrollTrigger = providerAddScrollTrigger,
                 onNavigateToDetail = { provider ->
                     navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
                 },
@@ -288,6 +293,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                             providers = listOf(provider) + settings.providers
                         )
                     )
+                    providerAddScrollTrigger++
                 }
             )
             
@@ -380,6 +386,7 @@ private fun ProviderListView(
     settings: me.rerere.rikkahub.data.datastore.Settings,
     haptics: me.rerere.rikkahub.ui.hooks.PremiumHaptics,
     searchQuery: String,
+    addScrollTrigger: Int,
     onNavigateToDetail: (ProviderSetting) -> Unit,
     onDeleteRequest: (ProviderSetting) -> Unit,
     onReorder: (Int, Int) -> Unit,
@@ -388,6 +395,11 @@ private fun ProviderListView(
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onReorder(from.index, to.index)
+    }
+    LaunchedEffect(addScrollTrigger, providers.size) {
+        if (addScrollTrigger > 0 && providers.isNotEmpty()) {
+            lazyListState.animateScrollToItem(0)
+        }
     }
     
     val canDelete = allProviders.size > 1
