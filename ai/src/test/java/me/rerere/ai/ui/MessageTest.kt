@@ -4,7 +4,10 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 class MessageTest {
 
@@ -210,6 +213,49 @@ class MessageTest {
         val result = messages.limitContext(3)
         assertEquals(6, result.size)
         assertEquals(messages, result)
+    }
+
+    @Test
+    fun `handleMessageChunk should not include interruption duration when reasoning resumes`() {
+        val now = Clock.System.now()
+        val firstStart = now - 20.seconds
+        val firstEnd = now - 10.seconds
+        val accumulated = firstEnd - firstStart
+
+        val previous = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Reasoning(
+                    reasoning = "first",
+                    createdAt = firstStart,
+                    finishedAt = firstEnd,
+                )
+            )
+        )
+        val chunk = MessageChunk(
+            id = "resume-1",
+            model = "test-model",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(UIMessagePart.Reasoning(" second"))
+                    ),
+                    message = null,
+                    finishReason = null,
+                )
+            )
+        )
+
+        val updated = listOf(previous).handleMessageChunk(chunk)
+        val reasoning = updated.last().parts.filterIsInstance<UIMessagePart.Reasoning>().last()
+        val resumedDuration = Clock.System.now() - reasoning.createdAt
+
+        assertEquals("first second", reasoning.reasoning)
+        assertEquals(null, reasoning.finishedAt)
+        assertTrue(resumedDuration.inWholeSeconds >= accumulated.inWholeSeconds - 2)
+        assertTrue(resumedDuration.inWholeSeconds <= accumulated.inWholeSeconds + 2)
     }
 
     private fun createTestMessages(count: Int): List<UIMessage> {

@@ -73,25 +73,35 @@ data class UIMessage(
                     }
 
                     is UIMessagePart.Reasoning -> {
-                        val existingReasoningPart =
-                            acc.find { it is UIMessagePart.Reasoning } as? UIMessagePart.Reasoning
-                        if (existingReasoningPart != null) {
-                            acc.map { part ->
-                                if (part is UIMessagePart.Reasoning) {
-                                    UIMessagePart.Reasoning(
-                                        reasoning = existingReasoningPart.reasoning + deltaPart.reasoning,
-                                        createdAt = existingReasoningPart.createdAt,
-                                        finishedAt = null,
-                                    ).also {
-                                        if (deltaPart.metadata != null) {
-                                            it.metadata = deltaPart.metadata // 更新metadata
-                                            println("更新metadata: ${json.encodeToString(deltaPart)}")
-                                        }
-                                    }
-                                } else part
-                            }
-                        } else {
+                        val existingReasoningIndex = acc.indexOfLast { it is UIMessagePart.Reasoning }
+                        val existingReasoningPart = acc.getOrNull(existingReasoningIndex) as? UIMessagePart.Reasoning
+                        if (existingReasoningPart == null || existingReasoningIndex < 0) {
                             acc + deltaPart
+                        } else {
+                            val resumedCreatedAt = if (existingReasoningPart.finishedAt != null) {
+                                val accumulated = existingReasoningPart.finishedAt - existingReasoningPart.createdAt
+                                Clock.System.now() - accumulated
+                            } else {
+                                existingReasoningPart.createdAt
+                            }
+                            val mergedReasoning = UIMessagePart.Reasoning(
+                                reasoning = existingReasoningPart.reasoning + deltaPart.reasoning,
+                                createdAt = resumedCreatedAt,
+                                finishedAt = null,
+                                metadata = existingReasoningPart.metadata,
+                            ).also {
+                                if (deltaPart.metadata != null) {
+                                    it.metadata = deltaPart.metadata // 更新metadata
+                                    println("更新metadata: ${json.encodeToString(deltaPart)}")
+                                }
+                            }
+                            acc.mapIndexed { index, part ->
+                                if (index == existingReasoningIndex) {
+                                    mergedReasoning
+                                } else {
+                                    part
+                                }
+                            }
                         }
                     }
 
