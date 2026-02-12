@@ -167,6 +167,10 @@ class MemoryRepository(
         existingEmbedding: String? = null,
         existingModelId: String? = null
     ): List<Float>? {
+        val normalizedContent = content.trim()
+        if (normalizedContent.isEmpty()) {
+            return null
+        }
         val modelId = embeddingService.getEmbeddingModelId(assistantId)
         
         // Check cache first
@@ -201,7 +205,7 @@ class MemoryRepository(
         // Generate new embedding
         return try {
             val embedding = embeddingService.embed(
-                text = content,
+                text = normalizedContent,
                 assistantId = assistantId,
                 source = AIRequestSource.MEMORY_EMBEDDING,
             )
@@ -236,9 +240,11 @@ class MemoryRepository(
 
     suspend fun updateCoreMemory(id: Int, content: String, pinned: Boolean): AssistantMemory {
         val memory = memoryDAO.getMemoryById(id) ?: error("Memory not found")
-        val contentChanged = memory.content != content
+        val normalizedContent = content.trim()
+        require(normalizedContent.isNotEmpty()) { "Memory content cannot be blank" }
+        val contentChanged = memory.content != normalizedContent
         val newMemory = memory.copy(
-            content = content,
+            content = normalizedContent,
             pinned = pinned,
             embedding = if (contentChanged) null else memory.embedding,
         )
@@ -260,7 +266,9 @@ class MemoryRepository(
 
     suspend fun updateContent(id: Int, content: String): AssistantMemory {
         val memory = memoryDAO.getMemoryById(id) ?: error("Memory not found")
-        val newMemory = memory.copy(content = content, embedding = null) // Invalidate embedding
+        val normalizedContent = content.trim()
+        require(normalizedContent.isNotEmpty()) { "Memory content cannot be blank" }
+        val newMemory = memory.copy(content = normalizedContent, embedding = null) // Invalidate embedding
         memoryDAO.updateMemory(newMemory)
 
         // Invalidate cache
@@ -278,7 +286,9 @@ class MemoryRepository(
 
     suspend fun updateEpisodeContent(id: Int, content: String): AssistantMemory {
         val episode = chatEpisodeDAO.getEpisodeById(id) ?: error("Episode not found")
-        val newEpisode = episode.copy(content = content, embedding = null) // Invalidate embedding
+        val normalizedContent = content.trim()
+        require(normalizedContent.isNotEmpty()) { "Memory content cannot be blank" }
+        val newEpisode = episode.copy(content = normalizedContent, embedding = null) // Invalidate embedding
         chatEpisodeDAO.insertEpisode(newEpisode)
 
         // Invalidate cache
@@ -295,9 +305,12 @@ class MemoryRepository(
     }
 
     suspend fun addMemory(assistantId: String, content: String, pinned: Boolean = false): AssistantMemory {
+        val normalizedContent = content.trim()
+        require(normalizedContent.isNotEmpty()) { "Memory content cannot be blank" }
+
         val embeddingResult = try {
             embeddingService.embedWithModelId(
-                text = content,
+                text = normalizedContent,
                 assistantId = assistantId,
                 source = AIRequestSource.MEMORY_EMBEDDING,
             )
@@ -308,7 +321,7 @@ class MemoryRepository(
 
         val entity = MemoryEntity(
             assistantId = assistantId,
-            content = content,
+            content = normalizedContent,
             embedding = embeddingResult?.embeddings?.firstOrNull()?.let { JsonInstant.encodeToString(it) },
             embeddingModelId = embeddingResult?.modelId,
             type = MemoryType.CORE,
@@ -333,7 +346,7 @@ class MemoryRepository(
 
         return AssistantMemory(
             id = id.toInt(),
-            content = content,
+            content = normalizedContent,
             type = MemoryType.CORE,
             hasEmbedding = embeddingResult != null,
             embeddingModelId = embeddingResult?.modelId,
@@ -741,10 +754,10 @@ class MemoryRepository(
         
         // Filter to only memories that need embedding
         val memoriesNeedingEmbedding = allMemories.filter { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
         val episodesNeedingEmbedding = allEpisodes.filter { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
         
         val total = memoriesNeedingEmbedding.size + episodesNeedingEmbedding.size
@@ -833,10 +846,10 @@ class MemoryRepository(
 
         // Filter to only memories that need embedding
         val memoriesNeedingEmbedding = memories.filter { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
         val episodesNeedingEmbedding = episodes.filter { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
 
         // Process Core Memories that need embedding
@@ -910,10 +923,10 @@ class MemoryRepository(
         val currentModelId = embeddingService.getEmbeddingModelId(assistantId)
         
         val memoriesNeedingEmbedding = memories.count { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
         val episodesNeedingEmbedding = episodes.count { 
-            it.embedding == null || it.embeddingModelId != currentModelId 
+            it.content.trim().isNotEmpty() && (it.embedding == null || it.embeddingModelId != currentModelId)
         }
         
         return memoriesNeedingEmbedding + episodesNeedingEmbedding

@@ -169,6 +169,7 @@ fun AssistantMemorySettings(
     memoryDialogState.EditStateContent { memory, update ->
         val haptics = rememberPremiumHaptics()
         val canPin = memory.type == 0 && memory.id >= 0
+        val canSaveMemory = memory.content.trim().isNotEmpty()
         val pinInteractionSource = remember { MutableInteractionSource() }
         val isPinPressed by pinInteractionSource.collectIsPressedAsState()
         val pinScale by animateFloatAsState(
@@ -224,7 +225,10 @@ fun AssistantMemorySettings(
                         TextButton(onClick = { memoryDialogState.dismiss() }) {
                             Text(stringResource(R.string.assistant_page_cancel))
                         }
-                        TextButton(onClick = { memoryDialogState.confirm() }) {
+                        TextButton(
+                            onClick = { memoryDialogState.confirm() },
+                            enabled = canSaveMemory
+                        ) {
                             Text(stringResource(R.string.assistant_page_save))
                         }
                     }

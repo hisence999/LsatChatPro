@@ -244,10 +244,16 @@ class MemoryConsolidationWorker(
                     if (jsonStart != -1 && jsonEnd != -1) {
                         val jsonStr = responseText.substring(jsonStart, jsonEnd + 1)
                         val json = Json.parseToJsonElement(jsonStr).jsonObject
-                        summary = json["summary"]?.jsonPrimitiveOrNull?.content ?: summary
+                        val parsedSummary = json["summary"]?.jsonPrimitiveOrNull?.content?.trim()
+                        if (!parsedSummary.isNullOrEmpty()) {
+                            summary = parsedSummary
+                        }
                         significance = json["significance"]?.jsonPrimitiveOrNull?.intOrNull ?: 5
                     }
                 }
+
+                summary = summary.trim()
+                if (summary.isEmpty()) continue
 
                 val summaryEmbeddingResult = runCatching {
                     embeddingService.embedWithModelId(
@@ -520,10 +526,16 @@ class MemoryConsolidationWorker(
                     if (jsonStart != -1 && jsonEnd != -1) {
                         val jsonStr = responseText.substring(jsonStart, jsonEnd + 1)
                         val json = Json.parseToJsonElement(jsonStr).jsonObject
-                        summary = json["summary"]?.jsonPrimitiveOrNull?.content ?: summary
+                        val parsedSummary = json["summary"]?.jsonPrimitiveOrNull?.content?.trim()
+                        if (!parsedSummary.isNullOrEmpty()) {
+                            summary = parsedSummary
+                        }
                         significance = json["significance"]?.jsonPrimitiveOrNull?.intOrNull ?: 5
                     }
                 }
+
+                summary = summary.trim()
+                if (summary.isEmpty()) continue
 
                 val conversationId = conversation.id.toString()
                 var insertedCount = 0

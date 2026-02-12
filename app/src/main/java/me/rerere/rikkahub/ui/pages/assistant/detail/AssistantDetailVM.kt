@@ -234,9 +234,11 @@ class AssistantDetailVM(
 
     fun addMemory(memory: AssistantMemory) {
         viewModelScope.launch {
+            val normalizedContent = memory.content.trim()
+            if (normalizedContent.isEmpty()) return@launch
             memoryRepository.addMemory(
                 assistantId = assistantId.toString(),
-                content = memory.content,
+                content = normalizedContent,
                 pinned = memory.pinned,
             )
         }
@@ -244,12 +246,14 @@ class AssistantDetailVM(
 
     fun updateMemory(memory: AssistantMemory) {
         viewModelScope.launch {
+            val normalizedContent = memory.content.trim()
+            if (normalizedContent.isEmpty()) return@launch
             if (memory.id < 0) {
-                memoryRepository.updateEpisodeContent(id = -memory.id, content = memory.content)
+                memoryRepository.updateEpisodeContent(id = -memory.id, content = normalizedContent)
             } else {
                 memoryRepository.updateCoreMemory(
                     id = memory.id,
-                    content = memory.content,
+                    content = normalizedContent,
                     pinned = memory.pinned,
                 )
             }
@@ -326,7 +330,7 @@ class AssistantDetailVM(
 
     // Check if any memories need embedding (just checks if embedding exists, cache handles model switching)
     val needsEmbeddingRegeneration: StateFlow<Boolean> = memories.map { memories ->
-        memories.any { memory -> !memory.hasEmbedding }
+        memories.any { memory -> memory.content.trim().isNotEmpty() && !memory.hasEmbedding }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
@@ -339,6 +343,11 @@ class AssistantDetailVM(
     fun testRetrieval(query: String) {
         viewModelScope.launch {
             try {
+                val normalizedQuery = query.trim()
+                if (normalizedQuery.isEmpty()) {
+                    _retrievalResults.value = emptyList()
+                    return@launch
+                }
                 val currentAssistant = assistant.value
                 val threshold = if (currentAssistant.ragSimilarityThreshold > 0f) {
                     currentAssistant.ragSimilarityThreshold
@@ -353,7 +362,7 @@ class AssistantDetailVM(
                 
                 val results = memoryRepository.retrieveRelevantMemoriesWithScores(
                     assistantId = assistantId.toString(),
-                    query = query,
+                    query = normalizedQuery,
                     limit = limit,
                     similarityThreshold = threshold,
                     includeCore = currentAssistant.ragIncludeCore,

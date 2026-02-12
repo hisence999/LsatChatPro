@@ -133,10 +133,12 @@ class GenerationHandler(
                 if (assistant.enableMemory && memories != null && enableMemoryTools) {
                     buildMemoryTools(
                         onCreation = { content ->
-                            memoryRepo.addMemory(assistant.id.toString(), content)
+                            val normalizedContent = content.trim()
+                            memoryRepo.addMemory(assistant.id.toString(), normalizedContent)
                         },
                         onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
+                            val normalizedContent = content.trim()
+                            memoryRepo.updateContent(id, normalizedContent)
                         },
                         onDelete = { id ->
                             memoryRepo.deleteMemory(id)
