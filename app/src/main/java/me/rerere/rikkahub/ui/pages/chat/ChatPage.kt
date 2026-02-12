@@ -153,6 +153,53 @@ private data class Grapheme(
     val range: IntRange,
 )
 
+private fun isAsciiWordGrapheme(text: String): Boolean {
+    if (text.isBlank()) return false
+    return text.all { char ->
+        char in 'a'..'z' ||
+            char in 'A'..'Z' ||
+            char in '0'..'9' ||
+            char == '\'' ||
+            char == '’' ||
+            char == '-'
+    }
+}
+
+private fun groupGraphemeIndicesForLineWrap(graphemes: List<Grapheme>): List<List<Int>> {
+    if (graphemes.isEmpty()) return emptyList()
+
+    val groups = mutableListOf<MutableList<Int>>()
+    var currentWordGroup: MutableList<Int>? = null
+
+    graphemes.forEachIndexed { index, grapheme ->
+        val text = grapheme.text
+        when {
+            isAsciiWordGrapheme(text) -> {
+                val wordGroup = currentWordGroup ?: mutableListOf<Int>().also { groups.add(it) }
+                wordGroup.add(index)
+                currentWordGroup = wordGroup
+            }
+
+            text.all { it.isWhitespace() } -> {
+                val previousGroup = groups.lastOrNull()
+                if (previousGroup == null) {
+                    groups.add(mutableListOf(index))
+                } else {
+                    previousGroup.add(index)
+                }
+                currentWordGroup = null
+            }
+
+            else -> {
+                groups.add(mutableListOf(index))
+                currentWordGroup = null
+            }
+        }
+    }
+
+    return groups
+}
+
 private fun splitIntoGraphemes(text: String): List<Grapheme> {
     val graphemes = mutableListOf<Grapheme>()
     val iterator = java.text.BreakIterator.getCharacterInstance()
@@ -266,6 +313,7 @@ private fun AnimatedWelcomeText(
 ) {
     val styledText = remember(text, rpStyleRules) { applyRpStyleRules(text, rpStyleRules) }
     val graphemes = remember(styledText.text) { splitIntoGraphemes(styledText.text) }
+    val wrapGroups = remember(graphemes) { groupGraphemeIndicesForLineWrap(graphemes) }
     val animationProgress = remember(styledText.text) { graphemes.map { Animatable(0f) } }
 
     LaunchedEffect(styledText.text) {
@@ -289,32 +337,37 @@ private fun AnimatedWelcomeText(
         horizontalArrangement = Arrangement.Start,
         verticalArrangement = Arrangement.Center,
     ) {
-        graphemes.forEachIndexed { index, grapheme ->
-            val progress = animationProgress.getOrNull(index)?.value ?: 1f
+        wrapGroups.forEach { group ->
+            Row {
+                group.forEach { index ->
+                    val grapheme = graphemes[index]
+                    val progress = animationProgress.getOrNull(index)?.value ?: 1f
 
-            val alpha = (progress - 0.2f).coerceAtLeast(0f) / 0.8f
-            val blurRadius = ((1f - alpha) * 10f).dp
-            val rpColor = styledText.colorAt(grapheme.range.first)
-            val finalColor = (rpColor ?: color).copy(alpha = alpha)
+                    val alpha = (progress - 0.2f).coerceAtLeast(0f) / 0.8f
+                    val blurRadius = ((1f - alpha) * 10f).dp
+                    val rpColor = styledText.colorAt(grapheme.range.first)
+                    val finalColor = (rpColor ?: color).copy(alpha = alpha)
 
-            Text(
-                text = grapheme.text,
-                style = style,
-                color = finalColor,
-                modifier = Modifier
-                    .blur(blurRadius)
-                    .graphicsLayer {
-                        this.alpha = alpha
-                    }
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        val animatedWidth = (placeable.width * progress).toInt()
-                        layout(animatedWidth, placeable.height) {
-                            val x = (animatedWidth - placeable.width) / 2
-                            placeable.placeRelative(x, 0)
-                        }
-                    },
-            )
+                    Text(
+                        text = grapheme.text,
+                        style = style,
+                        color = finalColor,
+                        modifier = Modifier
+                            .blur(blurRadius)
+                            .graphicsLayer {
+                                this.alpha = alpha
+                            }
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val animatedWidth = (placeable.width * progress).toInt()
+                                layout(animatedWidth, placeable.height) {
+                                    val x = (animatedWidth - placeable.width) / 2
+                                    placeable.placeRelative(x, 0)
+                                }
+                            },
+                    )
+                }
+            }
         }
     }
 }
