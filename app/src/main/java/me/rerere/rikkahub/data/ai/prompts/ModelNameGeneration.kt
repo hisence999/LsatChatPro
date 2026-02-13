@@ -25,7 +25,7 @@ internal val DEFAULT_MODEL_NAME_GENERATION_PROMPT = """
        - `mistral` / `mixtral` series -> `Mistral` / `Mixtral`
 
     3. Version style normalization
-       - For version tokens like `3-5`, `4-5`, `1-5`, convert to `3.5`, `4.5`, `1.5`
+       - For version tokens like `3-7`, `4-5`, `1-5`, convert to `3.7`, `4.5`, `1.5`
        - Keep mixed alphanumeric tokens (like `70b`, `instruct`) semantically unchanged, but format them more human-friendly (like `70B`, `Instruct`)
 
     4. Common suffix styling

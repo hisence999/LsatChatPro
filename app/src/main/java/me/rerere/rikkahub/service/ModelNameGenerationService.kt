@@ -33,8 +33,7 @@ class ModelNameGenerationService(
         val requestMessages = listOf(UIMessage.user(prompt))
         val params = TextGenerationParams(
             model = model,
-            temperature = 0f,
-            thinkingBudget = 0
+            thinkingBudget = -1
         )
         val startAt = System.currentTimeMillis()
         var failure: Throwable? = null

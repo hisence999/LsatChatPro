@@ -12,8 +12,7 @@ object ModelRegistry {
     private val GPT_4_1 = ModelMatcher.containsRegex("gpt-4\\.1")
     val OPENAI_O_MODELS = ModelMatcher.containsRegex("o\\d")
     private val GPT_OSS = ModelMatcher.containsRegex("gpt-oss")
-    val GPT_5 =
-        ModelMatcher.containsRegex("gpt-(?!.*\\.)(?:5)") and ModelMatcher.containsRegex("gpt-5-chat", negated = true)
+    val GPT_5 = ModelMatcher.containsRegex("gpt[-_]?5(?:\\.\\d+)?(?:[-_]?chat)?(?:\\b|$)")
 
     private val GEMINI_20_FLASH = ModelMatcher.containsRegex("gemini-2.0-flash")
     val GEMINI_2_5_FLASH = ModelMatcher.containsRegex("gemini-2.5-flash") and ModelMatcher.containsRegex("image", negated = true)

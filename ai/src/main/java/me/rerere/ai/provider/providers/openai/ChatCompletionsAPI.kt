@@ -342,9 +342,9 @@ class ChatCompletionsAPI(
 
                     else -> {
                         // OpenAI 官方
-                        // 文档中，只支持 "low", "medium", "high"
+                        // reasoning_effort 支持 none/minimal/low/medium/high/xhigh（具体取决于模型）
                         if (level != ReasoningLevel.AUTO) {
-                            put("reasoning_effort", if(level.effort == "minimal") "low" else level.effort)
+                            put("reasoning_effort", level.effort)
                         }
                     }
                 }
