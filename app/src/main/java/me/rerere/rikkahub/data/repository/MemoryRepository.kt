@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.data.repository
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
@@ -15,12 +20,30 @@ import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.utils.JsonInstant
 
+data class AssistantMemoryStats(
+    val coreCount: Int = 0,
+    val episodicCount: Int = 0,
+    val embeddedCount: Int = 0,
+    val totalCount: Int = 0,
+)
+
 class MemoryRepository(
     private val memoryDAO: MemoryDAO,
     private val chatEpisodeDAO: ChatEpisodeDAO,
     private val embeddingService: EmbeddingService,
     private val embeddingCacheDAO: EmbeddingCacheDAO
 ) {
+    companion object {
+        private const val MEMORY_PAGE_SIZE = 30
+        private const val MEMORY_INITIAL_LOAD_SIZE = 30
+        private const val MEMORY_PREFETCH_DISTANCE = 10
+        private const val MEMORY_MAX_SIZE = 180
+        private const val PAGING_EPISODE_CONTENT_PREVIEW_LIMIT = 1200
+        private const val PREVIEW_CORE_LIMIT = 6
+        private const val PREVIEW_EPISODE_LIMIT = 6
+        private const val PREVIEW_EPISODE_CONTENT_LIMIT = 240
+    }
+
     fun getMemoriesOfAssistantFlow(assistantId: String): Flow<List<AssistantMemory>> =
         memoryDAO.getMemoriesOfAssistantFlow(assistantId)
             .map { entities ->
@@ -63,12 +86,101 @@ class MemoryRepository(
             coreMemories + episodicMemories
         }
 
+    fun getAssistantMemoriesPaging(
+        assistantId: String,
+        memoryType: Int,
+        searchQuery: String,
+        sortOrder: Int,
+    ): Flow<PagingData<AssistantMemory>> {
+        val normalizedQuery = searchQuery.trim()
+        return Pager(
+            config = PagingConfig(
+                pageSize = MEMORY_PAGE_SIZE,
+                initialLoadSize = MEMORY_INITIAL_LOAD_SIZE,
+                prefetchDistance = MEMORY_PREFETCH_DISTANCE,
+                maxSize = MEMORY_MAX_SIZE,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                memoryDAO.getAssistantMemoriesPaging(
+                    assistantId = assistantId,
+                    memoryType = memoryType,
+                    searchQuery = normalizedQuery,
+                    sortOrder = sortOrder,
+                    episodeContentPreviewLimit = PAGING_EPISODE_CONTENT_PREVIEW_LIMIT
+                )
+            }
+        ).flow.map { pagingData ->
+            pagingData.map { row ->
+                AssistantMemory(
+                    id = row.id,
+                    content = row.content,
+                    type = row.type,
+                    hasEmbedding = row.hasEmbedding,
+                    embeddingModelId = row.embeddingModelId,
+                    timestamp = row.timestamp,
+                    significance = row.significance,
+                    pinned = row.pinned,
+                )
+            }
+        }
+    }
+
+    fun getMemoryPreviewFlow(assistantId: String): Flow<List<AssistantMemory>> = combine(
+        memoryDAO.getRecentMemoriesOfAssistantFlow(assistantId, PREVIEW_CORE_LIMIT),
+        chatEpisodeDAO.getEpisodesForUiFlow(
+            assistantId = assistantId,
+            limit = PREVIEW_EPISODE_LIMIT,
+            contentPreviewLimit = PREVIEW_EPISODE_CONTENT_LIMIT
+        ),
+    ) { coreMemories, episodes ->
+        val core = coreMemories.map {
+            AssistantMemory(
+                id = it.id,
+                content = it.content,
+                type = it.type,
+                hasEmbedding = it.embedding != null,
+                embeddingModelId = it.embeddingModelId,
+                timestamp = it.createdAt,
+                pinned = it.pinned,
+            )
+        }
+        val episodic = episodes.map {
+            AssistantMemory(
+                id = -it.id,
+                content = it.content,
+                type = MemoryType.EPISODIC,
+                hasEmbedding = it.hasEmbedding,
+                embeddingModelId = it.embeddingModelId,
+                timestamp = it.startTime,
+                significance = it.significance,
+            )
+        }
+        (core + episodic)
+            .sortedByDescending { it.timestamp }
+            .take(PREVIEW_CORE_LIMIT + PREVIEW_EPISODE_LIMIT)
+    }
+
+    fun getAssistantMemoryStatsFlow(assistantId: String): Flow<AssistantMemoryStats> =
+        memoryDAO.getAssistantMemoryStatsFlow(assistantId)
+            .map { row ->
+                AssistantMemoryStats(
+                    coreCount = row.coreCount,
+                    episodicCount = row.episodicCount,
+                    embeddedCount = row.embeddedCount,
+                    totalCount = row.coreCount + row.episodicCount
+                )
+            }
+
+    fun hasPendingEmbeddingsFlow(assistantId: String): Flow<Boolean> =
+        memoryDAO.getPendingEmbeddingCountFlow(assistantId)
+            .map { it > 0 }
+
     fun getAverageMemoryLength(assistantId: String): Flow<Int> =
-        memoryDAO.getMemoriesOfAssistantFlow(assistantId)
-            .map { entities ->
-                if (entities.isEmpty()) return@map 150 // Default estimate
-                val totalLength = entities.sumOf { it.content.length.toLong() }
-                (totalLength / entities.size).toInt()
+        memoryDAO.getAverageMemoryContentLengthFlow(assistantId)
+            .map { averageLength ->
+                val value = averageLength ?: 150.0
+                value.toInt().coerceAtLeast(1)
             }
 
     suspend fun getMemoriesOfAssistant(assistantId: String): List<AssistantMemory> {
@@ -99,6 +211,32 @@ class MemoryRepository(
                     pinned = it.pinned,
                 )
             }
+    }
+
+    suspend fun getCoreMemoryById(id: Int): AssistantMemory? {
+        val memory = memoryDAO.getMemoryById(id) ?: return null
+        return AssistantMemory(
+            id = memory.id,
+            content = memory.content,
+            type = memory.type,
+            hasEmbedding = memory.embedding != null,
+            embeddingModelId = memory.embeddingModelId,
+            timestamp = memory.createdAt,
+            pinned = memory.pinned,
+        )
+    }
+
+    suspend fun getEpisodeMemoryById(id: Int): AssistantMemory? {
+        val episode = chatEpisodeDAO.getEpisodeById(id) ?: return null
+        return AssistantMemory(
+            id = -episode.id,
+            content = episode.content,
+            type = MemoryType.EPISODIC,
+            hasEmbedding = !episode.embeddingModelId.isNullOrBlank(),
+            embeddingModelId = episode.embeddingModelId,
+            timestamp = episode.startTime,
+            significance = episode.significance,
+        )
     }
 
     suspend fun getMemoryEntitiesOfAssistant(assistantId: String): List<MemoryEntity> {

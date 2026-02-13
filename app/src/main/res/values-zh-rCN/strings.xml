@@ -128,6 +128,8 @@
 
     <string name="setting_mcp_page_tool_require_approval">需要审批</string>
     <string name="assistant_page_background_prompt_vars">变量：{assistant_name}、{last_notification_info}、{{history}}、{{memories}}</string>
+    <string name="assistant_page_recent_memories_title">最近记忆</string>
+    <string name="assistant_page_view_all_memories">查看全部记忆</string>
     <string name="assistant_page_consolidation_prompt_vars">变量：{context_section}、{messages_text}</string>
     <string name="assistant_page_apply_to_global">应用到全局</string>
     <string name="assistant_page_apply_prompt_global_confirm_title">是否应用到所有助手</string>

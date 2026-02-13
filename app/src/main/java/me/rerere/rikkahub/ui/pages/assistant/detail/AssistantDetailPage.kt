@@ -92,6 +92,7 @@ fun AssistantDetailPage(
     val mcpServerConfigs by vm.mcpServerConfigs.collectAsStateWithLifecycle()
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val memories by vm.memories.collectAsStateWithLifecycle()
+    val memoryStats by vm.memoryStats.collectAsStateWithLifecycle()
     val providers by vm.providers.collectAsStateWithLifecycle()
     val tags by vm.tags.collectAsStateWithLifecycle()
     val snackbarMessage by vm.snackbarMessage.collectAsStateWithLifecycle()
@@ -254,6 +255,7 @@ fun AssistantDetailPage(
                 AssistantMemorySettings(
                     assistant = assistant,
                     memories = memories,
+                    memoryStats = memoryStats,
                     onUpdateAssistant = { assistant -> onUpdate(assistant) },
                     onDeleteMemory = { memory -> vm.deleteMemory(memory) },
                     onAddMemory = { memory -> vm.addMemory(memory) },

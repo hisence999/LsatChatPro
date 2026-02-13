@@ -2,10 +2,13 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.app.Application
 import android.util.Log
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +25,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.repository.AssistantMemoryStats
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.deleteChatFiles
 import kotlin.uuid.Uuid
@@ -66,37 +70,31 @@ class AssistantDetailVM(
         _memorySearchQuery.value = query
     }
 
+    fun getPagedMemories(
+        memoryType: Int,
+        sortOrder: Int,
+        searchQuery: String = memorySearchQuery.value,
+    ): Flow<PagingData<AssistantMemory>> = memoryRepository.getAssistantMemoriesPaging(
+        assistantId = assistantId.toString(),
+        memoryType = memoryType,
+        searchQuery = searchQuery,
+        sortOrder = sortOrder
+    ).cachedIn(viewModelScope)
+
     private val uiEpisodesFlow = chatEpisodeDAO.getEpisodesForUiFlow(
         assistantId = assistantId.toString(),
         limit = UI_EPISODE_LIMIT,
         contentPreviewLimit = UI_EPISODE_CONTENT_PREVIEW_LIMIT,
     )
 
-    val memories = combine(
-        memoryRepository.getMemoriesOfAssistantFlow(assistantId.toString()),
-        uiEpisodesFlow,
-        _memorySearchQuery
-    ) { coreMemories, episodes, query ->
-        val core = coreMemories
-        val episodic = episodes.map {
-            AssistantMemory(
-                id = -it.id, // Negative ID to distinguish from core memories
-                content = it.content,
-                type = 1, // EPISODIC
-                hasEmbedding = it.hasEmbedding,
-                embeddingModelId = it.embeddingModelId,
-                timestamp = it.startTime,
-                significance = it.significance
-            ) 
-        }
-        val allMemories = core + episodic
-        if (query.isBlank()) {
-            allMemories
-        } else {
-            allMemories.filter { it.content.contains(query, ignoreCase = true) }
-        }
-    }.stateIn(
+    val memories = memoryRepository.getMemoryPreviewFlow(assistantId.toString()).stateIn(
         scope = viewModelScope, started = SharingStarted.Lazily, initialValue = emptyList()
+    )
+
+    val memoryStats = memoryRepository.getAssistantMemoryStatsFlow(assistantId.toString()).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = AssistantMemoryStats()
     )
 
     // Current embedding model ID for this assistant (for detecting model mismatch)
@@ -116,11 +114,11 @@ class AssistantDetailVM(
 
     val episodeStats = combine(
         chatEpisodeDAO.getEpisodeOverviewStatsFlow(assistantId.toString()),
-        memories
-    ) { episodeOverview, memoryList ->
+        memoryStats
+    ) { episodeOverview, stats ->
         val totalEpisodes = episodeOverview.totalEpisodes
         val avgSig = episodeOverview.averageSignificance ?: 0.0
-        val coreCount = memoryList.count { it.type == 0 } // 0 is CORE
+        val coreCount = stats.coreCount
         EpisodeStats(totalEpisodes, avgSig, coreCount)
     }.stateIn(viewModelScope, SharingStarted.Lazily, EpisodeStats(0, 0.0, 0))
 
@@ -268,23 +266,31 @@ class AssistantDetailVM(
 
         viewModelScope.launch {
             val fullEpisode = withContext(Dispatchers.IO) {
-                chatEpisodeDAO.getEpisodeById(-memory.id)
+                memoryRepository.getEpisodeMemoryById(-memory.id)
             }
-
             if (fullEpisode == null) {
                 onResolved(memory)
                 return@launch
             }
+            onResolved(fullEpisode)
+        }
+    }
 
-            onResolved(
-                memory.copy(
-                    content = fullEpisode.content,
-                    hasEmbedding = !fullEpisode.embedding.isNullOrBlank(),
-                    embeddingModelId = fullEpisode.embeddingModelId,
-                    timestamp = fullEpisode.startTime,
-                    significance = fullEpisode.significance,
-                )
-            )
+    fun resolveMemoryByRoute(
+        memoryId: Int,
+        initialMemoryTab: Int?,
+        onResolved: (AssistantMemory?) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val resolved = withContext(Dispatchers.IO) {
+                val shouldResolveEpisode = memoryId < 0 || initialMemoryTab == 1
+                if (shouldResolveEpisode) {
+                    memoryRepository.getEpisodeMemoryById(kotlin.math.abs(memoryId))
+                } else {
+                    memoryRepository.getCoreMemoryById(memoryId)
+                }
+            }
+            onResolved(resolved)
         }
     }
 
@@ -331,9 +337,9 @@ class AssistantDetailVM(
     val embeddingProgress = _embeddingProgress.asStateFlow()
 
     // Check if any memories need embedding (just checks if embedding exists, cache handles model switching)
-    val needsEmbeddingRegeneration: StateFlow<Boolean> = memories.map { memories ->
-        memories.any { memory -> memory.content.trim().isNotEmpty() && !memory.hasEmbedding }
-    }.stateIn(
+    val needsEmbeddingRegeneration: StateFlow<Boolean> = memoryRepository
+        .hasPendingEmbeddingsFlow(assistantId.toString())
+        .stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
         initialValue = false

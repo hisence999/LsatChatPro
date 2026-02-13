@@ -24,13 +24,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -83,10 +82,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.repository.AssistantMemoryStats
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
@@ -95,6 +97,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -125,6 +128,7 @@ private enum class MemoryMode(
 fun AssistantMemorySettings(
     assistant: Assistant,
     memories: List<AssistantMemory>,
+    memoryStats: AssistantMemoryStats,
     onUpdateAssistant: (Assistant) -> Unit,
     onAddMemory: (AssistantMemory) -> Unit,
     onUpdateMemory: (AssistantMemory) -> Unit,
@@ -421,7 +425,7 @@ fun AssistantMemorySettings(
         ) {
             MemoryStatisticsCard(
                 assistant = assistant,
-                memories = memories,
+                memoryStats = memoryStats,
                 estimatedMemoryCapacity = estimatedMemoryCapacity
             )
         }
@@ -435,7 +439,8 @@ fun AssistantMemorySettings(
             exit = fadeOut() + shrinkVertically()
         ) {
             ManageMemoriesSection(
-                memories = memories,
+                previewMemories = memories,
+                memoryStats = memoryStats,
                 assistant = assistant,
                 onAddMemory = { memoryDialogState.open(AssistantMemory(0, "")) },
                 onEditMemory = {
@@ -448,6 +453,7 @@ fun AssistantMemorySettings(
                 needsEmbeddingRegeneration = needsEmbeddingRegeneration,
                 memorySearchQuery = memorySearchQuery,
                 onSearchQueryChange = { assistantDetailVM.updateMemorySearchQuery(it) },
+                assistantDetailVM = assistantDetailVM,
                 currentEmbeddingModelId = currentEmbeddingModelId,
                 showMemoryTypes = assistant.enableMemoryConsolidation,
                 initialMemoryTab = initialMemoryTab,
@@ -835,12 +841,13 @@ private fun ConsolidationSettingsCard(
 @Composable
 private fun MemoryStatisticsCard(
     assistant: Assistant,
-    memories: List<AssistantMemory>,
+    memoryStats: AssistantMemoryStats,
     estimatedMemoryCapacity: Int
 ) {
-    val coreMemories = memories.count { it.type == 0 }
-    val episodicMemories = memories.count { it.type == 1 }
-    val withEmbeddings = memories.count { it.hasEmbedding }
+    val coreMemories = memoryStats.coreCount
+    val episodicMemories = memoryStats.episodicCount
+    val withEmbeddings = memoryStats.embeddedCount
+    val totalMemories = memoryStats.totalCount
 
     Surface(
         color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -879,7 +886,7 @@ private fun MemoryStatisticsCard(
                     )
                 } else {
                     StatItem(
-                        value = memories.size.toString(),
+                        value = totalMemories.toString(),
                         label = stringResource(R.string.assistant_page_memory_stats_total),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -890,7 +897,7 @@ private fun MemoryStatisticsCard(
                     StatItem(
                         value = withEmbeddings.toString(),
                         label = stringResource(R.string.assistant_page_memory_stats_embedded),
-                        color = if (withEmbeddings < memories.size) 
+                        color = if (withEmbeddings < totalMemories)
                             MaterialTheme.colorScheme.error 
                         else 
                             MaterialTheme.colorScheme.tertiary
@@ -932,7 +939,8 @@ private fun StatItem(
 
 @Composable
 private fun ManageMemoriesSection(
-    memories: List<AssistantMemory>,
+    previewMemories: List<AssistantMemory>,
+    memoryStats: AssistantMemoryStats,
     assistant: Assistant,
     onAddMemory: () -> Unit,
     onEditMemory: (AssistantMemory) -> Unit,
@@ -941,94 +949,59 @@ private fun ManageMemoriesSection(
     needsEmbeddingRegeneration: Boolean,
     memorySearchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    assistantDetailVM: AssistantDetailVM,
     currentEmbeddingModelId: String,
     showMemoryTypes: Boolean,
     initialMemoryTab: Int? = null,
     scrollToMemoryId: Int? = null
 ) {
-    // Use initialMemoryTab if provided, otherwise default to 0
     var selectedTab by remember { mutableIntStateOf(initialMemoryTab ?: 0) }
     var sortOrder by remember { mutableStateOf(MemorySortOrder.NEWEST_FIRST) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    
-    // Auto-select tab when navigating from context sources
+    var showBottomSheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(initialMemoryTab) {
         if (initialMemoryTab != null) {
             selectedTab = initialMemoryTab
         }
     }
-    
-    // Auto-open memory editor when navigating from context sources
-    LaunchedEffect(scrollToMemoryId, memories) {
-        if (scrollToMemoryId != null && memories.isNotEmpty()) {
-            val targetMemory = memories.find { it.id == scrollToMemoryId }
-            if (targetMemory != null) {
-                onEditMemory(targetMemory)
+
+    LaunchedEffect(scrollToMemoryId, initialMemoryTab) {
+        if (scrollToMemoryId != null) {
+            showBottomSheet = true
+            assistantDetailVM.resolveMemoryByRoute(scrollToMemoryId, initialMemoryTab) { resolved ->
+                if (resolved != null) {
+                    onEditMemory(resolved)
+                }
             }
         }
     }
 
-    val coreMemories = memories.filter { it.type == 0 }
-    val episodicMemories = memories.filter { it.type == 1 }
-    
-    // Filter and sort based on current settings
-    val displayMemories = if (showMemoryTypes) {
+    val displayPreviewMemories = if (showMemoryTypes) {
         when (selectedTab) {
-            0 -> coreMemories
-            else -> episodicMemories
-        }
+            0 -> previewMemories.filter { it.type == 0 }
+            else -> previewMemories.filter { it.type == 1 }
+        }.sortedByDescending { it.timestamp }
     } else {
-        memories
-    }.filter { memory ->
-        memorySearchQuery.isBlank() || memory.content.contains(memorySearchQuery, ignoreCase = true)
-    }.let { list ->
-        when (sortOrder) {
-            MemorySortOrder.NEWEST_FIRST -> list.sortedByDescending { it.timestamp }
-            MemorySortOrder.OLDEST_FIRST -> list.sortedBy { it.timestamp }
-            MemorySortOrder.ALPHABETICAL -> list.sortedBy { it.content.lowercase() }
-        }
-    }
+        previewMemories.sortedByDescending { it.timestamp }
+    }.take(3)
+
+    val tabCoreText = stringResource(R.string.assistant_page_badge_core) + " (${memoryStats.coreCount})"
+    val tabEpisodicText = stringResource(R.string.assistant_page_badge_episodic) + " (${memoryStats.episodicCount})"
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.assistant_page_manage_memory_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                text = stringResource(R.string.assistant_page_recent_memories_title),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Sort button
-                Box {
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Rounded.Sort, contentDescription = stringResource(R.string.assistant_page_sort_content_desc))
-                    }
-                    DropdownMenu(
-                        expanded = showSortMenu,
-                        onDismissRequest = { showSortMenu = false }
-                    ) {
-                        MemorySortOrder.entries.forEach { order ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(order.displayNameRes)) },
-                                onClick = {
-                                    sortOrder = order
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortOrder == order) {
-                                        Icon(Icons.Rounded.Checklist, null, tint = MaterialTheme.colorScheme.primary)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-                
                 if (onRegenerateEmbeddings != null && assistant.useRagMemoryRetrieval && needsEmbeddingRegeneration) {
                     IconButton(onClick = onRegenerateEmbeddings) {
                         Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.assistant_page_regenerate_embeddings_content_desc))
@@ -1040,77 +1013,32 @@ private fun ManageMemoriesSection(
             }
         }
 
-        // Category Tabs (only when consolidation is enabled)
-        AnimatedVisibility(
-            visible = showMemoryTypes,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                modifier = Modifier.clip(RoundedCornerShape(10.dp))
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(R.string.assistant_page_badge_core) + " (${coreMemories.size})") },
-                    icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(18.dp)) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text(stringResource(R.string.assistant_page_badge_episodic) + " (${episodicMemories.size})") },
-                    icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(18.dp)) }
-                )
-            }
-        }
-
-        // Search
-        TextField(
-            value = memorySearchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.assistant_page_memory_search_placeholder)) },
-            leadingIcon = { Icon(Icons.Rounded.Search, null) },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            )
-        )
-
-        if (displayMemories.isEmpty()) {
+        if (displayPreviewMemories.isEmpty()) {
             Surface(
                 color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = if (memorySearchQuery.isBlank()) stringResource(R.string.assistant_page_no_memories) else stringResource(R.string.assistant_page_no_matching_memories),
+                    text = stringResource(R.string.assistant_page_no_memories),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(24.dp)
                 )
             }
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .animateContentSize(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                itemsIndexed(
-                    items = displayMemories,
-                    key = { _, memory -> memory.id }
-                ) { index, memory ->
+                displayPreviewMemories.forEachIndexed { index, memory ->
                     val position = when {
-                        displayMemories.size == 1 -> "ONLY"
+                        displayPreviewMemories.size == 1 -> "ONLY"
                         index == 0 -> "FIRST"
-                        index == displayMemories.size - 1 -> "LAST"
+                        index == displayPreviewMemories.size - 1 -> "LAST"
                         else -> "MIDDLE"
                     }
                     MemoryItem(
@@ -1125,7 +1053,227 @@ private fun ManageMemoriesSection(
                 }
             }
         }
+
+        Button(
+            onClick = { showBottomSheet = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = AppShapes.ButtonPill
+        ) {
+            Text(stringResource(R.string.assistant_page_view_all_memories))
+        }
     }
+
+    if (showBottomSheet) {
+        val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        var showSortMenu by remember { mutableStateOf(false) }
+        val memoryType = if (showMemoryTypes) {
+            when (selectedTab) {
+                0 -> 0
+                else -> 1
+            }
+        } else {
+            -1
+        }
+        val pagingFlow = remember(memorySearchQuery, sortOrder, memoryType) {
+            assistantDetailVM.getPagedMemories(
+                memoryType = memoryType,
+                sortOrder = sortOrder.toDatabaseSortOrder(),
+                searchQuery = memorySearchQuery
+            )
+        }
+        val pagedMemories = pagingFlow.collectAsLazyPagingItems()
+
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch {
+                    sheetState.hide()
+                    showBottomSheet = false
+                }
+            },
+            sheetState = sheetState,
+            sheetGesturesEnabled = false,
+            shape = AppShapes.BottomSheet,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxSize(0.95f)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.assistant_page_manage_memory_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Rounded.Sort, contentDescription = stringResource(R.string.assistant_page_sort_content_desc))
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                MemorySortOrder.entries.forEach { order ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(order.displayNameRes)) },
+                                        onClick = {
+                                            sortOrder = order
+                                            showSortMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (sortOrder == order) {
+                                                Icon(Icons.Rounded.Checklist, null, tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        IconButton(onClick = onAddMemory) {
+                            Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.assistant_page_add_memory_content_desc))
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = showMemoryTypes,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text(tabCoreText) },
+                            icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(18.dp)) }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text(tabEpisodicText) },
+                            icon = { Icon(Icons.Rounded.History, null, modifier = Modifier.size(18.dp)) }
+                        )
+                    }
+                }
+
+                TextField(
+                    value = memorySearchQuery,
+                    onValueChange = onSearchQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.assistant_page_memory_search_placeholder)) },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
+                )
+
+                val refreshState = pagedMemories.loadState.refresh
+                when {
+                    refreshState is androidx.paging.LoadState.Loading && pagedMemories.itemCount == 0 -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator()
+                        }
+                    }
+
+                    pagedMemories.itemCount == 0 -> {
+                        Surface(
+                            color = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            Text(
+                                text = if (memorySearchQuery.isBlank()) stringResource(R.string.assistant_page_no_memories) else stringResource(R.string.assistant_page_no_matching_memories),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(24.dp)
+                            )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clip(RoundedCornerShape(24.dp))
+                                .animateContentSize(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(
+                                count = pagedMemories.itemCount,
+                                key = pagedMemories.itemKey { item -> item.id }
+                            ) { index ->
+                                val memory = pagedMemories[index] ?: return@items
+                                val position = when {
+                                    pagedMemories.itemCount == 1 -> "ONLY"
+                                    index == 0 -> "FIRST"
+                                    index == pagedMemories.itemCount - 1 -> "LAST"
+                                    else -> "MIDDLE"
+                                }
+                                MemoryItem(
+                                    memory = memory,
+                                    onEditMemory = onEditMemory,
+                                    onDeleteMemory = onDeleteMemory,
+                                    useRagMemoryRetrieval = assistant.useRagMemoryRetrieval,
+                                    currentEmbeddingModelId = currentEmbeddingModelId,
+                                    showType = showMemoryTypes,
+                                    position = position
+                                )
+                            }
+
+                            if (pagedMemories.loadState.append is androidx.paging.LoadState.Loading) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        androidx.compose.material3.CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun MemorySortOrder.toDatabaseSortOrder(): Int = when (this) {
+    MemorySortOrder.NEWEST_FIRST -> 0
+    MemorySortOrder.OLDEST_FIRST -> 1
+    MemorySortOrder.ALPHABETICAL -> 2
 }
 
 @Composable
