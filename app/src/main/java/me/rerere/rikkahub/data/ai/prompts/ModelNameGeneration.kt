@@ -21,8 +21,10 @@ internal val DEFAULT_MODEL_NAME_GENERATION_PROMPT = """
        - `gpt` / `openai` series -> start with `GPT`
        - `claude` series -> start with `Claude`
        - `gemini` series -> start with `Gemini`
-       - `llama` series -> start with `Llama`
-       - `mistral` / `mixtral` series -> `Mistral` / `Mixtral`
+       - `glm` series -> start with `GLM`
+       - `minimax` series -> start with `MiniMax`
+       - `mimo` series -> start with `MiMo`
+       - `deepseek` series -> start with `DeepSeek`
 
     3. Version style normalization
        - For version tokens like `3-7`, `4-5`, `1-5`, convert to `3.7`, `4.5`, `1.5`
