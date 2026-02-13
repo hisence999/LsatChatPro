@@ -58,4 +58,5 @@ internal val DEFAULT_MODEL_NAME_GENERATION_PROMPT = """
     - `gemini-2.5-pro-preview-03-25` -> `Gemini 2.5 Pro`
     - `meta-llama/llama-3.1-70b-instruct` -> `Llama 3.1 70B Instruct`
     - `mistral-large-latest` -> `Mistral Large`
+    - `Pro/deepseek-ai/deepseek-v3.2` -> `DeepSeek V3.2`
 """.trimIndent()
