@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Settings
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.Translate
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_MODEL_NAME_GENERATION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
@@ -96,6 +98,10 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             }
 
             item {
+                DefaultModelNameGenerationModelSetting(settings = settings, vm = vm)
+            }
+
+            item {
                 DefaultSuggestionModelSetting(settings = settings, vm = vm)
             }
 
@@ -109,6 +115,98 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
 
             item {
                 DefaultEmbeddingModelSetting(settings = settings, vm = vm)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DefaultModelNameGenerationModelSetting(
+    settings: Settings,
+    vm: SettingVM
+) {
+    var showModal by remember { mutableStateOf(false) }
+    ModelFeatureCard(
+        title = {
+            Text(stringResource(R.string.setting_model_page_model_name_generation_model), maxLines = 1)
+        },
+        description = {
+            Text(stringResource(R.string.setting_model_page_model_name_generation_model_desc))
+        },
+        icon = {
+            Icon(Icons.Rounded.AutoAwesome, null)
+        },
+        actions = {
+            Box(modifier = Modifier.weight(1f)) {
+                ModelSelector(
+                    modelId = settings.modelNameGenerationModelId,
+                    type = ModelType.CHAT,
+                    onSelect = {
+                        vm.updateSettings(
+                            settings.copy(
+                                modelNameGenerationModelId = it.id
+                            )
+                        )
+                    },
+                    providers = settings.providers,
+                    modifier = Modifier.wrapContentWidth()
+                )
+            }
+            IconButton(
+                onClick = {
+                    showModal = true
+                }
+            ) {
+                Icon(Icons.Rounded.Settings, null)
+            }
+        }
+    )
+
+    if (showModal) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showModal = false
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FormItem(
+                    label = {
+                        Text(stringResource(R.string.setting_model_page_prompt))
+                    },
+                    description = {
+                        Text(stringResource(R.string.setting_model_page_model_name_generation_prompt_vars))
+                    }
+                ) {
+                    OutlinedTextField(
+                        value = settings.modelNameGenerationPrompt,
+                        onValueChange = {
+                            vm.updateSettings(
+                                settings.copy(
+                                    modelNameGenerationPrompt = it
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 16,
+                    )
+                    TextButton(
+                        onClick = {
+                            vm.updateSettings(
+                                settings.copy(
+                                    modelNameGenerationPrompt = DEFAULT_MODEL_NAME_GENERATION_PROMPT
+                                )
+                            )
+                        }
+                    ) {
+                        Text(stringResource(R.string.setting_model_page_reset_to_default))
+                    }
+                }
             }
         }
     }

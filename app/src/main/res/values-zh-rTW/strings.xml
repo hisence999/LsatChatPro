@@ -534,6 +534,9 @@
   <string name="setting_model_page_title">模型設定</string>
   <string name="setting_model_page_title_model">標題摘要模型</string>
   <string name="setting_model_page_title_model_desc">用於摘要對話標題的模型, 推薦使用快速且便宜的模型</string>
+  <string name="setting_model_page_model_name_generation_model">模型名稱生成模型</string>
+  <string name="setting_model_page_model_name_generation_model_desc">用於根據模型 ID 生成可讀模型名稱的模型</string>
+  <string name="setting_model_page_model_name_generation_prompt_vars">變數：模型 ID：{model_id}</string>
   <string name="setting_model_page_translate_model">翻譯模型</string>
   <string name="setting_model_page_translate_model_desc">用於翻譯功能的模型</string>
   <string name="setting_model_page_translate_prompt_vars">變數: 原始文字: {source_text}, 目標語言: {target_lang}</string>
@@ -809,6 +812,8 @@
   <string name="setting_provider_page_model_id">模型ID</string>
   <string name="setting_provider_page_model_id_placeholder">例如：gpt-3.5-turbo</string>
   <string name="setting_provider_page_model_name">模型名稱</string>
+  <string name="setting_provider_page_generate_model_name">生成模型名稱</string>
+  <string name="setting_provider_page_generate_model_name_failed">模型名稱生成失敗</string>
   <string name="setting_provider_page_model_type">模型類型</string>
   <string name="setting_provider_page_models">模型</string>
   <string name="setting_provider_page_name">名稱</string>

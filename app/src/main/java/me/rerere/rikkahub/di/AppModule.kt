@@ -11,6 +11,7 @@ import me.rerere.rikkahub.data.ai.AILoggingManager
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.ModelNameGenerationService
 import me.rerere.rikkahub.service.WelcomePhrasesService
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskScheduler
 import me.rerere.rikkahub.utils.EmojiData
@@ -65,6 +66,12 @@ val appModule = module {
 
     single {
         AIRequestLogManager(dao = get())
+    }
+
+    single {
+        ModelNameGenerationService(
+            providerManager = get(),
+        )
     }
 
     single {

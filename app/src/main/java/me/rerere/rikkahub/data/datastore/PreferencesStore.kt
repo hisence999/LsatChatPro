@@ -30,6 +30,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_LEARNING_MODE_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_MODEL_NAME_GENERATION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
@@ -119,10 +120,12 @@ class SettingsStore(
         val FAVORITE_MODELS = stringPreferencesKey("favorite_models")
         val SELECT_MODEL = stringPreferencesKey("chat_model")
         val TITLE_MODEL = stringPreferencesKey("title_model")
+        val MODEL_NAME_GENERATION_MODEL = stringPreferencesKey("model_name_generation_model")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val SUGGESTION_MODEL = stringPreferencesKey("suggestion_model")
         val IMAGE_GENERATION_MODEL = stringPreferencesKey("image_generation_model")
         val TITLE_PROMPT = stringPreferencesKey("title_prompt")
+        val MODEL_NAME_GENERATION_PROMPT = stringPreferencesKey("model_name_generation_prompt")
         val TRANSLATION_PROMPT = stringPreferencesKey("translation_prompt")
         val SUGGESTION_PROMPT = stringPreferencesKey("suggestion_prompt")
         val LEARNING_MODE_PROMPT = stringPreferencesKey("learning_mode_prompt")
@@ -335,12 +338,15 @@ class SettingsStore(
                     ?: GEMINI_2_5_FLASH_ID,
                 titleModelId = preferences[TITLE_MODEL]?.let { Uuid.parse(it) }
                     ?: GEMINI_2_5_FLASH_ID,
+                modelNameGenerationModelId = preferences[MODEL_NAME_GENERATION_MODEL]?.let { Uuid.parse(it) }
+                    ?: GEMINI_2_5_FLASH_ID,
                 translateModeId = preferences[TRANSLATE_MODEL]?.let { Uuid.parse(it) }
                     ?: GEMINI_2_5_FLASH_ID,
                 suggestionModelId = preferences[SUGGESTION_MODEL]?.let { Uuid.parse(it) }
                     ?: GEMINI_2_5_FLASH_ID,
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
+                modelNameGenerationPrompt = preferences[MODEL_NAME_GENERATION_PROMPT] ?: DEFAULT_MODEL_NAME_GENERATION_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
                 learningModePrompt = preferences[LEARNING_MODE_PROMPT] ?: DEFAULT_LEARNING_MODE_PROMPT,
@@ -596,10 +602,12 @@ class SettingsStore(
             preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(finalSettingsToSave.favoriteModels)
             preferences[SELECT_MODEL] = finalSettingsToSave.chatModelId.toString()
             preferences[TITLE_MODEL] = finalSettingsToSave.titleModelId.toString()
+            preferences[MODEL_NAME_GENERATION_MODEL] = finalSettingsToSave.modelNameGenerationModelId.toString()
             preferences[TRANSLATE_MODEL] = finalSettingsToSave.translateModeId.toString()
             preferences[SUGGESTION_MODEL] = finalSettingsToSave.suggestionModelId.toString()
             preferences[IMAGE_GENERATION_MODEL] = finalSettingsToSave.imageGenerationModelId.toString()
             preferences[TITLE_PROMPT] = finalSettingsToSave.titlePrompt
+            preferences[MODEL_NAME_GENERATION_PROMPT] = finalSettingsToSave.modelNameGenerationPrompt
             preferences[TRANSLATION_PROMPT] = finalSettingsToSave.translatePrompt
             preferences[SUGGESTION_PROMPT] = finalSettingsToSave.suggestionPrompt
             preferences[LEARNING_MODE_PROMPT] = finalSettingsToSave.learningModePrompt
@@ -703,8 +711,10 @@ data class Settings(
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
     val titleModelId: Uuid = Uuid.random(),
+    val modelNameGenerationModelId: Uuid = Uuid.random(),
     val imageGenerationModelId: Uuid = Uuid.random(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
+    val modelNameGenerationPrompt: String = DEFAULT_MODEL_NAME_GENERATION_PROMPT,
     val translateModeId: Uuid = Uuid.random(),
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
     val suggestionModelId: Uuid = Uuid.random(),

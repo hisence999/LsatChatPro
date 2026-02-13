@@ -182,4 +182,11 @@
     <string name="permission_read_external_storage_desc">允许读取图片与视频，用于在消息中显示本地媒体内容</string>
     <string name="group_chat_template_seat_system_prompt_restore">还原</string>
     <string name="conversation_load_failed">无法加载该对话（可能过长）。请在侧边栏删除，或新建对话继续。</string>
+
+    <string name="setting_model_page_model_name_generation_model">模型名称生成模型</string>
+    <string name="setting_model_page_model_name_generation_model_desc">用于根据模型 ID 生成可读模型名称的模型</string>
+    <string name="setting_model_page_model_name_generation_prompt_vars">变量：模型 ID：{model_id}</string>
+
+    <string name="setting_provider_page_generate_model_name">生成模型名称</string>
+    <string name="setting_provider_page_generate_model_name_failed">模型名称生成失败</string>
 </resources>

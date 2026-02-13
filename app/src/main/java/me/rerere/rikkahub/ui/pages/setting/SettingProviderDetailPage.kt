@@ -40,6 +40,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
@@ -92,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -146,6 +148,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
+import me.rerere.rikkahub.service.ModelNameGenerationService
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.plus
@@ -160,6 +163,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 @Composable
 fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val modelNameGenerationService = koinInject<ModelNameGenerationService>()
     val navController = LocalNavController.current
     val provider = settings.providers.find { it.id == id } ?: return
     val pager = rememberPagerState { 3 }
@@ -185,6 +189,28 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
         )
         vm.updateSettings(newSettings)
         navController.popBackStack()
+    }
+
+    val onUpdateModelNameIfUnchanged = { modelUuid: Uuid, expectedName: String, generatedName: String ->
+        vm.updateSettings { currentSettings ->
+            currentSettings.copy(
+                providers = currentSettings.providers.map { currentProvider ->
+                    if (currentProvider.id != id) {
+                        currentProvider
+                    } else {
+                        currentProvider.copyProvider(
+                            models = currentProvider.models.map { existingModel ->
+                                if (existingModel.id == modelUuid && existingModel.displayName == expectedName) {
+                                    existingModel.copy(displayName = generatedName)
+                                } else {
+                                    existingModel
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     }
 
     Scaffold(
@@ -361,6 +387,10 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                         SettingProviderModelPage(
                             provider = provider,
                             onEdit = onEdit,
+                            onGenerateModelName = { modelId ->
+                                modelNameGenerationService.generateModelName(settings, modelId)
+                            },
+                            onUpdateModelNameIfUnchanged = onUpdateModelNameIfUnchanged,
                             contentPadding = contentPadding
                         )
                     }
@@ -488,11 +518,15 @@ private fun SettingProviderConfigPage(
 private fun SettingProviderModelPage(
     provider: ProviderSetting,
     onEdit: (ProviderSetting) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
+    onUpdateModelNameIfUnchanged: (Uuid, String, String) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     ModelList(
         providerSetting = provider,
         onUpdateProvider = onEdit,
+        onGenerateModelName = onGenerateModelName,
+        onUpdateModelNameIfUnchanged = onUpdateModelNameIfUnchanged,
         contentPadding = contentPadding
     )
 }
@@ -721,6 +755,8 @@ private fun ConnectionTesterButton(
 private fun ModelList(
     providerSetting: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
+    onUpdateModelNameIfUnchanged: (Uuid, String, String) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val providerManager = koinInject<ProviderManager>()
@@ -773,6 +809,7 @@ private fun ModelList(
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onUpdateProvider(providerSetting.moveMove(from.index, to.index))
     }
+    val scope = rememberCoroutineScope()
     val haptics = me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics()
     
     val canDelete = providerSetting.models.size > 1
@@ -816,6 +853,7 @@ private fun ModelList(
                             onEdit = { editedModel ->
                                 onUpdateProvider(providerSetting.editModel(editedModel))
                             },
+                            onGenerateModelName = onGenerateModelName,
                             parentProvider = providerSetting,
                             dragHandle = {
                                 IconButton(
@@ -908,6 +946,12 @@ private fun ModelList(
                 selectedModels = providerSetting.models,
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
+                    scope.launch {
+                        val generatedName = onGenerateModelName(it.modelId)
+                        if (!generatedName.isNullOrBlank()) {
+                            onUpdateModelNameIfUnchanged(it.id, it.displayName, generatedName)
+                        }
+                    }
                 },
                 onRemoveModel = {
                     onUpdateProvider(providerSetting.delModel(it))
@@ -918,6 +962,14 @@ private fun ModelList(
                         updated = updated.addModel(model)
                     }
                     onUpdateProvider(updated)
+                    models.forEach { model ->
+                        scope.launch {
+                            val generatedName = onGenerateModelName(model.modelId)
+                            if (!generatedName.isNullOrBlank()) {
+                                onUpdateModelNameIfUnchanged(model.id, model.displayName, generatedName)
+                            }
+                        }
+                    }
                 },
                 onRemoveModels = { models ->
                     var updated = providerSetting
@@ -934,6 +986,7 @@ private fun ModelList(
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
                 },
+                onGenerateModelName = onGenerateModelName,
                 parentProvider = providerSetting
             )
         }
@@ -944,11 +997,15 @@ private fun ModelList(
 private fun ModelSettingsForm(
     model: Model,
     onModelChange: (Model) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
     isEdit: Boolean,
     parentProvider: ProviderSetting? = null
 ) {
     val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
+    val toaster = LocalToaster.current
+    val generateModelNameFailedMessage = stringResource(R.string.setting_provider_page_generate_model_name_failed)
+    var generatingDisplayName by remember(model.id, model.modelId) { mutableStateOf(false) }
 
     fun setModelId(id: String) {
         val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
@@ -1063,6 +1120,44 @@ private fun ModelSettingsForm(
                                 },
                                 label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
                                 modifier = Modifier.weight(1f),
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = {
+                                            val modelId = model.modelId.trim()
+                                            if (modelId.isBlank() || generatingDisplayName) {
+                                                return@IconButton
+                                            }
+                                            scope.launch {
+                                                generatingDisplayName = true
+                                                val generatedName = runCatching {
+                                                    onGenerateModelName(modelId)
+                                                }.getOrNull()
+                                                generatingDisplayName = false
+                                                if (!generatedName.isNullOrBlank()) {
+                                                    onModelChange(model.copy(displayName = generatedName))
+                                                } else {
+                                                    toaster.show(
+                                                        message = generateModelNameFailedMessage,
+                                                        type = ToastType.Error
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        enabled = model.modelId.isNotBlank() && !generatingDisplayName
+                                    ) {
+                                        if (generatingDisplayName) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Rounded.AutoAwesome,
+                                                contentDescription = stringResource(R.string.setting_provider_page_generate_model_name)
+                                            )
+                                        }
+                                    }
+                                },
                                 placeholder = {
                                     if (!isEdit) {
                                         Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
@@ -1176,6 +1271,7 @@ private fun AddModelButton(
     onRemoveModel: (Model) -> Unit,
     onAddModels: (List<Model>) -> Unit,
     onRemoveModels: (List<Model>) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
     parentProvider: ProviderSetting
 ) {
     val dialogState = useEditState<Model> { onAddModel(it) }
@@ -1280,6 +1376,7 @@ private fun AddModelButton(
                         ModelSettingsForm(
                             model = modelState,
                             onModelChange = { dialogState.currentState = it },
+                            onGenerateModelName = onGenerateModelName,
                             isEdit = false,
                             parentProvider = parentProvider
                         )
@@ -1522,6 +1619,7 @@ private fun ModelPickerFab(
 @Composable
 private fun AddNewModelFab(
     onAddModel: (Model) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
     parentProvider: ProviderSetting
 ) {
     val dialogState = useEditState<Model> { onAddModel(it) }
@@ -1581,6 +1679,7 @@ private fun AddNewModelFab(
                         ModelSettingsForm(
                             model = modelState,
                             onModelChange = { dialogState.currentState = it },
+                            onGenerateModelName = onGenerateModelName,
                             isEdit = false,
                             parentProvider = parentProvider
                         )
@@ -2035,6 +2134,7 @@ private fun ModelCard(
     canDelete: Boolean,
     onDelete: () -> Unit,
     onEdit: (Model) -> Unit,
+    onGenerateModelName: suspend (String) -> String?,
     parentProvider: ProviderSetting,
     dragHandle: @Composable () -> Unit,
     modifier: Modifier = Modifier
@@ -2093,6 +2193,7 @@ private fun ModelCard(
                         ModelSettingsForm(
                             model = editingModel,
                             onModelChange = { dialogState.currentState = it },
+                            onGenerateModelName = onGenerateModelName,
                             isEdit = true,
                             parentProvider = parentProvider
                         )
