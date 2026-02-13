@@ -71,6 +71,7 @@ val appModule = module {
     single {
         ModelNameGenerationService(
             providerManager = get(),
+            requestLogManager = get(),
         )
     }
 

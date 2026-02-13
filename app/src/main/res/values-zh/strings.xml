@@ -1455,6 +1455,7 @@
   <string name="request_log_source_ocr">OCR</string>
   <string name="request_log_source_scheduled_message">定时消息</string>
   <string name="request_log_source_spontaneous">主动通知</string>
+  <string name="request_log_source_model_name_generation">模型名称生成</string>
   <string name="request_log_source_other">其他</string>
   <string name="a11y_messages">消息</string>
   <string name="a11y_chat_options">对话选项</string>

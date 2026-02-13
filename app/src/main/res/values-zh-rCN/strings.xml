@@ -189,4 +189,5 @@
 
     <string name="setting_provider_page_generate_model_name">生成模型名称</string>
     <string name="setting_provider_page_generate_model_name_failed">模型名称生成失败</string>
+    <string name="request_log_source_model_name_generation">模型名称生成</string>
 </resources>

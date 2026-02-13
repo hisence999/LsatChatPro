@@ -6,6 +6,8 @@ import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -15,6 +17,7 @@ private const val TAG = "ModelNameGenerationService"
 
 class ModelNameGenerationService(
     private val providerManager: ProviderManager,
+    private val requestLogManager: AIRequestLogManager,
 ) {
     suspend fun generateModelName(settings: Settings, modelId: String): String? = withContext(Dispatchers.IO) {
         val modelIdTrimmed = modelId.trim()
@@ -27,25 +30,43 @@ class ModelNameGenerationService(
         val providerHandler = providerManager.getProviderByType(provider)
         val prompt = settings.modelNameGenerationPrompt
             .applyPlaceholders("model_id" to modelIdTrimmed)
-
-        runCatching {
+        val requestMessages = listOf(UIMessage.user(prompt))
+        val params = TextGenerationParams(
+            model = model,
+            temperature = 0f,
+            thinkingBudget = 0
+        )
+        val startAt = System.currentTimeMillis()
+        var failure: Throwable? = null
+        var responseText = ""
+        val result = runCatching {
             providerHandler.generateText(
                 providerSetting = provider,
-                messages = listOf(UIMessage.user(prompt)),
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0f,
-                    thinkingBudget = 0
-                )
+                messages = requestMessages,
+                params = params
             )
         }.onFailure {
+            failure = it
             Log.w(TAG, "generateModelName failed: ${it.message}", it)
         }.getOrNull()
-            ?.choices
-            ?.firstOrNull()
-            ?.message
-            ?.toContentText()
-            ?.toGeneratedName()
+
+        responseText = result?.choices?.firstOrNull()?.message?.toContentText().orEmpty()
+
+        runCatching {
+            requestLogManager.logTextGeneration(
+                source = AIRequestSource.MODEL_NAME_GENERATION,
+                providerSetting = provider,
+                params = params,
+                requestMessages = requestMessages,
+                responseText = responseText,
+                stream = false,
+                latencyMs = System.currentTimeMillis() - startAt,
+                durationMs = System.currentTimeMillis() - startAt,
+                error = failure,
+            )
+        }
+
+        responseText.toGeneratedName()
     }
 }
 

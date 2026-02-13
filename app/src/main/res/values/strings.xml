@@ -57,6 +57,7 @@
     <string name="request_log_source_ocr">OCR</string>
     <string name="request_log_source_scheduled_message">Scheduled Message</string>
     <string name="request_log_source_spontaneous">Spontaneous</string>
+    <string name="request_log_source_model_name_generation">Model Name Generation</string>
     <string name="request_log_source_other">Other</string>
     <string name="app_name">LastChat Plus</string>
     <string name="assistant_importer_import_failed">Import Failed</string>

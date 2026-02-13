@@ -205,6 +205,7 @@ fun AIRequestSource.displayName(): String {
         AIRequestSource.OCR -> stringResource(R.string.request_log_source_ocr)
         AIRequestSource.SCHEDULED_MESSAGE -> stringResource(R.string.request_log_source_scheduled_message)
         AIRequestSource.SPONTANEOUS -> stringResource(R.string.request_log_source_spontaneous)
+        AIRequestSource.MODEL_NAME_GENERATION -> stringResource(R.string.request_log_source_model_name_generation)
         AIRequestSource.OTHER -> stringResource(R.string.request_log_source_other)
     }
 }

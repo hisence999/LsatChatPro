@@ -1581,6 +1581,7 @@
   <string name="request_log_source_ocr">OCR</string>
   <string name="request_log_source_scheduled_message">定時訊息</string>
   <string name="request_log_source_spontaneous">主動通知</string>
+  <string name="request_log_source_model_name_generation">模型名稱生成</string>
   <string name="request_log_source_other">其他</string>
 
   <!-- Provider -->

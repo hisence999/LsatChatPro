@@ -15,6 +15,7 @@ enum class AIRequestSource {
     OCR,
     SCHEDULED_MESSAGE,
     SPONTANEOUS,
+    MODEL_NAME_GENERATION,
     OTHER,
 }
 
@@ -34,6 +35,7 @@ fun AIRequestSource.displayNameZh(): String {
         AIRequestSource.OCR -> "OCR"
         AIRequestSource.SCHEDULED_MESSAGE -> "定时消息"
         AIRequestSource.SPONTANEOUS -> "主动通知"
+        AIRequestSource.MODEL_NAME_GENERATION -> "模型名称生成"
         AIRequestSource.OTHER -> "其他"
     }
 }
