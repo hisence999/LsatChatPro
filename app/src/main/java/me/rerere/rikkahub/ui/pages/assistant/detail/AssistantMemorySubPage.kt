@@ -1284,14 +1284,11 @@ private fun MemoryItem(
                 )
             }
             
-            // Only show delete for core memories (user-created)
-            if (memory.type == 0) {
-                IconButton(onClick = { 
-                    haptics.perform(HapticPattern.Pop)
-                    showDeleteConfirmation = true 
-                }) {
-                    Icon(Icons.Rounded.Delete, stringResource(R.string.assistant_page_delete))
-                }
+            IconButton(onClick = {
+                haptics.perform(HapticPattern.Pop)
+                showDeleteConfirmation = true
+            }) {
+                Icon(Icons.Rounded.Delete, stringResource(R.string.assistant_page_delete))
             }
         }
     }

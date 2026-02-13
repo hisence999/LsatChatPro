@@ -314,6 +314,8 @@ class AssistantDetailVM(
         viewModelScope.launch {
             if (memory.id > 0) {
                 memoryRepository.deleteMemory(id = memory.id)
+            } else if (memory.id < 0 && memory.type == 1) {
+                memoryRepository.deleteEpisodeMemory(id = -memory.id)
             }
         }
     }

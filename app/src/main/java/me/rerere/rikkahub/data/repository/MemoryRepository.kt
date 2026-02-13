@@ -359,6 +359,11 @@ class MemoryRepository(
         embeddingCacheDAO.deleteByMemoryId(id, MemoryType.CORE)
     }
 
+    suspend fun deleteEpisodeMemory(id: Int) {
+        chatEpisodeDAO.deleteEpisode(id)
+        embeddingCacheDAO.deleteByMemoryId(id, MemoryType.EPISODIC)
+    }
+
     /**
      * Retrieve relevant memories with scores for debugging
      */
