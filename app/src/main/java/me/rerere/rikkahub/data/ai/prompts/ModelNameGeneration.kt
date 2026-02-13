@@ -39,11 +39,15 @@ internal val DEFAULT_MODEL_NAME_GENERATION_PROMPT = """
        - In `model_name`, use spaces to separate parts whenever possible.
        - Avoid `-` in output unless keeping it is clearly more mainstream.
 
-    6. Support provider/model format with slash
+    6. Omit release-stage suffixes when possible
+       - If trailing tokens are status-like tags such as `preview` or `latest`, omit them by default.
+       - Keep them only when they are required to distinguish fundamentally different models.
+
+    7. Support provider/model format with slash
        If `model_id` contains `/`, treat it as provider/model or provider/namespace/model.
        Prefer using the last segment after the final `/` as the naming subject.
 
-    7. If not in known mainstream mapping
+    8. If not in known mainstream mapping
        - Remove date suffix first
        - Then title-normalize with brand casing + version normalization + common suffix styling
        - Output the closest mainstream human-readable naming style
@@ -51,7 +55,7 @@ internal val DEFAULT_MODEL_NAME_GENERATION_PROMPT = """
     Examples:
     - `gpt-4o-mini-2024-07-18` -> `GPT 4o mini`
     - `claude-opus-4-5-20251101` -> `Claude Opus 4.5`
-    - `gemini-2.5-pro-exp-03-25` -> `Gemini 2.5 Pro`
+    - `gemini-2.5-pro-preview-03-25` -> `Gemini 2.5 Pro`
     - `meta-llama/llama-3.1-70b-instruct` -> `Llama 3.1 70B Instruct`
-    - `mistral-large-2411` -> `Mistral Large`
+    - `mistral-large-latest` -> `Mistral Large`
 """.trimIndent()
