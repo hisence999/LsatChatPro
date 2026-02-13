@@ -416,7 +416,7 @@ private fun AssistantPromptEditorSheet(
     onApplyToGlobal: (String) -> Unit,
 ) {
     var showApplyConfirm by remember { mutableStateOf(false) }
-    var editorPrompt by remember(prompt, defaultPrompt) { mutableStateOf(prompt.ifBlank { defaultPrompt }) }
+    var editorPrompt by remember { mutableStateOf(prompt.ifBlank { defaultPrompt }) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
