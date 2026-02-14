@@ -322,6 +322,11 @@ private fun getProviderSlugFromName(name: String): String? {
         lowerName.contains("cerebras") -> "cerebras"
         lowerName.contains("cloudflare") -> "cloudflare"
         lowerName.contains("hunyuan") || lowerName.contains("tencent") -> "hunyuan"
+        lowerName.contains("meituan") || lowerName.contains("美团") || lowerName.contains("longcat") -> "longcat"
+        lowerName.contains("xiaomi") || lowerName.contains("小米") || lowerName.contains("mimo") -> "xiaomimimo"
+        lowerName.contains("baai") -> "baai"
+        lowerName.contains("kwaipilot") -> "kwaipilot"
+        lowerName.contains("kolors") -> "kolors"
         else -> null
     }
 }
@@ -542,7 +547,18 @@ private fun hasGoodLocalIcon(name: String): Boolean {
            lowerName.contains("nvidia") ||
            lowerName.contains("cerebras") ||
            lowerName.contains("openrouter") ||
-           lowerName.contains("antigravity")
+           lowerName.contains("antigravity") ||
+           lowerName.contains("meituan") ||
+           lowerName.contains("美团") ||
+           lowerName.contains("longcat") ||
+           lowerName.contains("xiaomi") ||
+           lowerName.contains("小米") ||
+           lowerName.contains("mimo") ||
+           lowerName.contains("baai") ||
+           lowerName.contains("kwaipilot") ||
+           lowerName.contains("kolors") ||
+           lowerName.contains("hunyuan") ||
+           lowerName.contains("混元")
 }
 
 /**
@@ -723,6 +739,12 @@ private fun matchProviderPattern(providerName: String): String? {
     return when {
         // Custom providers
         providerName.contains("antigravity") -> "antigravity.png"
+        providerName.contains("meituan") || providerName.contains("美团") || providerName.contains("longcat") -> "longcat-color.svg"
+        providerName.contains("xiaomi") || providerName.contains("小米") || providerName.contains("mimo") -> "xiaomimimo.svg"
+        providerName.contains("baai") -> "baai.svg"
+        providerName.contains("kwaipilot") -> "kwaipilot-color.svg"
+        providerName.contains("kolors") -> "kolors-color.svg"
+        providerName.contains("hunyuan") || providerName.contains("混元") || providerName.contains("tencent") -> "hunyuan-color.svg"
         
         // Companies with their own icons
         providerName == "openai" -> "openai.svg"
@@ -773,6 +795,11 @@ private fun matchProviderPattern(providerName: String): String? {
 private fun matchModelPattern(modelName: String): String? {
     return when {
         // Specific model patterns - order matters (more specific first)
+        PATTERN_LONGCAT_MODEL.containsMatchIn(modelName) -> "longcat-color.svg"
+        PATTERN_XIAOMI_MIMO.containsMatchIn(modelName) -> "xiaomimimo.svg"
+        PATTERN_BAAI.containsMatchIn(modelName) -> "baai.svg"
+        PATTERN_KWAIPILOT.containsMatchIn(modelName) -> "kwaipilot-color.svg"
+        PATTERN_KOLORS.containsMatchIn(modelName) -> "kolors-color.svg"
         PATTERN_CLAUDE_MODEL.containsMatchIn(modelName) -> "claude-color.svg"
         PATTERN_GPT_MODEL.containsMatchIn(modelName) -> "openai.svg"
         PATTERN_GEMINI_MODEL.containsMatchIn(modelName) -> "gemini-color.svg"
@@ -823,6 +850,11 @@ private fun matchModelPattern(modelName: String): String? {
 // Also provide legacy matching for non-OpenRouter usage (backwards compat)
 private fun matchIconPattern(searchName: String): String? {
     return when {
+        PATTERN_LONGCAT.containsMatchIn(searchName) -> "longcat-color.svg"
+        PATTERN_XIAOMI_MIMO.containsMatchIn(searchName) -> "xiaomimimo.svg"
+        PATTERN_BAAI.containsMatchIn(searchName) -> "baai.svg"
+        PATTERN_KWAIPILOT.containsMatchIn(searchName) -> "kwaipilot-color.svg"
+        PATTERN_KOLORS.containsMatchIn(searchName) -> "kolors-color.svg"
         PATTERN_OPENAI.containsMatchIn(searchName) -> "openai.svg"
         PATTERN_GEMINI.containsMatchIn(searchName) -> "gemini-color.svg"
         PATTERN_GOOGLE.containsMatchIn(searchName) -> "google-color.svg"
@@ -879,6 +911,11 @@ private fun matchIconPattern(searchName: String): String? {
 private val ICON_CACHE = mutableMapOf<String, String>()
 private val REMOTE_ICON_FAILURE_CACHE =
     java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+private val PATTERN_LONGCAT = Regex("longcat|meituan|美团")
+private val PATTERN_XIAOMI_MIMO = Regex("xiaomi|小米|mimo")
+private val PATTERN_BAAI = Regex("baai")
+private val PATTERN_KWAIPILOT = Regex("kwaipilot")
+private val PATTERN_KOLORS = Regex("kolors")
 private val PATTERN_OPENAI = Regex("(gpt|openai|o\\d)")
 private val PATTERN_GEMINI = Regex("(gemini)")
 private val PATTERN_GOOGLE = Regex("google")
@@ -891,7 +928,7 @@ private val PATTERN_OPENROUTER = Regex("openrouter")
 private val PATTERN_ZHIPU = Regex("zhipu|智谱|glm")
 private val PATTERN_MISTRAL = Regex("mistral")
 private val PATTERN_META = Regex("meta\\b|(?<!o)llama")
-private val PATTERN_HUNYUAN = Regex("hunyuan|tencent")
+private val PATTERN_HUNYUAN = Regex("hunyuan|混元|tencent")
 private val PATTERN_GEMMA = Regex("gemma")
 private val PATTERN_PERPLEXITY = Regex("perplexity")
 private val PATTERN_BYTEDANCE = Regex("bytedance|火山")
@@ -936,6 +973,7 @@ private val PATTERN_PHI = Regex("\\bphi\\b|phi-")
 private val PATTERN_COMMAND = Regex("command-")
 private val PATTERN_CLAUDE_MODEL = Regex("claude")
 private val PATTERN_GPT_MODEL = Regex("gpt(?:\\b|\\d|[-_])|\\bo\\d")
+private val PATTERN_LONGCAT_MODEL = Regex("longcat")
 private val PATTERN_DEEPSEEK_MODEL = Regex("deepseek")
 private val PATTERN_GEMINI_MODEL = Regex("gemini")
 private val PATTERN_GROK_MODEL = Regex("grok")
