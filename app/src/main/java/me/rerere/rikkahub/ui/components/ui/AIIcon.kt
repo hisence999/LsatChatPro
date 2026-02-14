@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -9,7 +8,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,8 +20,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
-import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.svg.css
 import me.rerere.rikkahub.R
@@ -170,7 +166,13 @@ fun AutoAIIcon(
     padding: Dp = 4.dp,
 ) {
     val path = remember(name) { computeAIIconByName(name) } ?: run {
-        TextAvatar(text = name, modifier = modifier, loading = loading, color = color, contentColor = contentColor)
+        TextAvatar(
+            text = safeAvatarText(name),
+            modifier = modifier,
+            loading = loading,
+            color = color,
+            contentColor = contentColor
+        )
         return
     }
     AIIcon(
@@ -233,7 +235,7 @@ fun AutoProviderIcon(
         fallback = {
             // Priority 3: Text avatar (final fallback)
             TextAvatar(
-                text = name,
+                text = safeAvatarText(name),
                 modifier = modifier,
                 loading = loading,
                 color = color,
@@ -274,7 +276,7 @@ private fun ProviderFaviconFallback(
             padding = padding,
             fallback = {
                 TextAvatar(
-                    text = name,
+                    text = safeAvatarText(name),
                     modifier = modifier,
                     loading = loading,
                     color = color,
@@ -284,7 +286,7 @@ private fun ProviderFaviconFallback(
         )
     } else {
         TextAvatar(
-            text = name,
+            text = safeAvatarText(name),
             modifier = modifier,
             loading = loading,
             color = color,
@@ -373,8 +375,8 @@ fun AutoAIIconWithUrl(
     
     // Priority 0: User-selected custom icon (highest priority)
     if (!customIconUri.isNullOrBlank()) {
-        // Generate URL for LobeHub icons (theme-adaptive)
-        val iconUrl = remember(customIconUri, darkMode) {
+        // Keep manual picker behavior and ensure hard fallback when custom icon cannot load.
+        val customResolvedUrl = remember(customIconUri, darkMode) {
             when {
                 customIconUri.startsWith("lobehub:") -> {
                     // New format: lobehub:slug
@@ -397,20 +399,24 @@ fun AutoAIIconWithUrl(
                 else -> customIconUri
             }
         }
-        
-        // Use AsyncImage directly for consistent behavior with ClickableIconPicker
-        Surface(
+
+        RemoteIcon(
+            url = customResolvedUrl,
+            name = name,
             modifier = modifier,
-            shape = rememberAvatarShape(loading),
-            color = Color.Transparent,
-        ) {
-            AsyncImage(
-                model = iconUrl,
-                contentDescription = name,
-                modifier = Modifier.padding(padding),
-                contentScale = androidx.compose.ui.layout.ContentScale.Fit
-            )
-        }
+            loading = loading,
+            color = color,
+            padding = padding,
+            fallback = {
+                TextAvatar(
+                    text = safeAvatarText(name),
+                    modifier = Modifier,
+                    loading = loading,
+                    color = color,
+                    contentColor = contentColor
+                )
+            }
+        )
         return
     }
     
@@ -510,7 +516,7 @@ fun AutoAIIconWithUrl(
         else -> {
             // For models: fallback directly to text avatar (no favicon fetching)
             TextAvatar(
-                text = name,
+                text = safeAvatarText(name),
                 modifier = modifier,
                 loading = loading,
                 color = color,
@@ -519,6 +525,8 @@ fun AutoAIIconWithUrl(
         }
     }
 }
+
+private fun safeAvatarText(name: String): String = name.trim().ifBlank { "?" }
 
 /**
  * Check if a model name has a good local icon available
@@ -639,6 +647,8 @@ private fun RemoteIcon(
         else -> null
     }
 
+    var loaded by remember(currentUrl) { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier
             .sizeIn(minWidth = 24.dp, minHeight = 24.dp)
@@ -650,12 +660,16 @@ private fun RemoteIcon(
             fallback?.invoke()
             return@Surface
         }
-
-        val painter = rememberAsyncImagePainter(model = currentUrl)
-        val state = painter.state
-
-        LaunchedEffect(currentUrl, state) {
-            if (state is AsyncImagePainter.State.Error) {
+        
+        AsyncImage(
+            model = currentUrl,
+            contentDescription = name,
+            modifier = Modifier.padding(padding),
+            contentScale = ContentScale.Fit,
+            onSuccess = { loaded = true },
+            onLoading = { loaded = false },
+            onError = {
+                loaded = false
                 when (currentUrl) {
                     url -> {
                         primaryFailed = true
@@ -667,24 +681,11 @@ private fun RemoteIcon(
                     }
                 }
             }
-        }
-
-        when (state) {
-            is AsyncImagePainter.State.Success -> {
-                Image(
-                    painter = painter,
-                    contentDescription = name,
-                    modifier = Modifier.padding(padding),
-                    contentScale = ContentScale.Fit
-                )
-            }
-            is AsyncImagePainter.State.Loading,
-            is AsyncImagePainter.State.Error,
-            is AsyncImagePainter.State.Empty -> {
-                // Show the final fallback (typically TextAvatar) immediately while loading.
-                // If loading succeeds, we'll swap to the icon; if it fails, fallback stays.
-                fallback?.invoke()
-            }
+        )
+        
+        if (!loaded) {
+            // Show fallback while loading and on error, so icon area is never blank.
+            fallback?.invoke()
         }
     }
 }

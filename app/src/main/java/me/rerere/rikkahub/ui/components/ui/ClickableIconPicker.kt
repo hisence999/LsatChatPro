@@ -150,12 +150,20 @@ fun ClickableIconPicker(
                         }
                     }
                 }
+                var loaded by remember(iconModel) { mutableStateOf(false) }
                 AsyncImage(
                     model = iconModel,
                     contentDescription = "Custom icon",
                     modifier = Modifier.size(iconSize),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { loaded = true },
+                    onLoading = { loaded = false },
+                    onError = { loaded = false }
                 )
+                if (!loaded) {
+                    // Never show blank: fall back to default icon content in picker.
+                    defaultContent()
+                }
             } else {
                 // Show default content
                 defaultContent()
