@@ -847,6 +847,7 @@ private fun EntryEditorSheet(
     var caseSensitive by remember { mutableStateOf(entry?.caseSensitive ?: false) }
     var useRegex by remember { mutableStateOf(entry?.useRegex ?: false) }
     var scanDepth by remember { mutableStateOf(entry?.scanDepth ?: 5) }
+    var depth by remember { mutableStateOf(entry?.depth ?: 0) }
     var injectionPosition by remember { 
         mutableStateOf(entry?.injectionPosition ?: InjectionPosition.AFTER_SYSTEM) 
     }
@@ -1054,6 +1055,21 @@ private fun EntryEditorSheet(
                 )
             }
 
+            AnimatedVisibility(
+                visible = injectionPosition == InjectionPosition.AT_DEPTH
+            ) {
+                FormItem(
+                    label = { Text(stringResource(R.string.modes_page_depth)) }
+                ) {
+                    OutlinedTextField(
+                        value = depth.toString(),
+                        onValueChange = { depth = (it.toIntOrNull() ?: 0).coerceAtLeast(0) },
+                        modifier = Modifier.width(80.dp),
+                        singleLine = true
+                    )
+                }
+            }
+
             // Attachments section
             FormItem(
                 label = { Text(stringResource(R.string.modes_page_attachments)) }
@@ -1130,6 +1146,7 @@ private fun EntryEditorSheet(
                             useRegex = useRegex,
                             scanDepth = scanDepth,
                             injectionPosition = injectionPosition,
+                            depth = depth.coerceAtLeast(0),
                             attachments = attachments
                         )
                         onSave(savedEntry)

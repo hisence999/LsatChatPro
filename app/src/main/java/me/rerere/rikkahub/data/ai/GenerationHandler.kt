@@ -701,6 +701,37 @@ class GenerationHandler(
         val afterSystemModes = enabledModes.filter { it.injectionPosition == InjectionPosition.AFTER_SYSTEM }
         val beforeSystemEntries = activatedEntries.filter { it.injectionPosition == InjectionPosition.BEFORE_SYSTEM }
         val afterSystemEntries = activatedEntries.filter { it.injectionPosition == InjectionPosition.AFTER_SYSTEM }
+        val inChatModeInjections = enabledModes
+            .filter {
+                it.prompt.isNotBlank() && (
+                    it.injectionPosition == InjectionPosition.TOP_OF_CHAT ||
+                        it.injectionPosition == InjectionPosition.BEFORE_LATEST ||
+                        it.injectionPosition == InjectionPosition.AT_DEPTH
+                    )
+            }
+            .map { mode ->
+                InChatPromptInjection(
+                    position = mode.injectionPosition,
+                    prompt = mode.prompt,
+                    depth = mode.depth,
+                )
+            }
+        val inChatEntryInjections = activatedEntries
+            .filter {
+                it.prompt.isNotBlank() && (
+                    it.injectionPosition == InjectionPosition.TOP_OF_CHAT ||
+                        it.injectionPosition == InjectionPosition.BEFORE_LATEST ||
+                        it.injectionPosition == InjectionPosition.AT_DEPTH
+                    )
+            }
+            .map { entry ->
+                InChatPromptInjection(
+                    position = entry.injectionPosition,
+                    prompt = entry.prompt,
+                    depth = entry.depth,
+                )
+            }
+        val inChatInjections = inChatModeInjections + inChatEntryInjections
 
         // 1. Base System Prompt (BEFORE_SYSTEM modes/entries + System + Learning + AFTER_SYSTEM modes/entries + Tools)
         val baseSystemPromptBuilder = StringBuilder()
@@ -740,6 +771,7 @@ class GenerationHandler(
         }
         val baseSystemPrompt = baseSystemPromptBuilder.toString()
         currentTokens += estimateTokens(baseSystemPrompt)
+        currentTokens += inChatInjections.sumOf { estimateTokens(it.prompt) }
 
         // 2. Prepare Candidates
         // Chat History (reverse order to prioritize recent)
@@ -924,6 +956,11 @@ class GenerationHandler(
 
         // Combine all context attachments
         val allContextAttachments = modeAttachmentParts + lorebookAttachmentParts
+        val selectedMessagesByHistoryOrder = selectedMessages.sortedBy { messages.indexOf(it) }
+        val selectedMessagesWithInjections = applyInChatPromptInjections(
+            baseMessages = selectedMessagesByHistoryOrder,
+            injections = inChatInjections,
+        )
 
         val builtMessages = buildList {
             val finalSystemPrompt = buildString {
@@ -958,7 +995,7 @@ class GenerationHandler(
             }
 
             // Restore chat history order
-            addAll(selectedMessages.sortedBy { messages.indexOf(it) })
+            addAll(selectedMessagesWithInjections)
         }
 
         val usedMemories = selectedMemories.mapIndexed { index, memory ->
