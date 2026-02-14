@@ -375,33 +375,32 @@ fun AutoAIIconWithUrl(
     
     // Priority 0: User-selected custom icon (highest priority)
     if (!customIconUri.isNullOrBlank()) {
-        // Keep manual picker behavior and ensure hard fallback when custom icon cannot load.
-        val customResolvedUrl = remember(customIconUri, darkMode) {
+        // Keep manual picker behavior and prefer colored LobeHub icons when possible.
+        val customIconUrls = remember(customIconUri, darkMode) {
             when {
                 customIconUri.startsWith("lobehub:") -> {
                     // New format: lobehub:slug
                     val slug = customIconUri.removePrefix("lobehub:")
-                    val theme = if (darkMode) "dark" else "light"
-                    "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$theme/$slug.png"
+                    getLobeHubIconUrls(slug, darkMode)
                 }
                 customIconUri.contains("@lobehub/icons-static-png") ||
                 (customIconUri.contains("lobehub") && customIconUri.contains("/icons/")) -> {
-                    // Legacy format: full LobeHub URL - extract slug and make theme-adaptive
+                    // Legacy format: full LobeHub URL - extract slug and prefer color variant.
                     val slugMatch = Regex("""/(?:dark|light)/([^/]+)\.png""").find(customIconUri)
-                    val slug = slugMatch?.groupValues?.get(1)
+                    val slug = slugMatch?.groupValues?.get(1)?.removeSuffix("-color")
                     if (slug != null) {
-                        val theme = if (darkMode) "dark" else "light"
-                        "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$theme/$slug.png"
+                        getLobeHubIconUrls(slug, darkMode)
                     } else {
-                        customIconUri
+                        IconUrlPair(customIconUri, null)
                     }
                 }
-                else -> customIconUri
+                else -> IconUrlPair(customIconUri, null)
             }
         }
 
         RemoteIcon(
-            url = customResolvedUrl,
+            url = customIconUrls.coloredUrl,
+            fallbackUrl = customIconUrls.monochromeUrl,
             name = name,
             modifier = modifier,
             loading = loading,
@@ -570,26 +569,27 @@ private fun hasGoodLocalIcon(name: String): Boolean {
 }
 
 /**
- * Icon URL pair containing both colored and monochrome versions
+ * Icon URL pair for preferred icon URL and optional fallback URL.
  */
 private data class IconUrlPair(
     val coloredUrl: String,
-    val monochromeUrl: String
+    val monochromeUrl: String?
 )
 
 /**
  * Get LobeHub CDN icon URLs from provider slug
- * Returns primary theme-appropriate URL and fallback to opposite theme
+ * Returns primary colored URL and fallback monochrome URL in current theme.
  * 
  * LobeHub structure:
- * - /dark/{slug}.png - dark icons (for dark backgrounds)
- * - /light/{slug}.png - light icons (for light backgrounds)
+ * - /dark/{slug}-color.png | /light/{slug}-color.png  (preferred)
+ * - /dark/{slug}.png       | /light/{slug}.png        (fallback)
  */
 private fun getLobeHubIconUrls(providerSlug: String, darkMode: Boolean): IconUrlPair {
     // Normalize the slug: lowercase and replace spaces/underscores with hyphens
     val normalizedSlug = providerSlug.lowercase()
         .replace(" ", "-")
         .replace("_", "-")
+        .removeSuffix("-color")
     
     // Map some common provider slugs to their LobeHub equivalents
     val slug = when (normalizedSlug.replace("-", "")) {
@@ -603,12 +603,11 @@ private fun getLobeHubIconUrls(providerSlug: String, darkMode: Boolean): IconUrl
     // For dark mode: use dark icons (light colored icons visible on dark bg)
     // For light mode: use light icons (dark colored icons visible on light bg)
     val primaryTheme = if (darkMode) "dark" else "light"
-    val fallbackTheme = if (darkMode) "light" else "dark"
-    
-    // npmmirror CDN with correct path format
+ 
+    // npmmirror CDN with color-first strategy.
     return IconUrlPair(
-        coloredUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$primaryTheme/$slug.png",
-        monochromeUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$fallbackTheme/$slug.png"
+        coloredUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$primaryTheme/$slug-color.png",
+        monochromeUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$primaryTheme/$slug.png"
     )
 }
 

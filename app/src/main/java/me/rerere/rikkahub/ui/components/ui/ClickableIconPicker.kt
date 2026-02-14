@@ -272,8 +272,7 @@ private fun LobeHubIconSearchDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val darkMode = LocalDarkMode.current
-    // Monochrome icons: dark mode = dark icons, light mode = light icons (inverted for visibility)
-    val monoTheme = if (darkMode) "dark" else "light"
+    val theme = if (darkMode) "dark" else "light"
     
     // Create the list of slugs to show: user's query first (if not empty), then filtered presets
     val displaySlugs = remember(searchQuery) {
@@ -289,12 +288,13 @@ private fun LobeHubIconSearchDialog(
         }
     }
     
-    // Create list of monochrome icons only
-    data class IconOption(val url: String, val slug: String, val key: String)
-    val iconOptions = remember(displaySlugs, monoTheme) {
+    // Create list with color-first URL and monochrome fallback.
+    data class IconOption(val url: String, val fallbackUrl: String, val slug: String, val key: String)
+    val iconOptions = remember(displaySlugs, theme) {
         displaySlugs.map { slug ->
             IconOption(
-                url = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$monoTheme/$slug.png",
+                url = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$theme/$slug-color.png",
+                fallbackUrl = "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/$theme/$slug.png",
                 slug = slug,
                 key = slug
             )
@@ -331,6 +331,7 @@ private fun LobeHubIconSearchDialog(
                         val option = iconOptions[index]
                         LobeHubIconItem(
                             url = option.url,
+                            fallbackUrl = option.fallbackUrl,
                             slug = option.slug,
                             onSelect = { onSlugSelected(option.slug) }
                         )
@@ -350,9 +351,12 @@ private fun LobeHubIconSearchDialog(
 @Composable
 private fun LobeHubIconItem(
     url: String,
+    fallbackUrl: String,
     slug: String,
     onSelect: () -> Unit
 ) {
+    var primaryFailed by remember(url, fallbackUrl) { mutableStateOf(false) }
+    val currentUrl = if (primaryFailed) fallbackUrl else url
     Surface(
         onClick = onSelect,
         modifier = Modifier.size(56.dp),
@@ -360,12 +364,17 @@ private fun LobeHubIconItem(
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         AsyncImage(
-            model = url,
+            model = currentUrl,
             contentDescription = slug,
             modifier = Modifier
                 .padding(8.dp)
                 .size(40.dp),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
+            onError = {
+                if (!primaryFailed) {
+                    primaryFailed = true
+                }
+            }
         )
     }
 }
