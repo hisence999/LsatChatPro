@@ -995,6 +995,7 @@ data class DisplaySetting(
     val rpStyleRules: List<RpStyleRule> = emptyList(), // Custom RP text styling rules
     val ttsTextFilterRules: List<TtsTextFilterRule> = emptyList(), // TTS text filter rules
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
+    val mergeProvidersInModelSelector: Boolean = false, // Merge providers with same base URL in model selector
     val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
     val embeddingRetrievalTimeoutSeconds: Int = 2, // Timeout for embedding-based retrieval (memories, tool results)
     val useLastTurnMemoryOnSkip: Boolean = true, // Reuse last injected memories when retrieval is skipped

@@ -125,6 +125,8 @@
     <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
     <string name="setting_display_page_use_last_turn_memory_title">使用上一轮记忆</string>
     <string name="setting_display_page_use_last_turn_memory_desc">跳过记忆检索后，使用上一轮注入的记忆</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择合并同源提供商</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_desc">当多个提供商 Base URL 相同，在模型选择中合并显示</string>
 
     <string name="setting_mcp_page_tool_require_approval">需要审批</string>
     <string name="assistant_page_background_prompt_vars">变量：{assistant_name}、{last_notification_info}、{{history}}、{{memories}}</string>

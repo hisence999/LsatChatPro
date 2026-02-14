@@ -506,6 +506,8 @@
   <string name="setting_display_page_message_jumper_position_desc">将消息导航移到左侧</string>
   <string name="setting_display_page_show_model_name_desc">在消息前显示助手名称和时间</string>
   <string name="setting_display_page_show_model_name_title">显示助手名称</string>
+  <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择合并同源提供商</string>
+  <string name="setting_display_page_merge_providers_in_model_selector_desc">当多个提供商 Base URL 相同，在模型选择中合并显示</string>
   <string name="setting_display_page_show_token_usage_desc">显示token用量和消息数量</string>
   <string name="setting_display_page_show_token_usage_title">显示Token和上下文统计</string>
   <string name="setting_display_page_message_input_style_title">消息输入栏样式</string>

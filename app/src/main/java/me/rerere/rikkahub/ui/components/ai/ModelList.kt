@@ -113,6 +113,7 @@ import me.rerere.rikkahub.utils.toDp
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.util.Locale
 import kotlin.uuid.Uuid
 
 @Composable
@@ -269,21 +270,30 @@ internal fun ColumnScope.ModelList(
 
     var searchKeywords by remember { mutableStateOf("") }
 
+    val displayProviderGroups = remember(providers, settings.value.displaySetting.mergeProvidersInModelSelector) {
+        buildModelSelectorProviderGroups(
+            providers = providers,
+            mergeByBaseUrl = settings.value.displaySetting.mergeProvidersInModelSelector
+        )
+    }
+
     // Build a flat list of items for the LazyColumn - this enables precise scrolling to any model
     // Structure: [provider header, model, model, ...] for each provider
-    
-    val providerListItems = remember(providers, modelType, searchKeywords, settings.value.favoriteModels) {
+
+    val providerListItems = remember(displayProviderGroups, modelType, searchKeywords, settings.value.favoriteModels) {
         buildList {
-            providers.forEach { providerSetting ->
-                val filteredModels = providerSetting.models.fastFilter {
-                    it.type == modelType && it.displayName.contains(searchKeywords, true)
+            displayProviderGroups.forEach { group ->
+                val filteredModels = group.providers.flatMap { provider ->
+                    provider.models.fastFilter {
+                        it.type == modelType && it.displayName.contains(searchKeywords, true)
+                    }.map { model -> model to provider }
                 }
-                
+
                 // Add provider header
-                add(ProviderListItem.Header(providerSetting))
-                
+                add(ProviderListItem.Header(group = group))
+
                 // Add each model as individual item
-                filteredModels.forEachIndexed { index, model ->
+                filteredModels.forEachIndexed { index, (model, providerSetting) ->
                     val itemPosition = when {
                         filteredModels.size == 1 -> ModelItemPosition.SINGLE
                         index == 0 -> ModelItemPosition.FIRST
@@ -308,7 +318,7 @@ internal fun ColumnScope.ModelList(
         var position = 0
 
         // Skip no-providers placeholder
-        if (providers.isEmpty()) {
+        if (displayProviderGroups.isEmpty()) {
             position += 1
         }
 
@@ -360,7 +370,7 @@ internal fun ColumnScope.ModelList(
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         // 计算favorite models在列表中的位置偏移
         var favoriteStartIndex = 0
-        if (providers.isEmpty()) {
+        if (displayProviderGroups.isEmpty()) {
             favoriteStartIndex = 1 // no providers item
         }
         if (favoriteModels.isNotEmpty()) {
@@ -387,9 +397,9 @@ internal fun ColumnScope.ModelList(
     val haptics = rememberPremiumHaptics(enabled = settings.value.displaySetting.enableUIHaptics)
 
     // Calculate the LazyColumn item index for each provider header
-    val providerPositions = remember(providers, favoriteModels, providerListItems) {
+    val providerPositions = remember(displayProviderGroups, favoriteModels, providerListItems) {
         var baseIndex = 0
-        if (providers.isEmpty()) {
+        if (displayProviderGroups.isEmpty()) {
             baseIndex = 1 // no providers item takes index 0
         }
         if (favoriteModels.isNotEmpty()) {
@@ -398,12 +408,12 @@ internal fun ColumnScope.ModelList(
         }
 
         // Find each provider header's position in the flat list
-        providers.mapNotNull { provider ->
+        displayProviderGroups.mapNotNull { group ->
             val headerIndex = providerListItems.indexOfFirst { item ->
-                item is ProviderListItem.Header && item.provider.id == provider.id
+                item is ProviderListItem.Header && item.group.key == group.key
             }
             if (headerIndex >= 0) {
-                provider.id to (baseIndex + headerIndex)
+                group.displayProvider.id to (baseIndex + headerIndex)
             } else null
         }.toMap()
     }
@@ -451,7 +461,7 @@ internal fun ColumnScope.ModelList(
             contentPadding = PaddingValues(16.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (providers.isEmpty()) {
+            if (displayProviderGroups.isEmpty()) {
                 item {
                     Text(
                         text = stringResource(R.string.model_list_no_providers),
@@ -536,15 +546,16 @@ internal fun ColumnScope.ModelList(
                 when (listItem) {
                     is ProviderListItem.Header -> {
                         stickyHeader(
-                            key = "provider-header:${listItem.provider.id}"
+                            key = "provider-header:${listItem.group.key}"
                         ) {
                             Row(
                                 modifier = Modifier
                                     .padding(bottom = 4.dp, top = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                val displayProvider = listItem.group.displayProvider
                                 Text(
-                                    text = listItem.provider.name,
+                                    text = displayProvider.name,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -552,7 +563,7 @@ internal fun ColumnScope.ModelList(
                                 Spacer(modifier = Modifier.weight(1f))
 
                                 ProviderBalanceText(
-                                    providerSetting = listItem.provider,
+                                    providerSetting = displayProvider,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -619,11 +630,13 @@ internal fun ColumnScope.ModelList(
     }
 
     // 供应商Badge行
-    val useSingleRowProviderBadges = providers.size < 4
+    val useSingleRowProviderBadges = displayProviderGroups.size < 4
     val providerBadgeListState = rememberLazyListState()
     val providerBadgeScrollState = rememberScrollState()
-    val providerBadgeRequesters = remember(providers) { providers.associate { it.id to BringIntoViewRequester() } }
-    LaunchedEffect(lazyListState, useSingleRowProviderBadges, providers, providerPositions) {
+    val providerBadgeRequesters = remember(displayProviderGroups) {
+        displayProviderGroups.associate { it.displayProvider.id to BringIntoViewRequester() }
+    }
+    LaunchedEffect(lazyListState, useSingleRowProviderBadges, displayProviderGroups, providerPositions) {
         // 当LazyColumn滚动时，LazyRow也跟随滚动
         snapshotFlow { lazyListState.firstVisibleItemIndex }
             .distinctUntilChanged()
@@ -636,7 +649,7 @@ internal fun ColumnScope.ModelList(
                     val currentProviderId = currentProvider?.key
                     if (currentProviderId != null) {
                         if (useSingleRowProviderBadges) {
-                            val providerIndex = providers.indexOfFirst { it.id == currentProviderId }
+                            val providerIndex = displayProviderGroups.indexOfFirst { it.displayProvider.id == currentProviderId }
                             if (providerIndex >= 0) {
                                 providerBadgeListState.animateScrollToItem(providerIndex)
                             } else {
@@ -659,7 +672,7 @@ internal fun ColumnScope.ModelList(
                 }
             }
     }
-    if (providers.isNotEmpty()) {
+    if (displayProviderGroups.isNotEmpty()) {
         if (useSingleRowProviderBadges) {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -668,9 +681,10 @@ internal fun ColumnScope.ModelList(
                 state = providerBadgeListState
             ) {
                 items(
-                    items = providers,
-                    key = { it.id }
-                ) { provider ->
+                    items = displayProviderGroups,
+                    key = { it.key }
+                ) { group ->
+                    val provider = group.displayProvider
                     AssistChip(
                         onClick = {
                             val position = providerPositions[provider.id] ?: 0
@@ -691,8 +705,12 @@ internal fun ColumnScope.ModelList(
                 }
             }
         } else {
-            val providerBadgeRow1 = remember(providers) { providers.filterIndexed { index, _ -> index % 2 == 0 } }
-            val providerBadgeRow2 = remember(providers) { providers.filterIndexed { index, _ -> index % 2 == 1 } }
+            val providerBadgeRow1 = remember(displayProviderGroups) {
+                displayProviderGroups.filterIndexed { index, _ -> index % 2 == 0 }
+            }
+            val providerBadgeRow2 = remember(displayProviderGroups) {
+                displayProviderGroups.filterIndexed { index, _ -> index % 2 == 1 }
+            }
             CompositionLocalProvider(
                 LocalMinimumInteractiveComponentSize provides 0.dp
             ) {
@@ -707,7 +725,8 @@ internal fun ColumnScope.ModelList(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
-                        providerBadgeRow1.fastForEach { provider ->
+                        providerBadgeRow1.fastForEach { group ->
+                            val provider = group.displayProvider
                             AssistChip(
                                 modifier = Modifier.bringIntoViewRequester(providerBadgeRequesters.getValue(provider.id)),
                                 onClick = {
@@ -733,7 +752,8 @@ internal fun ColumnScope.ModelList(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
-                        providerBadgeRow2.fastForEach { provider ->
+                        providerBadgeRow2.fastForEach { group ->
+                            val provider = group.displayProvider
                             AssistChip(
                                 modifier = Modifier.bringIntoViewRequester(providerBadgeRequesters.getValue(provider.id)),
                                 onClick = {
@@ -770,13 +790,78 @@ private enum class ModelItemPosition {
 
 // Sealed class for flattened provider list items (enables precise scrolling)
 private sealed class ProviderListItem {
-    data class Header(val provider: ProviderSetting) : ProviderListItem()
+    data class Header(val group: ModelSelectorProviderGroup) : ProviderListItem()
     data class ModelEntry(
         val model: Model,
         val provider: ProviderSetting,
         val position: ModelItemPosition,
         val isFavorite: Boolean
     ) : ProviderListItem()
+}
+
+private data class ModelSelectorProviderGroup(
+    val key: String,
+    val displayProvider: ProviderSetting,
+    val providers: List<ProviderSetting>,
+)
+
+private fun buildModelSelectorProviderGroups(
+    providers: List<ProviderSetting>,
+    mergeByBaseUrl: Boolean,
+): List<ModelSelectorProviderGroup> {
+    if (!mergeByBaseUrl) {
+        return providers.map { provider ->
+            ModelSelectorProviderGroup(
+                key = "provider:${provider.id}",
+                displayProvider = provider,
+                providers = listOf(provider)
+            )
+        }
+    }
+
+    val groupedProviders = LinkedHashMap<String, MutableList<ProviderSetting>>()
+    providers.forEach { provider ->
+        val mergeKey = provider.modelSelectorMergeKey()
+        groupedProviders.getOrPut(mergeKey) { mutableListOf() }.add(provider)
+    }
+
+    return groupedProviders.map { (key, groupProviders) ->
+        ModelSelectorProviderGroup(
+            key = key,
+            displayProvider = groupProviders.first(),
+            providers = groupProviders.toList()
+        )
+    }
+}
+
+private fun ProviderSetting.modelSelectorMergeKey(): String {
+    val normalizedBaseUrl = modelSelectorBaseUrl()?.normalizeModelSelectorBaseUrl()
+    if (normalizedBaseUrl.isNullOrBlank()) return "provider:$id"
+    return "baseurl:$normalizedBaseUrl"
+}
+
+private fun ProviderSetting.modelSelectorBaseUrl(): String? {
+    return when (this) {
+        is ProviderSetting.OpenAI -> baseUrl
+        is ProviderSetting.Google -> baseUrl
+        is ProviderSetting.Claude -> baseUrl
+    }
+}
+
+private fun String.normalizeModelSelectorBaseUrl(): String {
+    val noTrailingSlash = trim().removeSuffix("/")
+    val withoutVersionSuffix = when {
+        noTrailingSlash.endsWith("/v1beta", ignoreCase = true) -> {
+            noTrailingSlash.dropLast("/v1beta".length)
+        }
+
+        noTrailingSlash.endsWith("/v1", ignoreCase = true) -> {
+            noTrailingSlash.dropLast("/v1".length)
+        }
+
+        else -> noTrailingSlash
+    }
+    return withoutVersionSuffix.removeSuffix("/").lowercase(Locale.ROOT)
 }
 @Composable
 private fun ModelItem(
