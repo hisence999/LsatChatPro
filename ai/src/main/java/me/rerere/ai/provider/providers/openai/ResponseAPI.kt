@@ -438,11 +438,17 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
             }
 
             "response.completed" -> {
+                val responseObject = jsonObject["response"]?.jsonObject
+                val finishReason = parseResponseFinishReason(responseObject)
                 return MessageChunk(
                     id = jsonObject["item_id"]?.jsonPrimitive?.contentOrNull ?: "",
                     model = "",
                     choices = emptyList(),
-                    usage = parseTokenUsage(jsonObject["response"]?.jsonObject?.get("usage")?.jsonObject)
+                    usage = parseTokenUsage(responseObject?.get("usage")?.jsonObject),
+                    finishReasons = finishReason
+                        ?.takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                        ?.let { setOf(it) }
+                        ?: emptySet(),
                 )
             }
         }
@@ -513,6 +519,7 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
             }
         }
 
+        val finishReason = parseResponseFinishReason(jsonObject)
         return MessageChunk(
             id = jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: "",
             model = jsonObject["model"]?.jsonPrimitive?.contentOrNull ?: "",
@@ -523,12 +530,36 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                         role = MessageRole.ASSISTANT,
                         parts = parts,
                     ),
-                    finishReason = null,
+                    finishReason = finishReason,
                     delta = null
                 )
             ),
-            usage = parseTokenUsage(jsonObject["usage"]?.jsonObject)
+            usage = parseTokenUsage(jsonObject["usage"]?.jsonObject),
+            finishReasons = finishReason
+                ?.takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                ?.let { setOf(it) }
+                ?: emptySet(),
         )
+    }
+
+    private fun parseResponseFinishReason(response: JsonObject?): String? {
+        if (response == null) return null
+        val incompleteReason = response["incomplete_details"]
+            ?.jsonObjectOrNull
+            ?.get("reason")
+            ?.jsonPrimitive
+            ?.contentOrNull
+            ?.trim()
+        if (!incompleteReason.isNullOrBlank()) {
+            return incompleteReason
+        }
+
+        return when (response["status"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()) {
+            "completed" -> "stop"
+            "incomplete" -> "incomplete"
+            "failed" -> "error"
+            else -> null
+        }
     }
 
     private fun parseTokenUsage(jsonObject: JsonObject?): TokenUsage? {

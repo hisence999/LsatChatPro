@@ -138,7 +138,11 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     finishReason = stopReason
                 )
             ),
-            usage = usage
+            usage = usage,
+            finishReasons = stopReason
+                .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                ?.let { setOf(it) }
+                ?: emptySet(),
         )
     }
 
@@ -187,6 +191,15 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 val tokenUsage = parseTokenUsage(
                     dataJson["usage"]?.jsonObject ?: dataJson["message"]?.jsonObject?.get("usage")?.jsonObject
                 )
+                val finishReason = dataJson["delta"]?.jsonObject
+                    ?.get("stop_reason")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: dataJson["message"]?.jsonObject
+                        ?.get("stop_reason")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                    ?: dataJson["stop_reason"]?.jsonPrimitive?.contentOrNull
                 val messageChunk = MessageChunk(
                     id = id ?: "",
                     model = "",
@@ -195,10 +208,14 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                             index = 0,
                             delta = deltaMessage,
                             message = null,
-                            finishReason = null
+                            finishReason = finishReason
                         )
                     ),
-                    usage = tokenUsage
+                    usage = tokenUsage,
+                    finishReasons = finishReason
+                        ?.takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                        ?.let { setOf(it) }
+                        ?: emptySet(),
                 )
 
                 when (type) {

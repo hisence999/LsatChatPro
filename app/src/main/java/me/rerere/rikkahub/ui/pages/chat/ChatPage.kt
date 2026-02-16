@@ -939,7 +939,7 @@ private fun ChatPageContent(
                             }
                         },
                         onCancelClick = {
-                            loadingJob?.cancel()
+                            vm.cancelGenerationByUser()
                         },
                         enableSearch = if (isGroupChatTemplate) false else enableWebSearch,
                         onToggleSearch = {
@@ -1087,7 +1087,7 @@ private fun ChatPageContent(
                             }
                         },
                         onCancelClick = {
-                            loadingJob?.cancel()
+                            vm.cancelGenerationByUser()
                         },
                         enableSearch = if (isGroupChatTemplate) false else enableWebSearch,
                         onToggleSearch = {

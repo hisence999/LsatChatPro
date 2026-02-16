@@ -86,7 +86,8 @@ data class BuildMessagesResult(
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
-        val messages: List<UIMessage>
+        val messages: List<UIMessage>,
+        val finishReasons: Set<String> = emptySet(),
     ) : GenerationChunk
 }
 
@@ -153,8 +154,8 @@ class GenerationHandler(
                 settings = settings,
                 messages = messages,
                 conversationId = conversationId,
-                onUpdateMessages = {
-                    messages = it.transforms(
+                onUpdateMessages = { updatedMessages, finishReasons ->
+                    messages = updatedMessages.transforms(
                         transformers = outputTransformers,
                         context = context,
                         model = model,
@@ -167,7 +168,8 @@ class GenerationHandler(
                                 context = context,
                                 model = model,
                                 assistant = assistant
-                            )
+                            ),
+                            finishReasons = finishReasons,
                         )
                     )
                 },
@@ -1027,7 +1029,7 @@ class GenerationHandler(
         settings: Settings,
         messages: List<UIMessage>,
         conversationId: Uuid?,
-        onUpdateMessages: suspend (List<UIMessage>) -> Unit,
+        onUpdateMessages: suspend (List<UIMessage>, Set<String>) -> Unit,
         transformers: List<MessageTransformer>,
         model: Model,
         providerImpl: Provider<ProviderSetting>,
@@ -1088,10 +1090,10 @@ class GenerationHandler(
                     providerSetting = provider,
                     messages = internalMessages,
                     params = params
-                ).collect {
+                ).collect { chunk ->
                     if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
-                    messages = messages.handleMessageChunk(chunk = it, model = model)
-                    it.usage?.let { usage ->
+                    messages = messages.handleMessageChunk(chunk = chunk, model = model)
+                    chunk.usage?.let { usage ->
                         messages = messages.mapIndexed { index, message ->
                             if (index == messages.lastIndex) {
                                 message.copy(usage = message.usage.merge(usage))
@@ -1100,7 +1102,14 @@ class GenerationHandler(
                             }
                         }
                     }
-                    onUpdateMessages(messages)
+                    val finishReasons = when {
+                        chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
+                        else -> chunk.choices
+                            .mapNotNull { choice -> choice.finishReason?.trim() }
+                            .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                            .toSet()
+                    }
+                    onUpdateMessages(messages, finishReasons)
                 }
 
                 if (hasContextSources) {
@@ -1115,7 +1124,7 @@ class GenerationHandler(
                             message
                         }
                     }
-                    onUpdateMessages(messages)
+                    onUpdateMessages(messages, emptySet())
                 }
             } catch (t: Throwable) {
                 failure = t
@@ -1174,7 +1183,14 @@ class GenerationHandler(
                         }
                     }
                 }
-                onUpdateMessages(messages)
+                val finishReasons = when {
+                    chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
+                    else -> chunk.choices
+                        .mapNotNull { choice -> choice.finishReason?.trim() }
+                        .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                        .toSet()
+                }
+                onUpdateMessages(messages, finishReasons)
             } catch (t: Throwable) {
                 failure = t
                 throw t

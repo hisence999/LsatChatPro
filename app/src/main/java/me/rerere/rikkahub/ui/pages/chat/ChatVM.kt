@@ -594,6 +594,11 @@ class ChatVM(
         chatService.continueAtMessage(_conversationId, message)
     }
 
+    fun cancelGenerationByUser() {
+        analytics.logEvent("ai_cancel_generation", null)
+        chatService.cancelGenerationByUser(_conversationId)
+    }
+
     fun saveConversationAsync() {
         viewModelScope.launch {
             chatService.saveConversation(_conversationId, conversation.value)

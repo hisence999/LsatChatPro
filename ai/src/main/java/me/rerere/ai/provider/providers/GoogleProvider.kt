@@ -188,14 +188,21 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
             id = Uuid.random().toString(),
             model = params.model.modelId,
             choices = candidates.map { candidate ->
+                val candidateObj = candidate.jsonObject
                 UIMessageChoice(
-                    message = parseMessage(candidate.jsonObject),
+                    message = parseMessage(candidateObj),
                     index = 0,
-                    finishReason = null,
+                    finishReason = candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull,
                     delta = null
                 )
             },
-            usage = parseUsageMeta(usage)
+            usage = parseUsageMeta(usage),
+            finishReasons = candidates
+                .mapNotNull { candidate ->
+                    candidate.jsonObject["finishReason"]?.jsonPrimitive?.contentOrNull
+                }
+                .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                .toSet(),
         )
 
         messageChunk
@@ -272,7 +279,12 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                                 finishReason = finishReason
                             )
                         },
-                        usage = usage
+                        usage = usage,
+                        finishReasons = candidates.mapNotNull { candidate ->
+                            candidate.jsonObject["finishReason"]?.jsonPrimitive?.contentOrNull
+                        }
+                            .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                            .toSet(),
                     )
 
                     trySend(messageChunk)

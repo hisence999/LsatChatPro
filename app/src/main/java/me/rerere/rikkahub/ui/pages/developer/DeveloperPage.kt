@@ -131,6 +131,30 @@ private fun DeveloperToolsPage(vm: DeveloperVM) {
 
         item {
             SettingGroupItem(
+                title = stringResource(R.string.developer_option_auto_continue_on_truncation_title),
+                subtitle = stringResource(R.string.developer_option_auto_continue_on_truncation_desc),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.History,
+                        contentDescription = null,
+                    )
+                },
+                trailing = {
+                    HapticSwitch(
+                        checked = settings.autoContinueOnTruncation,
+                        onCheckedChange = { enabled ->
+                            vm.updateSettings { current ->
+                                current.copy(autoContinueOnTruncation = enabled)
+                            }
+                        }
+                    )
+                },
+                onClick = null
+            )
+        }
+
+        item {
+            SettingGroupItem(
                 title = stringResource(R.string.developer_option_request_logs_title),
                 subtitle = stringResource(R.string.setting_request_logs_desc),
                 icon = {

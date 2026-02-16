@@ -119,7 +119,11 @@ class ChatCompletionsAPI(
                     finishReason = finishReason
                 )
             ),
-            usage = usage
+            usage = usage,
+            finishReasons = finishReason
+                .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                ?.let { setOf(it) }
+                ?: emptySet(),
         )
     }
 
@@ -203,7 +207,10 @@ class ChatCompletionsAPI(
                             id = id,
                             model = model,
                             choices = choiceList,
-                            usage = usage
+                            usage = usage,
+                            finishReasons = choiceList
+                                .mapNotNull { choice -> choice.finishReason?.takeIf { it.isNotBlank() && it != "unknown" } }
+                                .toSet(),
                         )
                         trySend(messageChunk)
                     }

@@ -159,6 +159,17 @@ private val outputTransformers by lazy {
     )
 }
 
+private enum class GenerationCancelReason {
+    USER,
+    NON_USER,
+}
+
+private data class ContinueCandidate(
+    val message: UIMessage,
+    val nodeIndex: Int,
+    val originalText: String,
+)
+
 class ChatService(
     private val context: Application,
     private val appScope: AppScope,
@@ -258,6 +269,7 @@ class ChatService(
     private val _generationJobs = MutableStateFlow<Map<Uuid, Job?>>(emptyMap())
     private val generationJobs: StateFlow<Map<Uuid, Job?>> = _generationJobs
         .asStateFlow()
+    private val generationCancelReasons = ConcurrentHashMap<Uuid, GenerationCancelReason>()
 
     // 错误流
     private val _errorFlow = MutableSharedFlow<Throwable>()
@@ -903,10 +915,29 @@ class ChatService(
         return _generationJobs.value[conversationId]
     }
 
+    fun cancelGenerationByUser(conversationId: Uuid) {
+        cancelGenerationJob(conversationId, GenerationCancelReason.USER)
+    }
+
+    private fun cancelGenerationJob(
+        conversationId: Uuid,
+        reason: GenerationCancelReason,
+    ): Boolean {
+        val job = getGenerationJob(conversationId) ?: return false
+        generationCancelReasons[conversationId] = reason
+        job.cancel()
+        return true
+    }
+
+    private fun consumeGenerationCancelReason(conversationId: Uuid): GenerationCancelReason? {
+        return generationCancelReasons.remove(conversationId)
+    }
+
     private fun removeGenerationJob(conversationId: Uuid) {
         _generationJobs.value = _generationJobs.value.toMutableMap().apply {
             remove(conversationId)
         }.toMap() // 确保创建新的不可变Map实例
+        generationCancelReasons.remove(conversationId)
     }
 
     // 初始化对话
@@ -1042,7 +1073,7 @@ class ChatService(
         }
         
         // 取消现有的生成任务
-        getGenerationJob(conversationId)?.cancel()
+        cancelGenerationJob(conversationId, GenerationCancelReason.NON_USER)
 
         val job = appScope.launch {
             try {
@@ -1079,6 +1110,7 @@ class ChatService(
 
                 _generationDoneFlow.emit(conversationId)
             } catch (e: Exception) {
+                if (e is CancellationException) return@launch
                 e.printStackTrace()
                 _errorFlow.emit(e)
             }
@@ -1100,7 +1132,7 @@ class ChatService(
         message: UIMessage,
         regenerateAssistantMsg: Boolean = true
     ) {
-        getGenerationJob(conversationId)?.cancel()
+        cancelGenerationJob(conversationId, GenerationCancelReason.NON_USER)
 
         val job = appScope.launch {
             try {
@@ -1127,6 +1159,7 @@ class ChatService(
 
                 _generationDoneFlow.emit(conversationId)
             } catch (e: Exception) {
+                if (e is CancellationException) return@launch
                 _errorFlow.emit(e)
             }
         }
@@ -1146,7 +1179,7 @@ class ChatService(
         conversationId: Uuid,
         message: UIMessage,
     ) {
-        getGenerationJob(conversationId)?.cancel()
+        cancelGenerationJob(conversationId, GenerationCancelReason.NON_USER)
 
         val job = appScope.launch {
             try {
@@ -1191,6 +1224,7 @@ class ChatService(
 
                 _generationDoneFlow.emit(conversationId)
             } catch (e: Exception) {
+                if (e is CancellationException) return@launch
                 _errorFlow.emit(e)
             }
         }
@@ -1212,10 +1246,13 @@ class ChatService(
         groupChatSpeakerSeatIdsOverride: List<Uuid>? = null,
         continueRequest: HiddenContinueRequestConfig? = null,
         continuationDedupeConfig: ContinuationDedupeConfig? = null,
+        autoContinueAttemptsRemaining: Int = 1,
     ) {
         val settings = settingsStore.settingsFlow.first()
         val useLiveUpdate = shouldUseLiveUpdate(settings)
         val useGenerationKeepAlive = shouldUseKeepAliveDuringGeneration(settings)
+        var latestFinishReasons: Set<String> = emptySet()
+        var generationCancelReason: GenerationCancelReason = GenerationCancelReason.NON_USER
 
         // Track generation start time for tokens/sec calculation
         // Set on first token arrival to exclude TTFT (time to first token) from the calculation
@@ -1557,6 +1594,11 @@ class ChatService(
                 toolApprovalHandler = ToolApprovalHandler { request -> awaitToolApproval(request) },
             ).onCompletion { cause ->
                 finalizeGenerationKeepAlive(cause)
+                if (cause is CancellationException) {
+                    generationCancelReason = consumeGenerationCancelReason(conversationId) ?: GenerationCancelReason.NON_USER
+                } else {
+                    consumeGenerationCancelReason(conversationId)
+                }
                 // Calculate generation duration from first token (excludes TTFT)
                 val generationDurationMs = firstTokenTime?.let { System.currentTimeMillis() - it }
 
@@ -1586,12 +1628,6 @@ class ChatService(
                 val generationFinishedNormally = cause == null
                 if (generationFinishedNormally) {
                     liveUpdateStates.remove(conversationId)
-
-                    // Show notification if app is not in foreground
-                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        if (useLiveUpdate) liveUpdateNotifier.cancel(conversationId)
-                        sendGenerationDoneNotification(conversationId)
-                    }
                 }
             }.collect { chunk ->
                 // Set first token time on first chunk arrival (excludes TTFT from tok/s)
@@ -1601,6 +1637,9 @@ class ChatService(
                 
                 when (chunk) {
                     is GenerationChunk.Messages -> {
+                        if (chunk.finishReasons.isNotEmpty()) {
+                            latestFinishReasons = chunk.finishReasons
+                        }
                         val updatedConversation = getConversationFlow(conversationId).value
                             .updateCurrentMessages(chunk.messages)
                         updateConversation(conversationId, updatedConversation)
@@ -1621,6 +1660,16 @@ class ChatService(
             }
         }.onFailure {
             finalizeGenerationKeepAlive(it)
+            val resolvedCancelReason = if (it is CancellationException) {
+                if (generationCancelReason != GenerationCancelReason.NON_USER) {
+                    generationCancelReason
+                } else {
+                    consumeGenerationCancelReason(conversationId) ?: GenerationCancelReason.NON_USER
+                }
+            } else {
+                generationCancelReason
+            }
+            val isUserCancelled = it is CancellationException && resolvedCancelReason == GenerationCancelReason.USER
             if (useLiveUpdate) {
                 liveUpdateStates.remove(conversationId)
                 if (it is CancellationException) {
@@ -1637,10 +1686,13 @@ class ChatService(
                 clearLiveUpdateSession(conversationId)
             }
             it.printStackTrace()
-            _errorFlow.emit(it)
+            if (!isUserCancelled) {
+                _errorFlow.emit(it)
+            }
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
+            consumeGenerationCancelReason(conversationId)
             if (useLiveUpdate) {
                 clearLiveUpdateSession(conversationId)
             }
@@ -1655,7 +1707,43 @@ class ChatService(
                     updateConversation(conversationId, dedupedConversation)
                 }
             }
+            val autoContinueCandidate = if (
+                settings.autoContinueOnTruncation &&
+                autoContinueAttemptsRemaining > 0 &&
+                shouldAutoContinueForFinishReasons(latestFinishReasons) &&
+                settings.groupChatTemplates.none { it.id == finalConversation.assistantId }
+            ) {
+                resolveContinueCandidate(finalConversation)
+            } else {
+                null
+            }
+
             saveConversation(conversationId, finalConversation)
+            if (autoContinueCandidate != null) {
+                Log.i(
+                    TAG,
+                    "Auto-continue once: conversationId=$conversationId reasons=$latestFinishReasons"
+                )
+                val continuePrompt = buildHiddenContinuePrompt(
+                    previousAssistantText = autoContinueCandidate.originalText,
+                    tailChars = CONTINUE_TAIL_CHARS_DEFAULT,
+                )
+                handleMessageComplete(
+                    conversationId = conversationId,
+                    messageRange = 0..autoContinueCandidate.nodeIndex,
+                    continueRequest = HiddenContinueRequestConfig(prompt = continuePrompt),
+                    continuationDedupeConfig = ContinuationDedupeConfig(
+                        targetMessageId = autoContinueCandidate.message.id,
+                        originalText = autoContinueCandidate.originalText,
+                    ),
+                    autoContinueAttemptsRemaining = autoContinueAttemptsRemaining - 1,
+                )
+                return@onSuccess
+            }
+            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                if (useLiveUpdate) liveUpdateNotifier.cancel(conversationId)
+                sendGenerationDoneNotification(conversationId)
+            }
 
             addConversationReference(conversationId) // 添加引用
             appScope.launch {
@@ -1681,6 +1769,34 @@ class ChatService(
                 removeConversationReference(conversationId) // 移除引用
             }
         }
+    }
+
+    private fun shouldAutoContinueForFinishReasons(finishReasons: Set<String>): Boolean {
+        if (finishReasons.isEmpty()) return false
+        return finishReasons.any { reason ->
+            when (reason.trim().lowercase(Locale.US)) {
+                "length",
+                "max_tokens",
+                "max_output_tokens",
+                "max_tokens_exceeded",
+                "token_limit_reached" -> true
+                else -> false
+            }
+        }
+    }
+
+    private fun resolveContinueCandidate(conversation: Conversation): ContinueCandidate? {
+        val nodeIndex = conversation.messageNodes.lastIndex
+        if (nodeIndex < 0) return null
+        val message = conversation.messageNodes[nodeIndex].currentMessage
+        if (message.role != MessageRole.ASSISTANT) return null
+        val originalText = message.toContentText().trim()
+        if (originalText.isBlank()) return null
+        return ContinueCandidate(
+            message = message,
+            nodeIndex = nodeIndex,
+            originalText = originalText,
+        )
     }
 
     private suspend fun handleGroupChatMessageComplete(

@@ -543,6 +543,7 @@ data class MessageChunk(
     val model: String,
     val choices: List<UIMessageChoice>,
     val usage: TokenUsage? = null,
+    val finishReasons: Set<String> = emptySet(),
 )
 
 @Serializable
