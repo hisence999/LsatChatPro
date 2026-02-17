@@ -56,6 +56,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -1475,6 +1476,7 @@ private fun FilesPicker(
     
     var showModesPicker by remember { mutableStateOf(false) }
     var showLorebooksPicker by remember { mutableStateOf(false) }
+    var showClearContextConfirmDialog by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
@@ -1761,9 +1763,8 @@ private fun FilesPicker(
                             interactionSource = clearInteractionSource,
                             indication = LocalIndication.current,
                         ) {
-                            haptics.perform(HapticPattern.Thud)
-                            onClearContext()
-                            onDismiss()
+                            haptics.perform(HapticPattern.Pop)
+                            showClearContextConfirmDialog = true
                         },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1852,6 +1853,37 @@ private fun FilesPicker(
                 )
             }
         }
+    }
+
+    if (showClearContextConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearContextConfirmDialog = false },
+            title = {
+                Text(stringResource(R.string.chat_page_clear_context_confirm_title))
+            },
+            text = {
+                Text(stringResource(R.string.chat_page_clear_context_confirm_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearContextConfirmDialog = false
+                        haptics.perform(HapticPattern.Thud)
+                        onClearContext()
+                        onDismiss()
+                    }
+                ) {
+                    Text(stringResource(R.string.chat_page_clear_context_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showClearContextConfirmDialog = false }
+                ) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            }
+        )
     }
 
     if (showModesPicker) {
