@@ -120,6 +120,7 @@
     <string name="notification_live_update_output">输出中</string>
     <string name="notification_live_update_done">输出完成</string>
     <string name="notification_live_update_error">生成异常</string>
+    <string name="chat_page_context_compressing">正在压缩上下文</string>
     <string name="chat_page_context_compressed">已压缩上下文</string>
 
     <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型检索超时时间</string>

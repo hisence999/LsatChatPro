@@ -236,6 +236,13 @@ private fun SharedTransitionScope.ChatListNormal(
             .filter { it in conversation.messageNodes.indices }
             .toSet()
     }
+    val pendingCompressionMarkerIndex = remember(
+        conversation.contextSummaryPendingBoundaryIndex,
+        conversation.messageNodes,
+    ) {
+        conversation.contextSummaryPendingBoundaryIndex
+            .takeIf { it in conversation.messageNodes.indices }
+    }
 
     val currentConversationState = rememberUpdatedState(conversation)
     val onCitationClick = remember {
@@ -429,10 +436,16 @@ private fun SharedTransitionScope.ChatListNormal(
                     }
                     if (
                         effectiveDisplay.showContextCompressionDivider &&
-                        index in compressionMarkerIndexes &&
                         index != conversation.truncateIndex - 1
                     ) {
-                        ContextDivider(label = stringResource(R.string.chat_page_context_compressed))
+                        when {
+                            index == pendingCompressionMarkerIndex -> {
+                                ContextDivider(label = stringResource(R.string.chat_page_context_compressing))
+                            }
+                            index in compressionMarkerIndexes -> {
+                                ContextDivider(label = stringResource(R.string.chat_page_context_compressed))
+                            }
+                        }
                     }
                 }
             }

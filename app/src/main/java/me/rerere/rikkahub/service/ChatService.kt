@@ -208,6 +208,7 @@ class ChatService(
     private val liveUpdateLastNotifiedState = ConcurrentHashMap<Uuid, ChatLiveUpdateState>()
     private val liveUpdateSmallIcons = ConcurrentHashMap<Uuid, Icon>()
     private val liveUpdateLargeIcons = ConcurrentHashMap<Uuid, Icon>()
+    private val contextSummaryInProgressConversations = ConcurrentHashMap.newKeySet<Uuid>()
 
     private val keepAliveActiveGenerationCount = AtomicInteger(0)
 
@@ -5273,6 +5274,25 @@ class ChatService(
         val errorMessage: String? = null
     )
 
+    private fun setContextSummaryPendingDivider(conversationId: Uuid, markerIndex: Int) {
+        val current = getConversationFlow(conversationId).value
+        if (markerIndex !in current.messageNodes.indices) return
+        if (current.contextSummaryPendingBoundaryIndex == markerIndex) return
+        updateConversation(
+            conversationId,
+            current.copy(contextSummaryPendingBoundaryIndex = markerIndex)
+        )
+    }
+
+    private fun clearContextSummaryPendingDividerIfMatch(conversationId: Uuid, markerIndex: Int) {
+        val current = getConversationFlow(conversationId).value
+        if (current.contextSummaryPendingBoundaryIndex != markerIndex) return
+        updateConversation(
+            conversationId,
+            current.copy(contextSummaryPendingBoundaryIndex = -1)
+        )
+    }
+
     // Check if auto-summarization threshold is reached and trigger if needed
     private suspend fun checkAndAutoSummarize(
         conversationId: Uuid,
@@ -5284,6 +5304,10 @@ class ChatService(
             
             // Check if auto-summarization is enabled
             if (!assistant.enableContextRefresh || !assistant.autoRegenerateSummary) {
+                return
+            }
+
+            if (contextSummaryInProgressConversations.contains(conversationId)) {
                 return
             }
 
@@ -5326,6 +5350,10 @@ class ChatService(
 
     // Summarize and refresh context
     suspend fun summarizeAndRefresh(conversationId: Uuid): ContextRefreshResult = withContext(Dispatchers.IO) {
+        var pendingMarkerIndex: Int? = null
+        if (!contextSummaryInProgressConversations.add(conversationId)) {
+            return@withContext ContextRefreshResult(false, errorMessage = "Context summary already in progress")
+        }
         try {
             val settings = settingsStore.settingsFlow.first()
             val assistant = settings.getCurrentAssistant()
@@ -5374,6 +5402,10 @@ class ChatService(
             if (messagesToSummarize.isEmpty()) {
                 return@withContext ContextRefreshResult(false, errorMessage = "No new messages to summarize (keeping last exchange)")
             }
+
+            val markerIndex = messages.lastIndex
+            pendingMarkerIndex = markerIndex
+            setContextSummaryPendingDivider(conversationId, markerIndex)
 
             // Build summarization prompt - only include NEW messages
             val messagesText = messagesToSummarize.joinToString("\n") { msg ->
@@ -5448,20 +5480,30 @@ class ChatService(
             // Estimate new tokens
             val summaryTokens = summary.length / 4
 
-            // Update conversation with summary
+            // Update conversation with summary.
+            // Merge into latest in-memory conversation to avoid overwriting newer messages.
             val now = System.currentTimeMillis()
-            val latestMarkerIndex = messages.lastIndex
-            val updatedSummaryBoundaries = (conversation.contextSummaryBoundaries + latestMarkerIndex)
+            val latestConversation = getConversationFlow(conversationId).value
+            val updatedSummaryBoundaries = (latestConversation.contextSummaryBoundaries + markerIndex)
                 .asSequence()
                 .filter { it >= 0 }
                 .distinct()
                 .sorted()
                 .toList()
-            val updatedConversation = conversation.copy(
+            val safeSummaryUpToIndex = lastIndexToSummarize.coerceIn(
+                minimumValue = -1,
+                maximumValue = latestConversation.currentMessages.lastIndex
+            )
+            val updatedConversation = latestConversation.copy(
                 contextSummary = summary,
-                contextSummaryUpToIndex = lastIndexToSummarize, // Index of last message included in summary
+                contextSummaryUpToIndex = safeSummaryUpToIndex, // Index of last message included in summary
                 lastRefreshTime = now,
                 contextSummaryBoundaries = updatedSummaryBoundaries,
+                contextSummaryPendingBoundaryIndex = if (latestConversation.contextSummaryPendingBoundaryIndex == markerIndex) {
+                    -1
+                } else {
+                    latestConversation.contextSummaryPendingBoundaryIndex
+                },
             )
 
             // Persist changes
@@ -5479,19 +5521,34 @@ class ChatService(
         } catch (e: Exception) {
             Log.e(TAG, "summarizeAndRefresh failed", e)
             ContextRefreshResult(false, errorMessage = e.message ?: "Unknown error")
+        } finally {
+            pendingMarkerIndex?.let { markerIndex ->
+                clearContextSummaryPendingDividerIfMatch(conversationId, markerIndex)
+            }
+            contextSummaryInProgressConversations.remove(conversationId)
         }
     }
 
 
     // 保存对话
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
+        val currentConversation = getConversationFlow(conversationId).value
+        val mergedPendingBoundaryIndex = currentConversation.contextSummaryPendingBoundaryIndex
+            .takeIf { it >= 0 }
+            ?: conversation.contextSummaryPendingBoundaryIndex
+
         // 临时对话不持久化到数据库
         if (temporaryConversations.contains(conversationId)) {
-            updateConversation(conversationId, conversation)
+            updateConversation(
+                conversationId,
+                conversation.copy(contextSummaryPendingBoundaryIndex = mergedPendingBoundaryIndex)
+            )
             return
         }
 
-        val updatedConversation = conversation.copy()
+        val updatedConversation = conversation.copy(
+            contextSummaryPendingBoundaryIndex = mergedPendingBoundaryIndex
+        )
         // Always update in-memory state (even for empty conversations)
         // This ensures mode toggles work on new chats before first message
         updateConversation(conversationId, updatedConversation)

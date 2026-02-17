@@ -265,6 +265,7 @@
   <string name="chat_message_tool_workspace_rename">工作區：重新命名 %1$s → %2$s</string>
   <string name="chat_page_cancel">取消</string>
   <string name="chat_page_clear_context">清空上下文</string>
+  <string name="chat_page_context_compressing">正在壓縮上下文</string>
   <string name="chat_page_context_compressed">已壓縮上下文</string>
   <string name="chat_page_clear_context_confirm_title">確認清空上下文？</string>
   <string name="chat_page_clear_context_confirm_message">這會從目前上下文中移除先前的訊息，是否繼續？</string>

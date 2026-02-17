@@ -365,6 +365,7 @@
     <string name="chat_message_tool_workspace_rename">Workspace: Rename %1$s → %2$s</string>
     <string name="chat_page_cancel">Cancel</string>
     <string name="chat_page_clear_context">Clear Context</string>
+    <string name="chat_page_context_compressing">Compressing context</string>
     <string name="chat_page_context_compressed">Context compressed</string>
     <string name="chat_page_clear_context_confirm_title">Clear context?</string>
     <string name="chat_page_clear_context_confirm_message">This will remove previous messages from the current context. Continue?</string>

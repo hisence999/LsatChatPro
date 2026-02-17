@@ -65,6 +65,7 @@ data class Conversation(
     val lastPruneMessageCount: Int = 0, // Messages pruned in last auto-prune
     val lastRefreshTime: Long = 0L, // Timestamp of last manual refresh
     val contextSummaryBoundaries: List<Int> = emptyList(), // History of summary boundary indices
+    val contextSummaryPendingBoundaryIndex: Int = -1, // In-memory marker for active context compression divider
 ) {
     val files: List<Uri>
         get() {
