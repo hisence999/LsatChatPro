@@ -43,3 +43,19 @@ internal val DEFAULT_MEMORY_CONSOLIDATION_PROMPT = """
         "significance": 5
     }
 """.trimIndent()
+
+internal val DEFAULT_CONTEXT_SUMMARY_PROMPT = """
+    You are updating a rolling conversation summary used to compress chat context.
+    
+    {previous_summary_section}
+    **New Messages ({messages_count} messages):**
+    {messages_text}
+    
+    Create an updated summary that:
+    - Preserves important context from earlier messages
+    - Incorporates key new information
+    - Captures decisions, pending tasks, and user preferences
+    - Stays under 500 words
+    
+    Updated Summary:
+""".trimIndent()

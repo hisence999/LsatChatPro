@@ -1124,8 +1124,10 @@
   <string name="assistant_page_consolidation_enable_desc">允許助手形成長期記憶</string>
   <string name="assistant_page_consolidation_human_like">類人記憶</string>
   <string name="assistant_page_consolidation_human_like_desc">啟用重要性評分和反思</string>
-  <string name="assistant_page_consolidation_summarizer_model">總結模型</string>
+  <string name="assistant_page_consolidation_summarizer_model">記憶整合模型</string>
   <string name="assistant_page_consolidation_summarizer_model_desc">用於記憶整合任務的模型</string>
+  <string name="assistant_page_context_summarizer_model">上下文總結模型</string>
+  <string name="assistant_page_context_summarizer_model_desc">用於上下文總結任務的模型</string>
   <string name="assistant_page_consolidation_delay">整合延遲</string>
   <string name="assistant_page_consolidation_delay_value">整合延遲: %d 分鐘</string>
   <string name="assistant_page_consolidation_delay_desc">對話結束后等待多久再形成記憶</string>
@@ -1216,6 +1218,7 @@
   <string name="assistant_page_custom_prompt_title">自定義提示詞</string>
   <string name="assistant_page_background_prompt_vars">變數：{assistant_name}、{last_notification_info}、{{history}}、{{memories}}</string>
   <string name="assistant_page_consolidation_prompt_vars">變數：{context_section}、{messages_text}</string>
+  <string name="assistant_page_context_summary_prompt_vars">變數：{previous_summary_section}、{messages_count}、{messages_text}</string>
   <string name="assistant_page_apply_to_global">應用到全域</string>
   <string name="assistant_page_apply_prompt_global_confirm_title">是否應用到所有助手</string>
   <string name="assistant_page_apply_prompt_global_confirm_message">應用全域後，會覆蓋原有的提示詞</string>
@@ -1641,7 +1644,7 @@
   <string name="context_refresh_cleaned">已總結 %d 條消息</string>
   <string name="context_refresh_last">上次摘要：%s</string>
   <string name="context_refresh_never">從未生成摘要</string>
-  <string name="context_refresh_no_summarizer">請先在設定中設定摘要模型</string>
+  <string name="context_refresh_no_summarizer">請先在設定中設定上下文總結模型（或聊天模型）</string>
   <string name="context_refresh_confirm_title">總結消息？</string>
   <string name="context_refresh_confirm_message">這將把你的對話歷史總結為更精簡的形式。AI 會記住要點，但詳細消息將被摘要替代。</string>
   <string name="context_refresh_auto_summarize_title">自動總結消息</string>

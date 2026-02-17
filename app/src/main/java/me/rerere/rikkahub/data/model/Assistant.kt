@@ -57,8 +57,10 @@ data class Assistant(
     val contextMessageSize: Int = 0,
     val maxTokenUsage: Int = 81920, // 80k default
     val contextPriority: ContextPriority = ContextPriority.BALANCED,
-    val summarizerModelId: Uuid? = null, // Model used for memory summarization
+    val summarizerModelId: Uuid? = null, // Model used for memory consolidation
+    val contextSummarizerModelId: Uuid? = null, // Model used for context summarization
     val consolidationPrompt: String = "", // Memory consolidation prompt
+    val contextSummaryPrompt: String = "", // Context summarization prompt
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useRagMemoryRetrieval: Boolean = true, // If true, use vector-based RAG. If false, inject all memories

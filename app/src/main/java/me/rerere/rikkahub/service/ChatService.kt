@@ -77,6 +77,7 @@ import me.rerere.rikkahub.data.ai.AIRequestSource
 import me.rerere.rikkahub.data.ai.ToolApprovalHandler
 import me.rerere.rikkahub.data.ai.ToolApprovalRequest
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_CONTEXT_SUMMARY_PROMPT
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.ai.tools.LorebookTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
@@ -5326,9 +5327,13 @@ class ChatService(
             val conversation = conversationRepo.getConversationById(conversationId)
                 ?: return@withContext ContextRefreshResult(false, errorMessage = "Conversation not found")
 
-            // Get the summarizer model (fall back to chat model)
-            val summarizerModelId = assistant.summarizerModelId ?: assistant.chatModelId ?: settings.chatModelId
-            val model = settings.findModelById(summarizerModelId)
+            // Get the context summarizer model (fall back to memory summarizer, then chat model)
+            val contextSummarizerModelId =
+                assistant.contextSummarizerModelId
+                    ?: assistant.summarizerModelId
+                    ?: assistant.chatModelId
+                    ?: settings.chatModelId
+            val model = settings.findModelById(contextSummarizerModelId)
                 ?: return@withContext ContextRefreshResult(false, errorMessage = "No model configured")
             val provider = model.findProvider(settings.providers)
                 ?: return@withContext ContextRefreshResult(false, errorMessage = "No provider found")
@@ -5370,40 +5375,22 @@ class ChatService(
                 "${msg.role}: ${msg.toText().take(500)}" // Limit each message
             }
             
-            val prompt = if (hasPreviousSummary) {
+            val previousSummarySection = if (hasPreviousSummary) {
                 """
-                    You have a previous summary of this conversation. Update and expand it with new information from the recent messages.
-                    
                     **Previous Summary:**
                     $previousSummary
-                    
-                    **New Messages (${messagesToSummarize.size} messages since last summary):**
-                    $messagesText
-                    
-                    Create an updated summary that:
-                    - Preserves important context from the previous summary
-                    - Incorporates new information from recent messages
-                    - Keeps the summary under 500 words
-                    - Focuses on: main topics, key decisions, pending tasks, user preferences
-                    
-                    Updated Summary:
                 """.trimIndent()
             } else {
-                """
-                    Summarize this conversation concisely, preserving the key context, decisions, and important information that would be needed to continue the conversation. Focus on:
-                    - Main topics discussed
-                    - Key decisions or conclusions
-                    - Any pending questions or tasks
-                    - Important user preferences revealed
-                    
-                    Keep the summary under 500 words.
-                    
-                    Conversation:
-                    $messagesText
-                    
-                    Summary:
-                """.trimIndent()
+                ""
             }
+            val promptTemplate = assistant.contextSummaryPrompt.ifBlank {
+                DEFAULT_CONTEXT_SUMMARY_PROMPT
+            }
+            val prompt = promptTemplate.applyPlaceholders(
+                "previous_summary_section" to previousSummarySection,
+                "messages_count" to messagesToSummarize.size.toString(),
+                "messages_text" to messagesText,
+            )
 
             // Estimate tokens saved (based on messages being summarized)
             val originalTokens = messagesToSummarize.sumOf { msg ->

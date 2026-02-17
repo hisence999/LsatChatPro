@@ -45,6 +45,7 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_BACKGROUND_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_CONTEXT_SUMMARY_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_MEMORY_CONSOLIDATION_PROMPT
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
@@ -69,9 +70,11 @@ fun AssistantModelSubPage(
     onUpdate: (Assistant) -> Unit,
     onApplyBackgroundPromptToAll: (String) -> Unit,
     onApplyConsolidationPromptToAll: (String) -> Unit,
+    onApplyContextSummaryPromptToAll: (String) -> Unit,
 ) {
     var showBackgroundPromptSheet by remember { mutableStateOf(false) }
     var showConsolidationPromptSheet by remember { mutableStateOf(false) }
+    var showContextSummaryPromptSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -203,6 +206,50 @@ fun AssistantModelSubPage(
                     }
                 }
             }
+
+            // Context Summarizer Model
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = if (LocalDarkMode.current)
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                else
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.assistant_page_context_summarizer_model),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.assistant_page_context_summarizer_model_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            ModelSelector(
+                                modelId = assistant.contextSummarizerModelId,
+                                providers = providers,
+                                type = ModelType.CHAT,
+                                onSelect = { onUpdate(assistant.copy(contextSummarizerModelId = it.id)) },
+                                modifier = Modifier.wrapContentWidth(),
+                            )
+                        }
+                        IconButton(onClick = { showContextSummaryPromptSheet = true }) {
+                            Icon(Icons.Rounded.Settings, contentDescription = null)
+                        }
+                    }
+                }
+            }
         }
 
         if (showBackgroundPromptSheet) {
@@ -224,6 +271,17 @@ fun AssistantModelSubPage(
                 onDismiss = { showConsolidationPromptSheet = false },
                 onPromptChange = { onUpdate(assistant.copy(consolidationPrompt = it)) },
                 onApplyToGlobal = onApplyConsolidationPromptToAll,
+            )
+        }
+
+        if (showContextSummaryPromptSheet) {
+            AssistantPromptEditorSheet(
+                prompt = assistant.contextSummaryPrompt,
+                defaultPrompt = DEFAULT_CONTEXT_SUMMARY_PROMPT,
+                promptVariablesText = stringResource(R.string.assistant_page_context_summary_prompt_vars),
+                onDismiss = { showContextSummaryPromptSheet = false },
+                onPromptChange = { onUpdate(assistant.copy(contextSummaryPrompt = it)) },
+                onApplyToGlobal = onApplyContextSummaryPromptToAll,
             )
         }
 

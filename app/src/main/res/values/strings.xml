@@ -1207,8 +1207,10 @@
     <string name="assistant_page_consolidation_enable_desc">Allow assistant to form long-term memories</string>
     <string name="assistant_page_consolidation_human_like">Human-like Memory</string>
     <string name="assistant_page_consolidation_human_like_desc">Enable significance scoring and reflection</string>
-    <string name="assistant_page_consolidation_summarizer_model">Summarizer Model</string>
+    <string name="assistant_page_consolidation_summarizer_model">Memory Consolidation Model</string>
     <string name="assistant_page_consolidation_summarizer_model_desc">Model used for memory consolidation tasks</string>
+    <string name="assistant_page_context_summarizer_model">Context Summary Model</string>
+    <string name="assistant_page_context_summarizer_model_desc">Model used for context summarization tasks</string>
     <string name="assistant_page_consolidation_delay">Consolidation Delay</string>
     <string name="assistant_page_consolidation_delay_value">Consolidation Delay: %d minutes</string>
     <string name="assistant_page_consolidation_delay_desc">Wait time after a chat ends before forming memories</string>
@@ -1307,6 +1309,7 @@
     <string name="assistant_page_custom_prompt_title">Custom Prompt</string>
     <string name="assistant_page_background_prompt_vars">Variables: {assistant_name}, {last_notification_info}, {{history}}, {{memories}}</string>
     <string name="assistant_page_consolidation_prompt_vars">Variables: {context_section}, {messages_text}</string>
+    <string name="assistant_page_context_summary_prompt_vars">Variables: {previous_summary_section}, {messages_count}, {messages_text}</string>
     <string name="assistant_page_apply_to_global">Apply to Global</string>
     <string name="assistant_page_apply_prompt_global_confirm_title">Apply to all assistants?</string>
     <string name="assistant_page_apply_prompt_global_confirm_message">Applying globally will overwrite existing prompts.</string>
@@ -1647,7 +1650,7 @@
     <string name="context_refresh_cleaned">Summarized %d messages</string>
     <string name="context_refresh_last">Last summary: %s</string>
     <string name="context_refresh_never">Never summarized</string>
-    <string name="context_refresh_no_summarizer">Configure a summarizer model in settings first</string>
+    <string name="context_refresh_no_summarizer">Configure a context summary model (or chat model) in settings first</string>
     <string name="context_refresh_confirm_title">Summarize Messages?</string>
     <string name="context_refresh_confirm_message">This will summarize your conversation history into a compact form. The AI will remember the key points but detailed messages will be replaced with a summary.</string>
     <string name="context_refresh_auto_summarize_title">Auto-summarize messages</string>

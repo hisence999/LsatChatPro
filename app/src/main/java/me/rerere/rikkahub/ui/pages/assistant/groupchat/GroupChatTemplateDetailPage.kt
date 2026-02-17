@@ -283,7 +283,7 @@ fun GroupChatTemplateDetailPage(
                 val canConsolidateAll = currentTemplate.integrationModelId != null && eligibleMemoryAssistantCount > 0
 
                 SettingGroupItem(
-                    title = stringResource(R.string.assistant_page_consolidation_summarizer_model),
+                    title = stringResource(R.string.group_chat_template_integration_model),
                     subtitle = stringResource(R.string.group_chat_template_integration_model_desc),
                     trailing = {
                         ModelSelector(
