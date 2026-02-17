@@ -407,9 +407,13 @@ class GenerationHandler(
             allMessages
         }
 
-        val historyLimitedMessages = assistant.maxHistoryMessages?.let { limit ->
-            if (limit > 0) contextBaseMessages.limitContext(limit) else contextBaseMessages
-        } ?: contextBaseMessages
+        val historyLimitedMessages = if (assistant.enableHistorySummarization) {
+            assistant.maxHistoryMessages?.let { limit ->
+                if (limit > 0) contextBaseMessages.limitContext(limit) else contextBaseMessages
+            } ?: contextBaseMessages
+        } else {
+            contextBaseMessages
+        }
 
         val rawContextMessages = historyLimitedMessages
             .limitContext(assistant.contextMessageSize.coerceAtLeast(0))

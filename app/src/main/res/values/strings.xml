@@ -1656,6 +1656,10 @@
     <string name="context_refresh_auto_summarize_title">Auto-summarize messages</string>
     <string name="context_refresh_auto_summarize_desc">Auto-summarize when %d unsummarized messages are reached</string>
     <string name="context_refresh_auto_summarize_desc_disabled">Set max history messages above to enable</string>
+    <string name="context_dynamic_pruning_title">Dynamic message pruning</string>
+    <string name="context_dynamic_pruning_desc">Only keep the most recent messages in context</string>
+    <string name="context_dynamic_pruning_limit_title">Messages kept in context</string>
+    <string name="context_dynamic_pruning_limit_desc">Only the latest %d messages will be sent to model</string>
     <string name="context_refresh_error_title">Error</string>
     <string name="context_refresh_summary_stats">%1$d messages will be summarized and ~%2$d tokens will be cleaned up.</string>
     <string name="context_refresh_previous_summary_label">Previous summary:</string>

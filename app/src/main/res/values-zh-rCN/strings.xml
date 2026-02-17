@@ -142,6 +142,10 @@
     <string name="assistant_page_apply_prompt_global_confirm_title">是否应用到所有助手</string>
     <string name="assistant_page_apply_prompt_global_confirm_message">应用全局后，会覆盖原有的提示词</string>
     <string name="context_refresh_no_summarizer">请先在设置中配置上下文总结模型（或聊天模型）</string>
+    <string name="context_dynamic_pruning_title">动态裁剪消息</string>
+    <string name="context_dynamic_pruning_desc">仅保留最近消息进入上下文</string>
+    <string name="context_dynamic_pruning_limit_title">保留的上下文消息数</string>
+    <string name="context_dynamic_pruning_limit_desc">仅最近 %d 条消息会发送给模型</string>
 
     <string name="mcp_tool_approval_prompt">是否允许调用 %1$s</string>
     <string name="mcp_tool_approval_title">MCP 工具审批</string>

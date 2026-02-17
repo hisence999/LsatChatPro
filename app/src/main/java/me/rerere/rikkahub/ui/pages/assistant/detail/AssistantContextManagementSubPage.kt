@@ -129,34 +129,85 @@ fun AssistantContextManagementSubPage(
                         HapticSwitch(
                             checked = assistant.autoRegenerateSummary,
                             onCheckedChange = { enabled ->
-                                onUpdate(assistant.copy(autoRegenerateSummary = enabled))
+                                onUpdate(
+                                    assistant.copy(
+                                        autoRegenerateSummary = enabled,
+                                        enableHistorySummarization = if (enabled) false else assistant.enableHistorySummarization,
+                                        maxHistoryMessages = if (enabled) (assistant.maxHistoryMessages ?: 10) else assistant.maxHistoryMessages
+                                    )
+                                )
                             }
                         )
                     },
                     onClick = {
-                        onUpdate(assistant.copy(autoRegenerateSummary = !assistant.autoRegenerateSummary))
+                        val enabled = !assistant.autoRegenerateSummary
+                        onUpdate(
+                            assistant.copy(
+                                autoRegenerateSummary = enabled,
+                                enableHistorySummarization = if (enabled) false else assistant.enableHistorySummarization,
+                                maxHistoryMessages = if (enabled) (assistant.maxHistoryMessages ?: 10) else assistant.maxHistoryMessages
+                            )
+                        )
                     }
                 )
             }
 
+            SettingGroupItem(
+                title = stringResource(R.string.context_dynamic_pruning_title),
+                subtitle = stringResource(R.string.context_dynamic_pruning_desc),
+                trailing = {
+                    HapticSwitch(
+                        checked = assistant.enableHistorySummarization,
+                        onCheckedChange = { enabled ->
+                            onUpdate(
+                                assistant.copy(
+                                    enableHistorySummarization = enabled,
+                                    autoRegenerateSummary = if (enabled) false else assistant.autoRegenerateSummary,
+                                    maxHistoryMessages = if (enabled) (assistant.maxHistoryMessages ?: 10) else assistant.maxHistoryMessages
+                                )
+                            )
+                        }
+                    )
+                },
+                onClick = {
+                    val enabled = !assistant.enableHistorySummarization
+                    onUpdate(
+                        assistant.copy(
+                            enableHistorySummarization = enabled,
+                            autoRegenerateSummary = if (enabled) false else assistant.autoRegenerateSummary,
+                            maxHistoryMessages = if (enabled) (assistant.maxHistoryMessages ?: 10) else assistant.maxHistoryMessages
+                        )
+                    )
+                }
+            )
+
             AnimatedVisibility(
-                visible = assistant.enableContextRefresh && assistant.autoRegenerateSummary,
+                visible = assistant.enableHistorySummarization || (assistant.enableContextRefresh && assistant.autoRegenerateSummary),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
                 val historyLimit = assistant.maxHistoryMessages ?: 10
                 var sliderValue by remember(historyLimit) { mutableFloatStateOf(historyLimit.toFloat()) }
+                val sliderValueInt = sliderValue.roundToInt()
 
                 SliderSettingCard(
-                    title = stringResource(R.string.context_max_messages),
+                    title = if (assistant.enableHistorySummarization) {
+                        stringResource(R.string.context_dynamic_pruning_limit_title)
+                    } else {
+                        stringResource(R.string.context_max_messages)
+                    },
                     value = sliderValue,
                     valueText = stringResource(
                         R.string.context_max_messages_value,
-                        sliderValue.roundToInt()
+                        sliderValueInt
                     ),
                     description = stringResource(
-                        R.string.context_refresh_auto_summarize_desc,
-                        sliderValue.roundToInt()
+                        if (assistant.enableHistorySummarization) {
+                            R.string.context_dynamic_pruning_limit_desc
+                        } else {
+                            R.string.context_refresh_auto_summarize_desc
+                        },
+                        sliderValueInt
                     ),
                     onValueChange = { sliderValue = it },
                     onValueChangeFinished = {

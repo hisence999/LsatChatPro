@@ -1641,6 +1641,10 @@
     <string name="context_refresh_auto_summarize_title">自动总结消息</string>
     <string name="context_refresh_auto_summarize_desc">当未总结消息达到 %d 条时自动总结</string>
     <string name="context_refresh_auto_summarize_desc_disabled">请先在上方设置最大历史消息数以启用</string>
+    <string name="context_dynamic_pruning_title">动态裁剪消息</string>
+    <string name="context_dynamic_pruning_desc">仅保留最近消息进入上下文</string>
+    <string name="context_dynamic_pruning_limit_title">保留的上下文消息数</string>
+    <string name="context_dynamic_pruning_limit_desc">仅最近 %d 条消息会发送给模型</string>
     <string name="context_refresh_error_title">错误</string>
     <string name="context_refresh_summary_stats">将总结 %1$d 条消息，并清理约 ~%2$d Token。</string>
     <string name="context_refresh_previous_summary_label">之前的摘要：</string>

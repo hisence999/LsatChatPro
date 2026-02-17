@@ -5286,6 +5286,11 @@ class ChatService(
             if (!assistant.enableContextRefresh || !assistant.autoRegenerateSummary) {
                 return
             }
+
+            // Dynamic message pruning and auto-summarize are mutually exclusive.
+            if (assistant.enableHistorySummarization) {
+                return
+            }
             
             // Get max history messages setting (null = unlimited, don't auto-summarize)
             val maxMessages = assistant.maxHistoryMessages ?: return
