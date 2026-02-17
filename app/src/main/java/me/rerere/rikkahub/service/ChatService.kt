@@ -5450,10 +5450,18 @@ class ChatService(
 
             // Update conversation with summary
             val now = System.currentTimeMillis()
+            val latestMarkerIndex = messages.lastIndex
+            val updatedSummaryBoundaries = (conversation.contextSummaryBoundaries + latestMarkerIndex)
+                .asSequence()
+                .filter { it >= 0 }
+                .distinct()
+                .sorted()
+                .toList()
             val updatedConversation = conversation.copy(
                 contextSummary = summary,
                 contextSummaryUpToIndex = lastIndexToSummarize, // Index of last message included in summary
-                lastRefreshTime = now
+                lastRefreshTime = now,
+                contextSummaryBoundaries = updatedSummaryBoundaries,
             )
 
             // Persist changes

@@ -248,6 +248,9 @@ class ConversationRepository(
     }
 
     fun conversationToConversationEntity(conversation: Conversation): ConversationEntity {
+        val normalizedSummaryBoundaries = normalizeContextSummaryBoundaries(
+            conversation.contextSummaryBoundaries
+        )
         return ConversationEntity(
             id = conversation.id.toString(),
             title = conversation.title,
@@ -265,6 +268,7 @@ class ConversationRepository(
             lastPruneTime = conversation.lastPruneTime,
             lastPruneMessageCount = conversation.lastPruneMessageCount,
             lastRefreshTime = conversation.lastRefreshTime,
+            contextSummaryBoundaries = JsonInstant.encodeToString(normalizedSummaryBoundaries),
         )
     }
 
@@ -277,6 +281,12 @@ class ConversationRepository(
         } catch (_: Exception) {
             emptySet()
         }
+        val parsedSummaryBoundaries = try {
+            JsonInstant.decodeFromString<List<Int>>(conversationEntity.contextSummaryBoundaries)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val summaryBoundaries = normalizeContextSummaryBoundaries(parsedSummaryBoundaries)
         return Conversation(
             id = Uuid.parse(conversationEntity.id),
             title = conversationEntity.title,
@@ -294,6 +304,7 @@ class ConversationRepository(
             lastPruneTime = conversationEntity.lastPruneTime,
             lastPruneMessageCount = conversationEntity.lastPruneMessageCount,
             lastRefreshTime = conversationEntity.lastRefreshTime,
+            contextSummaryBoundaries = summaryBoundaries,
         )
     }
 
@@ -413,6 +424,14 @@ class ConversationRepository(
                     else -> 150
                 }
             }
+    }
+
+    private fun normalizeContextSummaryBoundaries(boundaries: List<Int>): List<Int> {
+        return boundaries.asSequence()
+            .filter { it >= 0 }
+            .distinct()
+            .sorted()
+            .toList()
     }
 
     private fun decodeMessageNodesSafely(nodesJson: String): List<MessageNode> {

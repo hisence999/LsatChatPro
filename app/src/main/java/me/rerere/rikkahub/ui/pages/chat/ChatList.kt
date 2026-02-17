@@ -227,13 +227,14 @@ private fun SharedTransitionScope.ChatListNormal(
         ).orEmpty()
     }
     val effectiveDisplay = settings.getEffectiveDisplaySetting()
-    val summaryBoundaryIndex = if (
-        conversation.contextSummaryUpToIndex in conversation.messageNodes.indices &&
-        !conversation.contextSummary.isNullOrBlank()
+    val compressionMarkerIndexes = remember(
+        conversation.contextSummaryBoundaries,
+        conversation.messageNodes,
     ) {
-        conversation.contextSummaryUpToIndex
-    } else {
-        -1
+        conversation.contextSummaryBoundaries
+            .asSequence()
+            .filter { it in conversation.messageNodes.indices }
+            .toSet()
     }
 
     val currentConversationState = rememberUpdatedState(conversation)
@@ -428,8 +429,8 @@ private fun SharedTransitionScope.ChatListNormal(
                     }
                     if (
                         effectiveDisplay.showContextCompressionDivider &&
-                        index == summaryBoundaryIndex &&
-                        summaryBoundaryIndex != conversation.truncateIndex - 1
+                        index in compressionMarkerIndexes &&
+                        index != conversation.truncateIndex - 1
                     ) {
                         ContextDivider(label = stringResource(R.string.chat_page_context_compressed))
                     }
