@@ -1660,6 +1660,9 @@
     <string name="context_dynamic_pruning_desc">Only keep the most recent messages in context</string>
     <string name="context_dynamic_pruning_limit_title">Messages kept in context</string>
     <string name="context_dynamic_pruning_limit_desc">Only the latest %d messages will be sent to model</string>
+    <string name="context_manual_limit_input_label">Message count</string>
+    <string name="context_manual_limit_input_hint">Enter a number, minimum is 1</string>
+    <string name="context_manual_limit_input_error">Please enter a valid integer greater than or equal to 1</string>
     <string name="context_refresh_error_title">Error</string>
     <string name="context_refresh_summary_stats">%1$d messages will be summarized and ~%2$d tokens will be cleaned up.</string>
     <string name="context_refresh_previous_summary_label">Previous summary:</string>

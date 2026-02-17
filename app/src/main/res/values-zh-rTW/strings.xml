@@ -1654,6 +1654,9 @@
   <string name="context_dynamic_pruning_desc">僅保留最近消息進入上下文</string>
   <string name="context_dynamic_pruning_limit_title">保留的上下文消息數</string>
   <string name="context_dynamic_pruning_limit_desc">僅最近 %d 條消息會傳送給模型</string>
+  <string name="context_manual_limit_input_label">消息條數</string>
+  <string name="context_manual_limit_input_hint">請輸入數字，最小為 1</string>
+  <string name="context_manual_limit_input_error">請輸入可處理的整數，且大於等於 1</string>
   <string name="context_refresh_error_title">錯誤</string>
   <string name="context_refresh_summary_stats">將總結 %1$d 條消息，並清理約 ~%2$d Token。</string>
   <string name="context_refresh_previous_summary_label">之前的摘要：</string>
