@@ -36,6 +36,7 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Avatar
@@ -64,6 +65,7 @@ import org.koin.core.component.get
 import kotlin.uuid.Uuid
 
 private const val TAG = "PreferencesStore"
+private const val DEFAULT_CONTEXT_HISTORY_LIMIT = 10
 
 private fun decodeDisplaySettingCompat(raw: String?): DisplaySetting {
     if (raw.isNullOrBlank()) return DisplaySetting()
@@ -89,11 +91,44 @@ private fun decodeDisplaySettingCompat(raw: String?): DisplaySetting {
     return decoded
 }
 
+private fun Assistant.normalizeContextManagementFlags(
+    applyLegacyHistoryLimitMigration: Boolean = false,
+): Assistant {
+    var normalized = this
+
+    // Dynamic pruning and auto-summarize are mutually exclusive.
+    if (normalized.enableHistorySummarization && normalized.autoRegenerateSummary) {
+        normalized = normalized.copy(autoRegenerateSummary = false)
+    }
+
+    val hasHistoryLimit = (normalized.maxHistoryMessages ?: 0) > 0
+    if (
+        applyLegacyHistoryLimitMigration &&
+        hasHistoryLimit &&
+        !normalized.enableHistorySummarization &&
+        !normalized.autoRegenerateSummary
+    ) {
+        // Old versions used maxHistoryMessages as a hard cap.
+        // Migrate these users to dynamic pruning to preserve behavior.
+        normalized = normalized.copy(enableHistorySummarization = true)
+    }
+
+    if (
+        normalized.maxHistoryMessages == null &&
+        (normalized.enableHistorySummarization || normalized.autoRegenerateSummary)
+    ) {
+        normalized = normalized.copy(maxHistoryMessages = DEFAULT_CONTEXT_HISTORY_LIMIT)
+    }
+
+    return normalized
+}
+
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
     produceMigrations = { context ->
         listOf(
-            PreferenceStoreV1Migration()
+            PreferenceStoreV1Migration(),
+            PreferenceStoreV2Migration(),
         )
     }
 )
@@ -480,7 +515,7 @@ class SettingsStore(
                     enabledSkillIds = assistant.enabledSkillIds.filter { skillId ->
                         skillId in validSkillIds
                     }.toSet()
-                )
+                ).normalizeContextManagementFlags()
             }
             val validAssistantIds = dedupedAssistants.map { it.id }.toSet()
             val dedupedGroupChats = settings.groupChatTemplates
@@ -519,17 +554,7 @@ class SettingsStore(
                         )
                     }
                 },
-                assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
-                    assistant.copy(
-                        // 过滤掉不存在的 MCP 服务器 ID
-                        mcpServers = assistant.mcpServers.filter { serverId ->
-                            serverId in validMcpServerIds
-                        }.toSet(),
-                        enabledSkillIds = assistant.enabledSkillIds.filter { skillId ->
-                            skillId in validSkillIds
-                        }.toSet()
-                    )
-                },
+                assistants = dedupedAssistants,
                 skillFolders = dedupedSkillFolders,
                 skills = sanitizedSkills,
                 groupChatTemplates = dedupedGroupChats,
@@ -585,13 +610,18 @@ class SettingsStore(
 	            settingsToSave
 	        }
 
+            val normalizedAssistants = settingsToSaveWithReboundSearchIndices.assistants.map { assistant ->
+                assistant.normalizeContextManagementFlags()
+            }
 	        val finalSettingsToSave = settingsToSaveWithReboundSearchIndices.copy(
+                assistants = normalizedAssistants,
 	            displaySetting = settingsToSaveWithReboundSearchIndices.displaySetting.coerceForConflicts(),
                 mcpToolCallTimeoutSeconds = settingsToSaveWithReboundSearchIndices.mcpToolCallTimeoutSeconds.coerceAtLeast(1),
 	        )
 
         settingsFlow.value = finalSettingsToSave
         dataStore.edit { preferences ->
+            preferences[VERSION] = 2
             preferences[DYNAMIC_COLOR] = finalSettingsToSave.dynamicColor
             preferences[THEME_ID] = finalSettingsToSave.themeId
             preferences[DEVELOPER_MODE] = finalSettingsToSave.developerMode
@@ -1282,7 +1312,9 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
             else -> { /* no change needed */ }
         }
 
-        updatedAssistant
+        updatedAssistant.normalizeContextManagementFlags(
+            applyLegacyHistoryLimitMigration = true
+        )
     }
 
     // 1.5 Clean skills & folders
