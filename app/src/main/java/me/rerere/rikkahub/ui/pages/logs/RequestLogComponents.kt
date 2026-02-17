@@ -193,6 +193,7 @@ fun AIRequestSource.displayName(): String {
     return when (this) {
         AIRequestSource.CHAT -> stringResource(R.string.request_log_source_chat)
         AIRequestSource.TITLE_SUMMARY -> stringResource(R.string.request_log_source_title_summary)
+        AIRequestSource.CONTEXT_SUMMARY -> stringResource(R.string.request_log_source_context_summary)
         AIRequestSource.CHAT_SUGGESTION -> stringResource(R.string.request_log_source_chat_suggestion)
         AIRequestSource.GROUP_CHAT_ROUTING -> stringResource(R.string.request_log_source_group_chat_routing)
         AIRequestSource.WELCOME_PHRASES -> stringResource(R.string.request_log_source_welcome_phrases)

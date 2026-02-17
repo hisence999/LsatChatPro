@@ -1448,6 +1448,7 @@
   <string name="request_log_field_error">信息</string>
   <string name="request_log_source_chat">聊天</string>
   <string name="request_log_source_title_summary">标题总结</string>
+  <string name="request_log_source_context_summary">上下文总结</string>
   <string name="request_log_source_chat_suggestion">聊天建议</string>
   <string name="request_log_source_group_chat_routing">群聊路由</string>
   <string name="request_log_source_welcome_phrases">欢迎词</string>

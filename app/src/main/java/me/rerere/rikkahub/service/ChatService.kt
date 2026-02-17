@@ -5409,14 +5409,41 @@ class ChatService(
 
             // Call the model
             val providerHandler = providerManager.getProviderByType(provider)
-            val response = providerHandler.generateText(
-                providerSetting = provider,
-                messages = listOf(UIMessage.user(prompt)),
-                params = TextGenerationParams(model = model, temperature = 0.3f)
+            val requestMessages = listOf(UIMessage.user(prompt))
+            val params = TextGenerationParams(
+                model = model,
+                temperature = 0.3f
             )
+            val startAt = System.currentTimeMillis()
+            var failure: Throwable? = null
+            var summary = ""
+            try {
+                val response = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = requestMessages,
+                    params = params
+                )
+                summary = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
+            } catch (t: Throwable) {
+                failure = t
+                throw t
+            } finally {
+                requestLogManager.logTextGeneration(
+                    source = AIRequestSource.CONTEXT_SUMMARY,
+                    providerSetting = provider,
+                    params = params,
+                    requestMessages = requestMessages,
+                    responseText = summary,
+                    stream = false,
+                    latencyMs = System.currentTimeMillis() - startAt,
+                    durationMs = System.currentTimeMillis() - startAt,
+                    error = failure,
+                )
+            }
 
-            val summary = response.choices.firstOrNull()?.message?.toContentText()
-                ?: return@withContext ContextRefreshResult(false, errorMessage = "Empty response from model")
+            if (summary.isBlank()) {
+                return@withContext ContextRefreshResult(false, errorMessage = "Empty response from model")
+            }
 
             // Estimate new tokens
             val summaryTokens = summary.length / 4

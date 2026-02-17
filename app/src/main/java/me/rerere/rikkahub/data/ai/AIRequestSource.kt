@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai
 enum class AIRequestSource {
     CHAT,
     TITLE_SUMMARY,
+    CONTEXT_SUMMARY,
     CHAT_SUGGESTION,
     GROUP_CHAT_ROUTING,
     WELCOME_PHRASES,
@@ -23,6 +24,7 @@ fun AIRequestSource.displayNameZh(): String {
     return when (this) {
         AIRequestSource.CHAT -> "聊天"
         AIRequestSource.TITLE_SUMMARY -> "标题总结"
+        AIRequestSource.CONTEXT_SUMMARY -> "上下文总结"
         AIRequestSource.CHAT_SUGGESTION -> "聊天建议"
         AIRequestSource.GROUP_CHAT_ROUTING -> "群聊路由"
         AIRequestSource.WELCOME_PHRASES -> "欢迎词"

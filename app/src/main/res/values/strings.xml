@@ -47,6 +47,7 @@
 
     <string name="request_log_source_chat">Chat</string>
     <string name="request_log_source_title_summary">Title Summary</string>
+    <string name="request_log_source_context_summary">Context Summary</string>
     <string name="request_log_source_chat_suggestion">Chat Suggestion</string>
     <string name="request_log_source_group_chat_routing">Group Chat Routing</string>
     <string name="request_log_source_welcome_phrases">Welcome Phrases</string>
