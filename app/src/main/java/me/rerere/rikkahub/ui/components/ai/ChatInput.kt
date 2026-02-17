@@ -380,6 +380,7 @@ fun ChatInput(
     }
 
     var expand by remember { mutableStateOf(ExpandState.Collapsed) }
+    var showContextRefreshDialog by remember { mutableStateOf(false) }
     fun dismissExpand() {
         expand = ExpandState.Collapsed
     }
@@ -806,12 +807,20 @@ fun ChatInput(
                             onUpdateConversation = onUpdateConversation,
                             onUpdateSettings = onUpdateSettings,
                             onNavigateToLorebook = onNavigateToLorebook,
-                            onRefreshContext = onRefreshContext,
+                            onShowContextRefreshDialog = { showContextRefreshDialog = true },
                             onDismiss = { dismissExpand() }
                         )
                     }
                 }
             }
+        }
+
+        if (showContextRefreshDialog) {
+            ContextRefreshDialog(
+                conversation = conversation,
+                onRefresh = onRefreshContext,
+                onDismiss = { showContextRefreshDialog = false },
+            )
         }
     }
 }
@@ -1387,7 +1396,7 @@ private fun FilesPicker(
     onUpdateConversation: (Conversation) -> Unit,
     onUpdateSettings: (Settings) -> Unit,
     onNavigateToLorebook: (String) -> Unit,
-    onRefreshContext: suspend () -> ChatService.ContextRefreshResult,
+    onShowContextRefreshDialog: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -1464,8 +1473,6 @@ private fun FilesPicker(
     val bottomRightShape = if (showContextRefresh) middleRightShape else RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 10.dp, bottomEnd = 24.dp)
     val fullBottomShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
     
-    // State for context refresh dialog
-    var showContextRefreshDialog by remember { mutableStateOf(false) }
     var showModesPicker by remember { mutableStateOf(false) }
     var showLorebooksPicker by remember { mutableStateOf(false) }
     
@@ -1629,7 +1636,7 @@ private fun FilesPicker(
                         tonalElevation = if (amoledMode && isDarkMode) 0.dp else 6.dp,
                         onClick = {
                             haptics.perform(HapticPattern.Pop)
-                            showContextRefreshDialog = true
+                            onShowContextRefreshDialog()
                         }
                     ) {
                         Row(
@@ -1866,14 +1873,6 @@ private fun FilesPicker(
                 onNavigateToLorebook(lorebookId)
             },
             onDismiss = { showLorebooksPicker = false },
-        )
-    }
-
-    if (showContextRefreshDialog) {
-        ContextRefreshDialog(
-            conversation = conversation,
-            onRefresh = onRefreshContext,
-            onDismiss = { showContextRefreshDialog = false },
         )
     }
 

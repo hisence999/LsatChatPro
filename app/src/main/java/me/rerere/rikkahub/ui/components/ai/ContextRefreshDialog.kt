@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,9 +92,15 @@ fun ContextRefreshDialog(
         dampingRatio = Spring.DampingRatioMediumBouncy,
         stiffness = Spring.StiffnessLow
     )
+    // Keep a stable dialog footprint across CONFIRM/LOADING/SUCCESS/ERROR states.
+    val dialogBodyMinHeight = 220.dp
+    val actionPlaceholderModifier = Modifier
+        .height(40.dp)
+        .width(96.dp)
 
     AlertDialog(
         onDismissRequest = { if (state != RefreshDialogState.LOADING) onDismiss() },
+        modifier = Modifier.padding(horizontal = 24.dp),
         shape = RoundedCornerShape(28.dp),
         containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
         title = {
@@ -142,152 +149,158 @@ fun ContextRefreshDialog(
             }
         },
         text = {
-            AnimatedContent(
-                targetState = state,
-                label = "content_anim",
-                transitionSpec = {
-                    (fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
-                        scaleIn(initialScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessLow)))
-                        .togetherWith(fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
-                            scaleOut(targetScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessLow)))
-                }
-            ) { currentState ->
-                when (currentState) {
-                    RefreshDialogState.CONFIRM -> {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.context_refresh_confirm_message),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            // Keep last 2 messages (user + assistant exchange)
-                            val messagesToKeep = 2
-                            val lastIndexToSummarize = (messageCount - messagesToKeep - 1).coerceAtLeast(0)
-                            
-                            // Calculate actual messages to summarize (excluding kept messages)
-                            val startIndex = if (hasPreviousSummary && lastSummaryIndex >= 0 && lastSummaryIndex < messageCount) {
-                                (lastSummaryIndex + 1).coerceAtMost(messageCount)
-                            } else {
-                                0
-                            }
-                            
-                            val messagesToSummarize = if (startIndex <= lastIndexToSummarize) {
-                                lastIndexToSummarize - startIndex + 1
-                            } else {
-                                0
-                            }
-                            
-                            // Calculate tokens for messages that will be summarized
-                            val messagesToProcess = if (startIndex <= lastIndexToSummarize) {
-                                conversation.currentMessages.subList(startIndex, lastIndexToSummarize + 1)
-                            } else {
-                                emptyList()
-                            }
-                            val tokensToCleanUp = messagesToProcess.sumOf { msg ->
-                                msg.parts.sumOf { part ->
-                                    when (part) {
-                                        is me.rerere.ai.ui.UIMessagePart.Text -> part.text.length / 4
-                                        else -> 50
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = dialogBodyMinHeight)
+            ) {
+                AnimatedContent(
+                    targetState = state,
+                    label = "content_anim",
+                    transitionSpec = {
+                        (fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
+                            scaleIn(initialScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessLow)))
+                            .togetherWith(fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
+                                scaleOut(targetScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessLow)))
+                    }
+                ) { currentState ->
+                    when (currentState) {
+                        RefreshDialogState.CONFIRM -> {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.context_refresh_confirm_message),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                
+                                // Keep last 2 messages (user + assistant exchange)
+                                val messagesToKeep = 2
+                                val lastIndexToSummarize = (messageCount - messagesToKeep - 1).coerceAtLeast(0)
+                                
+                                // Calculate actual messages to summarize (excluding kept messages)
+                                val startIndex = if (hasPreviousSummary && lastSummaryIndex >= 0 && lastSummaryIndex < messageCount) {
+                                    (lastSummaryIndex + 1).coerceAtMost(messageCount)
+                                } else {
+                                    0
+                                }
+                                
+                                val messagesToSummarize = if (startIndex <= lastIndexToSummarize) {
+                                    lastIndexToSummarize - startIndex + 1
+                                } else {
+                                    0
+                                }
+                                
+                                // Calculate tokens for messages that will be summarized
+                                val messagesToProcess = if (startIndex <= lastIndexToSummarize && lastIndexToSummarize < conversation.currentMessages.size) {
+                                    conversation.currentMessages.subList(startIndex, (lastIndexToSummarize + 1).coerceAtMost(conversation.currentMessages.size))
+                                } else {
+                                    emptyList()
+                                }
+                                val tokensToCleanUp = messagesToProcess.sumOf { msg ->
+                                    msg.parts.sumOf { part ->
+                                        when (part) {
+                                            is me.rerere.ai.ui.UIMessagePart.Text -> part.text.length / 4
+                                            else -> 50
+                                        }
                                     }
                                 }
-                            }
-                            
-                            Text(
-                                text = stringResource(
-                                    R.string.context_refresh_summary_stats,
-                                    messagesToSummarize,
-                                    tokensToCleanUp
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            
-                            // Show previous summary if exists
-                            if (hasPreviousSummary) {
+                                
                                 Text(
-                                    text = stringResource(R.string.context_refresh_previous_summary_label),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium
+                                    text = stringResource(
+                                        R.string.context_refresh_summary_stats,
+                                        messagesToSummarize,
+                                        tokensToCleanUp
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                
+                                // Show previous summary if exists
+                                if (hasPreviousSummary) {
+                                    Text(
+                                        text = stringResource(R.string.context_refresh_previous_summary_label),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = conversation.contextSummary?.take(200) + if ((conversation.contextSummary?.length ?: 0) > 200) "..." else "",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 4
+                                    )
+                                }
+                            }
+                        }
+                        RefreshDialogState.LOADING -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                LoadingIndicator()
                                 Text(
-                                    text = conversation.contextSummary?.take(200) + if ((conversation.contextSummary?.length ?: 0) > 200) "..." else "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 4
+                                    text = stringResource(R.string.context_refresh_loading),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                    }
-                    RefreshDialogState.LOADING -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            LoadingIndicator()
-                            Text(
-                                text = stringResource(R.string.context_refresh_loading),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    RefreshDialogState.SUCCESS -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                text = stringResource(R.string.context_refresh_cleaned, summarizedCount),
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center
-                            )
-                            if (tokensSaved > 0) {
+                        RefreshDialogState.SUCCESS -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(48.dp)
+                                )
                                 Text(
-                                    text = stringResource(R.string.context_refresh_tokens_saved, tokensSaved),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    text = stringResource(R.string.context_refresh_cleaned, summarizedCount),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     textAlign = TextAlign.Center
                                 )
+                                if (tokensSaved > 0) {
+                                    Text(
+                                        text = stringResource(R.string.context_refresh_tokens_saved, tokensSaved),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
-                    }
-                    RefreshDialogState.ERROR -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                text = errorMessage ?: stringResource(R.string.context_refresh_no_summarizer),
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        RefreshDialogState.ERROR -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = errorMessage ?: stringResource(R.string.context_refresh_no_summarizer),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -338,8 +351,7 @@ fun ContextRefreshDialog(
                         }
                     }
                     RefreshDialogState.LOADING -> {
-                        // No button while loading - use empty box for animation
-                        Spacer(Modifier.width(1.dp))
+                        androidx.compose.foundation.layout.Box(modifier = actionPlaceholderModifier)
                     }
                 }
             }
@@ -358,7 +370,7 @@ fun ContextRefreshDialog(
                         Text(stringResource(android.R.string.cancel))
                     }
                 } else {
-                    Spacer(Modifier.width(1.dp))
+                    androidx.compose.foundation.layout.Box(modifier = actionPlaceholderModifier)
                 }
             }
         }

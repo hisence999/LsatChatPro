@@ -202,6 +202,7 @@ fun MinimalChatInput(
     val cameraPermission = rememberPermissionState(PermissionCamera)
     
     var showPicker by remember { mutableStateOf(false) }
+    var showContextRefreshDialog by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
     var isFullScreen by remember { mutableStateOf(false) }
 
@@ -667,7 +668,7 @@ fun MinimalChatInput(
                 onUpdateAssistant = onUpdateAssistant,
                 onUpdateSearchService = onUpdateSearchService,
                 onNavigateToLorebook = onNavigateToLorebook,
-                onRefreshContext = onRefreshContext,
+                onShowContextRefreshDialog = { showContextRefreshDialog = true },
                 onOpenWorkDirPicker = {
                     showPicker = false
                     showWorkDirPicker = true
@@ -675,6 +676,14 @@ fun MinimalChatInput(
                 onDismiss = { showPicker = false }
             )
         }
+    }
+
+    if (showContextRefreshDialog) {
+        ContextRefreshDialog(
+            conversation = conversation,
+            onRefresh = onRefreshContext,
+            onDismiss = { showContextRefreshDialog = false }
+        )
     }
 }
 
@@ -695,7 +704,7 @@ private fun MinimalPickerContent(
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onNavigateToLorebook: (String) -> Unit,
-    onRefreshContext: suspend () -> ChatService.ContextRefreshResult,
+    onShowContextRefreshDialog: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -723,7 +732,6 @@ private fun MinimalPickerContent(
     var showReasoningPicker by remember { mutableStateOf(false) }
     var showModesPicker by remember { mutableStateOf(false) }
     var showLorebooksPicker by remember { mutableStateOf(false) }
-    var showContextRefreshDialog by remember { mutableStateOf(false) }
     var showSearchPicker by remember { mutableStateOf(false) }
     var showMcpPicker by remember { mutableStateOf(false) }
 
@@ -1152,7 +1160,7 @@ private fun MinimalPickerContent(
                     title = stringResource(R.string.minimal_input_summarize),
                     subtitle = stringResource(R.string.minimal_input_summarize_desc),
                     onClick = {
-                        showContextRefreshDialog = true
+                        onShowContextRefreshDialog()
                     }
                 )
             }
@@ -1248,15 +1256,6 @@ private fun MinimalPickerContent(
         )
     }
     
-    // Context Refresh dialog (same as floating toolbar)
-    if (uiMode == ChatInputUiMode.Normal && showContextRefreshDialog) {
-        ContextRefreshDialog(
-            conversation = conversation,
-            onRefresh = onRefreshContext,
-            onDismiss = { showContextRefreshDialog = false }
-        )
-    }
-
     if (uiMode == ChatInputUiMode.Normal && showMcpPicker) {
         ModalBottomSheet(
             onDismissRequest = { showMcpPicker = false },
