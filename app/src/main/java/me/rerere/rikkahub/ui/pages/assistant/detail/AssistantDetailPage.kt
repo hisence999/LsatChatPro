@@ -224,7 +224,8 @@ fun AssistantDetailPage(
                 AssistantContextManagementSubPage(
                     assistant = assistant,
                     onUpdate = { onUpdate(it) },
-                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) }
+                    onNavigateToLorebooks = { navController.navigate(AssistantDetailRoutes.LOREBOOKS) },
+                    onNavigateToModels = { navController.navigate(AssistantDetailRoutes.MODEL) }
                 )
             }
 

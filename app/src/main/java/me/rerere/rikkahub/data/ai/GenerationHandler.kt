@@ -385,9 +385,31 @@ class GenerationHandler(
         enabledModeIds: Set<Uuid> = emptySet(),
     ): BuildMessagesResult {
         val allMessages = messages.truncate(truncateIndex)
+        val conversation = conversationId?.let { conversationRepo.getConversationById(it) }
+        val contextSummarySection = conversation?.let { convo ->
+            val summary = convo.contextSummary?.trim().orEmpty()
+            val summaryUpToIndex = convo.contextSummaryUpToIndex
+            if (summary.isNotEmpty() && summaryUpToIndex in 0 until allMessages.size) {
+                buildString {
+                    appendLine("Conversation summary of earlier turns (use as prior context):")
+                    appendLine(summary)
+                    append("Continue using newer messages below as the most recent context.")
+                }
+            } else {
+                ""
+            }
+        }.orEmpty()
+
+        val summaryUpToIndex = conversation?.contextSummaryUpToIndex ?: -1
+        val contextBaseMessages = if (contextSummarySection.isNotBlank() && summaryUpToIndex in 0 until allMessages.size) {
+            allMessages.drop(summaryUpToIndex + 1)
+        } else {
+            allMessages
+        }
+
         val historyLimitedMessages = assistant.maxHistoryMessages?.let { limit ->
-            if (limit > 0) allMessages.limitContext(limit) else allMessages
-        } ?: allMessages
+            if (limit > 0) contextBaseMessages.limitContext(limit) else contextBaseMessages
+        } ?: contextBaseMessages
 
         val rawContextMessages = historyLimitedMessages
             .limitContext(assistant.contextMessageSize.coerceAtLeast(0))
@@ -773,6 +795,9 @@ class GenerationHandler(
         }
         val baseSystemPrompt = baseSystemPromptBuilder.toString()
         currentTokens += estimateTokens(baseSystemPrompt)
+        if (contextSummarySection.isNotBlank()) {
+            currentTokens += estimateTokens(contextSummarySection)
+        }
         currentTokens += inChatInjections.sumOf { estimateTokens(it.prompt) }
 
         // 2. Prepare Candidates
@@ -967,6 +992,10 @@ class GenerationHandler(
         val builtMessages = buildList {
             val finalSystemPrompt = buildString {
                 append(baseSystemPrompt)
+                if (contextSummarySection.isNotBlank()) {
+                    appendLine()
+                    append(contextSummarySection)
+                }
                 val includeMemoryToolInstructions = tools.any { it.name in MEMORY_TOOL_NAMES }
                 val memoryPrompt = buildMemoryPrompt(
                     model = model,
