@@ -365,6 +365,7 @@
     <string name="chat_message_tool_workspace_rename">Workspace: Rename %1$s → %2$s</string>
     <string name="chat_page_cancel">Cancel</string>
     <string name="chat_page_clear_context">Clear Context</string>
+    <string name="chat_page_context_compressed">Context compressed</string>
     <string name="chat_page_clear_context_confirm_title">Clear context?</string>
     <string name="chat_page_clear_context_confirm_message">This will remove previous messages from the current context. Continue?</string>
     <string name="chat_page_clear_context_confirm_action">Clear</string>
@@ -624,6 +625,8 @@
     <string name="setting_display_page_show_fullscreen_input_button_desc">Show the fullscreen input button when the input bar is expanded</string>
     <string name="setting_display_page_show_context_stacks_desc">Show context sources (modes, memories, lorebooks) in message toolbar</string>
     <string name="setting_display_page_show_context_stacks_title">Show Context Stacks</string>
+    <string name="setting_display_page_show_context_compression_divider_title">Show Context Compression Divider</string>
+    <string name="setting_display_page_show_context_compression_divider_desc">Show a divider in chat when older messages are summarized into context</string>
     <string name="setting_display_page_embedding_retrieval_timeout_title">Embedding Retrieval Timeout</string>
     <string name="setting_display_page_embedding_retrieval_timeout_desc">If timeout, skip this retrieval. Unit: seconds</string>
     <string name="setting_display_page_use_last_turn_memory_title">Use Last Turn Memories</string>

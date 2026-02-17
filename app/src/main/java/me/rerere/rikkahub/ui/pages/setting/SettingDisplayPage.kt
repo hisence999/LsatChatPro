@@ -403,6 +403,18 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_show_context_compression_divider_title),
+                        subtitle = stringResource(R.string.setting_display_page_show_context_compression_divider_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.showContextCompressionDivider,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showContextCompressionDivider = it))
+                                }
+                            )
+                        }
+                    )
+                    SettingGroupItem(
                         title = stringResource(R.string.setting_display_page_embedding_retrieval_timeout_title),
                         subtitle = stringResource(R.string.setting_display_page_embedding_retrieval_timeout_desc),
                         trailing = {

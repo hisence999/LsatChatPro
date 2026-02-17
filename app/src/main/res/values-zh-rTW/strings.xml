@@ -265,6 +265,7 @@
   <string name="chat_message_tool_workspace_rename">工作區：重新命名 %1$s → %2$s</string>
   <string name="chat_page_cancel">取消</string>
   <string name="chat_page_clear_context">清空上下文</string>
+  <string name="chat_page_context_compressed">已壓縮上下文</string>
   <string name="chat_page_clear_context_confirm_title">確認清空上下文？</string>
   <string name="chat_page_clear_context_confirm_message">這會從目前上下文中移除先前的訊息，是否繼續？</string>
   <string name="chat_page_clear_context_confirm_action">清空</string>
@@ -1543,6 +1544,8 @@
   <!-- Display -->
   <string name="setting_display_page_show_context_stacks_title">顯示上下文堆疊</string>
   <string name="setting_display_page_show_context_stacks_desc">在消息工具列顯示上下文來源（模式、記憶、世界書）</string>
+  <string name="setting_display_page_show_context_compression_divider_title">顯示上下文壓縮分隔線</string>
+  <string name="setting_display_page_show_context_compression_divider_desc">當歷史消息被總結進上下文時，在聊天中顯示分隔線</string>
   <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型檢索逾時時間</string>
   <string name="setting_display_page_embedding_retrieval_timeout_desc">逾時後將跳過該次檢索，單位：秒</string>
   <string name="setting_display_page_use_last_turn_memory_title">使用上一輪記憶</string>

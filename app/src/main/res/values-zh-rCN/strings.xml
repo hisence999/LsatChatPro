@@ -120,9 +120,12 @@
     <string name="notification_live_update_output">输出中</string>
     <string name="notification_live_update_done">输出完成</string>
     <string name="notification_live_update_error">生成异常</string>
+    <string name="chat_page_context_compressed">已压缩上下文</string>
 
     <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型检索超时时间</string>
     <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
+    <string name="setting_display_page_show_context_compression_divider_title">显示上下文压缩分割线</string>
+    <string name="setting_display_page_show_context_compression_divider_desc">当历史消息被总结进上下文时，在聊天中显示分割线</string>
     <string name="setting_display_page_use_last_turn_memory_title">使用上一轮记忆</string>
     <string name="setting_display_page_use_last_turn_memory_desc">跳过记忆检索后，使用上一轮注入的记忆</string>
     <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择合并同源提供商</string>

@@ -1031,6 +1031,7 @@ data class DisplaySetting(
     val providerViewMode: ProviderViewMode = ProviderViewMode.LIST, // Provider page view mode
     val mergeProvidersInModelSelector: Boolean = false, // Merge providers with same base URL in model selector
     val showContextStacks: Boolean = false, // Show context sources (modes, memories, lorebooks) in message toolbar
+    val showContextCompressionDivider: Boolean = true, // Show divider where older context has been summarized/compressed
     val embeddingRetrievalTimeoutSeconds: Int = 2, // Timeout for embedding-based retrieval (memories, tool results)
     val useLastTurnMemoryOnSkip: Boolean = true, // Reuse last injected memories when retrieval is skipped
 )
