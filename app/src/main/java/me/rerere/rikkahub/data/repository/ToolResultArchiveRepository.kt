@@ -74,6 +74,7 @@ class ToolResultArchiveRepository(
         conversationId: String,
         assistantId: String,
         messages: List<UIMessage>,
+        enableRagIndexing: Boolean = true,
     ) = withContext(Dispatchers.IO) {
         if (conversationId.isBlank()) return@withContext
         if (assistantId.isBlank()) return@withContext
@@ -122,8 +123,10 @@ class ToolResultArchiveRepository(
             dao.insertAll(entities)
         }
 
-        ensureChunkRowsExist(chunkTasks)
-        enqueueChunkIndexing(chunkTasks)
+        if (enableRagIndexing) {
+            ensureChunkRowsExist(chunkTasks)
+            enqueueChunkIndexing(chunkTasks)
+        }
     }
 
     suspend fun archiveToolResults(
@@ -131,6 +134,7 @@ class ToolResultArchiveRepository(
         assistantId: String,
         userTurnIndex: Int,
         results: List<UIMessagePart.ToolResult>,
+        enableRagIndexing: Boolean = true,
     ) = withContext(Dispatchers.IO) {
         if (conversationId.isBlank()) return@withContext
         if (assistantId.isBlank()) return@withContext
@@ -158,22 +162,24 @@ class ToolResultArchiveRepository(
             dao.insertAll(entities)
         }
 
-        enqueueChunkIndexing(
-            filtered.mapIndexed { index, result ->
-                val resolvedToolCallId = result.toolCallId.ifBlank {
-                    "gen_${result.toolName}_${userTurnIndex}_$index"
+        if (enableRagIndexing) {
+            enqueueChunkIndexing(
+                filtered.mapIndexed { index, result ->
+                    val resolvedToolCallId = result.toolCallId.ifBlank {
+                        "gen_${result.toolName}_${userTurnIndex}_$index"
+                    }
+                    ChunkIndexTask(
+                        conversationId = conversationId,
+                        assistantId = assistantId,
+                        toolCallId = resolvedToolCallId,
+                        toolName = result.toolName,
+                        userTurnIndex = userTurnIndex.coerceAtLeast(0),
+                        arguments = result.arguments,
+                        content = result.content,
+                    )
                 }
-                ChunkIndexTask(
-                    conversationId = conversationId,
-                    assistantId = assistantId,
-                    toolCallId = resolvedToolCallId,
-                    toolName = result.toolName,
-                    userTurnIndex = userTurnIndex.coerceAtLeast(0),
-                    arguments = result.arguments,
-                    content = result.content,
-                )
-            }
-        )
+            )
+        }
     }
 
     private suspend fun ensureChunkRowsExist(tasks: List<ChunkIndexTask>) {

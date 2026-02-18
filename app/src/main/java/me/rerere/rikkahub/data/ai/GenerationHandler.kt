@@ -352,6 +352,7 @@ class GenerationHandler(
                         assistantId = assistant.id.toString(),
                         userTurnIndex = userTurnIndex,
                         results = results,
+                        enableRagIndexing = settings.displaySetting.toolResultHistoryMode == ToolResultHistoryMode.RAG,
                     )
                 }
             }
