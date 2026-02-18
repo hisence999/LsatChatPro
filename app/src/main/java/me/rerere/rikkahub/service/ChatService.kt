@@ -4977,12 +4977,27 @@ class ChatService(
                 return
             }
 
-            // 生成完，conversation可能不是最新了，因此需要重新获取
-            conversationRepo.getConversationById(conversation.id)?.let {
-                saveConversation(
-                    conversationId,
-                    it.copy(title = titleTrimmed)
-                )
+            // 生成完时可能已经开始下一轮流式输出。
+            // 这里必须基于“最新的内存态”合并字段，避免用 DB 的旧快照覆盖 messageNodes，导致消息闪消。
+            val latestConversation = getConversationFlow(conversationId).value
+            val latestFallbackTitle = buildFallbackTitleFromConversation(latestConversation)
+            val shouldApplyToLatest = when {
+                force -> true
+                latestConversation.title.isBlank() -> true
+                latestFallbackTitle.isNotBlank() && latestConversation.title.trim() == latestFallbackTitle -> true
+                else -> false
+            }
+            if (!shouldApplyToLatest) {
+                Log.d(TAG, "generateTitle: apply skipped (title already changed)")
+                return
+            }
+
+            val patchedConversation = latestConversation.copy(title = titleTrimmed)
+            if (getGenerationJob(conversationId) != null) {
+                // 避免生成中写库（可能会落入一份“未完成的 messageNodes”），但 UI 需要立即看到标题变化。
+                updateConversation(conversationId, patchedConversation)
+            } else {
+                saveConversation(conversationId, patchedConversation)
             }
 
             runCatching {
@@ -5140,12 +5155,15 @@ class ChatService(
                 )
             }
 
-            // Fetch fresh conversation from DB to avoid overwriting concurrent updates (e.g., title generation)
-            conversationRepo.getConversationById(conversationId)?.let { freshConversation ->
-                saveConversation(
-                    conversationId,
-                    freshConversation.copy(chatSuggestions = suggestions)
-                )
+            // 这里不能用 DB 快照直接覆盖内存态：如果用户已开始下一轮流式输出，DB 通常不包含正在生成的最后一条消息，
+            // 会导致整条消息在 UI 里短暂消失。必须基于最新内存态合并字段。
+            val latestConversation = getConversationFlow(conversationId).value
+            val patchedConversation = latestConversation.copy(chatSuggestions = suggestions)
+            if (getGenerationJob(conversationId) != null) {
+                // 生成中只更新内存，落库交给下一次消息完成时一起保存。
+                updateConversation(conversationId, patchedConversation)
+            } else {
+                saveConversation(conversationId, patchedConversation)
             }
         }.onFailure {
             it.printStackTrace()
