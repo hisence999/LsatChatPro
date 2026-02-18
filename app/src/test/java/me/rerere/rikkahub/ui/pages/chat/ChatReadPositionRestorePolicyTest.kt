@@ -1,0 +1,79 @@
+package me.rerere.rikkahub.ui.pages.chat
+
+import me.rerere.ai.core.MessageRole
+import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.model.MessageNode
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.uuid.Uuid
+
+class ChatReadPositionRestorePolicyTest {
+    @Test
+    fun shouldRunReadPositionRestore_respectsPriority() {
+        val jumpTarget = Uuid.parse("00000000-0000-0000-0000-000000000301")
+
+        assertTrue(
+            shouldRunReadPositionRestore(
+                initialSearchQuery = null,
+                pendingJumpNodeId = null,
+                previewMode = false,
+            )
+        )
+        assertFalse(
+            shouldRunReadPositionRestore(
+                initialSearchQuery = "keyword",
+                pendingJumpNodeId = null,
+                previewMode = false,
+            )
+        )
+        assertFalse(
+            shouldRunReadPositionRestore(
+                initialSearchQuery = null,
+                pendingJumpNodeId = jumpTarget,
+                previewMode = false,
+            )
+        )
+        assertFalse(
+            shouldRunReadPositionRestore(
+                initialSearchQuery = null,
+                pendingJumpNodeId = null,
+                previewMode = true,
+            )
+        )
+    }
+
+    @Test
+    fun resolveReadPositionNodeIndex_returnsExpectedIndex() {
+        val firstId = Uuid.parse("00000000-0000-0000-0000-000000000401")
+        val secondId = Uuid.parse("00000000-0000-0000-0000-000000000402")
+        val nodes = listOf(
+            MessageNode(
+                id = firstId,
+                messages = listOf(
+                    UIMessage(
+                        role = MessageRole.USER,
+                        parts = listOf(UIMessagePart.Text("a")),
+                    )
+                )
+            ),
+            MessageNode(
+                id = secondId,
+                messages = listOf(
+                    UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(UIMessagePart.Text("b")),
+                    )
+                )
+            ),
+        )
+
+        assertEquals(1, resolveReadPositionNodeIndex(nodes, secondId.toString()))
+        assertEquals(-1, resolveReadPositionNodeIndex(nodes, null))
+        assertEquals(-1, resolveReadPositionNodeIndex(nodes, ""))
+        assertEquals(-1, resolveReadPositionNodeIndex(nodes, "invalid-node-id"))
+        assertEquals(-1, resolveReadPositionNodeIndex(nodes, Uuid.random().toString()))
+    }
+}

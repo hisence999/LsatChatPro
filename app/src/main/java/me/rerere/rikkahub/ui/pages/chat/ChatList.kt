@@ -152,6 +152,7 @@ fun ChatList(
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
     onJumpToMessage: (Uuid) -> Unit = {},
+    onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit = { _, _ -> },
 ) {
     SharedTransitionLayout {
         AnimatedContent(
@@ -185,6 +186,7 @@ fun ChatList(
                     onForkMessage = onForkMessage,
                     onDelete = onDelete,
                     onUpdateMessage = onUpdateMessage,
+                    onReadPositionSample = onReadPositionSample,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
             }
@@ -207,6 +209,7 @@ private fun SharedTransitionScope.ChatListNormal(
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
+    onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
@@ -313,6 +316,21 @@ private fun SharedTransitionScope.ChatListNormal(
                 delay(1500)
                 isRecentScroll = false
             }
+        }
+
+        LaunchedEffect(state, conversation.id) {
+            var lastNodeId: Uuid? = null
+            var lastOffset = -1
+            snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+                .collect { (index, offset) ->
+                    val nodeId = conversationUpdated.messageNodes.getOrNull(index)?.id ?: return@collect
+                    if (nodeId == lastNodeId && offset == lastOffset) {
+                        return@collect
+                    }
+                    lastNodeId = nodeId
+                    lastOffset = offset
+                    onReadPositionSample(nodeId, offset)
+                }
         }
 
         LazyColumn(

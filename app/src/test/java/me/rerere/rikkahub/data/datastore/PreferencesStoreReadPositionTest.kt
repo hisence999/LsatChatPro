@@ -1,0 +1,59 @@
+package me.rerere.rikkahub.data.datastore
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+import kotlin.uuid.Uuid
+
+class PreferencesStoreReadPositionTest {
+    @Test
+    fun getConversationReadPosition_returnsMatchedPosition() {
+        val conversationId = Uuid.parse("00000000-0000-0000-0000-000000000101")
+        val nodeId = Uuid.parse("00000000-0000-0000-0000-000000000201")
+        val settings = Settings(
+            conversationReadPositions = mapOf(
+                conversationId.toString() to ConversationReadPosition(
+                    nodeId = nodeId.toString(),
+                    offset = 42,
+                    updatedAt = 1000L,
+                )
+            )
+        )
+
+        val position = settings.getConversationReadPosition(conversationId)
+
+        assertEquals(nodeId.toString(), position?.nodeId)
+        assertEquals(42, position?.offset)
+    }
+
+    @Test
+    fun sanitize_dropsInvalidEntries_andNormalizesOffset() {
+        val validConversationId = Uuid.parse("00000000-0000-0000-0000-000000000102")
+        val validNodeId = Uuid.parse("00000000-0000-0000-0000-000000000202")
+        val rawPositions = mapOf(
+            "invalid-conversation-id" to ConversationReadPosition(
+                nodeId = validNodeId.toString(),
+                offset = 5,
+                updatedAt = 10L,
+            ),
+            validConversationId.toString() to ConversationReadPosition(
+                nodeId = validNodeId.toString(),
+                offset = -99,
+                updatedAt = -1L,
+            ),
+            Uuid.parse("00000000-0000-0000-0000-000000000103").toString() to ConversationReadPosition(
+                nodeId = "invalid-node-id",
+                offset = 1,
+                updatedAt = 2L,
+            ),
+        )
+
+        val sanitized = sanitizeConversationReadPositions(rawPositions)
+
+        val validPosition = sanitized[validConversationId.toString()]
+        assertEquals(1, sanitized.size)
+        assertEquals(0, validPosition?.offset)
+        assertEquals(0L, validPosition?.updatedAt)
+        assertNull(sanitized["invalid-conversation-id"])
+    }
+}

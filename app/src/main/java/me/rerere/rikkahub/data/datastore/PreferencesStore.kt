@@ -214,6 +214,7 @@ class SettingsStore(
         val WORKSPACE_ROOT_TREE_URI = stringPreferencesKey("workspace_root_tree_uri")
         val CONVERSATION_WORKSPACE_ROOTS = stringPreferencesKey("conversation_workspace_roots")
         val CONVERSATION_WORK_DIRS = stringPreferencesKey("conversation_work_dirs")
+        val CONVERSATION_READ_POSITIONS = stringPreferencesKey("conversation_read_positions")
 
         // Android Integration
         val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
@@ -462,6 +463,9 @@ class SettingsStore(
                 conversationWorkDirs = preferences[CONVERSATION_WORK_DIRS]?.let {
                     runCatching { JsonInstant.decodeFromString<Map<String, ConversationWorkDirBinding>>(it) }.getOrNull()
                 } ?: emptyMap(),
+                conversationReadPositions = preferences[CONVERSATION_READ_POSITIONS]?.let {
+                    runCatching { JsonInstant.decodeFromString<Map<String, ConversationReadPosition>>(it) }.getOrNull()
+                } ?: emptyMap(),
             )
         }
         .map {
@@ -686,6 +690,8 @@ class SettingsStore(
             preferences[CONVERSATION_WORKSPACE_ROOTS] =
                 JsonInstant.encodeToString(finalSettingsToSave.conversationWorkspaceRoots)
             preferences[CONVERSATION_WORK_DIRS] = JsonInstant.encodeToString(finalSettingsToSave.conversationWorkDirs)
+            preferences[CONVERSATION_READ_POSITIONS] =
+                JsonInstant.encodeToString(finalSettingsToSave.conversationReadPositions)
         }
     }
 
@@ -791,6 +797,7 @@ data class Settings(
     val conversationWorkspaceRoots: Map<String, String> = emptyMap(),
     val workspaceFileToolsAllowAll: Boolean = false,
     val conversationWorkDirs: Map<String, ConversationWorkDirBinding> = emptyMap(),
+    val conversationReadPositions: Map<String, ConversationReadPosition> = emptyMap(),
 ) {
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
@@ -990,6 +997,13 @@ data class ConversationWorkDirBinding(
 )
 
 @Serializable
+data class ConversationReadPosition(
+    val nodeId: String,
+    val offset: Int = 0,
+    val updatedAt: Long = 0L,
+)
+
+@Serializable
 enum class MessageInputStyle {
     STANDARD,
     MINIMAL,
@@ -1109,6 +1123,37 @@ fun Settings.getEffectiveWorkspaceRootTreeUri(conversationId: Uuid): String? {
 
 fun Settings.hasConversationWorkspaceRoot(conversationId: Uuid): Boolean {
     return getConversationWorkspaceRootTreeUri(conversationId) != null
+}
+
+fun Settings.getConversationReadPosition(conversationId: Uuid): ConversationReadPosition? {
+    val key = conversationId.toString()
+    return conversationReadPositions[key]
+}
+
+internal fun sanitizeConversationReadPositions(
+    positions: Map<String, ConversationReadPosition>,
+    maxEntries: Int = 500,
+): Map<String, ConversationReadPosition> {
+    return positions
+        .asSequence()
+        .mapNotNull { (conversationId, position) ->
+            val key = conversationId.trim()
+            if (key.isBlank()) return@mapNotNull null
+            if (runCatching { Uuid.parse(key) }.isFailure) return@mapNotNull null
+
+            val normalizedNodeId = position.nodeId.trim()
+            if (normalizedNodeId.isBlank()) return@mapNotNull null
+            if (runCatching { Uuid.parse(normalizedNodeId) }.isFailure) return@mapNotNull null
+
+            key to position.copy(
+                nodeId = normalizedNodeId,
+                offset = position.offset.coerceAtLeast(0),
+                updatedAt = position.updatedAt.coerceAtLeast(0L),
+            )
+        }
+        .sortedByDescending { (_, position) -> position.updatedAt }
+        .take(maxEntries.coerceAtLeast(1))
+        .toMap()
 }
 
 fun Settings.getMcpToolCallTimeoutSeconds(): Int {
@@ -1347,6 +1392,7 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
             key to binding.copy(relPath = validatedRelPath)
         }
         .toMap()
+    val cleanedConversationReadPositions = sanitizeConversationReadPositions(conversationReadPositions)
 
     // 2. Remove orphaned tag references from assistants
     val validTagIds = assistantTags.map { it.id }.toSet()
@@ -1440,6 +1486,7 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         workspaceRootTreeUri = workspaceRootTreeUri?.trim().takeIf { !it.isNullOrBlank() },
         conversationWorkspaceRoots = cleanedConversationWorkspaceRoots,
         conversationWorkDirs = cleanedConversationWorkDirs,
+        conversationReadPositions = cleanedConversationReadPositions,
         groupChatTemplates = cleanedGroupChats,
         favoriteModels = cleanedFavorites,
         searchServiceSelected = clampedSearchSelected,

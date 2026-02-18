@@ -5197,6 +5197,11 @@ class ChatService(
             val job = appScope.launch {
                 kotlinx.coroutines.delay(4000)
                 context.deleteChatFiles(conversationFull.files)
+                settingsStore.update { current ->
+                    current.copy(
+                        conversationReadPositions = current.conversationReadPositions - conversation.id.toString()
+                    )
+                }
                 conversationDeletionJobs.remove(conversation.id)
                 recentlyDeletedConversations.remove(conversation.id)
             }

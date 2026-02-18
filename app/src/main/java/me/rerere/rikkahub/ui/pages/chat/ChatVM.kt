@@ -3,9 +3,6 @@ package me.rerere.rikkahub.ui.pages.chat
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
@@ -37,9 +34,11 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.ConversationReadPosition
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.getConversationReadPosition
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Avatar
@@ -71,11 +70,12 @@ class ChatVM(
     private val appScope: me.rerere.rikkahub.AppScope
 ) : ViewModel() {
     private val _conversationId: Uuid = Uuid.parse(id)
+    val conversationId: Uuid
+        get() = _conversationId
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
 
     private val _conversationInitialized = MutableStateFlow(false)
     val conversationInitialized: StateFlow<Boolean> = _conversationInitialized.asStateFlow()
-    var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
     // 异步任务 (从ChatService获取，响应式)
     val conversationJob: StateFlow<Job?> =
@@ -133,6 +133,9 @@ class ChatVM(
 
     // 用户设置
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
+    val conversationReadPosition: StateFlow<ConversationReadPosition?> = settings
+        .map { current -> current.getConversationReadPosition(_conversationId) }
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     // 网络搜索 - 从当前助手的searchMode派生
     val enableWebSearch = settings.map { settings ->
@@ -602,6 +605,31 @@ class ChatVM(
     fun saveConversationAsync() {
         viewModelScope.launch {
             chatService.saveConversation(_conversationId, conversation.value)
+        }
+    }
+
+    fun updateConversationReadPosition(nodeId: Uuid, offset: Int) {
+        val conversationKey = _conversationId.toString()
+        val normalizedOffset = offset.coerceAtLeast(0)
+        val newPosition = ConversationReadPosition(
+            nodeId = nodeId.toString(),
+            offset = normalizedOffset,
+            updatedAt = System.currentTimeMillis(),
+        )
+
+        viewModelScope.launch {
+            settingsStore.update { current ->
+                val existing = current.conversationReadPositions[conversationKey]
+                if (existing?.nodeId == newPosition.nodeId && existing.offset == newPosition.offset) {
+                    current
+                } else {
+                    current.copy(
+                        conversationReadPositions = current.conversationReadPositions + (
+                            conversationKey to newPosition
+                        )
+                    )
+                }
+            }
         }
     }
 

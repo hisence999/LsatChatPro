@@ -444,12 +444,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
     )
 
     val chatListState = rememberLazyListState()
-    LaunchedEffect(vm) {
-        if(!vm.chatListInitialized) {
-            chatListState.scrollToItem(chatListState.layoutInfo.totalItemsCount)
-            vm.chatListInitialized = true
-        }
-    }
 
     when {
         isBigScreen -> {
@@ -544,6 +538,9 @@ private fun ChatPageContent(
     var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
     val currentConversationState = rememberUpdatedState(conversation)
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
+    val conversationReadPosition by vm.conversationReadPosition.collectAsStateWithLifecycle()
+    var initialEntryHandled by rememberSaveable(conversation.id, initialSearchQuery) { mutableStateOf(false) }
+    var pendingReadPositionSample by remember(conversation.id) { mutableStateOf<Pair<Uuid, Int>?>(null) }
 
     val density = LocalDensity.current
     var chatInputHeightPx by remember { mutableStateOf(0) }
@@ -586,17 +583,91 @@ private fun ChatPageContent(
         }
     }
 
+    LaunchedEffect(conversation.id, pendingReadPositionSample, initialEntryHandled, previewMode) {
+        val sample = pendingReadPositionSample ?: return@LaunchedEffect
+        if (!initialEntryHandled) return@LaunchedEffect
+        delay(350)
+        if (pendingReadPositionSample == sample && !previewMode) {
+            vm.updateConversationReadPosition(sample.first, sample.second)
+            pendingReadPositionSample = null
+        }
+    }
+
+    LaunchedEffect(
+        conversation.id,
+        conversationInitialized,
+        initialEntryHandled,
+        conversationReadPosition,
+        initialSearchQuery,
+        pendingJumpNodeId,
+        previewMode,
+        conversation.messageNodes,
+    ) {
+        if (!conversationInitialized || initialEntryHandled) return@LaunchedEffect
+        if (!shouldRunReadPositionRestore(initialSearchQuery, pendingJumpNodeId, previewMode)) return@LaunchedEffect
+
+        repeat(3) { withFrameNanos { } }
+
+        val targetIndex = resolveReadPositionNodeIndex(
+            messageNodes = conversation.messageNodes,
+            nodeId = conversationReadPosition?.nodeId,
+        )
+        val restored = if (targetIndex >= 0) {
+            var applied = false
+            val offset = conversationReadPosition?.offset?.coerceAtLeast(0) ?: 0
+            for (i in 0 until 15) {
+                if (chatListState.layoutInfo.totalItemsCount > targetIndex) {
+                    runCatching { chatListState.scrollToItem(targetIndex, offset) }
+                    if (chatListState.firstVisibleItemIndex == targetIndex) {
+                        applied = true
+                        break
+                    }
+                }
+                withFrameNanos { }
+            }
+            applied
+        } else {
+            false
+        }
+
+        if (!restored) {
+            val fallbackIndex = (conversation.messageNodes.lastIndex + 1).coerceAtLeast(0)
+            for (i in 0 until 15) {
+                if (chatListState.layoutInfo.totalItemsCount > fallbackIndex || conversation.messageNodes.isEmpty()) {
+                    runCatching { chatListState.scrollToItem(fallbackIndex) }
+                    break
+                }
+                withFrameNanos { }
+            }
+        }
+
+        initialEntryHandled = true
+    }
+
     // Auto-scroll to first matching message when opened from search
-    LaunchedEffect(initialSearchQuery, conversation.messageNodes, previewMode) {
-        if (!previewMode && !initialSearchQuery.isNullOrBlank() && conversation.messageNodes.isNotEmpty()) {
+    LaunchedEffect(
+        initialSearchQuery,
+        conversation.messageNodes,
+        previewMode,
+        conversationInitialized,
+        initialEntryHandled,
+    ) {
+        if (initialEntryHandled || previewMode || !conversationInitialized) return@LaunchedEffect
+        if (initialSearchQuery.isNullOrBlank()) return@LaunchedEffect
+
+        if (conversation.messageNodes.isNotEmpty()) {
             val matchIndex = conversation.messageNodes.indexOfFirst { node ->
                 node.currentMessage.toText().contains(initialSearchQuery, ignoreCase = true)
             }
             if (matchIndex >= 0) {
                 delay(100)
-                chatListState.animateScrollToItem(matchIndex)
+                runCatching { chatListState.animateScrollToItem(matchIndex) }
+            } else {
+                val fallbackIndex = (conversation.messageNodes.lastIndex + 1).coerceAtLeast(0)
+                runCatching { chatListState.scrollToItem(fallbackIndex) }
             }
         }
+        initialEntryHandled = true
     }
 
     // Track the last selected external search providers so we can restore them when toggling on
@@ -745,6 +816,11 @@ private fun ChatPageContent(
                     onJumpToMessage = { nodeId ->
                         pendingJumpNodeId = nodeId
                         previewMode = false
+                    },
+                    onReadPositionSample = { nodeId, offset ->
+                        if (initialEntryHandled) {
+                            pendingReadPositionSample = nodeId to offset
+                        }
                     },
                 )
 
