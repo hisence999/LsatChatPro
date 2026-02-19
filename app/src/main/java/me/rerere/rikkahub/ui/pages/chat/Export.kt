@@ -80,6 +80,7 @@ import me.rerere.common.android.appTempFolder
 import me.rerere.highlight.Highlighter
 import me.rerere.rikkahub.R
 import me.rerere.highlight.LocalHighlighter
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -89,7 +90,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.ModelIcon
 import me.rerere.rikkahub.ui.components.ui.BitmapComposer
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -621,8 +622,9 @@ private fun ExportedChatMessage(
                     }
 
                     model != null -> {
-                        AutoAIIcon(
-                            name = model.modelId,
+                        ModelIcon(
+                            model = model,
+                            provider = model.findProvider(settings.providers),
                             modifier = Modifier.size(36.dp)
                         )
                     }
