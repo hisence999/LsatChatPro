@@ -38,6 +38,8 @@ data class AIRequestLogEntity(
     val responsePreview: String,
     @ColumnInfo(name = "response_text", defaultValue = "")
     val responseText: String,
+    @ColumnInfo(name = "response_raw_text", defaultValue = "")
+    val responseRawText: String,
     @ColumnInfo(name = "error")
     val error: String?,
 )

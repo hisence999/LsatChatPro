@@ -362,6 +362,7 @@ private data class RequestLogExportItem(
     val requestPreview: String,
     val responsePreview: String,
     val responseText: String,
+    val responseRawText: String,
     val error: String?,
 )
 
@@ -382,5 +383,6 @@ private fun AIRequestLogEntity.toExportItem(): RequestLogExportItem = RequestLog
     requestPreview = requestPreview,
     responsePreview = responsePreview,
     responseText = responseText,
+    responseRawText = responseRawText,
     error = error,
 )

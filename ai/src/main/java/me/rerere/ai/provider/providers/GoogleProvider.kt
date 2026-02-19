@@ -49,6 +49,7 @@ import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
+import me.rerere.ai.util.RawResponseException
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
@@ -179,33 +180,48 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         }
 
         val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+        val bodyJson = runCatching {
+            json.parseToJsonElement(bodyStr).jsonObject
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response body: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
 
-        val candidates = bodyJson["candidates"]!!.jsonArray
-        val usage = bodyJson["usageMetadata"]!!.jsonObject
+        runCatching {
+            val candidates = bodyJson["candidates"]!!.jsonArray
+            val usage = bodyJson["usageMetadata"]!!.jsonObject
 
-        val messageChunk = MessageChunk(
-            id = Uuid.random().toString(),
-            model = params.model.modelId,
-            choices = candidates.map { candidate ->
-                val candidateObj = candidate.jsonObject
-                UIMessageChoice(
-                    message = parseMessage(candidateObj),
-                    index = 0,
-                    finishReason = candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull,
-                    delta = null
-                )
-            },
-            usage = parseUsageMeta(usage),
-            finishReasons = candidates
-                .mapNotNull { candidate ->
-                    candidate.jsonObject["finishReason"]?.jsonPrimitive?.contentOrNull
-                }
-                .filter { reason -> reason.isNotBlank() && reason != "unknown" }
-                .toSet(),
-        )
-
-        messageChunk
+            MessageChunk(
+                id = Uuid.random().toString(),
+                model = params.model.modelId,
+                choices = candidates.map { candidate ->
+                    val candidateObj = candidate.jsonObject
+                    UIMessageChoice(
+                        message = parseMessage(candidateObj),
+                        index = 0,
+                        finishReason = candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull,
+                        delta = null
+                    )
+                },
+                usage = parseUsageMeta(usage),
+                finishReasons = candidates
+                    .mapNotNull { candidate ->
+                        candidate.jsonObject["finishReason"]?.jsonPrimitive?.contentOrNull
+                    }
+                    .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                    .toSet(),
+                rawResponse = bodyStr,
+            )
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response payload: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
     }
 
     override suspend fun streamText(
@@ -237,6 +253,7 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         )
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        val rawEventBuffer = StringBuilder()
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -246,13 +263,26 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 data: String
             ) {
                 Log.i(TAG, "onEvent: $data")
+                if (rawEventBuffer.isNotEmpty()) rawEventBuffer.append("\n")
+                rawEventBuffer.append(data)
 
-                try {
-                    val jsonData = json.parseToJsonElement(data).jsonObject
-                    val candidates = jsonData["candidates"]?.jsonArray ?: return
-                    if (candidates.isEmpty()) return
+                val jsonData = runCatching { json.parseToJsonElement(data).jsonObject }
+                    .getOrElse { throwable ->
+                        close(
+                            RawResponseException(
+                                message = "Failed to parse stream event: ${throwable.message}",
+                                rawResponse = rawEventBuffer.toString(),
+                                cause = throwable,
+                            )
+                        )
+                        return
+                    }
+                val candidates = jsonData["candidates"]?.jsonArray ?: return
+                if (candidates.isEmpty()) return
+
+                val messageChunk = runCatching {
                     val usage = parseUsageMeta(jsonData["usageMetadata"] as? JsonObject)
-                    val messageChunk = MessageChunk(
+                    MessageChunk(
                         id = Uuid.random().toString(),
                         model = params.model.modelId,
                         choices = candidates.mapIndexed { index, candidate ->
@@ -285,13 +315,20 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                         }
                             .filter { reason -> reason.isNotBlank() && reason != "unknown" }
                             .toSet(),
+                        rawResponse = data,
                     )
-
-                    trySend(messageChunk)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    println("[onEvent] 解析错误: $data")
+                }.getOrElse { throwable ->
+                    close(
+                        RawResponseException(
+                            message = "Failed to parse stream payload: ${throwable.message}",
+                            rawResponse = rawEventBuffer.toString(),
+                            cause = throwable,
+                        )
+                    )
+                    return
                 }
+
+                trySend(messageChunk)
             }
 
             override fun onFailure(
@@ -300,6 +337,7 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 response: Response?
             ) {
                 var exception = t
+                var rawFailureResponse = ""
 
                 t?.printStackTrace()
                 println("[onFailure] 发生错误: ${t?.message}")
@@ -307,6 +345,7 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 try {
                     if (t == null && response != null) {
                         val bodyStr = response.body.stringSafe()
+                        rawFailureResponse = bodyStr.orEmpty()
                         if (!bodyStr.isNullOrEmpty()) {
                             val bodyElement = json.parseToJsonElement(bodyStr)
                             println(bodyElement)
@@ -324,7 +363,16 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     e.printStackTrace()
                     exception = e
                 } finally {
-                    close(exception ?: Exception("Stream failed"))
+                    val raw = rawFailureResponse
+                        .takeIf { it.isNotBlank() }
+                        ?: rawEventBuffer.toString()
+                    close(
+                        RawResponseException(
+                            message = exception?.message ?: "Stream failed",
+                            rawResponse = raw,
+                            cause = exception,
+                        )
+                    )
                 }
             }
 

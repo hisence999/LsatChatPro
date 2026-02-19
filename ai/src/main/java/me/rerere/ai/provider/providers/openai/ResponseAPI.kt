@@ -35,6 +35,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.RawResponseException
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -80,10 +81,24 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
 
         val bodyStr = response.body?.string() ?: ""
         Log.i(TAG, "generateText: $bodyStr")
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-        val output = parseResponseOutput(bodyJson)
+        val bodyJson = runCatching {
+            json.parseToJsonElement(bodyStr).jsonObject
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response body: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
 
-        return output
+        return runCatching { parseResponseOutput(bodyJson).copy(rawResponse = bodyStr) }
+            .getOrElse { throwable ->
+                throw RawResponseException(
+                    message = "Failed to parse response output: ${throwable.message}",
+                    rawResponse = bodyStr,
+                    cause = throwable,
+                )
+            }
     }
 
     override suspend fun streamText(
@@ -106,6 +121,7 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
             .build()
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        val rawEventBuffer = StringBuilder()
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -115,10 +131,32 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                 data: String
             ) {
                 Log.d(TAG, "onEvent: $id/$type $data")
-                val json = json.parseToJsonElement(data).jsonObject
-                val chunk = parseResponseDelta(json)
+                if (rawEventBuffer.isNotEmpty()) rawEventBuffer.append("\n")
+                rawEventBuffer.append(data)
+                val json = runCatching { json.parseToJsonElement(data).jsonObject }
+                    .getOrElse { throwable ->
+                        close(
+                            RawResponseException(
+                                message = "Failed to parse stream event: ${throwable.message}",
+                                rawResponse = rawEventBuffer.toString(),
+                                cause = throwable,
+                            )
+                        )
+                        return
+                    }
+                val chunk = runCatching { parseResponseDelta(json) }
+                    .getOrElse { throwable ->
+                        close(
+                            RawResponseException(
+                                message = "Failed to parse stream delta: ${throwable.message}",
+                                rawResponse = rawEventBuffer.toString(),
+                                cause = throwable,
+                            )
+                        )
+                        return
+                    }
                 if (chunk != null) {
-                    trySend(chunk)
+                    trySend(chunk.copy(rawResponse = data))
                 }
                 if (type == "response.completed") {
                     close()
@@ -127,11 +165,13 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
+                var rawFailureResponse = ""
 
                 t?.printStackTrace()
                 println("[onFailure] 发生错误: ${t?.javaClass?.name} ${t?.message} / $response")
 
                 val bodyRaw = response?.body?.stringSafe()
+                rawFailureResponse = bodyRaw.orEmpty()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
@@ -142,8 +182,15 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                 } catch (e: Throwable) {
                     Log.w(TAG, "onFailure: failed to parse from $bodyRaw")
                     e.printStackTrace()
+                    exception = e
                 } finally {
-                    close(exception)
+                    close(
+                        RawResponseException(
+                            message = exception?.message ?: "OpenAI stream failed",
+                            rawResponse = rawFailureResponse.takeIf { it.isNotBlank() } ?: rawEventBuffer.toString(),
+                            cause = exception,
+                        )
+                    )
                 }
             }
 

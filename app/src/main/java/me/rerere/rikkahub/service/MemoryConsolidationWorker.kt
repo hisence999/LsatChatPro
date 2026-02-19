@@ -224,6 +224,7 @@ class MemoryConsolidationWorker(
             val requestMessages = listOf(UIMessage.user(prompt))
             val startAt = System.currentTimeMillis()
             var responseText = ""
+            var rawResponseText = ""
             var failure: Throwable? = null
 
             try {
@@ -232,6 +233,7 @@ class MemoryConsolidationWorker(
                     messages = requestMessages,
                     params = params,
                 )
+                rawResponseText = response.rawResponse.orEmpty()
                 responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
                 if (responseText.isBlank()) continue
 
@@ -313,6 +315,7 @@ class MemoryConsolidationWorker(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = responseText,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = durationMs,
                     durationMs = durationMs,
@@ -506,6 +509,7 @@ class MemoryConsolidationWorker(
             val requestMessages = listOf(UIMessage.user(prompt))
             val startAt = System.currentTimeMillis()
             var responseText = ""
+            var rawResponseText = ""
             var failure: Throwable? = null
 
             try {
@@ -514,6 +518,7 @@ class MemoryConsolidationWorker(
                     messages = requestMessages,
                     params = params,
                 )
+                rawResponseText = response.rawResponse.orEmpty()
                 responseText = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
                 if (responseText.isBlank()) continue
 
@@ -601,6 +606,7 @@ class MemoryConsolidationWorker(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = responseText,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = durationMs,
                     durationMs = durationMs,

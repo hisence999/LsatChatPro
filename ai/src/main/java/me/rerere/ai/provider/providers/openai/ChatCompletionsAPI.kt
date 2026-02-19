@@ -42,6 +42,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.RawResponseException
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -94,37 +95,55 @@ class ChatCompletionsAPI(
         }
 
         val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+        val bodyJson = runCatching {
+            json.parseToJsonElement(bodyStr).jsonObject
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response body: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
 
         // 从 JsonObject 中提取必要的信息
-        val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
-        val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
-        val choice = bodyJson["choices"]?.jsonArray?.get(0)?.jsonObject ?: error("choices is null")
+        runCatching {
+            val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
+            val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
+            val choice =
+                bodyJson["choices"]?.jsonArray?.get(0)?.jsonObject ?: error("choices is null")
 
-        val message = choice["message"]?.jsonObject ?: throw Exception("message is null")
-        val finishReason = choice["finish_reason"]
-            ?.jsonPrimitive
-            ?.content
-            ?: "unknown"
-        val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
+            val message = choice["message"]?.jsonObject ?: throw Exception("message is null")
+            val finishReason = choice["finish_reason"]
+                ?.jsonPrimitive
+                ?.content
+                ?: "unknown"
+            val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
 
-        MessageChunk(
-            id = id,
-            model = model,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = parseMessage(message),
-                    finishReason = finishReason
-                )
-            ),
-            usage = usage,
-            finishReasons = finishReason
-                .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
-                ?.let { setOf(it) }
-                ?: emptySet(),
-        )
+            MessageChunk(
+                id = id,
+                model = model,
+                choices = listOf(
+                    UIMessageChoice(
+                        index = 0,
+                        delta = null,
+                        message = parseMessage(message),
+                        finishReason = finishReason
+                    )
+                ),
+                usage = usage,
+                finishReasons = finishReason
+                    .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                    ?.let { setOf(it) }
+                    ?: emptySet(),
+                rawResponse = bodyStr,
+            )
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response payload: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
     }
 
     override suspend fun streamText(
@@ -154,6 +173,7 @@ class ChatCompletionsAPI(
 
         // just for debugging response body
         // println(client.newCall(request).await().body?.string())
+        val rawEventBuffer = StringBuilder()
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -168,20 +188,34 @@ class ChatCompletionsAPI(
                     return
                 }
                 Log.d(TAG, "onEvent: $data")
-                data
-                    .trim()
-                    .split("\n")
-                    .filter { it.isNotBlank() }
-                    .map { json.parseToJsonElement(it).jsonObject }
-                    .forEach {
-                        if (it["error"] != null) {
-                            val error = it["error"]!!.parseErrorDetail()
-                            throw error
-                        }
-                        val id = it["id"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val model = it["model"]?.jsonPrimitive?.contentOrNull ?: ""
+                if (rawEventBuffer.isNotEmpty()) rawEventBuffer.append("\n")
+                rawEventBuffer.append(data)
+                val payloads = runCatching {
+                    data
+                        .trim()
+                        .split("\n")
+                        .filter { it.isNotBlank() }
+                        .map { json.parseToJsonElement(it).jsonObject }
+                }.getOrElse { throwable ->
+                    close(
+                        RawResponseException(
+                            message = "Failed to parse stream event: ${throwable.message}",
+                            rawResponse = rawEventBuffer.toString(),
+                            cause = throwable,
+                        )
+                    )
+                    return
+                }
 
-                        val choices = it["choices"]?.jsonArray ?: JsonArray(emptyList())
+                payloads.forEach { payload ->
+                    val messageChunk = runCatching {
+                        if (payload["error"] != null) {
+                            throw payload["error"]!!.parseErrorDetail()
+                        }
+                        val payloadId = payload["id"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val model = payload["model"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                        val choices = payload["choices"]?.jsonArray ?: JsonArray(emptyList())
                         val choiceList = buildList {
                             if (choices.isNotEmpty()) {
                                 val choice = choices[0].jsonObject
@@ -201,28 +235,41 @@ class ChatCompletionsAPI(
                                 )
                             }
                         }
-                        val usage = parseTokenUsage(it["usage"] as? JsonObject)
+                        val usage = parseTokenUsage(payload["usage"] as? JsonObject)
 
-                        val messageChunk = MessageChunk(
-                            id = id,
+                        MessageChunk(
+                            id = payloadId,
                             model = model,
                             choices = choiceList,
                             usage = usage,
                             finishReasons = choiceList
                                 .mapNotNull { choice -> choice.finishReason?.takeIf { it.isNotBlank() && it != "unknown" } }
                                 .toSet(),
+                            rawResponse = data,
                         )
-                        trySend(messageChunk)
+                    }.getOrElse { throwable ->
+                        close(
+                            RawResponseException(
+                                message = "Failed to parse stream payload: ${throwable.message}",
+                                rawResponse = rawEventBuffer.toString(),
+                                cause = throwable,
+                            )
+                        )
+                        return
                     }
+                    trySend(messageChunk)
+                }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
+                var rawFailureResponse = ""
 
                 t?.printStackTrace()
                 println("[onFailure] 发生错误: ${t?.javaClass?.name} ${t?.message} / $response")
 
                 val bodyRaw = response?.body?.stringSafe()
+                rawFailureResponse = bodyRaw.orEmpty()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
@@ -235,7 +282,13 @@ class ChatCompletionsAPI(
                     e.printStackTrace()
                     exception = e
                 } finally {
-                    close(exception)
+                    close(
+                        RawResponseException(
+                            message = exception?.message ?: "OpenAI stream failed",
+                            rawResponse = rawFailureResponse.takeIf { it.isNotBlank() } ?: rawEventBuffer.toString(),
+                            cause = exception,
+                        )
+                    )
                 }
             }
 

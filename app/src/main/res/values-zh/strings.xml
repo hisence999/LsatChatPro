@@ -1448,6 +1448,8 @@
   <string name="request_log_section_params">参数</string>
   <string name="request_log_section_request_messages">请求消息</string>
   <string name="request_log_section_response">响应内容</string>
+  <string name="request_log_section_response_raw">原始响应 JSON</string>
+  <string name="request_log_section_response_filtered">过滤后内容</string>
   <string name="request_log_field_time">时间</string>
   <string name="request_log_field_source">来源</string>
   <string name="request_log_field_provider">提供方</string>

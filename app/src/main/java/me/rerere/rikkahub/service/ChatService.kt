@@ -4949,12 +4949,14 @@ class ChatService(
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
             var titleText = ""
+            var rawResponseText = ""
             try {
                 val result = providerHandler.generateText(
                     providerSetting = provider,
                     messages = requestMessages,
                     params = params,
                 )
+                rawResponseText = result.rawResponse.orEmpty()
                 titleText = result.choices.firstOrNull()?.message?.toContentText()?.trim().orEmpty()
             } catch (t: Throwable) {
                 failure = t
@@ -4966,6 +4968,7 @@ class ChatService(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = titleText,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,
@@ -5130,12 +5133,14 @@ class ChatService(
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
             var rawSuggestions = ""
+            var rawResponseText = ""
             val suggestions = try {
                 val result = providerHandler.generateText(
                     providerSetting = provider,
                     messages = requestMessages,
                     params = params,
                 )
+                rawResponseText = result.rawResponse.orEmpty()
                 rawSuggestions = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
                 rawSuggestions.split("\n")
                     .map { it.trim() }
@@ -5150,6 +5155,7 @@ class ChatService(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = rawSuggestions,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,
@@ -5474,12 +5480,14 @@ class ChatService(
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
             var summary = ""
+            var rawResponseText = ""
             try {
                 val response = providerHandler.generateText(
                     providerSetting = provider,
                     messages = requestMessages,
                     params = params
                 )
+                rawResponseText = response.rawResponse.orEmpty()
                 summary = response.choices.firstOrNull()?.message?.toContentText().orEmpty()
             } catch (t: Throwable) {
                 failure = t
@@ -5491,6 +5499,7 @@ class ChatService(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = summary,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,

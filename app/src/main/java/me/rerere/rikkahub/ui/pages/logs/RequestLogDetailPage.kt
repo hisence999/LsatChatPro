@@ -31,6 +31,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.nav.OneUITopAppBar
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
+import me.rerere.rikkahub.utils.JsonInstant
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -199,24 +200,39 @@ private fun RequestLogResponseTab(log: AIRequestLogEntity?) {
         return
     }
 
-    val raw = log.responseText.ifBlank { log.responsePreview }
-
-    val language = runCatching {
-        me.rerere.rikkahub.utils.JsonInstant.parseToJsonElement(raw.trim())
-        "json"
-    }.getOrElse { "txt" }
+    val rawResponse = log.responseRawText
+    val filteredResponse = log.responseText
+    val rawLanguage = detectLogCodeLanguage(rawResponse)
+    val filteredLanguage = detectLogCodeLanguage(filteredResponse)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item(key = "response") {
+        item(key = "response_raw") {
             RequestLogCodeCard(
-                title = stringResource(R.string.request_log_section_response),
-                code = raw,
-                language = language,
+                title = stringResource(R.string.request_log_section_response_raw),
+                code = rawResponse,
+                language = rawLanguage,
+            )
+        }
+
+        item(key = "response_filtered") {
+            RequestLogCodeCard(
+                title = stringResource(R.string.request_log_section_response_filtered),
+                code = filteredResponse,
+                language = filteredLanguage,
             )
         }
     }
+}
+
+private fun detectLogCodeLanguage(content: String): String {
+    val trimmed = content.trim()
+    if (trimmed.isBlank()) return "txt"
+    return runCatching {
+        JsonInstant.parseToJsonElement(trimmed)
+        "json"
+    }.getOrElse { "txt" }
 }

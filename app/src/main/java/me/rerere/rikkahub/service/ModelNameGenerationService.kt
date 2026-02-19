@@ -38,6 +38,7 @@ class ModelNameGenerationService(
         val startAt = System.currentTimeMillis()
         var failure: Throwable? = null
         var responseText = ""
+        var rawResponseText = ""
         val result = runCatching {
             providerHandler.generateText(
                 providerSetting = provider,
@@ -50,6 +51,7 @@ class ModelNameGenerationService(
         }.getOrNull()
 
         responseText = result?.choices?.firstOrNull()?.message?.toContentText().orEmpty()
+        rawResponseText = result?.rawResponse.orEmpty()
 
         runCatching {
             requestLogManager.logTextGeneration(
@@ -58,6 +60,7 @@ class ModelNameGenerationService(
                 params = params,
                 requestMessages = requestMessages,
                 responseText = responseText,
+                responseRawText = rawResponseText,
                 stream = false,
                 latencyMs = System.currentTimeMillis() - startAt,
                 durationMs = System.currentTimeMillis() - startAt,

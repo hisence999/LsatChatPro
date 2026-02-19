@@ -544,6 +544,7 @@ data class MessageChunk(
     val choices: List<UIMessageChoice>,
     val usage: TokenUsage? = null,
     val finishReasons: Set<String> = emptySet(),
+    val rawResponse: String? = null,
 )
 
 @Serializable

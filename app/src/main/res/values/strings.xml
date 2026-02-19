@@ -35,6 +35,8 @@
     <string name="request_log_section_params">Params</string>
     <string name="request_log_section_request_messages">Request Messages</string>
     <string name="request_log_section_response">Response Text</string>
+    <string name="request_log_section_response_raw">Raw Response JSON</string>
+    <string name="request_log_section_response_filtered">Filtered Content</string>
     <string name="request_log_field_time">Time</string>
     <string name="request_log_field_source">Source</string>
     <string name="request_log_field_provider">Provider</string>

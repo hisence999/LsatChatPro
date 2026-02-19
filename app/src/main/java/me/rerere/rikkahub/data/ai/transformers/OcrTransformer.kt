@@ -95,12 +95,14 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         val startAt = System.currentTimeMillis()
         var failure: Throwable? = null
         var content = ""
+        var rawResponseText = ""
         try {
             val result = provider.generateText(
                 providerSetting = providerSetting,
                 messages = requestMessages,
                 params = params,
             )
+            rawResponseText = result.rawResponse.orEmpty()
             content = result.choices.firstOrNull()?.message?.toText().orEmpty()
             if (content.isBlank()) content = "[ERROR, OCR failed]"
         } catch (t: Throwable) {
@@ -113,6 +115,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
                 params = params,
                 requestMessages = requestMessages,
                 responseText = content,
+                responseRawText = rawResponseText,
                 stream = false,
                 latencyMs = System.currentTimeMillis() - startAt,
                 durationMs = System.currentTimeMillis() - startAt,

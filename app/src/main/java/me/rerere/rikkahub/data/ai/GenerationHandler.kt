@@ -1119,6 +1119,7 @@ class GenerationHandler(
             val startAt = System.currentTimeMillis()
             var firstChunkAt: Long? = null
             var failure: Throwable? = null
+            val rawResponseText = StringBuilder()
             try {
                 providerImpl.streamText(
                     providerSetting = provider,
@@ -1126,6 +1127,12 @@ class GenerationHandler(
                     params = params
                 ).collect { chunk ->
                     if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
+                    chunk.rawResponse
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
+                            rawResponseText.append(it)
+                        }
                     messages = messages.handleMessageChunk(chunk = chunk, model = model)
                     chunk.usage?.let { usage ->
                         messages = messages.mapIndexed { index, message ->
@@ -1170,6 +1177,7 @@ class GenerationHandler(
                     params = params,
                     requestMessages = internalMessages,
                     responseText = messages.lastOrNull()?.toContentText().orEmpty(),
+                    responseRawText = rawResponseText.toString(),
                     stream = true,
                     latencyMs = firstChunkAt?.let { it - startAt },
                     durationMs = (System.currentTimeMillis() - startAt),
@@ -1185,12 +1193,14 @@ class GenerationHandler(
             ))
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
+            var rawResponseText = ""
             try {
                 val chunk = providerImpl.generateText(
                     providerSetting = provider,
                     messages = internalMessages,
                     params = params,
                 )
+                rawResponseText = chunk.rawResponse.orEmpty()
                 messages = messages.handleMessageChunk(chunk = chunk, model = model)
                 chunk.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
@@ -1235,6 +1245,7 @@ class GenerationHandler(
                     params = params,
                     requestMessages = internalMessages,
                     responseText = messages.lastOrNull()?.toContentText().orEmpty(),
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = (System.currentTimeMillis() - startAt),
                     durationMs = (System.currentTimeMillis() - startAt),
@@ -1515,6 +1526,7 @@ class GenerationHandler(
             val startAt = System.currentTimeMillis()
             var firstChunkAt: Long? = null
             var failure: Throwable? = null
+            val rawResponseText = StringBuilder()
             try {
                 providerHandler.streamText(
                     providerSetting = provider,
@@ -1522,6 +1534,12 @@ class GenerationHandler(
                     params = params,
                 ).collect { chunk ->
                     if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
+                    chunk.rawResponse
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
+                            rawResponseText.append(it)
+                        }
                     messages = messages.handleMessageChunk(chunk)
                     translatedText = messages.lastOrNull()?.toContentText() ?: ""
 
@@ -1540,6 +1558,7 @@ class GenerationHandler(
                     params = params,
                     requestMessages = requestMessages,
                     responseText = translatedText,
+                    responseRawText = rawResponseText.toString(),
                     stream = true,
                     latencyMs = firstChunkAt?.let { it - startAt },
                     durationMs = (System.currentTimeMillis() - startAt),
@@ -1569,12 +1588,14 @@ class GenerationHandler(
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
             var translatedText = ""
+            var rawResponseText = ""
             try {
                 val response = providerHandler.generateText(
                 providerSetting = provider,
                 messages = messages,
                     params = params,
                 )
+                rawResponseText = response.rawResponse.orEmpty()
                 translatedText = response.choices.firstOrNull()?.message?.toContentText() ?: ""
             } catch (t: Throwable) {
                 failure = t
@@ -1586,6 +1607,7 @@ class GenerationHandler(
                     params = params,
                     requestMessages = messages,
                     responseText = translatedText,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = (System.currentTimeMillis() - startAt),
                     durationMs = (System.currentTimeMillis() - startAt),

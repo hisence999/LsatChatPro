@@ -268,6 +268,7 @@ class WelcomePhrasesService(
         val startAt = System.currentTimeMillis()
         var failure: Throwable? = null
         var raw = ""
+        var rawResponseText = ""
         withContext(Dispatchers.IO) {
             try {
                 val result = providerHandler.generateText(
@@ -275,6 +276,7 @@ class WelcomePhrasesService(
                     messages = messages,
                     params = params,
                 )
+                rawResponseText = result.rawResponse.orEmpty()
                 raw = result.choices.firstOrNull()?.message?.toContentText().orEmpty()
             } catch (t: Throwable) {
                 failure = t
@@ -286,6 +288,7 @@ class WelcomePhrasesService(
                     params = params,
                     requestMessages = messages,
                     responseText = raw,
+                    responseRawText = rawResponseText,
                     stream = false,
                     latencyMs = System.currentTimeMillis() - startAt,
                     durationMs = System.currentTimeMillis() - startAt,

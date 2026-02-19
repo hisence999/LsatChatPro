@@ -21,6 +21,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.RawResponseException
 import me.rerere.rikkahub.data.db.dao.AIRequestLogDao
 import me.rerere.rikkahub.data.db.entity.AIRequestLogEntity
 import me.rerere.rikkahub.utils.JsonInstant
@@ -100,6 +101,7 @@ class AIRequestLogManager(
         params: TextGenerationParams,
         requestMessages: List<UIMessage>,
         responseText: String,
+        responseRawText: String = "",
         stream: Boolean,
         latencyMs: Long?,
         durationMs: Long?,
@@ -114,7 +116,14 @@ class AIRequestLogManager(
             )
 
             val requestPreview = buildRequestPreview(requestMessages)
-            val responsePreview = buildResponsePreview(responseText)
+            val normalizedResponseText = responseText.trim()
+            val normalizedRawResponseText = responseRawText
+                .ifBlank { error.extractRawResponseText() }
+                .trim()
+            val responsePreview = buildResponsePreview(
+                filteredResponseText = normalizedResponseText,
+                rawResponseText = normalizedRawResponseText,
+            )
 
             val providerType = providerSetting::class.simpleName ?: "Provider"
             val requestUrl = buildTextGenerationRequestUrl(providerSetting, params)
@@ -135,7 +144,8 @@ class AIRequestLogManager(
                     requestUrl = requestUrl,
                     requestPreview = requestPreview,
                     responsePreview = responsePreview,
-                    responseText = responseText.trim().truncateTo(REQUEST_LOG_MAX_JSON_CHARS),
+                    responseText = normalizedResponseText.truncateTo(REQUEST_LOG_MAX_JSON_CHARS),
+                    responseRawText = normalizedRawResponseText.truncateTo(REQUEST_LOG_MAX_JSON_CHARS),
                     error = error?.let { "[${it.javaClass.simpleName}] ${it.message}".take(800) },
                 )
             )
@@ -215,6 +225,7 @@ class AIRequestLogManager(
                     requestPreview = requestPreview,
                     responsePreview = responsePreview,
                     responseText = responseJson.truncateTo(REQUEST_LOG_MAX_JSON_CHARS),
+                    responseRawText = "",
                     error = error?.let { "[${it.javaClass.simpleName}] ${it.message}".take(800) },
                 )
             )
@@ -317,8 +328,12 @@ private fun buildRequestPreview(messages: List<UIMessage>): String {
     return text.replace("\r", "").replace("\n", " ").take(REQUEST_LOG_MAX_PREVIEW_CHARS)
 }
 
-private fun buildResponsePreview(responseText: String): String {
-    val normalized = responseText.trim().replace("\r", "").replace("\n", " ")
+private fun buildResponsePreview(filteredResponseText: String, rawResponseText: String): String {
+    val normalized = filteredResponseText
+        .ifBlank { rawResponseText }
+        .trim()
+        .replace("\r", "")
+        .replace("\n", " ")
     return normalized.take(REQUEST_LOG_MAX_PREVIEW_CHARS)
 }
 
@@ -478,6 +493,18 @@ private fun buildEmbeddingRequestUrl(providerSetting: ProviderSetting, model: Mo
 
         else -> ""
     }
+}
+
+private fun Throwable?.extractRawResponseText(): String {
+    val visited = mutableSetOf<Throwable>()
+    var current = this
+    while (current != null && visited.add(current)) {
+        if (current is RawResponseException) {
+            return current.rawResponse
+        }
+        current = current.cause
+    }
+    return ""
 }
 
 private fun String.truncateTo(maxChars: Int): String {

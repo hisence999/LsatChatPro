@@ -40,6 +40,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.RawResponseException
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -118,32 +119,49 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         }
 
         val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+        val bodyJson = runCatching {
+            json.parseToJsonElement(bodyStr).jsonObject
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response body: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
 
-        // 从 JsonObject 中提取必要的信息
-        val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
-        val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
-        val content = bodyJson["content"]?.jsonArray ?: JsonArray(emptyList())
-        val stopReason = bodyJson["stop_reason"]?.jsonPrimitive?.contentOrNull ?: "unknown"
-        val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
+        runCatching {
+            // 从 JsonObject 中提取必要的信息
+            val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
+            val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
+            val content = bodyJson["content"]?.jsonArray ?: JsonArray(emptyList())
+            val stopReason = bodyJson["stop_reason"]?.jsonPrimitive?.contentOrNull ?: "unknown"
+            val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
 
-        MessageChunk(
-            id = id,
-            model = model,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = parseMessage(content),
-                    finishReason = stopReason
-                )
-            ),
-            usage = usage,
-            finishReasons = stopReason
-                .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
-                ?.let { setOf(it) }
-                ?: emptySet(),
-        )
+            MessageChunk(
+                id = id,
+                model = model,
+                choices = listOf(
+                    UIMessageChoice(
+                        index = 0,
+                        delta = null,
+                        message = parseMessage(content),
+                        finishReason = stopReason
+                    )
+                ),
+                usage = usage,
+                finishReasons = stopReason
+                    .takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                    ?.let { setOf(it) }
+                    ?: emptySet(),
+                rawResponse = bodyStr,
+            )
+        }.getOrElse { throwable ->
+            throw RawResponseException(
+                message = "Failed to parse response payload: ${throwable.message}",
+                rawResponse = bodyStr,
+                cause = throwable,
+            )
+        }
     }
 
     override suspend fun streamText(
@@ -167,6 +185,7 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         requestBody["messages"]!!.jsonArray.forEach {
             Log.i(TAG, "streamText: $it")
         }
+        val rawEventBuffer = StringBuilder()
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -176,59 +195,88 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 data: String
             ) {
                 Log.d(TAG, "onEvent: type=$type, data=$data")
+                if (rawEventBuffer.isNotEmpty()) rawEventBuffer.append("\n")
+                rawEventBuffer.append(data)
 
-                val dataJson = json.parseToJsonElement(data).jsonObject
-                val deltaMessage = parseMessage(buildJsonArray {
-                    val contentBlockObj = dataJson["content_block"]?.jsonObject
-                    val deltaObj = dataJson["delta"]?.jsonObject
-                    if (contentBlockObj != null) {
-                        add(contentBlockObj)
+                val dataJson = runCatching { json.parseToJsonElement(data).jsonObject }
+                    .getOrElse { throwable ->
+                        close(
+                            RawResponseException(
+                                message = "Failed to parse stream event: ${throwable.message}",
+                                rawResponse = rawEventBuffer.toString(),
+                                cause = throwable,
+                            )
+                        )
+                        return
                     }
-                    if (deltaObj != null) {
-                        add(deltaObj)
-                    }
-                })
-                val tokenUsage = parseTokenUsage(
-                    dataJson["usage"]?.jsonObject ?: dataJson["message"]?.jsonObject?.get("usage")?.jsonObject
-                )
-                val finishReason = dataJson["delta"]?.jsonObject
-                    ?.get("stop_reason")
-                    ?.jsonPrimitive
-                    ?.contentOrNull
-                    ?: dataJson["message"]?.jsonObject
+
+                if (type == "error") {
+                    val error = dataJson["error"]?.parseErrorDetail()
+                    close(
+                        RawResponseException(
+                            message = error?.message ?: "Claude stream error",
+                            rawResponse = rawEventBuffer.toString(),
+                            cause = error,
+                        )
+                    )
+                    return
+                }
+
+                val messageChunk = runCatching {
+                    val deltaMessage = parseMessage(buildJsonArray {
+                        val contentBlockObj = dataJson["content_block"]?.jsonObject
+                        val deltaObj = dataJson["delta"]?.jsonObject
+                        if (contentBlockObj != null) {
+                            add(contentBlockObj)
+                        }
+                        if (deltaObj != null) {
+                            add(deltaObj)
+                        }
+                    })
+                    val tokenUsage = parseTokenUsage(
+                        dataJson["usage"]?.jsonObject ?: dataJson["message"]?.jsonObject?.get("usage")?.jsonObject
+                    )
+                    val finishReason = dataJson["delta"]?.jsonObject
                         ?.get("stop_reason")
                         ?.jsonPrimitive
                         ?.contentOrNull
-                    ?: dataJson["stop_reason"]?.jsonPrimitive?.contentOrNull
-                val messageChunk = MessageChunk(
-                    id = id ?: "",
-                    model = "",
-                    choices = listOf(
-                        UIMessageChoice(
-                            index = 0,
-                            delta = deltaMessage,
-                            message = null,
-                            finishReason = finishReason
+                        ?: dataJson["message"]?.jsonObject
+                            ?.get("stop_reason")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                        ?: dataJson["stop_reason"]?.jsonPrimitive?.contentOrNull
+                    MessageChunk(
+                        id = id ?: "",
+                        model = "",
+                        choices = listOf(
+                            UIMessageChoice(
+                                index = 0,
+                                delta = deltaMessage,
+                                message = null,
+                                finishReason = finishReason
+                            )
+                        ),
+                        usage = tokenUsage,
+                        finishReasons = finishReason
+                            ?.takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
+                            ?.let { setOf(it) }
+                            ?: emptySet(),
+                        rawResponse = data,
+                    )
+                }.getOrElse { throwable ->
+                    close(
+                        RawResponseException(
+                            message = "Failed to parse stream payload: ${throwable.message}",
+                            rawResponse = rawEventBuffer.toString(),
+                            cause = throwable,
                         )
-                    ),
-                    usage = tokenUsage,
-                    finishReasons = finishReason
-                        ?.takeIf { reason -> reason.isNotBlank() && reason != "unknown" }
-                        ?.let { setOf(it) }
-                        ?: emptySet(),
-                )
+                    )
+                    return
+                }
 
-                when (type) {
-                    "message_stop" -> {
-                        Log.d(TAG, "Stream ended")
-                        close()
-                    }
-
-                    "error" -> {
-                        val eventData = json.parseToJsonElement(data).jsonObject
-                        val error = eventData["error"]?.parseErrorDetail()
-                        close(error)
-                    }
+                if (type == "message_stop") {
+                    Log.d(TAG, "Stream ended")
+                    close()
                 }
 
                 trySend(messageChunk)
@@ -236,11 +284,13 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
+                var rawFailureResponse = ""
 
                 t?.printStackTrace()
                 Log.e(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response")
 
                 val bodyRaw = response?.body?.stringSafe()
+                rawFailureResponse = bodyRaw.orEmpty()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
@@ -251,7 +301,13 @@ class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     Log.w(TAG, "onFailure: failed to parse from $bodyRaw")
                     e.printStackTrace()
                 } finally {
-                    close(exception)
+                    close(
+                        RawResponseException(
+                            message = exception?.message ?: "Claude stream failed",
+                            rawResponse = rawFailureResponse.takeIf { it.isNotBlank() } ?: rawEventBuffer.toString(),
+                            cause = exception,
+                        )
+                    )
                 }
             }
 
