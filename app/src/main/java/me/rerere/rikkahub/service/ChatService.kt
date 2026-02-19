@@ -1377,21 +1377,12 @@ class ChatService(
 
             val model = settings.getCurrentChatModel() ?: return@runCatching
 
-            // Check if model supports tools when external tools are configured
             val assistant = settings.getCurrentAssistant()
-            val lorebooksEditorEnabled = assistant.localTools.contains(LocalToolOption.LorebooksEditor)
-            val hasEnabledLorebooksForAssistant = lorebooksEditorEnabled && settings.lorebooks.any { lorebook ->
-                lorebook.enabled && assistant.enabledLorebookIds.contains(lorebook.id)
-            }
-            val hasToolsConfigured =
-                (assistant.searchMode !is AssistantSearchMode.Off) ||
-                    assistant.localTools.isNotEmpty() ||
-                    assistant.enabledSkillIds.isNotEmpty() ||
-                    mcpManager.getAllAvailableTools().isNotEmpty() ||
-                    hasEnabledLorebooksForAssistant
-            if (hasToolsConfigured && !model.abilities.contains(ModelAbility.TOOL)) {
-                _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
-            }
+            val hasEnabledLorebooksForAssistant =
+                assistant.localTools.contains(LocalToolOption.LorebooksEditor) &&
+                    settings.lorebooks.any { lorebook ->
+                        lorebook.enabled && assistant.enabledLorebookIds.contains(lorebook.id)
+                    }
 
             // start generating
             generationHandler.generateText(
@@ -1977,9 +1968,6 @@ class ChatService(
             }
 
             val hasExternalTools = seatTools.isNotEmpty()
-            if (hasExternalTools && !seatModel.abilities.contains(ModelAbility.TOOL)) {
-                _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
-            }
             val seatMaxSteps = if (hasExternalTools || useBuiltInSearch) 256 else 1
             val seatMemories = if (seatAssistant.enableMemory && !temporaryConversations.contains(conversationId)) {
                 val assistantId = seatAssistant.id.toString()
