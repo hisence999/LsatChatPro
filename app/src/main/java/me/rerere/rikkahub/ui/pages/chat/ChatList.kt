@@ -136,6 +136,7 @@ private fun UIMessage.speakerIdentity(): MessageSpeakerIdentity {
 
 @Composable
 fun ChatList(
+    modifier: Modifier = Modifier,
     innerPadding: PaddingValues,
     conversation: Conversation,
     state: LazyListState,
@@ -154,7 +155,7 @@ fun ChatList(
     onJumpToMessage: (Uuid) -> Unit = {},
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit = { _, _ -> },
 ) {
-    SharedTransitionLayout {
+    SharedTransitionLayout(modifier = modifier) {
         AnimatedContent(
             targetState = previewMode,
             label = "ChatListMode",

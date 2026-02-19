@@ -540,6 +540,20 @@ private fun ChatPageContent(
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
     val conversationReadPosition by vm.conversationReadPosition.collectAsStateWithLifecycle()
     var initialEntryHandled by rememberSaveable(conversation.id, initialSearchQuery) { mutableStateOf(false) }
+
+    // Visibility mask: hide list until scroll position is restored to prevent flash
+    val chatListAlpha = if (
+        conversation.messageNodes.isNotEmpty() && !initialEntryHandled
+    ) 0f else 1f
+
+    // Safety timeout: force-show list if initialization stalls
+    LaunchedEffect(conversation.id, initialSearchQuery) {
+        delay(2000L)
+        if (!initialEntryHandled) {
+            initialEntryHandled = true
+        }
+    }
+
     var pendingReadPositionSample by remember(conversation.id) { mutableStateOf<Pair<Uuid, Int>?>(null) }
 
     val density = LocalDensity.current
@@ -746,6 +760,7 @@ private fun ChatPageContent(
                 val isGroupChatTemplate = groupChatTemplate != null
 
                 ChatList(
+                    modifier = Modifier.graphicsLayer { alpha = chatListAlpha },
                     innerPadding = PaddingValues(bottom = chatListBottomPadding),
                     conversation = conversation,
                     state = chatListState,
