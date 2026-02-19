@@ -73,6 +73,7 @@ import me.rerere.rikkahub.ui.pages.menu.MenuPage
 import me.rerere.rikkahub.ui.pages.storage.StorageCategoryPage
 import me.rerere.rikkahub.ui.pages.storage.StorageManagerPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
+import me.rerere.rikkahub.ui.pages.setting.SettingAdvancedPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
@@ -510,6 +511,10 @@ class RouteActivity : ComponentActivity() {
                         SettingDisplayPage()
                     }
 
+                    composable<Screen.SettingAdvanced> {
+                        SettingAdvancedPage()
+                    }
+
                     composable<Screen.SettingProvider> {
                         SettingProviderPage()
                     }
@@ -663,6 +668,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingDisplay : Screen
+
+    @Serializable
+    data object SettingAdvanced : Screen
 
     @Serializable
     data object SettingProvider : Screen

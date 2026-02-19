@@ -539,7 +539,7 @@
   <string name="setting_display_page_show_assistant_avatar_title">显示助手头像</string>
   <string name="setting_display_page_skip_crop_image_desc">导入图片或拍照后跳过裁剪界面</string>
   <string name="setting_display_page_skip_crop_image_title">跳过图片编辑</string>
-  <string name="setting_display_page_title">显示与杂项</string>
+  <string name="setting_display_page_title">显示设置</string>
   <string name="setting_display_page_check_updates_desc">自动从 GitHub 检查新版本</string>
   <string name="setting_display_page_check_updates_title">检查更新</string>
   <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
@@ -771,7 +771,7 @@
   <string name="setting_page_data_settings">数据设置</string>
   <string name="setting_page_default_model">默认模型和提示词</string>
   <string name="setting_page_default_model_desc">设置各个功能的默认模型</string>
-  <string name="setting_page_display_setting">显示与杂项</string>
+  <string name="setting_page_display_setting">显示设置</string>
   <string name="setting_page_display_setting_desc">外观、动画与其他选项</string>
   <string name="setting_page_documentation">使用文档</string>
   <string name="setting_page_documentation_desc">查看应用使用说明和帮助文档</string>
@@ -780,6 +780,9 @@
   <string name="setting_page_dynamic_color">动态颜色</string>
   <string name="setting_page_dynamic_color_desc">是否使用动态颜色</string>
   <string name="setting_page_general_settings">通用设置</string>
+  <string name="setting_page_advanced_settings">高级设置</string>
+  <string name="setting_page_advanced_settings_desc">更多控制选项</string>
+  <string name="setting_page_timeout_settings">超时设定</string>
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">配置MCP服务器</string>
   <string name="setting_page_skills">技能</string>

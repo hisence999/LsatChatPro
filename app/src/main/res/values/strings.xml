@@ -642,7 +642,7 @@
     <string name="setting_display_page_show_assistant_avatar_title">Show Assistant Avatar</string>
     <string name="setting_display_page_skip_crop_image_desc">Skip crop screen after picking image</string>
     <string name="setting_display_page_skip_crop_image_title">Skip Image Crop</string>
-    <string name="setting_display_page_title">Display &amp; Misc</string>
+    <string name="setting_display_page_title">Display Settings</string>
     <string name="setting_display_page_check_updates_desc">Automatically check GitHub for new app versions</string>
     <string name="setting_display_page_check_updates_title">Check for Updates</string>
     <string name="setting_display_page_font_style_expressive">M3 Expressive (Rounded)</string>
@@ -878,7 +878,7 @@
     <string name="setting_page_data_settings">Data Settings</string>
     <string name="setting_page_default_model">Default Models</string>
     <string name="setting_page_default_model_desc">Set default models for features</string>
-    <string name="setting_page_display_setting">Display &amp; Misc</string>
+    <string name="setting_page_display_setting">Display Settings</string>
     <string name="setting_page_display_setting_desc">Appearance, animations, and other options</string>
     <string name="setting_page_documentation">Documentation</string>
     <string name="setting_page_documentation_desc">View user manual and help docs</string>
@@ -887,6 +887,9 @@
     <string name="setting_page_dynamic_color">Dynamic Color</string>
     <string name="setting_page_dynamic_color_desc">Use Material You dynamic colors</string>
     <string name="setting_page_general_settings">General Settings</string>
+    <string name="setting_page_advanced_settings">Advanced Settings</string>
+    <string name="setting_page_advanced_settings_desc">More control options</string>
+    <string name="setting_page_timeout_settings">Timeout Settings</string>
     <string name="setting_page_mcp">MCP</string>
     <string name="setting_page_mcp_desc">Configure MCP servers</string>
     <string name="setting_page_skills">Skills</string>
