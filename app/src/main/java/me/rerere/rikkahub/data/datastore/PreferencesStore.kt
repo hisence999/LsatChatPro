@@ -1001,6 +1001,7 @@ data class ConversationReadPosition(
     val nodeId: String,
     val offset: Int = 0,
     val updatedAt: Long = 0L,
+    val itemIndex: Int = 0,
 )
 
 @Serializable
@@ -1149,6 +1150,7 @@ internal fun sanitizeConversationReadPositions(
                 nodeId = normalizedNodeId,
                 offset = position.offset.coerceAtLeast(0),
                 updatedAt = position.updatedAt.coerceAtLeast(0L),
+                itemIndex = position.itemIndex.coerceAtLeast(0),
             )
         }
         .sortedByDescending { (_, position) -> position.updatedAt }

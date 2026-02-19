@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -56,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -104,6 +104,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.getConversationReadPosition
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
@@ -372,6 +373,12 @@ private fun AnimatedWelcomeText(
     }
 }
 
+/** In-memory LRU cache for LazyList scroll positions, keyed by conversation ID. */
+private val scrollPositionCache = object : LinkedHashMap<String, Pair<Int, Int>>(16, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Int, Int>>): Boolean =
+        size > 50
+}
+
 @Composable
 fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = null) {
     val vm: ChatVM = koinViewModel(
@@ -443,7 +450,21 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
         }
     )
 
-    val chatListState = rememberLazyListState()
+    val hasMessages = conversation.messageNodes.isNotEmpty()
+    val cachedPosition = scrollPositionCache[id.toString()]
+    val persistedReadPosition = setting.getConversationReadPosition(id)
+    val chatListState = rememberSaveable(
+        id, hasMessages,
+        saver = LazyListState.Saver,
+    ) {
+        if (hasMessages) {
+            val index = cachedPosition?.first ?: persistedReadPosition?.itemIndex ?: 0
+            val offset = cachedPosition?.second ?: persistedReadPosition?.offset?.coerceAtLeast(0) ?: 0
+            LazyListState(index, offset)
+        } else {
+            LazyListState()
+        }
+    }
 
     when {
         isBigScreen -> {
@@ -542,8 +563,11 @@ private fun ChatPageContent(
     var initialEntryHandled by rememberSaveable(conversation.id, initialSearchQuery) { mutableStateOf(false) }
 
     // Visibility mask: hide list until scroll position is restored to prevent flash
+    // Skip masking when we have a cached or persisted scroll position (list starts at ~correct spot)
+    val hasCachedPosition = scrollPositionCache.containsKey(conversation.id.toString()) ||
+        setting.getConversationReadPosition(conversation.id) != null
     val chatListAlpha = if (
-        conversation.messageNodes.isNotEmpty() && !initialEntryHandled
+        !hasCachedPosition && conversation.messageNodes.isNotEmpty() && !initialEntryHandled
     ) 0f else 1f
 
     // Safety timeout: force-show list if initialization stalls
@@ -551,6 +575,16 @@ private fun ChatPageContent(
         delay(2000L)
         if (!initialEntryHandled) {
             initialEntryHandled = true
+        }
+    }
+
+    // Continuously save scroll position to cache for instant restoration on re-entry
+    LaunchedEffect(conversation.id, initialEntryHandled) {
+        if (!initialEntryHandled) return@LaunchedEffect
+        snapshotFlow {
+            chatListState.firstVisibleItemIndex to chatListState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            scrollPositionCache[conversation.id.toString()] = index to offset
         }
     }
 
@@ -602,7 +636,7 @@ private fun ChatPageContent(
         if (!initialEntryHandled) return@LaunchedEffect
         delay(350)
         if (pendingReadPositionSample == sample && !previewMode) {
-            vm.updateConversationReadPosition(sample.first, sample.second)
+            vm.updateConversationReadPosition(sample.first, sample.second, chatListState.firstVisibleItemIndex)
             pendingReadPositionSample = null
         }
     }
@@ -619,6 +653,12 @@ private fun ChatPageContent(
     ) {
         if (!conversationInitialized || initialEntryHandled) return@LaunchedEffect
         if (!shouldRunReadPositionRestore(initialSearchQuery, pendingJumpNodeId, previewMode)) return@LaunchedEffect
+
+        // Cache hit: position already approximately correct, skip costly scroll restoration
+        if (hasCachedPosition) {
+            initialEntryHandled = true
+            return@LaunchedEffect
+        }
 
         repeat(3) { withFrameNanos { } }
 

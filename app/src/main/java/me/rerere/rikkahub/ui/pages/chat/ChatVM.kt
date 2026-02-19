@@ -608,19 +608,21 @@ class ChatVM(
         }
     }
 
-    fun updateConversationReadPosition(nodeId: Uuid, offset: Int) {
+    fun updateConversationReadPosition(nodeId: Uuid, offset: Int, itemIndex: Int = 0) {
         val conversationKey = _conversationId.toString()
         val normalizedOffset = offset.coerceAtLeast(0)
+        val normalizedItemIndex = itemIndex.coerceAtLeast(0)
         val newPosition = ConversationReadPosition(
             nodeId = nodeId.toString(),
             offset = normalizedOffset,
             updatedAt = System.currentTimeMillis(),
+            itemIndex = normalizedItemIndex,
         )
 
         viewModelScope.launch {
             settingsStore.update { current ->
                 val existing = current.conversationReadPositions[conversationKey]
-                if (existing?.nodeId == newPosition.nodeId && existing.offset == newPosition.offset) {
+                if (!shouldPersistConversationReadPosition(existing, newPosition)) {
                     current
                 } else {
                     current.copy(

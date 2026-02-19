@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.datastore.ConversationReadPosition
 import me.rerere.rikkahub.data.model.MessageNode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -75,5 +76,35 @@ class ChatReadPositionRestorePolicyTest {
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, ""))
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, "invalid-node-id"))
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, Uuid.random().toString()))
+    }
+
+    @Test
+    fun shouldPersistConversationReadPosition_detectsItemIndexChanges() {
+        val nodeId = Uuid.parse("00000000-0000-0000-0000-000000000501").toString()
+        val existing = ConversationReadPosition(
+            nodeId = nodeId,
+            offset = 12,
+            updatedAt = 10L,
+            itemIndex = 3,
+        )
+
+        assertFalse(
+            shouldPersistConversationReadPosition(
+                existing = existing,
+                incoming = existing.copy(updatedAt = 99L),
+            )
+        )
+        assertTrue(
+            shouldPersistConversationReadPosition(
+                existing = existing,
+                incoming = existing.copy(itemIndex = 4),
+            )
+        )
+        assertTrue(
+            shouldPersistConversationReadPosition(
+                existing = existing,
+                incoming = existing.copy(offset = 13),
+            )
+        )
     }
 }
