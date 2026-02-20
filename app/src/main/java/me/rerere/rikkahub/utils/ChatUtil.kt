@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.utils
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -15,7 +14,6 @@ import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.Screen
-import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -76,7 +74,7 @@ fun Context.copyMessageToClipboard(message: UIMessage) {
 suspend fun Context.saveMessageImage(image: String) = withContext(Dispatchers.IO) {
     when {
         image.startsWith("data:image") -> {
-            val byteArray = Base64.decode(image.substringAfter("base64,").toByteArray())
+            val byteArray = Base64.decode(image.substringAfter("base64,").normalizeBase64Payload().toByteArray())
             val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
             exportImage(this@saveMessageImage.getActivity()!!, bitmap)
         }
@@ -200,18 +198,26 @@ suspend fun Context.convertBase64ImagePartToLocalFile(message: UIMessage): UIMes
                 when (part) {
                     is UIMessagePart.Image -> {
                         if (part.url.startsWith("data:image")) {
-                            // base64 image
-                            val sourceByteArray = Base64.decode(part.url.substringAfter("base64,").toByteArray())
-                            val bitmap = BitmapFactory.decodeByteArray(sourceByteArray, 0, sourceByteArray.size)
-                            val byteArray = bitmap.compress()
-                            val urls = createChatFilesByByteArrays(listOf(byteArray))
-                            Log.i(
-                                TAG,
-                                "convertBase64ImagePartToLocalFile: convert base64 img to ${urls.joinToString(", ")}"
-                            )
-                            part.copy(
-                                url = urls.first().toString(),
-                            )
+                            runCatching {
+                                val sourceByteArray = Base64.decode(
+                                    part.url.substringAfter("base64,").normalizeBase64Payload().toByteArray()
+                                )
+                                val urls = createChatFilesByByteArrays(listOf(sourceByteArray))
+                                Log.i(
+                                    TAG,
+                                    "convertBase64ImagePartToLocalFile: convert base64 img to ${urls.joinToString(", ")}"
+                                )
+                                part.copy(
+                                    url = urls.first().toString(),
+                                )
+                            }.getOrElse { throwable ->
+                                Log.w(
+                                    TAG,
+                                    "convertBase64ImagePartToLocalFile: failed to convert base64 image, keep original",
+                                    throwable
+                                )
+                                part
+                            }
                         } else {
                             part
                         }
@@ -222,11 +228,6 @@ suspend fun Context.convertBase64ImagePartToLocalFile(message: UIMessage): UIMes
             }
         )
     }
-
-fun Bitmap.compress(): ByteArray = ByteArrayOutputStream().use {
-    compress(Bitmap.CompressFormat.PNG, 100, it)
-    it.toByteArray()
-}
 
 fun Context.deleteChatFiles(uris: List<Uri>) {
     val appFilesDir = filesDir
@@ -277,11 +278,24 @@ fun Context.createImageFileFromBase64(base64Data: String, filePath: String): Fil
         base64Data
     }
 
-    val byteArray = Base64.decode(data.toByteArray())
+    val byteArray = Base64.decode(data.normalizeBase64Payload().toByteArray())
     val file = File(filePath)
     file.parentFile?.mkdirs()
     file.writeBytes(byteArray)
     return file
+}
+
+private fun String.normalizeBase64Payload(): String {
+    val compact = this.filterNot { it.isWhitespace() }
+    val firstPadIndex = compact.indexOf('=')
+    if (firstPadIndex < 0) {
+        return compact
+    }
+    var endIndex = firstPadIndex
+    while (endIndex < compact.length && compact[endIndex] == '=') {
+        endIndex++
+    }
+    return compact.substring(0, endIndex)
 }
 
 fun Context.listImageFiles(): List<File> {

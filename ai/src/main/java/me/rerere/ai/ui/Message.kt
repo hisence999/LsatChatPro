@@ -60,14 +60,19 @@ data class UIMessage(
                         if (existingImagePart != null) {
                             acc.map { part ->
                                 if (part is UIMessagePart.Image) {
-                                    UIMessagePart.Image(
-                                        url = existingImagePart.url + deltaPart.url,
+                                    part.copy(
+                                        url = mergeStreamedImageUrl(
+                                            existingUrl = existingImagePart.url,
+                                            incomingUrl = deltaPart.url,
+                                        ),
+                                        metadata = deltaPart.metadata ?: part.metadata,
                                     )
                                 } else part
                             }
                         } else {
                             acc + UIMessagePart.Image(
-                                url = "data:image/png;base64,${deltaPart.url}",
+                                url = normalizeImageDataUri(deltaPart.url),
+                                metadata = deltaPart.metadata,
                             )
                         }
                     }
@@ -163,6 +168,84 @@ data class UIMessage(
                 annotations = newAnnotations,
             )
         } ?: this
+    }
+
+    private fun normalizeImageDataUri(url: String): String {
+        return if (url.startsWith("data:image")) {
+            url
+        } else {
+            "data:image/png;base64,$url"
+        }
+    }
+
+    private fun dataUriPrefix(url: String): String {
+        if (!url.startsWith("data:image")) {
+            return "data:image/png;base64,"
+        }
+        val prefix = url.substringBefore("base64,", missingDelimiterValue = "")
+        return if (prefix.isNotEmpty()) "$prefix" + "base64," else "data:image/png;base64,"
+    }
+
+    private fun extractBase64Payload(url: String): String {
+        return if (url.startsWith("data:image")) {
+            url.substringAfter("base64,", missingDelimiterValue = "")
+        } else {
+            url
+        }
+    }
+
+    private fun hasEarlyPad(base64: String): Boolean {
+        val firstPadIndex = base64.indexOf('=')
+        if (firstPadIndex < 0) {
+            return false
+        }
+        val tail = base64.substring(firstPadIndex)
+        return tail.any { ch -> ch != '=' }
+    }
+
+    private fun mergeStreamedImageUrl(existingUrl: String, incomingUrl: String): String {
+        val normalizedExisting = normalizeImageDataUri(existingUrl)
+        val normalizedIncoming = normalizeImageDataUri(incomingUrl)
+
+        val existingPayload = extractBase64Payload(normalizedExisting)
+        val incomingPayload = extractBase64Payload(normalizedIncoming)
+
+        if (incomingPayload.isBlank()) {
+            return normalizedExisting
+        }
+        if (existingPayload.isBlank()) {
+            return normalizedIncoming
+        }
+
+        if (hasEarlyPad(existingPayload)) {
+            return normalizedIncoming
+        }
+        if (hasEarlyPad(incomingPayload)) {
+            return normalizedExisting
+        }
+
+        if (incomingPayload == existingPayload) {
+            return normalizedExisting
+        }
+
+        // Some providers resend full image snapshots during stream updates.
+        if (incomingPayload.startsWith(existingPayload)) {
+            return normalizedIncoming
+        }
+        if (existingPayload.startsWith(incomingPayload)) {
+            return normalizedExisting
+        }
+
+        // If current payload already ended, appending would create invalid base64.
+        if (existingPayload.endsWith("=")) {
+            return if (incomingPayload.length > existingPayload.length) {
+                normalizedIncoming
+            } else {
+                normalizedExisting
+            }
+        }
+
+        return dataUriPrefix(normalizedExisting) + existingPayload + incomingPayload
     }
 
     fun summaryAsText(): String {

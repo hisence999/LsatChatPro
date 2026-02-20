@@ -258,6 +258,38 @@ class MessageTest {
         assertTrue(resumedDuration.inWholeSeconds <= accumulated.inWholeSeconds + 2)
     }
 
+    @Test
+    fun `handleMessageChunk image should replace with cumulative payload`() {
+        var messages = listOf(
+            UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Text("draw")),
+            )
+        )
+
+        messages = messages.handleMessageChunk(imageDeltaChunk("QUJD"))
+        messages = messages.handleMessageChunk(imageDeltaChunk("QUJDREVG"))
+
+        val imageUrl = messages.last().parts.filterIsInstance<UIMessagePart.Image>().single().url
+        assertEquals("data:image/png;base64,QUJDREVG", imageUrl)
+    }
+
+    @Test
+    fun `handleMessageChunk image should not append after padded payload`() {
+        var messages = listOf(
+            UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Text("draw")),
+            )
+        )
+
+        messages = messages.handleMessageChunk(imageDeltaChunk("QUJDRA=="))
+        messages = messages.handleMessageChunk(imageDeltaChunk("/9j/"))
+
+        val imageUrl = messages.last().parts.filterIsInstance<UIMessagePart.Image>().single().url
+        assertEquals("data:image/png;base64,QUJDRA==", imageUrl)
+    }
+
     private fun createTestMessages(count: Int): List<UIMessage> {
         return (0 until count).map { i ->
             UIMessage(
@@ -265,5 +297,23 @@ class MessageTest {
                 parts = listOf(UIMessagePart.Text("Message $i"))
             )
         }
+    }
+
+    private fun imageDeltaChunk(payload: String): MessageChunk {
+        return MessageChunk(
+            id = "img-$payload",
+            model = "test-model",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(UIMessagePart.Image(payload))
+                    ),
+                    message = null,
+                    finishReason = null,
+                )
+            )
+        )
     }
 }
