@@ -2,6 +2,9 @@ package me.rerere.ai.ui
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -290,6 +293,60 @@ class MessageTest {
         assertEquals("data:image/png;base64,QUJDRA==", imageUrl)
     }
 
+    @Test
+    fun `handleMessageChunk text should keep latest metadata`() {
+        var messages = listOf(
+            UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Text("draw")),
+            )
+        )
+
+        messages = messages.handleMessageChunk(
+            textDeltaChunk(
+                text = "first",
+                thoughtSignature = "sig_1",
+            )
+        )
+        messages = messages.handleMessageChunk(
+            textDeltaChunk(
+                text = " second",
+                thoughtSignature = "sig_2",
+            )
+        )
+
+        val textPart = messages.last().parts.filterIsInstance<UIMessagePart.Text>().single()
+        assertEquals("first second", textPart.text)
+        assertEquals("sig_2", textPart.metadata?.get("thoughtSignature")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `handleMessageChunk image should keep latest metadata`() {
+        var messages = listOf(
+            UIMessage(
+                role = MessageRole.USER,
+                parts = listOf(UIMessagePart.Text("draw")),
+            )
+        )
+
+        messages = messages.handleMessageChunk(
+            imageDeltaChunk(
+                payload = "QUJD",
+                thoughtSignature = "sig_1",
+            )
+        )
+        messages = messages.handleMessageChunk(
+            imageDeltaChunk(
+                payload = "QUJDREVG",
+                thoughtSignature = "sig_2",
+            )
+        )
+
+        val imagePart = messages.last().parts.filterIsInstance<UIMessagePart.Image>().single()
+        assertEquals("data:image/png;base64,QUJDREVG", imagePart.url)
+        assertEquals("sig_2", imagePart.metadata?.get("thoughtSignature")?.jsonPrimitive?.content)
+    }
+
     private fun createTestMessages(count: Int): List<UIMessage> {
         return (0 until count).map { i ->
             UIMessage(
@@ -299,7 +356,7 @@ class MessageTest {
         }
     }
 
-    private fun imageDeltaChunk(payload: String): MessageChunk {
+    private fun imageDeltaChunk(payload: String, thoughtSignature: String? = null): MessageChunk {
         return MessageChunk(
             id = "img-$payload",
             model = "test-model",
@@ -308,12 +365,44 @@ class MessageTest {
                     index = 0,
                     delta = UIMessage(
                         role = MessageRole.ASSISTANT,
-                        parts = listOf(UIMessagePart.Image(payload))
+                        parts = listOf(
+                            UIMessagePart.Image(
+                                url = payload,
+                                metadata = thoughtSignature?.let(::thoughtSignatureMetadata),
+                            )
+                        )
                     ),
                     message = null,
                     finishReason = null,
                 )
             )
         )
+    }
+
+    private fun textDeltaChunk(text: String, thoughtSignature: String? = null): MessageChunk {
+        return MessageChunk(
+            id = "txt-$text",
+            model = "test-model",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(
+                            UIMessagePart.Text(
+                                text = text,
+                                metadata = thoughtSignature?.let(::thoughtSignatureMetadata),
+                            )
+                        )
+                    ),
+                    message = null,
+                    finishReason = null,
+                )
+            )
+        )
+    }
+
+    private fun thoughtSignatureMetadata(signature: String) = buildJsonObject {
+        put("thoughtSignature", signature)
     }
 }

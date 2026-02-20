@@ -594,6 +594,7 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
     }
 
     private fun parseMessagePart(jsonObject: JsonObject): UIMessagePart {
+        val thoughtSignatureMetadata = parseThoughtSignatureMetadata(jsonObject)
         return when {
             jsonObject.containsKey("text") -> {
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -601,8 +602,12 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 if (thought) UIMessagePart.Reasoning(
                     reasoning = text,
                     createdAt = Clock.System.now(),
-                    finishedAt = null
-                ) else UIMessagePart.Text(text)
+                    finishedAt = null,
+                    metadata = thoughtSignatureMetadata,
+                ) else UIMessagePart.Text(
+                    text = text,
+                    metadata = thoughtSignatureMetadata,
+                )
             }
 
             jsonObject.containsKey("functionCall") -> {
@@ -610,9 +615,7 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     toolCallId = "",
                     toolName = jsonObject["functionCall"]!!.jsonObject["name"]!!.jsonPrimitive.content,
                     arguments = json.encodeToString(jsonObject["functionCall"]!!.jsonObject["args"]),
-                    metadata = buildJsonObject {
-                        put("thoughtSignature", jsonObject["thoughtSignature"]?.jsonPrimitive?.contentOrNull)
-                    }
+                    metadata = thoughtSignatureMetadata,
                 )
             }
 
@@ -623,10 +626,23 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 require(mime.startsWith("image/")) {
                     "Only image mime type is supported"
                 }
-                UIMessagePart.Image(data)
+                UIMessagePart.Image(
+                    url = data,
+                    metadata = thoughtSignatureMetadata,
+                )
             }
 
             else -> error("unknown message part type: $jsonObject")
+        }
+    }
+
+    private fun parseThoughtSignatureMetadata(jsonObject: JsonObject): JsonObject? {
+        val thoughtSignature = jsonObject["thoughtSignature"]?.jsonPrimitive?.contentOrNull
+            ?: jsonObject["thought_signature"]?.jsonPrimitive?.contentOrNull
+        return thoughtSignature?.let { signature ->
+            buildJsonObject {
+                put("thoughtSignature", signature)
+            }
         }
     }
 
@@ -643,6 +659,9 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                                     is UIMessagePart.Text -> {
                                         add(buildJsonObject {
                                             put("text", part.text)
+                                            part.metadata?.get("thoughtSignature")?.let {
+                                                put("thoughtSignature", it)
+                                            }
                                         })
                                     }
 
@@ -653,6 +672,9 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                                                     put("mime_type", "image/png")
                                                     put("data", base64Data)
                                                 })
+                                                part.metadata?.get("thoughtSignature")?.let {
+                                                    put("thoughtSignature", it)
+                                                }
                                             })
                                         }
                                     }
@@ -664,6 +686,9 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                                                     put("mime_type", "video/mp4")
                                                     put("data", base64Data)
                                                 })
+                                                part.metadata?.get("thoughtSignature")?.let {
+                                                    put("thoughtSignature", it)
+                                                }
                                             })
                                         }
                                     }
@@ -675,6 +700,9 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                                                     put("mime_type", "audio/mp3")
                                                     put("data", base64Data)
                                                 })
+                                                part.metadata?.get("thoughtSignature")?.let {
+                                                    put("thoughtSignature", it)
+                                                }
                                             })
                                         }
                                     }

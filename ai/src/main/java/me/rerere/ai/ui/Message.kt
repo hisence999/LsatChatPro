@@ -46,7 +46,10 @@ data class UIMessage(
                         if (existingTextPart != null) {
                             acc.map { part ->
                                 if (part is UIMessagePart.Text) {
-                                    UIMessagePart.Text(existingTextPart.text + deltaPart.text)
+                                    part.copy(
+                                        text = existingTextPart.text + deltaPart.text,
+                                        metadata = deltaPart.metadata ?: part.metadata,
+                                    )
                                 } else part
                             }
                         } else {
