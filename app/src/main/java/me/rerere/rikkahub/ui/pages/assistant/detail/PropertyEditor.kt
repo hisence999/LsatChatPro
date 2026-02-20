@@ -149,7 +149,7 @@ fun CustomHeaders(headers: List<CustomHeader>, onUpdate: (List<CustomHeader>) ->
                     }
                 },
                 minLines = 8,
-                maxLines = 20,
+                maxLines = 35,
                 visualTransformation = rememberHighlightCodeVisualTransformation(
                     language = "json",
                     code = headersJsonText
@@ -289,7 +289,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                     }
                 },
                 minLines = 8,
-                maxLines = 20,
+                maxLines = 35,
                 visualTransformation = rememberHighlightCodeVisualTransformation(
                     language = "json",
                     code = bodyJsonText
