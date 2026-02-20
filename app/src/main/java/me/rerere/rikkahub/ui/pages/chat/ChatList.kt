@@ -152,6 +152,9 @@ fun ChatList(
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
+    canLoadOlderHistory: Boolean = false,
+    loadingOlderHistory: Boolean = false,
+    onLoadOlderHistory: () -> Unit = {},
     onJumpToMessage: (Uuid) -> Unit = {},
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit = { _, _ -> },
 ) {
@@ -187,6 +190,9 @@ fun ChatList(
                     onForkMessage = onForkMessage,
                     onDelete = onDelete,
                     onUpdateMessage = onUpdateMessage,
+                    canLoadOlderHistory = canLoadOlderHistory,
+                    loadingOlderHistory = loadingOlderHistory,
+                    onLoadOlderHistory = onLoadOlderHistory,
                     onReadPositionSample = onReadPositionSample,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
@@ -210,11 +216,15 @@ private fun SharedTransitionScope.ChatListNormal(
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
+    canLoadOlderHistory: Boolean,
+    loadingOlderHistory: Boolean,
+    onLoadOlderHistory: () -> Unit,
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
+    val loadingOlderState by rememberUpdatedState(loadingOlderHistory)
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
@@ -269,6 +279,14 @@ private fun SharedTransitionScope.ChatListNormal(
                 }
             }
             Unit
+        }
+    }
+    val canTriggerLoadOlder by remember(state, canLoadOlderHistory, loadingOlderHistory) {
+        derivedStateOf {
+            canLoadOlderHistory &&
+                !loadingOlderHistory &&
+                state.firstVisibleItemIndex == 0 &&
+                state.firstVisibleItemScrollOffset <= 20
         }
     }
 
@@ -578,6 +596,52 @@ private fun SharedTransitionScope.ChatListNormal(
                 scope = scope,
                 state = state
             )
+
+            AnimatedVisibility(
+                visible = canLoadOlderHistory && (state.firstVisibleItemIndex == 0 || loadingOlderState),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp),
+                enter = slideInVertically(initialOffsetY = { -it / 2 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it / 2 }) + fadeOut(),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
+                    tonalElevation = 4.dp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(enabled = canTriggerLoadOlder) {
+                            onLoadOlderHistory()
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        if (loadingOlderState) {
+                            LoadingIndicator(
+                                modifier = Modifier.size(16.dp),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardDoubleArrowUp,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        Text(
+                            text = if (loadingOlderState) {
+                                stringResource(R.string.chat_page_loading_older_messages)
+                            } else {
+                                stringResource(R.string.chat_page_load_older_messages)
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            }
         }
     }
 }

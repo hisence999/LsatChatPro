@@ -76,6 +76,9 @@ class ChatReadPositionRestorePolicyTest {
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, ""))
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, "invalid-node-id"))
         assertEquals(-1, resolveReadPositionNodeIndex(nodes, Uuid.random().toString()))
+        assertEquals(secondId, parseReadPositionNodeId(secondId.toString()))
+        assertEquals(null, parseReadPositionNodeId(""))
+        assertEquals(null, parseReadPositionNodeId("broken-id"))
     }
 
     @Test
@@ -106,5 +109,14 @@ class ChatReadPositionRestorePolicyTest {
                 incoming = existing.copy(offset = 13),
             )
         )
+    }
+
+    @Test
+    fun isCachedScrollPositionUsable_checksRange() {
+        assertTrue(isCachedScrollPositionUsable(0 to 0, itemCount = 1))
+        assertTrue(isCachedScrollPositionUsable(4 to 0, itemCount = 5))
+        assertFalse(isCachedScrollPositionUsable(null, itemCount = 5))
+        assertFalse(isCachedScrollPositionUsable(5 to 0, itemCount = 5))
+        assertFalse(isCachedScrollPositionUsable(0 to 0, itemCount = 0))
     }
 }

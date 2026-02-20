@@ -53,6 +53,19 @@ class ConversationRepository(
         private const val MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT = 320
     }
 
+    data class MessageNodeChunk(
+        val nodes: List<MessageNode>,
+        val startIndex: Int,
+        val endExclusive: Int,
+        val totalCount: Int,
+    )
+
+    private data class DecodedNodeWindow(
+        val nodes: List<MessageNode>,
+        val startIndex: Int,
+        val totalCount: Int,
+    )
+
     suspend fun getRecentConversations(assistantId: Uuid, limit: Int = 10): List<Conversation> {
         return conversationDAO.getRecentConversationsOfAssistant(
             assistantId = assistantId.toString(),
@@ -157,16 +170,18 @@ class ConversationRepository(
     }
 
     suspend fun insertConversation(conversation: Conversation) {
+        val conversationToStore = prepareConversationForStorage(conversation)
         conversationDAO.insert(
-            conversationToConversationEntity(conversation)
+            conversationToConversationEntity(conversationToStore)
         )
     }
 
     suspend fun updateConversation(conversation: Conversation) {
+        val conversationToStore = prepareConversationForStorage(conversation)
         // Invalidation Logic: If a consolidated conversation is updated (e.g. new message),
         // we must invalidate the old memory episode to allow re-consolidation.
-        if (conversation.isConsolidated) {
-            val updatedConversation = conversation.copy(isConsolidated = false)
+        if (conversationToStore.isConsolidated) {
+            val updatedConversation = conversationToStore.copy(isConsolidated = false)
 
             conversationDAO.update(
                 conversationToConversationEntity(updatedConversation)
@@ -175,17 +190,17 @@ class ConversationRepository(
             // Delete the old episode based on conversation ID if possible.
             // If deletion by ID returns 0 (e.g. legacy episode without conversationId),
             // fallback to best-effort deletion based on time range.
-            val deletedCount = chatEpisodeDAO.deleteEpisodeByConversationId(conversation.id.toString())
+            val deletedCount = chatEpisodeDAO.deleteEpisodeByConversationId(conversationToStore.id.toString())
             if (deletedCount == 0) {
                 chatEpisodeDAO.deleteEpisodeByTimeRange(
-                    assistantId = conversation.assistantId.toString(),
-                    startTime = conversation.createAt.toEpochMilli(),
+                    assistantId = conversationToStore.assistantId.toString(),
+                    startTime = conversationToStore.createAt.toEpochMilli(),
                     endTime = Long.MAX_VALUE
                 )
             }
         } else {
             conversationDAO.update(
-                conversationToConversationEntity(conversation)
+                conversationToConversationEntity(conversationToStore)
             )
         }
     }
@@ -273,7 +288,8 @@ class ConversationRepository(
     }
 
     fun conversationEntityToConversation(conversationEntity: ConversationEntity): Conversation {
-        val messageNodes = decodeMessageNodesSafely(conversationEntity.nodes)
+        val decodedWindow = decodeMessageNodesSafely(conversationEntity.nodes)
+        val messageNodes = decodedWindow.nodes
         val enabledModeIds = try {
             JsonInstant.decodeFromString<List<String>>(conversationEntity.enabledModeIds)
                 .map { Uuid.parse(it) }
@@ -305,6 +321,67 @@ class ConversationRepository(
             lastPruneMessageCount = conversationEntity.lastPruneMessageCount,
             lastRefreshTime = conversationEntity.lastRefreshTime,
             contextSummaryBoundaries = summaryBoundaries,
+            loadedNodeStartIndex = decodedWindow.startIndex,
+            totalMessageNodeCount = decodedWindow.totalCount,
+        )
+    }
+
+    suspend fun loadOlderMessageNodeChunk(
+        conversationId: Uuid,
+        beforeIndexExclusive: Int,
+        limit: Int,
+    ): MessageNodeChunk? {
+        val safeLimit = limit.coerceAtLeast(1)
+        val safeBefore = beforeIndexExclusive.coerceAtLeast(0)
+        val start = (safeBefore - safeLimit).coerceAtLeast(0)
+        return loadMessageNodeChunk(
+            conversationId = conversationId,
+            startInclusive = start,
+            endExclusive = safeBefore,
+        )
+    }
+
+    suspend fun loadMessageNodeChunk(
+        conversationId: Uuid,
+        startInclusive: Int,
+        endExclusive: Int,
+    ): MessageNodeChunk? = withContext(Dispatchers.IO) {
+        val entity = conversationDAO.getConversationById(conversationId.toString()) ?: return@withContext null
+        val nodesJson = entity.nodes
+        val ranges = parseJsonArrayElementRanges(nodesJson)
+        if (ranges != null) {
+            val total = ranges.size
+            val safeStart = startInclusive.coerceIn(0, total)
+            val safeEnd = endExclusive.coerceIn(safeStart, total)
+            val selectedRanges = if (safeStart < safeEnd) {
+                ranges.subList(safeStart, safeEnd)
+            } else {
+                emptyList()
+            }
+            val sliceJson = buildJsonArrayFromRanges(nodesJson, selectedRanges)
+            val nodes = decodeMessageNodesFromJson(sliceJson)
+            return@withContext MessageNodeChunk(
+                nodes = nodes,
+                startIndex = safeStart,
+                endExclusive = safeEnd,
+                totalCount = total,
+            )
+        }
+
+        val allNodes = decodeMessageNodesFromJson(nodesJson)
+        val total = allNodes.size
+        val safeStart = startInclusive.coerceIn(0, total)
+        val safeEnd = endExclusive.coerceIn(safeStart, total)
+        val slicedNodes = if (safeStart < safeEnd) {
+            allNodes.subList(safeStart, safeEnd)
+        } else {
+            emptyList()
+        }
+        return@withContext MessageNodeChunk(
+            nodes = slicedNodes,
+            startIndex = safeStart,
+            endExclusive = safeEnd,
+            totalCount = total,
         )
     }
 
@@ -434,39 +511,77 @@ class ConversationRepository(
             .toList()
     }
 
-    private fun decodeMessageNodesSafely(nodesJson: String): List<MessageNode> {
-        val safeJson = if (nodesJson.length > HUGE_NODES_JSON_THRESHOLD_CHARS) {
-            extractLastJsonArrayElements(nodesJson, MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT)
-        } else {
-            nodesJson
+    private suspend fun prepareConversationForStorage(conversation: Conversation): Conversation {
+        if (conversation.loadedNodeStartIndex <= 0) return conversation
+        val prefixChunk = loadMessageNodeChunk(
+            conversationId = conversation.id,
+            startInclusive = 0,
+            endExclusive = conversation.loadedNodeStartIndex,
+        ) ?: return conversation
+        if (prefixChunk.endExclusive <= 0) return conversation
+
+        val mergedNodes = prefixChunk.nodes + conversation.messageNodes
+        return conversation.copy(
+            messageNodes = mergedNodes,
+            loadedNodeStartIndex = 0,
+            totalMessageNodeCount = maxOf(prefixChunk.totalCount, mergedNodes.size),
+        )
+    }
+
+    private fun decodeMessageNodesSafely(nodesJson: String): DecodedNodeWindow {
+        if (nodesJson.length <= HUGE_NODES_JSON_THRESHOLD_CHARS) {
+            val nodes = decodeMessageNodesFromJson(nodesJson)
+            return DecodedNodeWindow(
+                nodes = nodes,
+                startIndex = 0,
+                totalCount = nodes.size,
+            )
         }
 
-        val migrated = migrateLegacyNodesJson(safeJson)
+        val ranges = parseJsonArrayElementRanges(nodesJson)
+        if (ranges == null) {
+            val nodes = decodeMessageNodesFromJson(nodesJson)
+            return DecodedNodeWindow(
+                nodes = nodes,
+                startIndex = 0,
+                totalCount = nodes.size,
+            )
+        }
+
+        val total = ranges.size
+        val start = (total - MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT).coerceAtLeast(0)
+        val selectedRanges = if (start < total) ranges.subList(start, total) else emptyList()
+        val safeJson = buildJsonArrayFromRanges(nodesJson, selectedRanges)
+        val nodes = decodeMessageNodesFromJson(safeJson)
+        return DecodedNodeWindow(
+            nodes = nodes,
+            startIndex = start,
+            totalCount = total,
+        )
+    }
+
+    private fun decodeMessageNodesFromJson(nodesJson: String): List<MessageNode> {
+        val migrated = migrateLegacyNodesJson(nodesJson)
         val decoded = JsonInstant.decodeFromString<List<MessageNode>>(migrated)
         return decoded.mapNotNull { node ->
-            if (node.messages.isEmpty()) {
-                null
+            if (node.messages.isEmpty()) return@mapNotNull null
+            val safeSelectIndex = node.selectIndex.coerceIn(0, node.messages.lastIndex)
+            if (safeSelectIndex == node.selectIndex) {
+                node
             } else {
-                val safeSelectIndex = node.selectIndex.coerceIn(0, node.messages.lastIndex)
-                if (safeSelectIndex == node.selectIndex) {
-                    node
-                } else {
-                    node.copy(selectIndex = safeSelectIndex)
-                }
+                node.copy(selectIndex = safeSelectIndex)
             }
         }
     }
 
-    private fun extractLastJsonArrayElements(json: String, maxElements: Int): String {
-        if (maxElements <= 0) return "[]"
-
+    private fun parseJsonArrayElementRanges(json: String): List<IntRange>? {
         val start = json.indexOfFirst { !it.isWhitespace() }
         val end = json.indexOfLast { !it.isWhitespace() }
         if (start < 0 || end <= start || json[start] != '[' || json[end] != ']') {
-            return json
+            return null
         }
 
-        val ranges = ArrayDeque<IntRange>()
+        val ranges = mutableListOf<IntRange>()
         var inString = false
         var escaped = false
         var depth = 0
@@ -509,10 +624,7 @@ class ConversationRepository(
                                 elementEnd -= 1
                             }
                             if (elementEnd >= elementStart) {
-                                ranges.addLast(elementStart..elementEnd)
-                                if (ranges.size > maxElements) {
-                                    ranges.removeFirst()
-                                }
+                                ranges.add(elementStart..elementEnd)
                             }
                         }
                         elementStart = -1
@@ -533,26 +645,23 @@ class ConversationRepository(
                 elementEnd -= 1
             }
             if (elementEnd >= elementStart) {
-                ranges.addLast(elementStart..elementEnd)
-                if (ranges.size > maxElements) {
-                    ranges.removeFirst()
-                }
+                ranges.add(elementStart..elementEnd)
             }
         }
 
-        if (ranges.isEmpty()) {
-            return "[]"
-        }
+        return ranges
+    }
+
+    private fun buildJsonArrayFromRanges(json: String, ranges: List<IntRange>): String {
+        if (ranges.isEmpty()) return "[]"
 
         val builder = StringBuilder()
         builder.append('[')
-        var first = true
-        ranges.forEach { range ->
-            if (!first) {
+        ranges.forEachIndexed { index, range ->
+            if (index > 0) {
                 builder.append(',')
             }
             builder.append(json, range.first, range.last + 1)
-            first = false
         }
         builder.append(']')
         return builder.toString()

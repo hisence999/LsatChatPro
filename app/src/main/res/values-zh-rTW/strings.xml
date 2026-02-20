@@ -319,6 +319,8 @@
   <string name="workdir_picker_new_folder_create">建立</string>
   <string name="workdir_picker_new_folder_failed">新增資料夾失敗</string>
   <string name="chat_page_save">保存</string>
+  <string name="chat_page_load_older_messages">載入更早訊息</string>
+  <string name="chat_page_loading_older_messages">正在載入更早訊息…</string>
   <string name="chat_page_scroll_to_bottom">滾動到底部</string>
   <string name="chat_page_search_placeholder">搜尋對話記錄</string>
   <string name="chat_page_today">今天</string>

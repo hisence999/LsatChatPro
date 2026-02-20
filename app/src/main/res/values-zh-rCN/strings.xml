@@ -122,6 +122,8 @@
     <string name="notification_live_update_output">输出中</string>
     <string name="notification_live_update_done">输出完成</string>
     <string name="notification_live_update_error">生成异常</string>
+    <string name="chat_page_load_older_messages">加载更早消息</string>
+    <string name="chat_page_loading_older_messages">正在加载更早消息…</string>
     <string name="chat_page_context_compressing">正在压缩上下文</string>
     <string name="chat_page_context_compressed">已压缩上下文</string>
 

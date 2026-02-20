@@ -136,6 +136,8 @@ class ChatVM(
     val conversationReadPosition: StateFlow<ConversationReadPosition?> = settings
         .map { current -> current.getConversationReadPosition(_conversationId) }
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
+    private val _loadingOlderHistory = MutableStateFlow(false)
+    val loadingOlderHistory: StateFlow<Boolean> = _loadingOlderHistory.asStateFlow()
 
     // 网络搜索 - 从当前助手的searchMode派生
     val enableWebSearch = settings.map { settings ->
@@ -426,10 +428,15 @@ class ChatVM(
 
     fun handleMessageTruncate() {
         viewModelScope.launch {
-            val lastTruncateIndex = conversation.value.messageNodes.lastIndex + 1
+            val currentConversation = conversation.value
+            val absoluteLastTruncateIndex = currentConversation.loadedNodeStartIndex + currentConversation.messageNodes.lastIndex + 1
             // 如果截断在最后一个索引，则取消截断，否则更新 truncateIndex 到最后一个截断位置
             val newConversation = conversation.value.copy(
-                truncateIndex = if (conversation.value.truncateIndex == lastTruncateIndex) -1 else lastTruncateIndex,
+                truncateIndex = if (currentConversation.truncateIndex == absoluteLastTruncateIndex) {
+                    -1
+                } else {
+                    absoluteLastTruncateIndex
+                },
                 title = "",
                 chatSuggestions = emptyList(), // 清空建议
             )
@@ -595,6 +602,19 @@ class ChatVM(
     fun continueAtMessage(message: UIMessage) {
         analytics.logEvent("ai_continue_at_message", null)
         chatService.continueAtMessage(_conversationId, message)
+    }
+
+    suspend fun loadOlderHistoryNodes(limit: Int = 120): Int {
+        if (_loadingOlderHistory.value) return 0
+        _loadingOlderHistory.value = true
+        return try {
+            chatService.loadOlderHistoryNodes(
+                conversationId = _conversationId,
+                limit = limit,
+            )
+        } finally {
+            _loadingOlderHistory.value = false
+        }
     }
 
     fun cancelGenerationByUser() {

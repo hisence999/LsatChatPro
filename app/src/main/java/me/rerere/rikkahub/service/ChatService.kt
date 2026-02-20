@@ -144,6 +144,7 @@ import kotlin.uuid.Uuid
 private const val TAG = "ChatService"
 private const val CHAT_GENERATION_DONE_NOTIFICATION_ID = 1
 private const val FALLBACK_TITLE_MAX_CODE_POINTS = 15
+private const val OLDER_HISTORY_LOAD_BATCH_SIZE = 120
 
 private val inputTransformers by lazy {
     listOf(
@@ -215,6 +216,7 @@ class ChatService(
 
     private val skillScriptRunner by lazy { SkillScriptRunner(context) }
     private val skillScriptMutexes = ConcurrentHashMap<Uuid, Mutex>()
+    private val olderHistoryLoadMutexes = ConcurrentHashMap<Uuid, Mutex>()
 
     private data class WorkspaceFileToolConfirmation(
         val token: String,
@@ -920,6 +922,50 @@ class ChatService(
 
     fun cancelGenerationByUser(conversationId: Uuid) {
         cancelGenerationJob(conversationId, GenerationCancelReason.USER)
+    }
+
+    suspend fun loadOlderHistoryNodes(
+        conversationId: Uuid,
+        limit: Int = OLDER_HISTORY_LOAD_BATCH_SIZE,
+    ): Int = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceAtLeast(1)
+        val lock = olderHistoryLoadMutexes.getOrPut(conversationId) { Mutex() }
+        lock.withLock {
+            val currentConversation = getConversationFlow(conversationId).value
+            if (!currentConversation.hasOlderHistoryNodes) {
+                return@withLock 0
+            }
+
+            val chunk = conversationRepo.loadOlderMessageNodeChunk(
+                conversationId = conversationId,
+                beforeIndexExclusive = currentConversation.loadedNodeStartIndex,
+                limit = safeLimit,
+            ) ?: return@withLock 0
+
+            val existingIds = currentConversation.messageNodes
+                .asSequence()
+                .map { node -> node.id }
+                .toHashSet()
+            val prependNodes = chunk.nodes.filterNot { node -> node.id in existingIds }
+
+            val mergedNodes = if (prependNodes.isEmpty()) {
+                currentConversation.messageNodes
+            } else {
+                prependNodes + currentConversation.messageNodes
+            }
+            val mergedTotalCount = maxOf(chunk.totalCount, mergedNodes.size)
+            val updatedConversation = currentConversation.copy(
+                messageNodes = mergedNodes,
+                loadedNodeStartIndex = chunk.startIndex,
+                totalMessageNodeCount = mergedTotalCount,
+            )
+
+            if (updatedConversation != currentConversation) {
+                updateConversation(conversationId, updatedConversation)
+            }
+
+            return@withLock prependNodes.size
+        }
     }
 
     private fun cancelGenerationJob(

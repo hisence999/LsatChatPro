@@ -16,9 +16,22 @@ internal fun resolveReadPositionNodeIndex(
     messageNodes: List<MessageNode>,
     nodeId: String?,
 ): Int {
-    if (nodeId.isNullOrBlank()) return -1
-    val parsed = runCatching { Uuid.parse(nodeId) }.getOrNull() ?: return -1
+    val parsed = parseReadPositionNodeId(nodeId) ?: return -1
     return messageNodes.indexOfFirst { it.id == parsed }
+}
+
+internal fun parseReadPositionNodeId(nodeId: String?): Uuid? {
+    if (nodeId.isNullOrBlank()) return null
+    return runCatching { Uuid.parse(nodeId) }.getOrNull()
+}
+
+internal fun isCachedScrollPositionUsable(
+    cachedPosition: Pair<Int, Int>?,
+    itemCount: Int,
+): Boolean {
+    val position = cachedPosition ?: return false
+    if (itemCount <= 0) return false
+    return position.first in 0 until itemCount
 }
 
 internal fun shouldPersistConversationReadPosition(

@@ -66,7 +66,12 @@ data class Conversation(
     val lastRefreshTime: Long = 0L, // Timestamp of last manual refresh
     val contextSummaryBoundaries: List<Int> = emptyList(), // History of summary boundary indices
     val contextSummaryPendingBoundaryIndex: Int = -1, // In-memory marker for active context compression divider
+    val loadedNodeStartIndex: Int = 0, // Absolute start index of currently loaded node window
+    val totalMessageNodeCount: Int = 0, // Total node count stored in DB for this conversation
 ) {
+    val hasOlderHistoryNodes: Boolean
+        get() = loadedNodeStartIndex > 0
+
     val files: List<Uri>
         get() {
             return collectChatUploadFileUrls(messageNodes)

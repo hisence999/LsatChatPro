@@ -453,13 +453,29 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
     val hasMessages = conversation.messageNodes.isNotEmpty()
     val cachedPosition = scrollPositionCache[id.toString()]
     val persistedReadPosition = setting.getConversationReadPosition(id)
+    val hasUsableCachedPosition = isCachedScrollPositionUsable(
+        cachedPosition = cachedPosition,
+        itemCount = conversation.messageNodes.size,
+    )
     val chatListState = rememberSaveable(
         id, hasMessages,
         saver = LazyListState.Saver,
     ) {
         if (hasMessages) {
-            val index = cachedPosition?.first ?: persistedReadPosition?.itemIndex ?: 0
-            val offset = cachedPosition?.second ?: persistedReadPosition?.offset?.coerceAtLeast(0) ?: 0
+            val persistedIndex = persistedReadPosition
+                ?.itemIndex
+                ?.coerceIn(0, conversation.messageNodes.lastIndex)
+                ?: 0
+            val index = if (hasUsableCachedPosition) {
+                cachedPosition?.first ?: persistedIndex
+            } else {
+                persistedIndex
+            }
+            val offset = if (hasUsableCachedPosition) {
+                cachedPosition?.second ?: persistedReadPosition?.offset?.coerceAtLeast(0) ?: 0
+            } else {
+                persistedReadPosition?.offset?.coerceAtLeast(0) ?: 0
+            }
             LazyListState(index, offset)
         } else {
             LazyListState()
@@ -560,12 +576,18 @@ private fun ChatPageContent(
     val currentConversationState = rememberUpdatedState(conversation)
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
     val conversationReadPosition by vm.conversationReadPosition.collectAsStateWithLifecycle()
+    val loadingOlderHistory by vm.loadingOlderHistory.collectAsStateWithLifecycle()
     var initialEntryHandled by rememberSaveable(conversation.id, initialSearchQuery) { mutableStateOf(false) }
 
     // Visibility mask: hide list until scroll position is restored to prevent flash
     // Skip masking when we have a cached or persisted scroll position (list starts at ~correct spot)
-    val hasCachedPosition = scrollPositionCache.containsKey(conversation.id.toString()) ||
-        setting.getConversationReadPosition(conversation.id) != null
+    val inMemoryCachedPosition = scrollPositionCache[conversation.id.toString()]
+    val hasInMemoryCache = isCachedScrollPositionUsable(
+        cachedPosition = inMemoryCachedPosition,
+        itemCount = conversation.messageNodes.size,
+    )
+    val hasPersistedReadPosition = conversationReadPosition != null
+    val hasCachedPosition = hasInMemoryCache || hasPersistedReadPosition
     val chatListAlpha = if (
         !hasCachedPosition && conversation.messageNodes.isNotEmpty() && !initialEntryHandled
     ) 0f else 1f
@@ -649,27 +671,48 @@ private fun ChatPageContent(
         initialSearchQuery,
         pendingJumpNodeId,
         previewMode,
-        conversation.messageNodes,
+        hasInMemoryCache,
     ) {
         if (!conversationInitialized || initialEntryHandled) return@LaunchedEffect
         if (!shouldRunReadPositionRestore(initialSearchQuery, pendingJumpNodeId, previewMode)) return@LaunchedEffect
 
-        // Cache hit: position already approximately correct, skip costly scroll restoration
-        if (hasCachedPosition) {
+        // In-memory cache hit: position is already approximately correct, skip costly restoration.
+        if (hasInMemoryCache) {
             initialEntryHandled = true
             return@LaunchedEffect
         }
 
         repeat(3) { withFrameNanos { } }
 
-        val targetIndex = resolveReadPositionNodeIndex(
-            messageNodes = conversation.messageNodes,
-            nodeId = conversationReadPosition?.nodeId,
+        val targetNodeId = parseReadPositionNodeId(conversationReadPosition?.nodeId)
+        var latestConversation = vm.conversation.value
+        var targetIndex = resolveReadPositionNodeIndex(
+            messageNodes = latestConversation.messageNodes,
+            nodeId = targetNodeId?.toString(),
         )
+
+        var loadAttempts = 0
+        while (
+            targetNodeId != null &&
+            targetIndex < 0 &&
+            latestConversation.hasOlderHistoryNodes &&
+            loadAttempts < 12
+        ) {
+            val addedCount = vm.loadOlderHistoryNodes()
+            if (addedCount <= 0) break
+            latestConversation = vm.conversation.value
+            targetIndex = resolveReadPositionNodeIndex(
+                messageNodes = latestConversation.messageNodes,
+                nodeId = targetNodeId.toString(),
+            )
+            loadAttempts++
+            withFrameNanos { }
+        }
+
         val restored = if (targetIndex >= 0) {
             var applied = false
             val offset = conversationReadPosition?.offset?.coerceAtLeast(0) ?: 0
-            for (i in 0 until 15) {
+            for (i in 0 until 20) {
                 if (chatListState.layoutInfo.totalItemsCount > targetIndex) {
                     runCatching { chatListState.scrollToItem(targetIndex, offset) }
                     if (chatListState.firstVisibleItemIndex == targetIndex) {
@@ -685,9 +728,9 @@ private fun ChatPageContent(
         }
 
         if (!restored) {
-            val fallbackIndex = (conversation.messageNodes.lastIndex + 1).coerceAtLeast(0)
+            val fallbackIndex = (latestConversation.messageNodes.lastIndex + 1).coerceAtLeast(0)
             for (i in 0 until 15) {
-                if (chatListState.layoutInfo.totalItemsCount > fallbackIndex || conversation.messageNodes.isEmpty()) {
+                if (chatListState.layoutInfo.totalItemsCount > fallbackIndex || latestConversation.messageNodes.isEmpty()) {
                     runCatching { chatListState.scrollToItem(fallbackIndex) }
                     break
                 }
@@ -866,6 +909,19 @@ private fun ChatPageContent(
                         scope.launch {
                             val forkedConversation = vm.forkMessage(it)
                             navController.navigate(Screen.Chat(forkedConversation.id.toString()))
+                        }
+                    },
+                    canLoadOlderHistory = conversation.hasOlderHistoryNodes,
+                    loadingOlderHistory = loadingOlderHistory,
+                    onLoadOlderHistory = {
+                        scope.launch {
+                            val anchorIndex = chatListState.firstVisibleItemIndex
+                            val anchorOffset = chatListState.firstVisibleItemScrollOffset
+                            val addedCount = vm.loadOlderHistoryNodes()
+                            if (addedCount > 0) {
+                                val targetIndex = anchorIndex + addedCount
+                                runCatching { chatListState.scrollToItem(targetIndex, anchorOffset) }
+                            }
                         }
                     },
                     onJumpToMessage = { nodeId ->

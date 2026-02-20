@@ -424,6 +424,8 @@
     <string name="workdir_picker_new_folder_failed">Failed to create folder</string>
     <string name="chat_page_consolidate">Consolidate</string>
     <string name="chat_page_save">Save</string>
+    <string name="chat_page_load_older_messages">Load older messages</string>
+    <string name="chat_page_loading_older_messages">Loading older messages…</string>
     <string name="chat_page_scroll_to_bottom">Scroll to Bottom</string>
     <string name="chat_page_search_placeholder">Search chats</string>
     <string name="chat_page_today">Today</string>
