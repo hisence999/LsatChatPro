@@ -1049,6 +1049,7 @@ data class DisplaySetting(
     val showContextCompressionDivider: Boolean = true, // Show divider where older context has been summarized/compressed
     val embeddingRetrievalTimeoutSeconds: Int = 2, // Timeout for embedding-based retrieval (memories, tool results)
     val useLastTurnMemoryOnSkip: Boolean = true, // Reuse last injected memories when retrieval is skipped
+    val useJsonEditorForCustomRequest: Boolean = false, // Use JSON editor for custom headers/body in assistant/model advanced settings
 )
 
 fun DisplaySetting.coerceForConflicts(): DisplaySetting {

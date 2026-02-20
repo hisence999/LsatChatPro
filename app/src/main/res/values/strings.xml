@@ -98,6 +98,8 @@
     <string name="assistant_page_creative">Creative</string>
     <string name="assistant_page_custom_bodies">Custom Body</string>
     <string name="assistant_page_custom_headers">Custom Headers</string>
+    <string name="assistant_page_json_edit_mode">JSON Edit Mode</string>
+    <string name="assistant_page_json_editor_label">JSON</string>
     <string name="assistant_page_default_assistant">Default Assistant</string>
     <string name="assistant_page_group_appearance">Appearance</string>
     <string name="assistant_page_group_identity">Identity</string>
@@ -168,6 +170,7 @@
     <string name="scheduled_tasks_exact_timing_request">Enable exact alarms</string>
     <string name="scheduled_tasks_exact_timing_request_desc">Open system settings to allow exact alarms</string>
     <string name="assistant_page_invalid_json">Invalid JSON: %s</string>
+    <string name="assistant_page_json_must_be_object">JSON must be an object, e.g. {&quot;key&quot;:&quot;value&quot;}</string>
     <string name="assistant_page_local_tools_javascript_engine_desc">Use QuickJS engine to execute JavaScript code for calculations and scripting</string>
     <string name="assistant_page_local_tools_javascript_engine_title">JavaScript Engine</string>
     <string name="assistant_page_local_tools_python_engine_title">Python Engine</string>
@@ -636,6 +639,9 @@
     <string name="setting_display_page_embedding_retrieval_timeout_desc">If timeout, skip this retrieval. Unit: seconds</string>
     <string name="setting_display_page_use_last_turn_memory_title">Use Last Turn Memories</string>
     <string name="setting_display_page_use_last_turn_memory_desc">When memory retrieval is skipped, reuse memories injected in the last turn</string>
+    <string name="setting_advanced_page_custom_request_title">Custom Request</string>
+    <string name="setting_advanced_page_custom_request_json_mode_title">Raw JSON Editor</string>
+    <string name="setting_advanced_page_custom_request_json_mode_desc">Use a single text box to edit JSON for custom headers and body.</string>
     <string name="setting_display_page_mcp_tool_call_timeout_title">MCP Tool Call Timeout</string>
     <string name="setting_display_page_mcp_tool_call_timeout_desc">Unit: seconds</string>
     <string name="setting_display_page_show_updates_desc">Show app update notifications</string>
