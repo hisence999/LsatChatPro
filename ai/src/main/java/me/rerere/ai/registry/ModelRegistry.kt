@@ -18,7 +18,7 @@ object ModelRegistry {
     val GEMINI_2_5_FLASH = ModelMatcher.containsRegex("gemini-2.5-flash") and ModelMatcher.containsRegex("image", negated = true)
     val GEMINI_2_5_PRO = ModelMatcher.containsRegex("gemini-2.5-pro")
     val GEMINI_2_5_IMAGE = ModelMatcher.containsRegex("gemini-2.5-flash-image")
-    val GEMINI_3_PRO = ModelMatcher.containsRegex("gemini-3-pro")
+    val GEMINI_3_PRO = ModelMatcher.containsRegex("gemini-3(?:\\.1)?-pro")
     val GEMINI_3_FLASH = ModelMatcher.containsRegex("gemini-3-flash")
     val GEMINI_FLASH_LATEST = ModelMatcher.exact("gemini-flash-latest")
     val GEMINI_PRO_LATEST = ModelMatcher.exact("gemini-pro-latest")

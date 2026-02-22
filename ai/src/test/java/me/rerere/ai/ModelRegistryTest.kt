@@ -32,6 +32,17 @@ class ModelRegistryTest {
     }
 
     @Test
+    fun testGemini31Pro() {
+        val modelId = "gemini-3.1-pro"
+        assert(ModelRegistry.GEMINI_3_PRO.match(modelId))
+        assert(ModelRegistry.GEMINI_3_SERIES.match(modelId))
+        assert(ModelRegistry.GEMINI_SERIES.match(modelId))
+        assert(ModelRegistry.MODEL_INPUT_MODALITIES.getData(modelId) == listOf(Modality.TEXT, Modality.IMAGE))
+        assert(ModelRegistry.MODEL_ABILITIES.getData(modelId).contains(ModelAbility.TOOL))
+        assert(ModelRegistry.MODEL_ABILITIES.getData(modelId).contains(ModelAbility.REASONING))
+    }
+
+    @Test
     fun testClaude45() {
         assert(ModelRegistry.CLAUDE_4_5.match("claude-sonnet-4.5-20250929"))
         assert(ModelRegistry.CLAUDE_4_5.match("claude-4.5-sonnet"))
