@@ -241,12 +241,13 @@
     <string name="backup_page_object_storage_secret_access_key">秘密访问密钥</string>
     <string name="backup_page_object_storage_bucket">Bucket</string>
     <string name="backup_page_object_storage_region">区域</string>
-    <string name="backup_page_auto_backup">自动备份</string>
-    <string name="backup_page_auto_backup_desc">仅在应用处于前台且有网络时启动，备份会存到“auto”文件夹。</string>
+    <string name="backup_page_auto_backup">自动备份(Beta)</string>
+    <string name="backup_page_auto_backup_desc">仅在应用处于前台且有网络时启动，请注意流量消耗</string>
     <string name="backup_page_auto_interval_days">间隔（天）</string>
-    <string name="backup_page_auto_interval_days_desc">每 N 天自动备份一次。</string>
+    <string name="backup_page_auto_interval_days_desc">每 %d 天自动备份一次。</string>
     <string name="backup_page_auto_max_count">自动备份保留数</string>
-    <string name="backup_page_auto_max_count_desc">最多保留 N 份自动备份，超过会删除最旧的。</string>
+    <string name="backup_page_auto_max_count_desc">最多保留 %d 份自动备份，超过会删除最旧的。</string>
+    <string name="backup_page_auto_max_count_desc_unlimited">不删除历史备份</string>
     <string name="backup_page_auto_never">从未</string>
     <string name="backup_page_auto_last_success">上次自动备份：%s</string>
     <string name="backup_page_backup_logs">备份日志</string>

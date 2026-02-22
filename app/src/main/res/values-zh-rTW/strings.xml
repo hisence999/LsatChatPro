@@ -236,12 +236,13 @@
   <string name="backup_page_object_storage_secret_access_key">秘密存取金鑰</string>
   <string name="backup_page_object_storage_bucket">Bucket</string>
   <string name="backup_page_object_storage_region">區域</string>
-  <string name="backup_page_auto_backup">自動備份</string>
-  <string name="backup_page_auto_backup_desc">僅在 App 位於前台且有網路時啟動，備份會存到「auto」資料夾。</string>
+  <string name="backup_page_auto_backup">自動備份(Beta)</string>
+  <string name="backup_page_auto_backup_desc">僅在 App 處於前台且有網路時啟動，請注意流量消耗</string>
   <string name="backup_page_auto_interval_days">間隔（天）</string>
-  <string name="backup_page_auto_interval_days_desc">每 N 天自動備份一次。</string>
+  <string name="backup_page_auto_interval_days_desc">每 %d 天自動備份一次。</string>
   <string name="backup_page_auto_max_count">自動備份保留數</string>
-  <string name="backup_page_auto_max_count_desc">最多保留 N 份自動備份，超過會刪除最舊的。</string>
+  <string name="backup_page_auto_max_count_desc">最多保留 %d 份自動備份，超過會刪除最舊的。</string>
+  <string name="backup_page_auto_max_count_desc_unlimited">不刪除歷史備份</string>
   <string name="backup_page_auto_never">從未</string>
   <string name="backup_page_auto_last_success">上次自動備份：%s</string>
   <string name="backup_page_backup_logs">備份日誌</string>

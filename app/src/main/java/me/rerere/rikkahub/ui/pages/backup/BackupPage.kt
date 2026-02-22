@@ -376,7 +376,14 @@ private fun WebDavPage(
                 if (webDavConfig.autoEnabled) {
                     FormItem(
                         label = { Text(stringResource(R.string.backup_page_auto_interval_days)) },
-                        description = { Text(stringResource(R.string.backup_page_auto_interval_days_desc)) },
+                        description = {
+                            Text(
+                                stringResource(
+                                    R.string.backup_page_auto_interval_days_desc,
+                                    webDavConfig.autoIntervalDays
+                                )
+                            )
+                        },
                     ) {
                         var intervalDaysText by remember(webDavConfig.autoIntervalDays) {
                             mutableStateOf(webDavConfig.autoIntervalDays.toString())
@@ -401,7 +408,18 @@ private fun WebDavPage(
 
                     FormItem(
                         label = { Text(stringResource(R.string.backup_page_auto_max_count)) },
-                        description = { Text(stringResource(R.string.backup_page_auto_max_count_desc)) },
+                        description = {
+                            Text(
+                                if (webDavConfig.autoMaxCount <= 0) {
+                                    stringResource(R.string.backup_page_auto_max_count_desc_unlimited)
+                                } else {
+                                    stringResource(
+                                        R.string.backup_page_auto_max_count_desc,
+                                        webDavConfig.autoMaxCount
+                                    )
+                                }
+                            )
+                        },
                     ) {
                         var maxCountText by remember(webDavConfig.autoMaxCount) {
                             mutableStateOf(webDavConfig.autoMaxCount.toString())
@@ -413,7 +431,7 @@ private fun WebDavPage(
                             onValueChange = { value ->
                                 val filtered = value.filter { it.isDigit() }
                                 val parsed = filtered.toIntOrNull()
-                                val safe = parsed?.coerceAtLeast(1)
+                                val safe = parsed?.coerceAtLeast(0)
                                 maxCountText = (safe ?: filtered).toString()
                                 if (safe != null && safe != webDavConfig.autoMaxCount) {
                                     updateWebDavConfig(webDavConfig.copy(autoMaxCount = safe))
@@ -800,7 +818,14 @@ private fun ObjectStoragePage(
                 if (config.autoEnabled) {
                     FormItem(
                         label = { Text(stringResource(R.string.backup_page_auto_interval_days)) },
-                        description = { Text(stringResource(R.string.backup_page_auto_interval_days_desc)) },
+                        description = {
+                            Text(
+                                stringResource(
+                                    R.string.backup_page_auto_interval_days_desc,
+                                    config.autoIntervalDays
+                                )
+                            )
+                        },
                     ) {
                         var intervalDaysText by remember(config.autoIntervalDays) {
                             mutableStateOf(config.autoIntervalDays.toString())
@@ -825,7 +850,18 @@ private fun ObjectStoragePage(
 
                     FormItem(
                         label = { Text(stringResource(R.string.backup_page_auto_max_count)) },
-                        description = { Text(stringResource(R.string.backup_page_auto_max_count_desc)) },
+                        description = {
+                            Text(
+                                if (config.autoMaxCount <= 0) {
+                                    stringResource(R.string.backup_page_auto_max_count_desc_unlimited)
+                                } else {
+                                    stringResource(
+                                        R.string.backup_page_auto_max_count_desc,
+                                        config.autoMaxCount
+                                    )
+                                }
+                            )
+                        },
                     ) {
                         var maxCountText by remember(config.autoMaxCount) {
                             mutableStateOf(config.autoMaxCount.toString())
@@ -837,7 +873,7 @@ private fun ObjectStoragePage(
                             onValueChange = { value ->
                                 val filtered = value.filter { it.isDigit() }
                                 val parsed = filtered.toIntOrNull()
-                                val safe = parsed?.coerceAtLeast(1)
+                                val safe = parsed?.coerceAtLeast(0)
                                 maxCountText = (safe ?: filtered).toString()
                                 if (safe != null && safe != config.autoMaxCount) {
                                     updateConfig(config.copy(autoMaxCount = safe))

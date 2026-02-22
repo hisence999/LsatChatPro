@@ -214,7 +214,8 @@ class BackupCoordinator(
     }
 
     private suspend fun cleanupWebDavAutoBackups(config: WebDavConfig, maxCount: Int) {
-        val safeMax = maxCount.coerceAtLeast(1)
+        if (maxCount <= 0) return
+        val safeMax = maxCount
         val autoConfig = config.withSubfolder(AUTO_SUBFOLDER)
         try {
             val items = webdavSync.listBackupFiles(autoConfig)
@@ -289,7 +290,8 @@ class BackupCoordinator(
     }
 
     private suspend fun cleanupObjectStorageAutoBackups(config: ObjectStorageConfig, maxCount: Int) {
-        val safeMax = maxCount.coerceAtLeast(1)
+        if (maxCount <= 0) return
+        val safeMax = maxCount
         try {
             val items = objectStorageSync.listBackupFilesAuto(config, subfolder = AUTO_SUBFOLDER)
                 .asSequence()

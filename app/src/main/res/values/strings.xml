@@ -338,12 +338,13 @@
     <string name="backup_page_object_storage_secret_access_key">Secret Access Key</string>
     <string name="backup_page_object_storage_bucket">Bucket</string>
     <string name="backup_page_object_storage_region">Region</string>
-    <string name="backup_page_auto_backup">Auto Backup</string>
-    <string name="backup_page_auto_backup_desc">Starts when the app is in foreground and network is available. Saved to the "auto" folder.</string>
+    <string name="backup_page_auto_backup">Auto Backup (Beta)</string>
+    <string name="backup_page_auto_backup_desc">Starts only when the app is in foreground and network is available. Note: may use mobile data.</string>
     <string name="backup_page_auto_interval_days">Interval (Days)</string>
-    <string name="backup_page_auto_interval_days_desc">Back up once every N days.</string>
+    <string name="backup_page_auto_interval_days_desc">Back up once every %d days.</string>
     <string name="backup_page_auto_max_count">Max Auto Backups</string>
-    <string name="backup_page_auto_max_count_desc">Keep at most N auto backups. Oldest will be deleted.</string>
+    <string name="backup_page_auto_max_count_desc">Keep at most %d auto backups. Oldest will be deleted.</string>
+    <string name="backup_page_auto_max_count_desc_unlimited">Do not delete old backups.</string>
     <string name="backup_page_auto_never">Never</string>
     <string name="backup_page_auto_last_success">Last auto backup: %s</string>
     <string name="backup_page_backup_logs">Backup Logs</string>
