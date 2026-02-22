@@ -101,8 +101,9 @@ import kotlin.system.exitProcess
 
 @Composable
 fun BackupPage(vm: BackupVM = koinViewModel()) {
-    val pagerState = rememberPagerState { 4 }
+    val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
+    var showBackupLogs by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -111,6 +112,16 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                 },
                 navigationIcon = {
                     BackButton()
+                },
+                actions = {
+                    IconButton(
+                        onClick = { showBackupLogs = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = stringResource(R.string.backup_page_backup_logs),
+                        )
+                    }
                 }
             )
         },
@@ -152,18 +163,6 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                         scope.launch { pagerState.animateScrollToPage(2) }
                     },
                 )
-                NavigationBarItem(
-                    selected = pagerState.currentPage == 3,
-                    icon = {
-                        Icon(Icons.Rounded.History, null)
-                    },
-                    label = {
-                        Text(stringResource(R.string.backup_page_backup_logs))
-                    },
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(3) }
-                    },
-                )
             }
         }
     ) {
@@ -184,10 +183,25 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                 2 -> {
                     ImportExportPage(vm)
                 }
+            }
+        }
+    }
 
-                3 -> {
-                    BackupLogsPage(vm)
-                }
+    if (showBackupLogs) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showBackupLogs = false
+            },
+            sheetState = rememberModalBottomSheetState(
+                skipPartiallyExpanded = true
+            ),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
+            ) {
+                BackupLogsPage(vm)
             }
         }
     }
