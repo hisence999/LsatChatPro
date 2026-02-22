@@ -15,6 +15,8 @@ import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.backup.BackupCoordinator
+import me.rerere.rikkahub.data.backup.BackupLogManager
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.sync.WebDavBackupItem
@@ -31,6 +33,8 @@ class BackupVM(
     private val settingsStore: SettingsStore,
     private val webdavSync: WebdavSync,
     private val objectStorageSync: ObjectStorageSync,
+    private val backupCoordinator: BackupCoordinator,
+    private val backupLogManager: BackupLogManager,
 ) : ViewModel() {
     val settings = settingsStore.settingsFlow.stateIn(
         scope = viewModelScope,
@@ -40,6 +44,11 @@ class BackupVM(
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
     val objectStorageBackupItems = MutableStateFlow<UiState<List<ObjectStorageBackupItem>>>(UiState.Idle)
+    val backupLogs = backupLogManager.observeRecent().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
 
     init {
         loadBackupFileItems()
@@ -94,22 +103,19 @@ class BackupVM(
     }
 
     suspend fun backup() {
-        webdavSync.backupToWebDav(settings.value.webDavConfig)
+        backupCoordinator.manualBackupWebDav()
     }
 
     suspend fun backupToObjectStorage() {
-        objectStorageSync.backupNow(settings.value.objectStorageConfig)
+        backupCoordinator.manualBackupObjectStorage()
     }
 
     suspend fun restore(item: WebDavBackupItem): WebdavSync.RestoreResult {
-        return webdavSync.restoreFromWebDav(webDavConfig = settings.value.webDavConfig, item = item)
+        return backupCoordinator.restoreWebDav(item)
     }
 
     suspend fun restoreFromObjectStorage(item: ObjectStorageBackupItem): WebdavSync.RestoreResult {
-        return objectStorageSync.restoreFromObjectStorage(
-            config = settings.value.objectStorageConfig,
-            item = item,
-        )
+        return backupCoordinator.restoreObjectStorage(item)
     }
 
     suspend fun deleteWebDavBackupFile(item: WebDavBackupItem) {
@@ -121,11 +127,17 @@ class BackupVM(
     }
 
     suspend fun exportToFile(): File {
-        return webdavSync.prepareBackupFile(settings.value.webDavConfig.copy())
+        return backupCoordinator.exportToFile()
     }
 
     suspend fun restoreFromLocalFile(file: File): WebdavSync.RestoreResult {
-        return webdavSync.restoreFromLocalFile(file, settings.value.webDavConfig)
+        return backupCoordinator.restoreFromLocalFile(file)
+    }
+
+    fun clearBackupLogs() {
+        viewModelScope.launch {
+            backupLogManager.clearAll()
+        }
     }
     
     fun restartApp(context: android.content.Context) {

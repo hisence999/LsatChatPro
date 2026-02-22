@@ -12,10 +12,12 @@ import at.bitfire.dav4jvm.property.webdav.GetLastModified
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import me.rerere.rikkahub.data.backup.BackupRemoteResult
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.datastore.sanitize
+import me.rerere.rikkahub.data.db.AppDatabase
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -36,6 +38,7 @@ class WebdavSync(
     private val settingsStore: SettingsStore,
     private val json: Json,
     private val context: Context,
+    private val database: AppDatabase,
 ) {
     suspend fun testWebdav(webDavConfig: WebDavConfig) {
         val davCollection = DavCollection(
@@ -54,13 +57,44 @@ class WebdavSync(
 
     suspend fun backupToWebDav(webDavConfig: WebDavConfig) = withContext(Dispatchers.IO) {
         val file = prepareBackupFile(webDavConfig)
-        val collection = webDavConfig.requireCollection()
-        collection.ensureCollectionExists() // ensure collection exists
-        val target = webDavConfig.requireCollection(file.name)
-        target.put(
-            body = file.asRequestBody(),
-        ) { response ->
-            Log.i(TAG, "backupToWebDav: $response")
+        try {
+            val collection = webDavConfig.requireCollection()
+            collection.ensureCollectionExists() // ensure collection exists
+            val target = webDavConfig.requireCollection(file.name)
+            target.put(
+                body = file.asRequestBody(),
+            ) { response ->
+                Log.i(TAG, "backupToWebDav: $response")
+            }
+        } finally {
+            runCatching { file.delete() }
+        }
+    }
+
+    suspend fun backupToWebDavAuto(
+        webDavConfig: WebDavConfig,
+        subfolder: String,
+    ): BackupRemoteResult = withContext(Dispatchers.IO) {
+        val file = prepareBackupFile(webDavConfig)
+        try {
+            // Ensure base folder exists first, then ensure the subfolder exists.
+            webDavConfig.requireCollection().ensureCollectionExists()
+            val autoConfig = webDavConfig.copy(path = joinPath(webDavConfig.path, subfolder))
+            autoConfig.requireCollection().ensureCollectionExists()
+
+            val target = autoConfig.requireCollection(file.name)
+            target.put(
+                body = file.asRequestBody(),
+            ) { response ->
+                Log.i(TAG, "backupToWebDavAuto: $response")
+            }
+
+            BackupRemoteResult(
+                fileName = file.name,
+                fileSizeBytes = file.length(),
+            )
+        } finally {
+            runCatching { file.delete() }
         }
     }
 
@@ -75,6 +109,7 @@ class WebdavSync(
                 if (relation == Response.HrefRelation.MEMBER) {
                     val displayName = response.properties.filterIsInstance<DisplayName>()
                         .firstOrNull()?.displayName ?: "Unknown"
+                    if (!displayName.endsWith(".zip")) return@propfind
                     val size = response.properties.filterIsInstance<GetContentLength>()
                         .firstOrNull()?.contentLength ?: 0L
                     val lastModified = response.properties.filterIsInstance<GetLastModified>()
@@ -181,7 +216,7 @@ class WebdavSync(
         }
 
     suspend fun prepareBackupFile(webDavConfig: WebDavConfig): File = withContext(Dispatchers.IO) {
-        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
         val backupFile = File(
             context.cacheDir,
             "LastChat_backup_$timestamp.zip"
@@ -200,22 +235,33 @@ class WebdavSync(
 
             // 备份数据库
             if (webDavConfig.items.contains(WebDavConfig.BackupItem.DATABASE)) {
-                // 备份主数据库文件
-                val dbFile = context.getDatabasePath("rikka_hub")
-                if (dbFile.exists()) {
-                    addFileToZip(zipOut, dbFile, "rikka_hub.db")
-                }
+                val snapshotFile = File(context.cacheDir, "rikka_hub_snapshot_$timestamp")
+                if (snapshotFile.exists()) snapshotFile.delete()
 
-                // 备份数据库的WAL文件（如果存在）
-                val walFile = File(dbFile.parentFile, "rikka_hub-wal")
-                if (walFile.exists()) {
-                    addFileToZip(zipOut, walFile, "rikka_hub-wal")
-                }
+                val snapshotOk = runCatching {
+                    exportDatabaseSnapshot(snapshotFile)
+                }.isSuccess && snapshotFile.exists()
 
-                // 备份数据库的SHM文件（如果存在）
-                val shmFile = File(dbFile.parentFile, "rikka_hub-shm")
-                if (shmFile.exists()) {
-                    addFileToZip(zipOut, shmFile, "rikka_hub-shm")
+                if (snapshotOk) {
+                    addFileToZip(zipOut, snapshotFile, "rikka_hub.db")
+                    snapshotFile.delete()
+                } else {
+                    if (snapshotFile.exists()) snapshotFile.delete()
+                    // Fallback: copy db file + wal/shm (may be inconsistent if the DB is being written).
+                    val dbFile = context.getDatabasePath("rikka_hub")
+                    if (dbFile.exists()) {
+                        addFileToZip(zipOut, dbFile, "rikka_hub.db")
+                    }
+
+                    val walFile = File(dbFile.parentFile, "rikka_hub-wal")
+                    if (walFile.exists()) {
+                        addFileToZip(zipOut, walFile, "rikka_hub-wal")
+                    }
+
+                    val shmFile = File(dbFile.parentFile, "rikka_hub-shm")
+                    if (shmFile.exists()) {
+                        addFileToZip(zipOut, shmFile, "rikka_hub-shm")
+                    }
                 }
             }
 
@@ -229,7 +275,11 @@ class WebdavSync(
                     )
                     uploadFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
-                            addFileToZip(zipOut, file, "upload/${file.name}")
+                            runCatching {
+                                addFileToZip(zipOut, file, "upload/${file.name}")
+                            }.onFailure { err ->
+                                Log.w(TAG, "prepareBackupFile: Skip upload/${file.name}: ${err.message}")
+                            }
                         }
                     }
                 } else {
@@ -248,7 +298,11 @@ class WebdavSync(
                     )
                     avatarsFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
-                            addFileToZip(zipOut, file, "avatars/${file.name}")
+                            runCatching {
+                                addFileToZip(zipOut, file, "avatars/${file.name}")
+                            }.onFailure { err ->
+                                Log.w(TAG, "prepareBackupFile: Skip avatars/${file.name}: ${err.message}")
+                            }
                         }
                     }
                 } else {
@@ -267,7 +321,11 @@ class WebdavSync(
                     )
                     imagesFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
-                            addFileToZip(zipOut, file, "images/${file.name}")
+                            runCatching {
+                                addFileToZip(zipOut, file, "images/${file.name}")
+                            }.onFailure { err ->
+                                Log.w(TAG, "prepareBackupFile: Skip images/${file.name}: ${err.message}")
+                            }
                         }
                     }
                 } else {
@@ -295,6 +353,11 @@ class WebdavSync(
         }
 
         backupFile
+    }
+
+    private fun exportDatabaseSnapshot(targetFile: File) {
+        val path = targetFile.absolutePath.replace("'", "''")
+        database.openHelper.writableDatabase.execSQL("VACUUM INTO '$path'")
     }
 
 
@@ -557,7 +620,11 @@ private fun addDirectoryToZip(zipOut: ZipOutputStream, dir: File, entryPrefix: S
             val relPath = runCatching { file.relativeTo(dir).path.replace('\\', '/') }.getOrNull()
                 ?: return@forEach
             if (relPath.isBlank()) return@forEach
-            addFileToZip(zipOut, file, "$prefix/$relPath")
+            runCatching {
+                addFileToZip(zipOut, file, "$prefix/$relPath")
+            }.onFailure { err ->
+                Log.w(TAG, "addDirectoryToZip: Skip $prefix/$relPath: ${err.message}")
+            }
         }
 }
 
@@ -601,6 +668,16 @@ private fun WebDavConfig.requireCollection(path: String? = null): DavCollection 
         location = location,
     )
     return davCollection
+}
+
+private fun joinPath(base: String, child: String): String {
+    val baseTrimmed = base.trim().trim('/')
+    val childTrimmed = child.trim().trim('/')
+    return when {
+        baseTrimmed.isBlank() -> childTrimmed
+        childTrimmed.isBlank() -> baseTrimmed
+        else -> "$baseTrimmed/$childTrimmed"
+    }
 }
 
 private suspend fun DavCollection.ensureCollectionExists() = withContext(Dispatchers.IO) {

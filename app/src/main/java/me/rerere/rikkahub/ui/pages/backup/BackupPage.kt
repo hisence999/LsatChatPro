@@ -57,8 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.Icons
@@ -68,6 +70,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.SystemUpdateAlt
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import me.rerere.rikkahub.ui.components.ui.ToastType
@@ -79,6 +82,7 @@ import me.rerere.rikkahub.data.sync.ObjectStorageBackupItem
 import me.rerere.rikkahub.data.sync.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.HapticSwitch
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -90,13 +94,14 @@ import org.koin.androidx.compose.koinViewModel
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
 
 @Composable
 fun BackupPage(vm: BackupVM = koinViewModel()) {
-    val pagerState = rememberPagerState { 3 }
+    val pagerState = rememberPagerState { 4 }
     val scope = rememberCoroutineScope()
     Scaffold(
         topBar = {
@@ -147,6 +152,18 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                         scope.launch { pagerState.animateScrollToPage(2) }
                     },
                 )
+                NavigationBarItem(
+                    selected = pagerState.currentPage == 3,
+                    icon = {
+                        Icon(Icons.Rounded.History, null)
+                    },
+                    label = {
+                        Text(stringResource(R.string.backup_page_backup_logs))
+                    },
+                    onClick = {
+                        scope.launch { pagerState.animateScrollToPage(3) }
+                    },
+                )
             }
         }
     ) {
@@ -166,6 +183,10 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
 
                 2 -> {
                     ImportExportPage(vm)
+                }
+
+                3 -> {
+                    BackupLogsPage(vm)
                 }
             }
         }
@@ -312,6 +333,97 @@ private fun WebDavPage(
                         }
                     }
                 }
+            }
+        }
+
+        Card(
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FormItem(
+                    label = { Text(stringResource(R.string.backup_page_auto_backup)) },
+                    description = { Text(stringResource(R.string.backup_page_auto_backup_desc)) },
+                    tail = {
+                        HapticSwitch(
+                            checked = webDavConfig.autoEnabled,
+                            onCheckedChange = { enabled ->
+                                updateWebDavConfig(webDavConfig.copy(autoEnabled = enabled))
+                            }
+                        )
+                    }
+                )
+
+                if (webDavConfig.autoEnabled) {
+                    FormItem(
+                        label = { Text(stringResource(R.string.backup_page_auto_interval_days)) },
+                        description = { Text(stringResource(R.string.backup_page_auto_interval_days_desc)) },
+                    ) {
+                        var intervalDaysText by remember(webDavConfig.autoIntervalDays) {
+                            mutableStateOf(webDavConfig.autoIntervalDays.toString())
+                        }
+
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = intervalDaysText,
+                            onValueChange = { value ->
+                                val filtered = value.filter { it.isDigit() }
+                                val parsed = filtered.toIntOrNull()
+                                val safe = parsed?.coerceAtLeast(1)
+                                intervalDaysText = (safe ?: filtered).toString()
+                                if (safe != null && safe != webDavConfig.autoIntervalDays) {
+                                    updateWebDavConfig(webDavConfig.copy(autoIntervalDays = safe))
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                    }
+
+                    FormItem(
+                        label = { Text(stringResource(R.string.backup_page_auto_max_count)) },
+                        description = { Text(stringResource(R.string.backup_page_auto_max_count_desc)) },
+                    ) {
+                        var maxCountText by remember(webDavConfig.autoMaxCount) {
+                            mutableStateOf(webDavConfig.autoMaxCount.toString())
+                        }
+
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = maxCountText,
+                            onValueChange = { value ->
+                                val filtered = value.filter { it.isDigit() }
+                                val parsed = filtered.toIntOrNull()
+                                val safe = parsed?.coerceAtLeast(1)
+                                maxCountText = (safe ?: filtered).toString()
+                                if (safe != null && safe != webDavConfig.autoMaxCount) {
+                                    updateWebDavConfig(webDavConfig.copy(autoMaxCount = safe))
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                    }
+                }
+
+                val lastSuccessText = webDavConfig.lastAutoSuccessAt
+                    ?.let { ts ->
+                        Instant.ofEpochMilli(ts)
+                            .toLocalDateTime()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                    }
+                    ?: stringResource(R.string.backup_page_auto_never)
+
+                Text(
+                    text = stringResource(R.string.backup_page_auto_last_success, lastSuccessText),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -648,6 +760,97 @@ private fun ObjectStoragePage(
             }
         }
 
+        Card(
+            shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = if (me.rerere.rikkahub.ui.theme.LocalDarkMode.current) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FormItem(
+                    label = { Text(stringResource(R.string.backup_page_auto_backup)) },
+                    description = { Text(stringResource(R.string.backup_page_auto_backup_desc)) },
+                    tail = {
+                        HapticSwitch(
+                            checked = config.autoEnabled,
+                            onCheckedChange = { enabled ->
+                                updateConfig(config.copy(autoEnabled = enabled))
+                            }
+                        )
+                    }
+                )
+
+                if (config.autoEnabled) {
+                    FormItem(
+                        label = { Text(stringResource(R.string.backup_page_auto_interval_days)) },
+                        description = { Text(stringResource(R.string.backup_page_auto_interval_days_desc)) },
+                    ) {
+                        var intervalDaysText by remember(config.autoIntervalDays) {
+                            mutableStateOf(config.autoIntervalDays.toString())
+                        }
+
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = intervalDaysText,
+                            onValueChange = { value ->
+                                val filtered = value.filter { it.isDigit() }
+                                val parsed = filtered.toIntOrNull()
+                                val safe = parsed?.coerceAtLeast(1)
+                                intervalDaysText = (safe ?: filtered).toString()
+                                if (safe != null && safe != config.autoIntervalDays) {
+                                    updateConfig(config.copy(autoIntervalDays = safe))
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                    }
+
+                    FormItem(
+                        label = { Text(stringResource(R.string.backup_page_auto_max_count)) },
+                        description = { Text(stringResource(R.string.backup_page_auto_max_count_desc)) },
+                    ) {
+                        var maxCountText by remember(config.autoMaxCount) {
+                            mutableStateOf(config.autoMaxCount.toString())
+                        }
+
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = maxCountText,
+                            onValueChange = { value ->
+                                val filtered = value.filter { it.isDigit() }
+                                val parsed = filtered.toIntOrNull()
+                                val safe = parsed?.coerceAtLeast(1)
+                                maxCountText = (safe ?: filtered).toString()
+                                if (safe != null && safe != config.autoMaxCount) {
+                                    updateConfig(config.copy(autoMaxCount = safe))
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                    }
+                }
+
+                val lastSuccessText = config.lastAutoSuccessAt
+                    ?.let { ts ->
+                        Instant.ofEpochMilli(ts)
+                            .toLocalDateTime()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                    }
+                    ?: stringResource(R.string.backup_page_auto_never)
+
+                Text(
+                    text = stringResource(R.string.backup_page_auto_last_success, lastSuccessText),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
@@ -979,6 +1182,129 @@ private fun ObjectStorageBackupItemCard(
 }
 
 @Composable
+private fun BackupLogsPage(
+    vm: BackupVM,
+) {
+    val logs by vm.backupLogs.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val toaster = LocalToaster.current
+    val context = LocalContext.current
+
+    fun triggerText(trigger: String): String = when (trigger) {
+        "AUTO" -> context.getString(R.string.backup_log_trigger_auto)
+        "MANUAL" -> context.getString(R.string.backup_log_trigger_manual)
+        else -> trigger
+    }
+
+    fun backendText(backend: String): String = when (backend) {
+        "WEBDAV" -> context.getString(R.string.backup_log_backend_webdav)
+        "OBJECT_STORAGE" -> context.getString(R.string.backup_log_backend_object_storage)
+        else -> backend
+    }
+
+    fun statusText(status: String): String = when (status) {
+        "SUCCESS" -> context.getString(R.string.backup_log_status_success)
+        "FAILED" -> context.getString(R.string.backup_log_status_failed)
+        "SKIPPED" -> context.getString(R.string.backup_log_status_skipped)
+        else -> status
+    }
+
+    val statusSuccessColor = MaterialTheme.colorScheme.primary
+    val statusFailedColor = MaterialTheme.colorScheme.error
+    val statusNeutralColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    fun statusColor(status: String): Color = when (status) {
+        "SUCCESS" -> statusSuccessColor
+        "FAILED" -> statusFailedColor
+        else -> statusNeutralColor
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        stickyHeader {
+            StickyHeader {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.backup_page_backup_logs))
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                vm.clearBackupLogs()
+                                toaster.show(
+                                    context.getString(R.string.backup_page_backup_logs_cleared),
+                                    type = ToastType.Success
+                                )
+                            }
+                        },
+                        enabled = logs.isNotEmpty()
+                    ) {
+                        Text(stringResource(R.string.backup_page_backup_logs_clear))
+                    }
+                }
+            }
+        }
+
+        if (logs.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.backup_page_backup_logs_empty),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(
+                items = logs,
+                key = { it.id }
+            ) { log ->
+                val timeText = Instant.ofEpochMilli(log.createdAt)
+                    .toLocalDateTime()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+
+                Card(
+                    shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = if (LocalDarkMode.current) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = "${triggerText(log.trigger)} · ${backendText(log.backend)} · ${statusText(log.status)}",
+                                color = statusColor(log.status),
+                            )
+                        },
+                        supportingContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(log.message)
+                                Text(
+                                    text = timeText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (!log.error.isNullOrBlank()) {
+                                    Text(
+                                        text = log.error,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ImportExportPage(
     vm: BackupVM
 ) {
@@ -1097,7 +1423,7 @@ private fun ImportExportPage(
                 onClick = {
                     if (!isExporting) {
                         val timestamp = LocalDateTime.now()
-                            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
                         createDocumentLauncher.launch("LastChat_backup_$timestamp.zip")
                     }
                 }

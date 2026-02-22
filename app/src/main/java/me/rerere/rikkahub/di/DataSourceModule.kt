@@ -86,6 +86,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().backupLogDao()
+    }
+
+    single {
         get<AppDatabase>().scheduledTaskDao()
     }
 
@@ -150,7 +154,7 @@ val dataSourceModule = module {
     }
 
     single {
-        WebdavSync(settingsStore = get(), json = get(), context = get())
+        WebdavSync(settingsStore = get(), json = get(), context = get(), database = get())
     }
 
     single {

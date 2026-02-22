@@ -1081,6 +1081,11 @@ data class WebDavConfig(
     val username: String = "",
     val password: String = "",
     val path: String = "lastchat_backups",
+    // Auto backup (starts only when app is foreground)
+    val autoEnabled: Boolean = false,
+    val autoIntervalDays: Int = 7,
+    val autoMaxCount: Int = 7,
+    val lastAutoSuccessAt: Long? = null,
     val items: List<BackupItem> = listOf(
         BackupItem.DATABASE,
         BackupItem.FILES
@@ -1100,6 +1105,11 @@ data class ObjectStorageConfig(
     val secretAccessKey: String = "",
     val bucket: String = "",
     val region: String = "",
+    // Auto backup (starts only when app is foreground)
+    val autoEnabled: Boolean = false,
+    val autoIntervalDays: Int = 7,
+    val autoMaxCount: Int = 7,
+    val lastAutoSuccessAt: Long? = null,
     val items: List<WebDavConfig.BackupItem> = listOf(
         WebDavConfig.BackupItem.DATABASE,
         WebDavConfig.BackupItem.FILES

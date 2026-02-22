@@ -9,8 +9,12 @@ import me.rerere.highlight.Highlighter
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.AILoggingManager
 import me.rerere.rikkahub.data.ai.AIRequestLogManager
+import me.rerere.rikkahub.data.backup.BackupCoordinator
+import me.rerere.rikkahub.data.backup.BackupLogManager
+import me.rerere.rikkahub.data.backup.BackupTaskMutex
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.AutoBackupScheduler
 import me.rerere.rikkahub.service.ModelNameGenerationService
 import me.rerere.rikkahub.service.WelcomePhrasesService
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskScheduler
@@ -66,6 +70,34 @@ val appModule = module {
 
     single {
         AIRequestLogManager(dao = get())
+    }
+
+    single {
+        BackupLogManager(dao = get())
+    }
+
+    single {
+        BackupTaskMutex()
+    }
+
+    single {
+        BackupCoordinator(
+            context = get(),
+            settingsStore = get(),
+            webdavSync = get(),
+            objectStorageSync = get(),
+            backupLogManager = get(),
+            backupTaskMutex = get(),
+        )
+    }
+
+    single {
+        AutoBackupScheduler(
+            context = get(),
+            appScope = get(),
+            backupCoordinator = get(),
+            settingsStore = get(),
+        )
     }
 
     single {

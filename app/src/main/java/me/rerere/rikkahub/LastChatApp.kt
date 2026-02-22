@@ -43,6 +43,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import me.rerere.rikkahub.service.MemoryConsolidationWorker
 import me.rerere.rikkahub.service.SpontaneousWorker
+import me.rerere.rikkahub.service.AutoBackupScheduler
 import me.rerere.rikkahub.service.scheduledtask.ScheduledTaskRescheduleWorker
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
@@ -89,6 +90,9 @@ class LastChatApp : Application(), SingletonImageLoader.Factory {
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
         this.createNotificationChannel()
+
+        // Foreground-only auto backup scheduler
+        get<AutoBackupScheduler>()
 
         // set cursor window size
         DatabaseUtil.setCursorWindowSize(16 * 1024 * 1024)

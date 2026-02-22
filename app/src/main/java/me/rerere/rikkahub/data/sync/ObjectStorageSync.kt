@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Xml
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.backup.BackupRemoteResult
 import me.rerere.rikkahub.data.datastore.ObjectStorageConfig
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import okhttp3.HttpUrl
@@ -91,26 +92,70 @@ class ObjectStorageSync(
         val backupFile = webdavSync.prepareBackupFile(
             webDavConfig = WebDavConfig(items = config.items)
         )
-        val key = "${DEFAULT_BACKUP_PREFIX.trim('/')}/${backupFile.name}"
-        val url = buildObjectUrl(config = config, key = key)
-        val payloadSha256Hex = sha256HexOfFile(backupFile)
+        try {
+            val key = "${DEFAULT_BACKUP_PREFIX.trim('/')}/${backupFile.name}"
+            val url = buildObjectUrl(config = config, key = key)
+            val payloadSha256Hex = sha256HexOfFile(backupFile)
 
-        val request = buildSignedRequest(
-            config = config,
-            method = "PUT",
-            url = url,
-            payloadSha256Hex = payloadSha256Hex,
-            body = backupFile.asRequestBody("application/zip".toMediaTypeOrNull()),
-            extraHeaders = mapOf(
-                "Content-Type" to "application/zip",
-            ),
-        )
+            val request = buildSignedRequest(
+                config = config,
+                method = "PUT",
+                url = url,
+                payloadSha256Hex = payloadSha256Hex,
+                body = backupFile.asRequestBody("application/zip".toMediaTypeOrNull()),
+                extraHeaders = mapOf(
+                    "Content-Type" to "application/zip",
+                ),
+            )
 
-        httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                val body = response.body?.string()?.take(2048).orEmpty()
-                throw Exception("Backup failed (${response.code}): ${body.ifBlank { response.message }}")
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val body = response.body?.string()?.take(2048).orEmpty()
+                    throw Exception("Backup failed (${response.code}): ${body.ifBlank { response.message }}")
+                }
             }
+        } finally {
+            runCatching { backupFile.delete() }
+        }
+    }
+
+    suspend fun backupNowAuto(
+        config: ObjectStorageConfig,
+        subfolder: String,
+    ): BackupRemoteResult = withContext(Dispatchers.IO) {
+        val backupFile = webdavSync.prepareBackupFile(
+            webDavConfig = WebDavConfig(items = config.items)
+        )
+        try {
+            val prefix = joinPath(DEFAULT_BACKUP_PREFIX, subfolder)
+            val key = "${prefix.trim('/')}/${backupFile.name}"
+            val url = buildObjectUrl(config = config, key = key)
+            val payloadSha256Hex = sha256HexOfFile(backupFile)
+
+            val request = buildSignedRequest(
+                config = config,
+                method = "PUT",
+                url = url,
+                payloadSha256Hex = payloadSha256Hex,
+                body = backupFile.asRequestBody("application/zip".toMediaTypeOrNull()),
+                extraHeaders = mapOf(
+                    "Content-Type" to "application/zip",
+                ),
+            )
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val body = response.body?.string()?.take(2048).orEmpty()
+                    throw Exception("Backup failed (${response.code}): ${body.ifBlank { response.message }}")
+                }
+            }
+
+            BackupRemoteResult(
+                fileName = backupFile.name,
+                fileSizeBytes = backupFile.length(),
+            )
+        } finally {
+            runCatching { backupFile.delete() }
         }
     }
 
@@ -149,6 +194,45 @@ class ObjectStorageSync(
                     .toList()
             }
         }
+
+    suspend fun listBackupFilesAuto(
+        config: ObjectStorageConfig,
+        subfolder: String,
+    ): List<ObjectStorageBackupItem> = withContext(Dispatchers.IO) {
+        val prefix = joinPath(DEFAULT_BACKUP_PREFIX, subfolder)
+        val url = buildBucketUrl(
+            config = config,
+            queryParams = listOf(
+                "list-type" to "2",
+                "prefix" to "${prefix.trimEnd('/')}/",
+            ),
+        )
+        val request = buildSignedRequest(
+            config = config,
+            method = "GET",
+            url = url,
+            payloadSha256Hex = EMPTY_SHA256_HEX,
+            body = null,
+            extraHeaders = emptyMap(),
+        )
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string()?.take(2048).orEmpty()
+                throw Exception("Failed to list backups (${response.code}): ${body.ifBlank { response.message }}")
+            }
+
+            val bodyStream = response.body?.byteStream()
+                ?: throw Exception("Empty response body")
+            parseListObjectsV2Response(bodyStream)
+                .asSequence()
+                .filter { item ->
+                    item.displayName.startsWith("LastChat_backup_") && item.displayName.endsWith(".zip")
+                }
+                .sortedByDescending { it.lastModified }
+                .toList()
+        }
+    }
 
     suspend fun deleteBackupFile(config: ObjectStorageConfig, item: ObjectStorageBackupItem) =
         withContext(Dispatchers.IO) {
@@ -500,4 +584,14 @@ private fun parseListObjectsV2Response(inputStream: java.io.InputStream): List<O
     }
 
     return items
+}
+
+private fun joinPath(base: String, child: String): String {
+    val baseTrimmed = base.trim().trim('/')
+    val childTrimmed = child.trim().trim('/')
+    return when {
+        baseTrimmed.isBlank() -> childTrimmed
+        childTrimmed.isBlank() -> baseTrimmed
+        else -> "$baseTrimmed/$childTrimmed"
+    }
 }

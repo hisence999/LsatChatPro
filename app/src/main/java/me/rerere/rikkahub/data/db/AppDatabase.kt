@@ -15,6 +15,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.ChatEpisodeDAO
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.AIRequestLogDao
+import me.rerere.rikkahub.data.db.dao.BackupLogDao
 import me.rerere.rikkahub.data.db.dao.DailyActivityDAO
 import me.rerere.rikkahub.data.db.dao.EmbeddingCacheDAO
 import me.rerere.rikkahub.data.db.dao.LorebookEntryRevisionDao
@@ -25,6 +26,7 @@ import me.rerere.rikkahub.data.db.dao.ScheduledTaskRunDao
 import me.rerere.rikkahub.data.db.dao.ToolResultArchiveDao
 import me.rerere.rikkahub.data.db.dao.ToolResultArchiveChunkDao
 import me.rerere.rikkahub.data.db.entity.AIRequestLogEntity
+import me.rerere.rikkahub.data.db.entity.BackupLogEntity
 import me.rerere.rikkahub.data.db.entity.ChatEpisodeEntity
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.DailyActivityEntity
@@ -49,12 +51,13 @@ import me.rerere.rikkahub.utils.JsonInstant
         ToolResultArchiveEntity::class,
         ToolResultArchiveChunkEntity::class,
         AIRequestLogEntity::class,
+        BackupLogEntity::class,
         ScheduledTaskEntity::class,
         ScheduledTaskRunEntity::class,
         DailyActivityEntity::class,
         LorebookEntryRevisionEntity::class,
     ],
-    version = 33,
+    version = 34,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -85,6 +88,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 30, to = 31),
         AutoMigration(from = 31, to = 32),
         AutoMigration(from = 32, to = 33),
+        AutoMigration(from = 33, to = 34),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -104,6 +108,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun toolResultArchiveChunkDao(): ToolResultArchiveChunkDao
 
     abstract fun aiRequestLogDao(): AIRequestLogDao
+
+    abstract fun backupLogDao(): BackupLogDao
 
     abstract fun scheduledTaskDao(): ScheduledTaskDao
 
