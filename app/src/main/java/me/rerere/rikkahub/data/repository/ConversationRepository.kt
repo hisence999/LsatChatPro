@@ -49,7 +49,6 @@ class ConversationRepository(
     companion object {
         private const val PAGE_SIZE = 20
         private const val INITIAL_LOAD_SIZE = 40
-        private const val HUGE_NODES_JSON_THRESHOLD_CHARS = 1_500_000
         private const val MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT = 320
     }
 
@@ -529,35 +528,44 @@ class ConversationRepository(
     }
 
     private fun decodeMessageNodesSafely(nodesJson: String): DecodedNodeWindow {
-        if (nodesJson.length <= HUGE_NODES_JSON_THRESHOLD_CHARS) {
-            val nodes = decodeMessageNodesFromJson(nodesJson)
-            return DecodedNodeWindow(
-                nodes = nodes,
-                startIndex = 0,
-                totalCount = nodes.size,
-            )
-        }
-
         val ranges = parseJsonArrayElementRanges(nodesJson)
-        if (ranges == null) {
-            val nodes = decodeMessageNodesFromJson(nodesJson)
+        if (ranges != null) {
+            val total = ranges.size
+            val start = (total - MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT).coerceAtLeast(0)
+            if (start <= 0) {
+                val nodes = decodeMessageNodesFromJson(nodesJson)
+                return DecodedNodeWindow(
+                    nodes = nodes,
+                    startIndex = 0,
+                    totalCount = maxOf(total, nodes.size),
+                )
+            }
+
+            val selectedRanges = ranges.subList(start, total)
+            val safeJson = buildJsonArrayFromRanges(nodesJson, selectedRanges)
+            val nodes = decodeMessageNodesFromJson(safeJson)
             return DecodedNodeWindow(
                 nodes = nodes,
-                startIndex = 0,
-                totalCount = nodes.size,
+                startIndex = start,
+                totalCount = total,
+            )
+        } else {
+            val nodes = decodeMessageNodesFromJson(nodesJson)
+            val total = nodes.size
+            if (total <= MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT) {
+                return DecodedNodeWindow(
+                    nodes = nodes,
+                    startIndex = 0,
+                    totalCount = total,
+                )
+            }
+            val start = total - MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT
+            return DecodedNodeWindow(
+                nodes = nodes.subList(start, total),
+                startIndex = start,
+                totalCount = total,
             )
         }
-
-        val total = ranges.size
-        val start = (total - MAX_LOADED_MESSAGE_NODES_FOR_HUGE_CHAT).coerceAtLeast(0)
-        val selectedRanges = if (start < total) ranges.subList(start, total) else emptyList()
-        val safeJson = buildJsonArrayFromRanges(nodesJson, selectedRanges)
-        val nodes = decodeMessageNodesFromJson(safeJson)
-        return DecodedNodeWindow(
-            nodes = nodes,
-            startIndex = start,
-            totalCount = total,
-        )
     }
 
     private fun decodeMessageNodesFromJson(nodesJson: String): List<MessageNode> {

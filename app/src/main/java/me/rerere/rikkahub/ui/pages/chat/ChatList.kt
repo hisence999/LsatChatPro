@@ -281,12 +281,17 @@ private fun SharedTransitionScope.ChatListNormal(
             Unit
         }
     }
-    val canTriggerLoadOlder by remember(state, canLoadOlderHistory, loadingOlderHistory) {
+    val isAtListTop by remember(state) {
+        derivedStateOf {
+            !state.canScrollBackward ||
+                (state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset <= 20)
+        }
+    }
+    val canTriggerLoadOlder by remember(canLoadOlderHistory, loadingOlderHistory, isAtListTop) {
         derivedStateOf {
             canLoadOlderHistory &&
                 !loadingOlderHistory &&
-                state.firstVisibleItemIndex == 0 &&
-                state.firstVisibleItemScrollOffset <= 20
+                isAtListTop
         }
     }
 
@@ -598,7 +603,7 @@ private fun SharedTransitionScope.ChatListNormal(
             )
 
             AnimatedVisibility(
-                visible = canLoadOlderHistory && (state.firstVisibleItemIndex == 0 || loadingOlderState),
+                visible = canLoadOlderHistory && (isAtListTop || loadingOlderState),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 8.dp),
