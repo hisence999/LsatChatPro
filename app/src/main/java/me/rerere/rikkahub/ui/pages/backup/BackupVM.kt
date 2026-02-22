@@ -18,6 +18,8 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.sync.WebDavBackupItem
+import me.rerere.rikkahub.data.sync.ObjectStorageBackupItem
+import me.rerere.rikkahub.data.sync.ObjectStorageSync
 import me.rerere.rikkahub.data.sync.WebdavSync
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.UiState
@@ -28,6 +30,7 @@ private const val TAG = "BackupVM"
 class BackupVM(
     private val settingsStore: SettingsStore,
     private val webdavSync: WebdavSync,
+    private val objectStorageSync: ObjectStorageSync,
 ) : ViewModel() {
     val settings = settingsStore.settingsFlow.stateIn(
         scope = viewModelScope,
@@ -36,6 +39,7 @@ class BackupVM(
     )
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
+    val objectStorageBackupItems = MutableStateFlow<UiState<List<ObjectStorageBackupItem>>>(UiState.Idle)
 
     init {
         loadBackupFileItems()
@@ -64,20 +68,56 @@ class BackupVM(
         }
     }
 
+    fun loadObjectStorageBackupFileItems() {
+        viewModelScope.launch {
+            runCatching {
+                objectStorageBackupItems.emit(UiState.Loading)
+                objectStorageBackupItems.emit(
+                    value = UiState.Success(
+                        data = objectStorageSync.listBackupFiles(
+                            config = settings.value.objectStorageConfig
+                        ).sortedByDescending { it.lastModified }
+                    )
+                )
+            }.onFailure {
+                objectStorageBackupItems.emit(UiState.Error(it))
+            }
+        }
+    }
+
     suspend fun testWebDav() {
         webdavSync.testWebdav(settings.value.webDavConfig)
+    }
+
+    suspend fun testObjectStorage() {
+        objectStorageSync.testConnection(settings.value.objectStorageConfig)
     }
 
     suspend fun backup() {
         webdavSync.backupToWebDav(settings.value.webDavConfig)
     }
 
+    suspend fun backupToObjectStorage() {
+        objectStorageSync.backupNow(settings.value.objectStorageConfig)
+    }
+
     suspend fun restore(item: WebDavBackupItem): WebdavSync.RestoreResult {
         return webdavSync.restoreFromWebDav(webDavConfig = settings.value.webDavConfig, item = item)
     }
 
+    suspend fun restoreFromObjectStorage(item: ObjectStorageBackupItem): WebdavSync.RestoreResult {
+        return objectStorageSync.restoreFromObjectStorage(
+            config = settings.value.objectStorageConfig,
+            item = item,
+        )
+    }
+
     suspend fun deleteWebDavBackupFile(item: WebDavBackupItem) {
         webdavSync.deleteWebDavBackupFile(settings.value.webDavConfig, item)
+    }
+
+    suspend fun deleteObjectStorageBackupFile(item: ObjectStorageBackupItem) {
+        objectStorageSync.deleteBackupFile(settings.value.objectStorageConfig, item)
     }
 
     suspend fun exportToFile(): File {

@@ -229,6 +229,13 @@
   <string name="backup_page_webdav_backup">WebDAV備份</string>
   <string name="backup_page_webdav_backup_files">WebDav備份檔案列表</string>
   <string name="backup_page_webdav_server_address">WebDAV 伺服器地址</string>
+  <string name="backup_page_object_storage_backup">物件儲存備份</string>
+  <string name="backup_page_object_storage_backup_files">物件儲存備份檔案列表</string>
+  <string name="backup_page_object_storage_endpoint">端點</string>
+  <string name="backup_page_object_storage_access_key_id">存取金鑰 ID</string>
+  <string name="backup_page_object_storage_secret_access_key">秘密存取金鑰</string>
+  <string name="backup_page_object_storage_bucket">Bucket</string>
+  <string name="backup_page_object_storage_region">區域</string>
   <string name="built_in_search_description">是否啟用模型內建的搜尋功能</string>
   <string name="built_in_search_title">模型內建搜尋</string>
   <string name="calculating">計算中...</string>

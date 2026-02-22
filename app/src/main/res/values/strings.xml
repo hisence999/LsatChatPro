@@ -331,6 +331,13 @@
     <string name="backup_page_webdav_backup">WebDAV Backup</string>
     <string name="backup_page_webdav_backup_files">WebDAV Backup Files</string>
     <string name="backup_page_webdav_server_address">WebDAV Server Address</string>
+    <string name="backup_page_object_storage_backup">Object Storage</string>
+    <string name="backup_page_object_storage_backup_files">Object Storage Backup Files</string>
+    <string name="backup_page_object_storage_endpoint">Endpoint</string>
+    <string name="backup_page_object_storage_access_key_id">Access Key ID</string>
+    <string name="backup_page_object_storage_secret_access_key">Secret Access Key</string>
+    <string name="backup_page_object_storage_bucket">Bucket</string>
+    <string name="backup_page_object_storage_region">Region</string>
     <string name="built_in_search_description">Enable model built-in search capability</string>
     <string name="built_in_search_title">Built-in Search</string>
     <string name="calculating">Calculating...</string>
