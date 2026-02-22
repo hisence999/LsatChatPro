@@ -287,6 +287,10 @@
   <string name="chat_page_export_markdown_desc">將對話匯出為markdown檔案</string>
   <string name="chat_page_export_share_via">分享方式</string>
   <string name="chat_page_export_success">已匯出為%1$s</string>
+  <string name="chat_page_export_conversation_json">匯出 JSON</string>
+  <string name="chat_page_export_conversation_json_success">對話 JSON 已準備好可分享</string>
+  <string name="chat_page_export_conversation_json_failed">匯出對話 JSON 失敗：%1$s</string>
+  <string name="chat_page_export_conversation_json_not_found">找不到對話，可能已被刪除</string>
   <string name="chat_page_history">聊天歷史</string>
   <string name="chat_page_learning_mode">學習模式</string>
   <string name="chat_page_learning_mode_desc">幫助你循序漸進地學習知識</string>
@@ -1562,6 +1566,9 @@
   <string name="setting_advanced_page_custom_request_title">自訂請求</string>
   <string name="setting_advanced_page_custom_request_json_mode_title">原始JSON編輯框</string>
   <string name="setting_advanced_page_custom_request_json_mode_desc">使用單一文字框編輯JSON，以自訂 Headers 和 Body。</string>
+  <string name="setting_advanced_page_conversation_actions_title">對話操作</string>
+  <string name="setting_advanced_page_show_export_conversation_json_title">顯示「匯出對話為 JSON」按鈕</string>
+  <string name="setting_advanced_page_show_export_conversation_json_desc">在對話長按選單中顯示「匯出 JSON」。</string>
   <string name="setting_display_page_mcp_tool_call_timeout_title">MCP工具調用逾時時間</string>
   <string name="setting_display_page_mcp_tool_call_timeout_desc">單位：秒</string>
   <string name="setting_display_page_show_assistant_avatar_title">顯示助手頭像</string>

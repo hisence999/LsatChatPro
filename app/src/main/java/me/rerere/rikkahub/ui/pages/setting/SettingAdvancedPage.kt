@@ -182,6 +182,27 @@ fun SettingAdvancedPage(vm: SettingVM = koinViewModel()) {
 
             item {
                 SettingsGroup(
+                    title = stringResource(R.string.setting_advanced_page_conversation_actions_title)
+                ) {
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_advanced_page_show_export_conversation_json_title),
+                        subtitle = stringResource(R.string.setting_advanced_page_show_export_conversation_json_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = displaySetting.showExportConversationJsonButton,
+                                onCheckedChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(showExportConversationJsonButton = it)
+                                    )
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(
                     title = stringResource(R.string.assistant_page_tool_results_group_title)
                 ) {
                     data class ModeOption(

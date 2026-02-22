@@ -5,6 +5,8 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -30,6 +32,7 @@ import me.rerere.rikkahub.data.db.entity.MemoryType
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.deleteChatFiles
 import java.time.Instant
 import java.time.LocalDate
@@ -166,6 +169,32 @@ class ConversationRepository(
 
     suspend fun getConversationById(uuid: Uuid): Conversation? {
         return getConversationByIdCatching(uuid).getOrNull()
+    }
+
+    suspend fun exportConversationRawJson(conversationId: Uuid): String? = withContext(Dispatchers.IO) {
+        val entity = conversationDAO.getConversationById(conversationId.toString()) ?: return@withContext null
+        val payload = ConversationRawJsonExport(
+            conversation = RawConversationEntity(
+                id = entity.id,
+                assistantId = entity.assistantId,
+                title = entity.title,
+                nodes = entity.nodes,
+                createAt = entity.createAt,
+                updateAt = entity.updateAt,
+                truncateIndex = entity.truncateIndex,
+                chatSuggestions = entity.chatSuggestions,
+                isPinned = entity.isPinned,
+                isConsolidated = entity.isConsolidated,
+                enabledModeIds = entity.enabledModeIds,
+                contextSummary = entity.contextSummary,
+                contextSummaryUpToIndex = entity.contextSummaryUpToIndex,
+                lastPruneTime = entity.lastPruneTime,
+                lastPruneMessageCount = entity.lastPruneMessageCount,
+                lastRefreshTime = entity.lastRefreshTime,
+                contextSummaryBoundaries = entity.contextSummaryBoundaries,
+            )
+        )
+        JsonInstantPretty.encodeToString(payload)
     }
 
     suspend fun insertConversation(conversation: Conversation) {
@@ -746,6 +775,52 @@ class ConversationRepository(
         }
     }
 }
+
+@Serializable
+private data class ConversationRawJsonExport(
+    @SerialName("export_type")
+    val exportType: String = "lastchat_conversation_raw",
+    @SerialName("export_version")
+    val exportVersion: Int = 1,
+    @SerialName("exported_at")
+    val exportedAt: Long = System.currentTimeMillis(),
+    val conversation: RawConversationEntity,
+)
+
+@Serializable
+private data class RawConversationEntity(
+    val id: String,
+    @SerialName("assistant_id")
+    val assistantId: String,
+    val title: String,
+    val nodes: String,
+    @SerialName("create_at")
+    val createAt: Long,
+    @SerialName("update_at")
+    val updateAt: Long,
+    @SerialName("truncate_index")
+    val truncateIndex: Int,
+    @SerialName("suggestions")
+    val chatSuggestions: String,
+    @SerialName("is_pinned")
+    val isPinned: Boolean,
+    @SerialName("is_consolidated")
+    val isConsolidated: Boolean,
+    @SerialName("enabled_mode_ids")
+    val enabledModeIds: String,
+    @SerialName("context_summary")
+    val contextSummary: String,
+    @SerialName("context_summary_up_to_index")
+    val contextSummaryUpToIndex: Int,
+    @SerialName("last_prune_time")
+    val lastPruneTime: Long,
+    @SerialName("last_prune_message_count")
+    val lastPruneMessageCount: Int,
+    @SerialName("last_refresh_time")
+    val lastRefreshTime: Long,
+    @SerialName("context_summary_boundaries")
+    val contextSummaryBoundaries: String,
+)
 
 /**
  * 轻量级的会话查询结果，不包含 nodes 和 suggestions 字段

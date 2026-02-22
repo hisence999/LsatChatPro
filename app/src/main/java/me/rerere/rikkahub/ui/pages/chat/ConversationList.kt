@@ -75,6 +75,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Share
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
@@ -119,8 +120,10 @@ fun ColumnScope.ConversationList(
     onConsolidate: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onManageWorkDir: (Conversation) -> Unit = {},
+    onExportConversationJson: (Conversation) -> Unit = {},
     showUnconsolidatedDot: Boolean = false,
-    showConsolidateOption: Boolean = false
+    showConsolidateOption: Boolean = false,
+    showExportConversationJsonButton: Boolean = false,
 ) {
     val navController = LocalNavController.current
 
@@ -392,8 +395,10 @@ fun ColumnScope.ConversationList(
                             onConsolidate = onConsolidate,
                             onPin = onPin,
                             onManageWorkDir = onManageWorkDir,
+                            onExportConversationJson = onExportConversationJson,
                             showUnconsolidatedDot = showUnconsolidatedDot,
                             showConsolidateOption = showConsolidateOption,
+                            showExportConversationJsonButton = showExportConversationJsonButton,
                             modifier = Modifier.animateItem(
                                 fadeInSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
                                 fadeOutSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
@@ -532,8 +537,10 @@ private fun ConversationItem(
     onConsolidate: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onManageWorkDir: (Conversation) -> Unit = {},
+    onExportConversationJson: (Conversation) -> Unit = {},
     showUnconsolidatedDot: Boolean = false,
     showConsolidateOption: Boolean = false,
+    showExportConversationJsonButton: Boolean = false,
     onClick: (Conversation) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -702,6 +709,22 @@ private fun ConversationItem(
                         Icon(Icons.Rounded.Folder, null)
                     }
                 )
+
+                if (showExportConversationJsonButton) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(stringResource(id = R.string.chat_page_export_conversation_json))
+                        },
+                        onClick = {
+                            haptics.perform(HapticPattern.Pop)
+                            onExportConversationJson(conversation)
+                            showDropdownMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Share, null)
+                        }
+                    )
+                }
 
                 if (showConsolidateOption && !conversation.isConsolidated) {
                     DropdownMenuItem(

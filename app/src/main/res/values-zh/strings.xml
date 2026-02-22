@@ -287,6 +287,10 @@
   <string name="chat_page_export_markdown_desc">将对话导出为markdown文件</string>
   <string name="chat_page_export_share_via">分享方式</string>
   <string name="chat_page_export_success">已导出为%1$s</string>
+  <string name="chat_page_export_conversation_json">导出 JSON</string>
+  <string name="chat_page_export_conversation_json_success">会话 JSON 已准备好分享</string>
+  <string name="chat_page_export_conversation_json_failed">导出会话 JSON 失败：%1$s</string>
+  <string name="chat_page_export_conversation_json_not_found">未找到该会话，可能已被删除</string>
   <string name="chat_page_history">聊天历史</string>
   <string name="chat_page_learning_mode">学习模式</string>
   <string name="chat_page_learning_mode_desc">帮助你循序渐进地学习知识</string>
@@ -529,6 +533,12 @@
   <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
   <string name="setting_display_page_use_last_turn_memory_title">使用上一轮记忆</string>
   <string name="setting_display_page_use_last_turn_memory_desc">跳过记忆检索后，使用上一轮注入的记忆</string>
+  <string name="setting_advanced_page_custom_request_title">自定义请求</string>
+  <string name="setting_advanced_page_custom_request_json_mode_title">原始JSON编辑框</string>
+  <string name="setting_advanced_page_custom_request_json_mode_desc">使用单个文本框编辑JSON，以自定义 Headers 和 Body。</string>
+  <string name="setting_advanced_page_conversation_actions_title">会话操作</string>
+  <string name="setting_advanced_page_show_export_conversation_json_title">显示“导出会话为 JSON”按钮</string>
+  <string name="setting_advanced_page_show_export_conversation_json_desc">在会话长按菜单中显示“导出 JSON”。</string>
   <string name="setting_display_page_mcp_tool_call_timeout_title">MCP工具调用超时时间</string>
   <string name="setting_display_page_mcp_tool_call_timeout_desc">单位：秒</string>
   <string name="setting_display_page_show_updates_desc">是否显示应用更新通知</string>

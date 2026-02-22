@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import android.content.Intent
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -50,8 +52,8 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Edit
+import me.rerere.common.android.appTempFolder
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +72,7 @@ import me.rerere.rikkahub.data.model.id
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.Greeting
+import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateEntryButton
@@ -84,6 +87,7 @@ import me.rerere.rikkahub.ui.components.workdir.WorkDirPickerBottomSheet
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 import org.koin.compose.koinInject
+import java.io.File
 import kotlin.uuid.Uuid
 
 @Composable
@@ -99,6 +103,7 @@ fun ChatDrawerContent(
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
+    val drawerHaptics = rememberPremiumHaptics()
 
     val conversations = vm.conversations.collectAsLazyPagingItems()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
@@ -110,6 +115,55 @@ fun ChatDrawerContent(
     val recentlyRestoredIds by vm.recentlyRestoredIds.collectAsStateWithLifecycle()
 
     var managingWorkDirConversation by remember { mutableStateOf<Conversation?>(null) }
+
+    fun exportConversationJson(conversation: Conversation) {
+        scope.launch {
+            runCatching {
+                val outputFile = withContext(Dispatchers.IO) {
+                    val rawJson = repo.exportConversationRawJson(conversation.id)
+                        ?: error(context.getString(R.string.chat_page_export_conversation_json_not_found))
+                    val file = File(
+                        context.appTempFolder,
+                        "conversation-${conversation.id}-${System.currentTimeMillis()}.json"
+                    )
+                    file.writeText(rawJson, Charsets.UTF_8)
+                    file
+                }
+
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    outputFile,
+                )
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(
+                    Intent.createChooser(
+                        intent,
+                        context.getString(R.string.chat_page_export_share_via)
+                    )
+                )
+            }.onSuccess {
+                drawerHaptics.perform(HapticPattern.Success)
+                toaster.show(
+                    message = context.getString(R.string.chat_page_export_conversation_json_success),
+                    type = ToastType.Success,
+                )
+            }.onFailure { error ->
+                drawerHaptics.perform(HapticPattern.Error)
+                toaster.show(
+                    message = context.getString(
+                        R.string.chat_page_export_conversation_json_failed,
+                        error.message ?: "Unknown error"
+                    ),
+                    type = ToastType.Error,
+                )
+            }
+        }
+    }
 
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
@@ -253,8 +307,12 @@ fun ChatDrawerContent(
                 onManageWorkDir = { conversation ->
                     managingWorkDirConversation = conversation
                 },
+                onExportConversationJson = { conversation ->
+                    exportConversationJson(conversation)
+                },
                 showUnconsolidatedDot = canConsolidate,
                 showConsolidateOption = canConsolidate,
+                showExportConversationJsonButton = settings.displaySetting.showExportConversationJsonButton,
             )
 
             // 助手选择器

@@ -126,6 +126,10 @@
     <string name="chat_page_loading_older_messages">正在加载更早消息…</string>
     <string name="chat_page_context_compressing">正在压缩上下文</string>
     <string name="chat_page_context_compressed">已压缩上下文</string>
+    <string name="chat_page_export_conversation_json">导出 JSON</string>
+    <string name="chat_page_export_conversation_json_success">会话 JSON 已准备好分享</string>
+    <string name="chat_page_export_conversation_json_failed">导出会话 JSON 失败：%1$s</string>
+    <string name="chat_page_export_conversation_json_not_found">未找到该会话，可能已被删除</string>
 
     <string name="setting_display_page_embedding_retrieval_timeout_title">嵌入模型检索超时时间</string>
     <string name="setting_display_page_embedding_retrieval_timeout_desc">超时后将跳过该次检索，单位：秒</string>
@@ -136,6 +140,9 @@
     <string name="setting_advanced_page_custom_request_title">自定义请求</string>
     <string name="setting_advanced_page_custom_request_json_mode_title">原始JSON编辑框</string>
     <string name="setting_advanced_page_custom_request_json_mode_desc">使用单个文本框编辑JSON，以自定义 Headers 和 Body。</string>
+    <string name="setting_advanced_page_conversation_actions_title">会话操作</string>
+    <string name="setting_advanced_page_show_export_conversation_json_title">显示“导出会话为 JSON”按钮</string>
+    <string name="setting_advanced_page_show_export_conversation_json_desc">在会话长按菜单中显示“导出 JSON”。</string>
     <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择合并同源提供商</string>
     <string name="setting_display_page_merge_providers_in_model_selector_desc">当多个提供商 Base URL 相同，在模型选择中合并显示</string>
     <string name="setting_page_advanced_settings">高级设置</string>
