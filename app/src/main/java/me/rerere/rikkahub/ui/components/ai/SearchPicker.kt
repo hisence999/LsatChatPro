@@ -52,10 +52,9 @@ import androidx.compose.material.icons.rounded.Settings
 import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.context.LocalToaster
 import kotlinx.coroutines.launch
-import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
-import me.rerere.ai.registry.ModelRegistry
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
@@ -126,7 +125,7 @@ fun SearchPickerButton(
 
     ToggleSurface(
         modifier = modifier,
-        checked = enableSearch || model?.tools?.contains(BuiltInTools.Search) == true,
+        checked = enableSearch || (preferBuiltInSearch && model?.supportsBuiltInSearch() == true),
         checkedColor = Color.Transparent,
         uncheckedColor = Color.Transparent,
         contentColor = contentColor,
@@ -145,7 +144,7 @@ fun SearchPickerButton(
                 contentAlignment = Alignment.Center
             ) {
                 // Determine if built-in search is effectively active
-                val modelSupportsBuiltIn = model != null && me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
+                val modelSupportsBuiltIn = model?.supportsBuiltInSearch() == true
                 val isUsingBuiltIn = preferBuiltInSearch && modelSupportsBuiltIn
                 
                 // Show globe icon when: using built-in search, or no provider selected, or search is off
@@ -241,7 +240,7 @@ internal fun SearchPicker(
     val navBackStack = LocalNavController.current
 
     // 模型内置搜索 (only show if model supports it)
-    if (model != null && ModelRegistry.GEMINI_SERIES.match(model.modelId)) {
+    if (model?.supportsBuiltInSearch() == true) {
         BuiltInSearchSetting(
             preferBuiltInSearch = preferBuiltInSearch,
             onTogglePreferBuiltInSearch = onTogglePreferBuiltInSearch

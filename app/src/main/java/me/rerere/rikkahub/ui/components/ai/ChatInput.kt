@@ -119,7 +119,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import me.rerere.ai.provider.BuiltInTools
+import me.rerere.ai.provider.supportsBuiltInSearch
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
@@ -603,7 +603,11 @@ fun ChatInput(
                                 onTogglePreferBuiltInSearch = { enabled ->
                                     onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))
                                 },
-                                contentColor = if (enableSearch || chatModel?.tools?.contains(BuiltInTools.Search) == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                contentColor = if (enableSearch || (assistant.preferBuiltInSearch && chatModel?.supportsBuiltInSearch() == true)) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                                 onlyIcon = true,
                                 selectedProviderIndices = when (val mode = assistant.searchMode) {
                                     is me.rerere.rikkahub.data.model.AssistantSearchMode.Provider -> listOf(mode.index)

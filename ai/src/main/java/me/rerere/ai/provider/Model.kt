@@ -58,6 +58,11 @@ sealed class BuiltInTools {
     @SerialName("search")
     data object Search : BuiltInTools()
 
+    // https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
+    @Serializable
+    @SerialName("claude_web_search")
+    data object ClaudeWebSearch : BuiltInTools()
+
     // https://ai.google.dev/gemini-api/docs/url-context?hl=zh-cn
     @Serializable
     @SerialName("url_context")

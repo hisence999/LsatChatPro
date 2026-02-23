@@ -145,6 +145,27 @@ data class UIMessage(
                         }
                     }
 
+                    is UIMessagePart.ToolResult -> {
+                        val existingIndex = acc.indexOfFirst { part ->
+                            part is UIMessagePart.ToolResult &&
+                                part.toolCallId == deltaPart.toolCallId &&
+                                part.toolName == deltaPart.toolName
+                        }
+                        if (existingIndex < 0) {
+                            acc + deltaPart.copy()
+                        } else {
+                            acc.mapIndexed { index, part ->
+                                if (index == existingIndex && part is UIMessagePart.ToolResult) {
+                                    deltaPart.copy(
+                                        metadata = deltaPart.metadata ?: part.metadata
+                                    )
+                                } else {
+                                    part
+                                }
+                            }
+                        }
+                    }
+
                     else -> {
                         println("delta part append not supported: $deltaPart")
                         acc

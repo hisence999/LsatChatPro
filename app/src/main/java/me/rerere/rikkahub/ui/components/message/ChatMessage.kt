@@ -485,30 +485,28 @@ private fun MessagePartsBlock(
     }
 
     // Tool Calls
-    if (isLast) {
-        val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
-            .associateBy { it.toolCallId }
-        parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
-            key(toolCall.toolCallId.ifBlank { index.toString() }) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    ToolCallItem(
-                        toolName = toolCall.toolName,
-                        arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
-                            .getOrElse { EmptyJson },
-                        content = null,
+    val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
+        .associateBy { it.toolCallId }
+    parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
+        key(toolCall.toolCallId.ifBlank { index.toString() }) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                ToolCallItem(
+                    toolName = toolCall.toolName,
+                    arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                        .getOrElse { EmptyJson },
+                    content = null,
+                    loading = loading,
+                )
+                toolApprovalsById[toolCall.toolCallId]?.let { approval ->
+                    ToolApprovalItem(
+                        conversationId = conversationId,
+                        toolCallId = approval.toolCallId,
+                        toolName = approval.toolName,
+                        state = approval.state,
                         loading = loading,
                     )
-                    toolApprovalsById[toolCall.toolCallId]?.let { approval ->
-                        ToolApprovalItem(
-                            conversationId = conversationId,
-                            toolCallId = approval.toolCallId,
-                            toolName = approval.toolName,
-                            state = approval.state,
-                            loading = loading,
-                        )
-                    }
                 }
             }
         }

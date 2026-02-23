@@ -48,7 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import me.rerere.ai.registry.ModelRegistry
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
@@ -709,7 +709,7 @@ private fun SeatOverridesEditor(
                 val resolved = service?.let { options -> SearchServiceOptions.TYPES[options::class] }
                 resolved?.takeIf { it.isNotBlank() } ?: "Provider ${index + 1}"
             }
-            val supportsBuiltInSearch = model != null && ModelRegistry.GEMINI_SERIES.match(model.modelId)
+            val supportsBuiltInSearch = model?.supportsBuiltInSearch() == true
             val searchSubtitle = when {
                 !seat.overrides.searchEnabled -> offText
                 seat.overrides.searchMode is AssistantSearchMode.BuiltIn -> builtInText

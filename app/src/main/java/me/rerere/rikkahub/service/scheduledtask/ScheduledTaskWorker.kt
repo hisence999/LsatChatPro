@@ -16,7 +16,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.ensureBuiltInSearchTool
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.supportsBuiltInSearch
+import me.rerere.ai.provider.withoutBuiltInSearchTools
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
@@ -179,6 +182,13 @@ class ScheduledTaskWorker(
                 errorCode = "MODEL_NOT_FOUND",
                 errorMessage = "Model not found",
             )
+        val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+        val useBuiltInSearch = assistantForRun.preferBuiltInSearch && modelSupportsBuiltIn
+        val runtimeModel = if (useBuiltInSearch) {
+            model.ensureBuiltInSearchTool()
+        } else {
+            model.withoutBuiltInSearchTools()
+        }
 
         val memories: List<AssistantMemory>? = if (assistantForRun.enableMemory) {
             if (assistantForRun.useRagMemoryRetrieval) {
@@ -199,7 +209,7 @@ class ScheduledTaskWorker(
 
         val tools = buildTools(
             assistantForRun = assistantForRun,
-            model = model,
+            model = runtimeModel,
             conversationId = conversationId,
             settings = settings,
         )
@@ -220,7 +230,7 @@ class ScheduledTaskWorker(
             var latestMessages: List<UIMessage> = listOf(userMessage)
             generationHandler.generateText(
                 settings = settings,
-                model = model,
+                model = runtimeModel,
                 messages = listOf(userMessage),
                 conversationId = conversationId,
                 assistant = assistantForRun,
@@ -423,8 +433,7 @@ class ScheduledTaskWorker(
         val hasExternalTools = assistantForRun.searchMode !is AssistantSearchMode.Off || mcpTools.isNotEmpty()
 
         return buildList {
-            val modelSupportsBuiltIn =
-                model.tools.isNotEmpty() || me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
             val useBuiltInSearch = assistantForRun.preferBuiltInSearch && modelSupportsBuiltIn
 
             when (val sm = assistantForRun.searchMode) {

@@ -21,6 +21,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
 import me.rerere.ai.core.merge
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -72,6 +73,9 @@ import kotlin.uuid.Uuid
 private const val TAG = "GenerationHandler"
 private val MEMORY_TOOL_NAMES = setOf("create_memory", "edit_memory", "delete_memory")
 private const val MCP_TOOL_APPROVAL_REJECTED_TEXT = "User declined this call"
+private const val META_ANTHROPIC_TYPE = "anthropic_type"
+private const val TYPE_SERVER_TOOL_USE = "server_tool_use"
+private const val CLAUDE_WEB_SEARCH_TOOL_NAME = "web_search"
 
 /**
  * Result of building messages, includes both the messages and info about activated context sources.
@@ -126,6 +130,7 @@ class GenerationHandler(
 
         for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+            var latestFinishReasons: Set<String> = emptySet()
 
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
@@ -155,6 +160,9 @@ class GenerationHandler(
                 messages = messages,
                 conversationId = conversationId,
                 onUpdateMessages = { updatedMessages, finishReasons ->
+                    if (finishReasons.isNotEmpty()) {
+                        latestFinishReasons = finishReasons
+                    }
                     messages = updatedMessages.transforms(
                         transformers = outputTransformers,
                         context = context,
@@ -198,8 +206,24 @@ class GenerationHandler(
             )
             emit(GenerationChunk.Messages(messages))
 
-            val toolCalls = messages.last().getToolCalls()
+            val toolCalls = messages.last().getToolCalls().filterNot { toolCall ->
+                val isServerToolUseByMetadata = toolCall.metadata
+                    ?.get(META_ANTHROPIC_TYPE)
+                    ?.jsonPrimitive
+                    ?.contentOrNull == TYPE_SERVER_TOOL_USE
+                val isClaudeBuiltInWebSearchToolCall =
+                    toolCall.toolName == CLAUDE_WEB_SEARCH_TOOL_NAME &&
+                        model.tools.contains(BuiltInTools.ClaudeWebSearch)
+                isServerToolUseByMetadata || isClaudeBuiltInWebSearchToolCall
+            }
             if (toolCalls.isEmpty()) {
+                val shouldResumePauseTurn = latestFinishReasons.any { reason ->
+                    reason.trim().lowercase(Locale.US) == "pause_turn"
+                }
+                if (shouldResumePauseTurn) {
+                    Log.i(TAG, "generateText: pause_turn detected at step #$stepIndex, resume next step")
+                    continue
+                }
                 // no tool calls, break
                 break
             }

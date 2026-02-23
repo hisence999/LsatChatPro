@@ -504,6 +504,8 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                             })
                         }
 
+                        BuiltInTools.ClaudeWebSearch -> Unit
+
                         BuiltInTools.UrlContext -> {
                             add(buildJsonObject {
                                 put("url_context", buildJsonObject {})

@@ -57,10 +57,13 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.ensureBuiltInSearchTool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.withoutBuiltInSearchTools
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.finishReasoning
@@ -145,6 +148,8 @@ private const val TAG = "ChatService"
 private const val CHAT_GENERATION_DONE_NOTIFICATION_ID = 1
 private const val FALLBACK_TITLE_MAX_CODE_POINTS = 15
 private const val OLDER_HISTORY_LOAD_BATCH_SIZE = 120
+private const val META_ANTHROPIC_TYPE = "anthropic_type"
+private const val TYPE_SERVER_TOOL_USE = "server_tool_use"
 
 private val inputTransformers by lazy {
     listOf(
@@ -1424,6 +1429,13 @@ class ChatService(
             val model = settings.getCurrentChatModel() ?: return@runCatching
 
             val assistant = settings.getCurrentAssistant()
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+            val useBuiltInSearch = assistant.preferBuiltInSearch && modelSupportsBuiltIn
+            val runtimeModel = if (useBuiltInSearch) {
+                model.ensureBuiltInSearchTool()
+            } else {
+                model.withoutBuiltInSearchTools()
+            }
             val hasEnabledLorebooksForAssistant =
                 assistant.localTools.contains(LocalToolOption.LorebooksEditor) &&
                     settings.lorebooks.any { lorebook ->
@@ -1433,7 +1445,7 @@ class ChatService(
             // start generating
             generationHandler.generateText(
                 settings = settings,
-                model = model,
+                model = runtimeModel,
                 messages = baseMessages,
                 conversationId = persistentConversationId,
                 assistant = assistant,
@@ -1556,11 +1568,8 @@ class ChatService(
                     // Check if we should use built-in search instead of external tools
                     // Built-in search is used when:
                     // 1. preferBuiltInSearch is enabled on assistant
-                    // 2. Model supports built-in search (Gemini series with search grounding)
-                    val modelSupportsBuiltIn = model.tools.isNotEmpty() || 
-                        me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
-                    val useBuiltInSearch = assistant.preferBuiltInSearch && modelSupportsBuiltIn
-                    
+                    // 2. Model supports built-in search
+
                     // Use assistant's searchMode for external tools (only if NOT using built-in)
                     when (val searchMode = assistant.searchMode) {
                         is AssistantSearchMode.Provider,
@@ -1758,8 +1767,23 @@ class ChatService(
             } else {
                 null
             }
+            val shouldAutoResumePauseTurn = autoContinueAttemptsRemaining > 0 &&
+                shouldAutoResumeForPauseTurn(latestFinishReasons) &&
+                settings.groupChatTemplates.none { it.id == finalConversation.assistantId }
 
             saveConversation(conversationId, finalConversation)
+            if (shouldAutoResumePauseTurn) {
+                Log.i(
+                    TAG,
+                    "Auto-resume pause_turn once: conversationId=$conversationId reasons=$latestFinishReasons"
+                )
+                handleMessageComplete(
+                    conversationId = conversationId,
+                    messageRange = messageRange,
+                    autoContinueAttemptsRemaining = autoContinueAttemptsRemaining - 1,
+                )
+                return@onSuccess
+            }
             if (autoContinueCandidate != null) {
                 Log.i(
                     TAG,
@@ -1823,6 +1847,13 @@ class ChatService(
                 "token_limit_reached" -> true
                 else -> false
             }
+        }
+    }
+
+    private fun shouldAutoResumeForPauseTurn(finishReasons: Set<String>): Boolean {
+        if (finishReasons.isEmpty()) return false
+        return finishReasons.any { reason ->
+            reason.trim().lowercase(Locale.US) == "pause_turn"
         }
     }
 
@@ -1932,11 +1963,10 @@ class ChatService(
                 }
             }
             val seatAssistant = applySeatOverrides(assistant, seat.overrides, fullSystemPromptSuffix)
-            val modelSupportsBuiltIn = model.tools.isNotEmpty() ||
-                me.rerere.ai.registry.ModelRegistry.GEMINI_SERIES.match(model.modelId)
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
             val useBuiltInSearch = modelSupportsBuiltIn &&
                 (seatAssistant.searchMode is AssistantSearchMode.BuiltIn || seatAssistant.preferBuiltInSearch)
-            val seatModel = if (useBuiltInSearch) model else model.copy(tools = emptySet())
+            val seatModel = if (useBuiltInSearch) model.ensureBuiltInSearchTool() else model.copy(tools = emptySet())
 
             val seatInputTransformers = buildList {
                 if (includeAppContextTransformer) {
@@ -4899,10 +4929,20 @@ class ChatService(
         // Step 3: 移除无效tool call (now safe to access currentMessage)
         messagesNodes = messagesNodes.mapIndexed { index, node ->
             val next = if (index < messagesNodes.size - 1) messagesNodes[index + 1] else null
-            if (node.currentMessage.hasPart<UIMessagePart.ToolCall>()) {
-                if (next?.currentMessage?.hasPart<UIMessagePart.ToolResult>() != true) {
+            val currentMessage = node.currentMessage
+            val toolCalls = currentMessage.getToolCalls()
+            if (toolCalls.isNotEmpty()) {
+                val hasInlineToolResult = currentMessage.getToolResults().isNotEmpty()
+                val nextHasToolResult = next?.currentMessage?.hasPart<UIMessagePart.ToolResult>() == true
+                val hasAnthropicServerToolUse = toolCalls.any { toolCall ->
+                    toolCall.metadata
+                        ?.get(META_ANTHROPIC_TYPE)
+                        ?.jsonPrimitiveOrNull
+                        ?.contentOrNull == TYPE_SERVER_TOOL_USE
+                }
+                if (!hasInlineToolResult && !nextHasToolResult && !hasAnthropicServerToolUse) {
                     return@mapIndexed node.copy(
-                        messages = node.messages.filter { it.id != node.currentMessage.id },
+                        messages = node.messages.filter { it.id != currentMessage.id },
                         selectIndex = node.selectIndex - 1
                     )
                 }

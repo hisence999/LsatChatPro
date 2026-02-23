@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import me.rerere.ai.provider.BuiltInTools
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -671,7 +671,7 @@ private fun SearchProviderPicker(
                             )
                         }
                     },
-                    contentColor = if (enableSearch || model?.tools?.contains(BuiltInTools.Search) == true) {
+                    contentColor = if (enableSearch || (preferBuiltInSearch && model?.supportsBuiltInSearch() == true)) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurface
