@@ -2,6 +2,8 @@ import org.apache.tools.ant.taskdefs.condition.Os
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Properties
 import kotlin.math.sign
 
@@ -25,7 +27,9 @@ android {
         minSdk = 31
         targetSdk = 36
         versionCode = ((System.currentTimeMillis() - 1577808000000) / 60000).toInt() // 基于 2020-01-01 00:00:00 UTC 的分钟数
-        versionName = "1.3.9"
+        val baseVersionName = "1.3.9"
+        val buildDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMdd"))
+        versionName = "$baseVersionName-build.$buildDate"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
