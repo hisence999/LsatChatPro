@@ -15,6 +15,7 @@ local.properties
 .cursor
 .history
 .kotlin
+app/version.properties
 build_log.txt
 build_output.txt
 buildlog.txt

@@ -1,6 +1,7 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
 import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -18,6 +19,56 @@ plugins {
     alias(libs.plugins.chaquopy)
 }
 
+private data class LocalBuildMeta(
+    val buildDate: String,
+    val buildNumber: Int,
+)
+
+private fun shouldBumpLocalBuildNumber(taskNames: List<String>): Boolean {
+    if (taskNames.isEmpty()) return false
+
+    val buildTaskKeywords = listOf("assemble", "bundle", "package", "install", "build")
+    return taskNames.any { taskName ->
+        val normalizedTaskName = taskName.lowercase()
+        buildTaskKeywords.any(normalizedTaskName::contains)
+    }
+}
+
+private fun resolveLocalBuildMeta(
+    versionFile: File,
+    shouldBump: Boolean,
+): LocalBuildMeta {
+    val today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) // yyyyMMdd
+    val props = Properties()
+
+    if (versionFile.exists()) {
+        FileInputStream(versionFile).use(props::load)
+    }
+
+    val savedDate = props.getProperty("BUILD_DATE")
+    val savedNumber = props.getProperty("BUILD_NUMBER")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+    val todayBaseNumber = if (savedDate == today) savedNumber else 0
+    val resolvedNumber = when {
+        shouldBump -> todayBaseNumber + 1
+        todayBaseNumber > 0 -> todayBaseNumber
+        else -> 1
+    }
+
+    if (shouldBump) {
+        props.setProperty("BUILD_DATE", today)
+        props.setProperty("BUILD_NUMBER", resolvedNumber.toString())
+        versionFile.parentFile?.mkdirs()
+        versionFile.outputStream().use { output ->
+            props.store(output, "Auto-generated local build metadata.")
+        }
+    }
+
+    return LocalBuildMeta(
+        buildDate = today,
+        buildNumber = resolvedNumber,
+    )
+}
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk = 36
@@ -28,8 +79,18 @@ android {
         targetSdk = 36
         versionCode = ((System.currentTimeMillis() - 1577808000000) / 60000).toInt() // 基于 2020-01-01 00:00:00 UTC 的分钟数
         val baseVersionName = "1.3.9"
-        val buildDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMdd"))
-        versionName = "$baseVersionName-build.$buildDate"
+        val isGithubActions = System.getenv("GITHUB_ACTIONS") == "true"
+        versionName = if (isGithubActions) {
+            baseVersionName
+        } else {
+            val localBuildMeta = resolveLocalBuildMeta(
+                versionFile = rootProject.file("app/version.properties"),
+                shouldBump = shouldBumpLocalBuildNumber(gradle.startParameter.taskNames),
+            )
+            val buildDate = localBuildMeta.buildDate.takeLast(4) // MMdd
+            val buildNumber = localBuildMeta.buildNumber.toString().padStart(2, '0')
+            "$baseVersionName-build.$buildDate.$buildNumber"
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
