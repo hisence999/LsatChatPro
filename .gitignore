@@ -22,3 +22,5 @@ buildlog.txt
 /artifacts
 settings.local.json
 /upstream
+/web
+/web-ui
