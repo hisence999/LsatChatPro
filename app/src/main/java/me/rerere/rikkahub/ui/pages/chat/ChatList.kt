@@ -398,6 +398,17 @@ private fun SharedTransitionScope.ChatListNormal(
                         val canContinue = isLast &&
                             message.role == MessageRole.ASSISTANT &&
                             groupChatTemplateForConversation == null
+                        val hiddenToolCallIds = conversation.messageNodes
+                            .getOrNull(index + 1)
+                            ?.currentMessage
+                            ?.parts
+                            ?.filterIsInstance<UIMessagePart.ToolResult>()
+                            ?.asSequence()
+                            ?.filter { it.toolName == "search_web" }
+                            ?.map { it.toolCallId }
+                            ?.filter { it.isNotBlank() }
+                            ?.toSet()
+                            .orEmpty()
                         val assistantForMessage = message.speakerSeatId
                             ?.let { seatId ->
                                 groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
@@ -419,6 +430,7 @@ private fun SharedTransitionScope.ChatListNormal(
                             node = node,
                             previousRole = previousRole,
                             isLast = isLast,
+                            hiddenToolCallIds = hiddenToolCallIds,
                             conversationId = conversation.id,
                             onCitationClick = onCitationClick,
                             model = message.modelId?.let { settings.findModelById(it) },

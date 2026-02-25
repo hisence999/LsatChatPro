@@ -157,6 +157,7 @@ fun ChatMessage(
     node: MessageNode,
     previousRole: MessageRole?,
     isLast: Boolean,
+    hiddenToolCallIds: Set<String> = emptySet(),
     conversationId: Uuid? = null,
     onCitationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -251,6 +252,7 @@ fun ChatMessage(
                 parts = message.parts,
                 annotations = message.annotations,
                 isLast = isLast,
+                hiddenToolCallIds = hiddenToolCallIds,
                 conversationId = conversationId,
                 onCitationClick = onCitationClick,
                 loading = loading,
@@ -370,6 +372,7 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     isLast: Boolean,
+    hiddenToolCallIds: Set<String>,
     conversationId: Uuid?,
     onCitationClick: (String) -> Unit,
     loading: Boolean,
@@ -487,24 +490,41 @@ private fun MessagePartsBlock(
     // Tool Calls
     val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
         .associateBy { it.toolCallId }
+    val inlineSearchResultToolCallIds = parts
+        .filterIsInstance<UIMessagePart.ToolResult>()
+        .asSequence()
+        .filter { it.toolName == "search_web" }
+        .map { it.toolCallId }
+        .filter { it.isNotBlank() }
+        .toSet()
+    val hiddenSearchToolCallIds = hiddenToolCallIds + inlineSearchResultToolCallIds
     parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
+        val approval = toolApprovalsById[toolCall.toolCallId]
+        val shouldHideToolCallCard = toolCall.toolName == "search_web" &&
+            toolCall.toolCallId.isNotBlank() &&
+            toolCall.toolCallId in hiddenSearchToolCallIds
+        if (shouldHideToolCallCard && approval == null) {
+            return@fastForEachIndexed
+        }
         key(toolCall.toolCallId.ifBlank { index.toString() }) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                ToolCallItem(
-                    toolName = toolCall.toolName,
-                    arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
-                        .getOrElse { EmptyJson },
-                    content = null,
-                    loading = loading,
-                )
-                toolApprovalsById[toolCall.toolCallId]?.let { approval ->
+                if (!shouldHideToolCallCard) {
+                    ToolCallItem(
+                        toolName = toolCall.toolName,
+                        arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                            .getOrElse { EmptyJson },
+                        content = null,
+                        loading = loading,
+                    )
+                }
+                approval?.let { resolvedApproval ->
                     ToolApprovalItem(
                         conversationId = conversationId,
-                        toolCallId = approval.toolCallId,
-                        toolName = approval.toolName,
-                        state = approval.state,
+                        toolCallId = resolvedApproval.toolCallId,
+                        toolName = resolvedApproval.toolName,
+                        state = resolvedApproval.state,
                         loading = loading,
                     )
                 }
