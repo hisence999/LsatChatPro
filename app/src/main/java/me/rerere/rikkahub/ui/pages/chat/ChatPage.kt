@@ -105,11 +105,13 @@ import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getConversationReadPosition
+import me.rerere.rikkahub.data.datastore.hasLargeContextWarningShown
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GroupChatTemplate
 import me.rerere.rikkahub.data.model.buildSeatDisplayNames
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatInputUiMode
+import me.rerere.rikkahub.ui.components.ai.LargeContextWarningDialog
 import me.rerere.rikkahub.ui.components.ai.MinimalChatInput
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -573,11 +575,24 @@ private fun ChatPageContent(
     var isTemporaryChat by rememberSaveable { mutableStateOf(false) }
     var mentionDisambiguationState by remember { mutableStateOf<GroupChatMentionDisambiguationState?>(null) }
     var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
+    var showLargeContextWarningDialog by rememberSaveable(conversation.id) { mutableStateOf(false) }
     val currentConversationState = rememberUpdatedState(conversation)
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
     val conversationReadPosition by vm.conversationReadPosition.collectAsStateWithLifecycle()
     val loadingOlderHistory by vm.loadingOlderHistory.collectAsStateWithLifecycle()
     var initialEntryHandled by rememberSaveable(conversation.id, initialSearchQuery) { mutableStateOf(false) }
+    val conversationMessageCount = remember(conversation.totalMessageNodeCount, conversation.messageNodes.size) {
+        LargeContextWarningPolicy.resolveMessageCount(conversation)
+    }
+    val latestAssistantPromptTokens = remember(conversation.messageNodes) {
+        LargeContextWarningPolicy.findLatestAssistantPromptTokens(conversation)
+    }
+    val hasShownLargeContextWarning = remember(
+        conversation.id,
+        setting.conversationLargeContextWarningShownAt,
+    ) {
+        setting.hasLargeContextWarningShown(conversation.id)
+    }
 
     // Visibility mask: hide list until scroll position is restored to prevent flash
     // Skip masking when we have a cached or persisted scroll position (list starts at ~correct spot)
@@ -661,6 +676,27 @@ private fun ChatPageContent(
             vm.updateConversationReadPosition(sample.first, sample.second, chatListState.firstVisibleItemIndex)
             pendingReadPositionSample = null
         }
+    }
+
+    LaunchedEffect(
+        conversation.id,
+        conversationInitialized,
+        conversationMessageCount,
+        latestAssistantPromptTokens,
+        hasShownLargeContextWarning,
+    ) {
+        if (!conversationInitialized) return@LaunchedEffect
+        if (showLargeContextWarningDialog) return@LaunchedEffect
+
+        val shouldShowWarning = LargeContextWarningPolicy.shouldShowWarning(
+            messageCount = conversationMessageCount,
+            latestAssistantPromptTokens = latestAssistantPromptTokens,
+            hasBeenShown = hasShownLargeContextWarning,
+        )
+        if (!shouldShowWarning) return@LaunchedEffect
+
+        showLargeContextWarningDialog = true
+        vm.markLargeContextWarningShown(conversation.id)
     }
 
     LaunchedEffect(
@@ -1439,6 +1475,14 @@ private fun ChatPageContent(
                             mentionDisambiguationState = null
                         },
                         onDismiss = { mentionDisambiguationState = null },
+                    )
+                }
+
+                if (showLargeContextWarningDialog) {
+                    LargeContextWarningDialog(
+                        messageCount = conversationMessageCount,
+                        enableHaptics = setting.displaySetting.enableUIHaptics,
+                        onConfirm = { showLargeContextWarningDialog = false },
                     )
                 }
             }

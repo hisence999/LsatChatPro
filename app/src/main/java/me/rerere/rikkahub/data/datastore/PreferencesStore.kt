@@ -218,6 +218,8 @@ class SettingsStore(
         val CONVERSATION_WORKSPACE_ROOTS = stringPreferencesKey("conversation_workspace_roots")
         val CONVERSATION_WORK_DIRS = stringPreferencesKey("conversation_work_dirs")
         val CONVERSATION_READ_POSITIONS = stringPreferencesKey("conversation_read_positions")
+        val CONVERSATION_LARGE_CONTEXT_WARNING_SHOWN_AT =
+            stringPreferencesKey("conversation_large_context_warning_shown_at")
 
         // Android Integration
         val TEXT_SELECTION_CONFIG = stringPreferencesKey("text_selection_config")
@@ -472,6 +474,9 @@ class SettingsStore(
                 conversationReadPositions = preferences[CONVERSATION_READ_POSITIONS]?.let {
                     runCatching { JsonInstant.decodeFromString<Map<String, ConversationReadPosition>>(it) }.getOrNull()
                 } ?: emptyMap(),
+                conversationLargeContextWarningShownAt = preferences[CONVERSATION_LARGE_CONTEXT_WARNING_SHOWN_AT]?.let {
+                    runCatching { JsonInstant.decodeFromString<Map<String, Long>>(it) }.getOrNull()
+                } ?: emptyMap(),
             )
         }
         .map {
@@ -699,6 +704,8 @@ class SettingsStore(
             preferences[CONVERSATION_WORK_DIRS] = JsonInstant.encodeToString(finalSettingsToSave.conversationWorkDirs)
             preferences[CONVERSATION_READ_POSITIONS] =
                 JsonInstant.encodeToString(finalSettingsToSave.conversationReadPositions)
+            preferences[CONVERSATION_LARGE_CONTEXT_WARNING_SHOWN_AT] =
+                JsonInstant.encodeToString(finalSettingsToSave.conversationLargeContextWarningShownAt)
         }
     }
 
@@ -806,6 +813,7 @@ data class Settings(
     val workspaceFileToolsAllowAll: Boolean = false,
     val conversationWorkDirs: Map<String, ConversationWorkDirBinding> = emptyMap(),
     val conversationReadPositions: Map<String, ConversationReadPosition> = emptyMap(),
+    val conversationLargeContextWarningShownAt: Map<String, Long> = emptyMap(),
 ) {
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
@@ -1164,6 +1172,11 @@ fun Settings.getConversationReadPosition(conversationId: Uuid): ConversationRead
     return conversationReadPositions[key]
 }
 
+fun Settings.hasLargeContextWarningShown(conversationId: Uuid): Boolean {
+    val key = conversationId.toString()
+    return conversationLargeContextWarningShownAt.containsKey(key)
+}
+
 internal fun sanitizeConversationReadPositions(
     positions: Map<String, ConversationReadPosition>,
     maxEntries: Int = 500,
@@ -1187,6 +1200,23 @@ internal fun sanitizeConversationReadPositions(
             )
         }
         .sortedByDescending { (_, position) -> position.updatedAt }
+        .take(maxEntries.coerceAtLeast(1))
+        .toMap()
+}
+
+internal fun sanitizeConversationLargeContextWarningShownAt(
+    records: Map<String, Long>,
+    maxEntries: Int = 500,
+): Map<String, Long> {
+    return records
+        .asSequence()
+        .mapNotNull { (conversationId, shownAt) ->
+            val key = conversationId.trim()
+            if (key.isBlank()) return@mapNotNull null
+            if (runCatching { Uuid.parse(key) }.isFailure) return@mapNotNull null
+            key to shownAt.coerceAtLeast(0L)
+        }
+        .sortedByDescending { (_, shownAt) -> shownAt }
         .take(maxEntries.coerceAtLeast(1))
         .toMap()
 }
@@ -1428,6 +1458,8 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         }
         .toMap()
     val cleanedConversationReadPositions = sanitizeConversationReadPositions(conversationReadPositions)
+    val cleanedConversationLargeContextWarningShownAt =
+        sanitizeConversationLargeContextWarningShownAt(conversationLargeContextWarningShownAt)
 
     // 2. Remove orphaned tag references from assistants
     val validTagIds = assistantTags.map { it.id }.toSet()
@@ -1522,6 +1554,7 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         conversationWorkspaceRoots = cleanedConversationWorkspaceRoots,
         conversationWorkDirs = cleanedConversationWorkDirs,
         conversationReadPositions = cleanedConversationReadPositions,
+        conversationLargeContextWarningShownAt = cleanedConversationLargeContextWarningShownAt,
         groupChatTemplates = cleanedGroupChats,
         favoriteModels = cleanedFavorites,
         searchServiceSelected = clampedSearchSelected,

@@ -1195,6 +1195,10 @@
     <string name="theme_name_sakura">Sakura Pink</string>
     <string name="theme_name_spring">Meadow Green</string>
     <string name="conversation_load_failed">Could not load this chat (it may be too large). Delete it from the drawer or start a new chat.</string>
+    <string name="chat_large_context_warning_title">This chat is too large</string>
+    <string name="chat_large_context_warning_message">Current message count: %1$d. This may cause app crashes, freezes, or even loss of this chat data. Please start a new chat as soon as possible.</string>
+    <string name="chat_large_context_warning_confirm">Confirm</string>
+    <string name="chat_large_context_warning_confirm_countdown">Confirm (%1$d)</string>
     <string name="tools_warning">Tools are disabled for current model. Please enable tools in settings to use Skills/Local tools/Search/MCP.</string>
     <string name="translate">Translate</string>
     <string name="translating">Translating...</string>

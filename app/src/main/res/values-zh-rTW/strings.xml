@@ -971,6 +971,10 @@
   <string name="theme_name_sakura">櫻花粉</string>
   <string name="theme_name_spring">原野綠</string>
   <string name="conversation_load_failed">無法載入該對話（可能過長）。請在側邊欄刪除，或新建對話繼續。</string>
+  <string name="chat_large_context_warning_title">此對話資料過大</string>
+  <string name="chat_large_context_warning_message">目前訊息數：%1$d。這可能導致應用當機或卡頓，甚至遺失本次對話資料。請盡快新建對話以繼續聊天。</string>
+  <string name="chat_large_context_warning_confirm">確定</string>
+  <string name="chat_large_context_warning_confirm_countdown">確定（%1$d）</string>
   <string name="tools_warning">當前模型未開啟工具調用，請在設定內啟用模型的工具能力，再使用技能/本地工具/搜尋/MCP等功能</string>
   <string name="translate">翻譯</string>
   <string name="translating">翻譯中...</string>
