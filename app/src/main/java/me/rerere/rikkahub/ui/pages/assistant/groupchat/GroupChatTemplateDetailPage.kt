@@ -5,14 +5,18 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -419,6 +423,7 @@ fun GroupChatTemplateDetailPage(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -427,39 +432,47 @@ fun GroupChatTemplateDetailPage(
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                settings.assistants.forEach { assistant ->
-                    val assistantName = assistant.name.ifBlank { defaultAssistantName }
-                    Surface(
-                        onClick = {
-                            haptics.perform(HapticPattern.Pop)
-                            vm.addSeat(assistant.id)
-                            showAddMemberSheet = false
-                        },
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = AppShapes.ListItem,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                ) {
+                    items(
+                        items = settings.assistants,
+                        key = { assistant -> assistant.id.toString() },
+                    ) { assistant ->
+                        val assistantName = assistant.name.ifBlank { defaultAssistantName }
+                        Surface(
+                            onClick = {
+                                haptics.perform(HapticPattern.Pop)
+                                vm.addSeat(assistant.id)
+                                showAddMemberSheet = false
+                            },
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = AppShapes.ListItem,
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
-                            UIAvatar(
-                                name = assistantName,
-                                value = assistant.avatar,
-                                modifier = Modifier.size(36.dp),
-                            )
-                            Text(
-                                text = assistantName,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                UIAvatar(
+                                    name = assistantName,
+                                    value = assistant.avatar,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                                Text(
+                                    text = assistantName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
