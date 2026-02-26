@@ -1,12 +1,13 @@
 package me.rerere.rikkahub.data.ai.mcp
 
 import android.util.Log
-import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.Implementation
-import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,15 +124,13 @@ class McpManager(
         if (client.transport == null) client.connect(getTransport(config))
         val result = client.callTool(
             request = CallToolRequest(
-                name = tool.name,
-                arguments = args,
+                params = CallToolRequestParams(
+                    name = tool.name,
+                    arguments = args,
+                ),
             ),
             options = RequestOptions(timeout = timeoutSeconds.seconds),
-            compatibility = true
         )
-        require(result != null) {
-            "Result is null"
-        }
         return McpJson.encodeToJsonElement(result.content)
     }
 
@@ -285,6 +284,9 @@ internal val McpJson: Json by lazy {
     }
 }
 
-private fun Tool.Input.toSchema(): InputSchema {
-    return InputSchema.Obj(properties = this.properties, required = this.required)
+private fun ToolSchema.toSchema(): InputSchema {
+    return InputSchema.Obj(
+        properties = this.properties ?: JsonObject(emptyMap()),
+        required = this.required
+    )
 }

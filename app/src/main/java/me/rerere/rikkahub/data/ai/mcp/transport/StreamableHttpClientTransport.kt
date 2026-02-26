@@ -1,13 +1,14 @@
 package me.rerere.rikkahub.data.ai.mcp.transport
 
 import android.util.Log
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCNotification
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCRequest
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCResponse
-import io.modelcontextprotocol.kotlin.sdk.RequestId
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.McpJson
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCNotification
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,8 +74,13 @@ class StreamableHttpClientTransport(
     /**
      * Sends a single message with optional resumption support
      */
-    override suspend fun send(message: JSONRPCMessage) {
-        send(message, null)
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
+        send(
+            message = message,
+            resumptionToken = options?.resumptionToken,
+            onResumptionToken = options?.onResumptionToken,
+            relatedRequestId = options?.relatedRequestId,
+        )
     }
 
     /**
@@ -84,7 +90,8 @@ class StreamableHttpClientTransport(
     suspend fun send(
         message: JSONRPCMessage,
         resumptionToken: String?,
-        onResumptionToken: ((String) -> Unit)? = null
+        onResumptionToken: ((String) -> Unit)? = null,
+        relatedRequestId: RequestId? = null,
     ) {
         Log.d(
             TAG,
@@ -96,7 +103,7 @@ class StreamableHttpClientTransport(
             startSseSession(
                 resumptionToken = token,
                 onResumptionToken = onResumptionToken,
-                replayMessageId = if (message is JSONRPCRequest) message.id else null
+                replayMessageId = relatedRequestId ?: if (message is JSONRPCRequest) message.id else null
             )
             return
         }
@@ -160,7 +167,7 @@ class StreamableHttpClientTransport(
                 contentType?.startsWith("text/event-stream") == true -> {
                     handleInlineSse(
                         resp, onResumptionToken = onResumptionToken,
-                        replayMessageId = if (message is JSONRPCRequest) message.id else null
+                        replayMessageId = relatedRequestId ?: if (message is JSONRPCRequest) message.id else null
                     )
                 }
 
