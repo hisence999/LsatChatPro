@@ -404,7 +404,6 @@ private fun SharedTransitionScope.ChatListNormal(
                             ?.parts
                             ?.filterIsInstance<UIMessagePart.ToolResult>()
                             ?.asSequence()
-                            ?.filter { it.toolName == "search_web" }
                             ?.map { it.toolCallId }
                             ?.filter { it.isNotBlank() }
                             ?.toSet()

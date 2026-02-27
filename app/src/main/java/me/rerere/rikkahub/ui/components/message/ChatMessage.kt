@@ -490,19 +490,17 @@ private fun MessagePartsBlock(
     // Tool Calls
     val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
         .associateBy { it.toolCallId }
-    val inlineSearchResultToolCallIds = parts
+    val inlineResultToolCallIds = parts
         .filterIsInstance<UIMessagePart.ToolResult>()
         .asSequence()
-        .filter { it.toolName == "search_web" }
         .map { it.toolCallId }
         .filter { it.isNotBlank() }
         .toSet()
-    val hiddenSearchToolCallIds = hiddenToolCallIds + inlineSearchResultToolCallIds
+    val hiddenResolvedToolCallIds = hiddenToolCallIds + inlineResultToolCallIds
     parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
         val approval = toolApprovalsById[toolCall.toolCallId]
-        val shouldHideToolCallCard = toolCall.toolName == "search_web" &&
-            toolCall.toolCallId.isNotBlank() &&
-            toolCall.toolCallId in hiddenSearchToolCallIds
+        val shouldHideToolCallCard = toolCall.toolCallId.isNotBlank() &&
+            toolCall.toolCallId in hiddenResolvedToolCallIds
         if (shouldHideToolCallCard && approval == null) {
             return@fastForEachIndexed
         }
