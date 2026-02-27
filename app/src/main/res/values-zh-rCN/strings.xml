@@ -143,8 +143,8 @@
     <string name="setting_advanced_page_conversation_actions_title">会话操作</string>
     <string name="setting_advanced_page_show_export_conversation_json_title">显示“导出会话为 JSON”按钮</string>
     <string name="setting_advanced_page_show_export_conversation_json_desc">在会话长按菜单中显示“导出 JSON”。</string>
-    <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择合并同源提供商</string>
-    <string name="setting_display_page_merge_providers_in_model_selector_desc">当多个提供商 Base URL 相同，在模型选择中合并显示</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_title">模型选择按首个标签合并提供商</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_desc">当多个提供商的第一个标签相同，在模型选择中合并显示</string>
     <string name="setting_page_advanced_settings">高级设置</string>
     <string name="setting_page_advanced_settings_desc">更多控制选项</string>
     <string name="setting_page_timeout_settings">超时设定</string>

@@ -518,8 +518,8 @@
   <string name="setting_display_page_show_message_jumper_title">消息導航按鈕</string>
   <string name="setting_display_page_show_model_name_desc">在消息前顯示助手名稱和時間</string>
   <string name="setting_display_page_show_model_name_title">顯示助手名稱</string>
-  <string name="setting_display_page_merge_providers_in_model_selector_title">模型選擇合併同源供應商</string>
-  <string name="setting_display_page_merge_providers_in_model_selector_desc">當多個供應商 Base URL 相同，在模型選擇中合併顯示</string>
+  <string name="setting_display_page_merge_providers_in_model_selector_title">模型選擇按第一個標籤合併供應商</string>
+  <string name="setting_display_page_merge_providers_in_model_selector_desc">當多個供應商的第一個標籤相同，在模型選擇中合併顯示</string>
   <string name="setting_display_page_show_token_usage_desc">顯示token用量和消息數量</string>
   <string name="setting_display_page_show_token_usage_title">顯示Token和上下文統計</string>
   <string name="setting_display_page_message_input_style_title">消息輸入欄樣式</string>

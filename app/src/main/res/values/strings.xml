@@ -652,8 +652,8 @@
     <string name="setting_display_page_message_jumper_position_desc">Move jumper to left side</string>
     <string name="setting_display_page_show_model_name_desc">Show assistant name and time before messages</string>
     <string name="setting_display_page_show_model_name_title">Show Assistant Name</string>
-    <string name="setting_display_page_merge_providers_in_model_selector_title">Merge Providers in Model Selector</string>
-    <string name="setting_display_page_merge_providers_in_model_selector_desc">When providers share the same Base URL, merge them in model selection</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_title">Merge Providers by First Tag</string>
+    <string name="setting_display_page_merge_providers_in_model_selector_desc">When providers share the same first tag, merge them in model selection</string>
     <string name="setting_display_page_show_token_usage_desc">Show token statistics below AI responses</string>
     <string name="setting_display_page_show_token_usage_title">Show Token Statistics</string>
     <string name="setting_display_page_message_input_style_title">Message Input Style</string>

@@ -113,7 +113,6 @@ import me.rerere.rikkahub.utils.toDp
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.util.Locale
 import kotlin.uuid.Uuid
 
 @Composable
@@ -273,7 +272,7 @@ internal fun ColumnScope.ModelList(
     val displayProviderGroups = remember(providers, settings.value.displaySetting.mergeProvidersInModelSelector) {
         buildModelSelectorProviderGroups(
             providers = providers,
-            mergeByBaseUrl = settings.value.displaySetting.mergeProvidersInModelSelector
+            mergeByPrimaryTag = settings.value.displaySetting.mergeProvidersInModelSelector
         )
     }
 
@@ -807,9 +806,9 @@ private data class ModelSelectorProviderGroup(
 
 private fun buildModelSelectorProviderGroups(
     providers: List<ProviderSetting>,
-    mergeByBaseUrl: Boolean,
+    mergeByPrimaryTag: Boolean,
 ): List<ModelSelectorProviderGroup> {
-    if (!mergeByBaseUrl) {
+    if (!mergeByPrimaryTag) {
         return providers.map { provider ->
             ModelSelectorProviderGroup(
                 key = "provider:${provider.id}",
@@ -821,7 +820,7 @@ private fun buildModelSelectorProviderGroups(
 
     val groupedProviders = LinkedHashMap<String, MutableList<ProviderSetting>>()
     providers.forEach { provider ->
-        val mergeKey = provider.modelSelectorMergeKey()
+        val mergeKey = provider.modelSelectorPrimaryTagMergeKey()
         groupedProviders.getOrPut(mergeKey) { mutableListOf() }.add(provider)
     }
 
@@ -834,34 +833,9 @@ private fun buildModelSelectorProviderGroups(
     }
 }
 
-private fun ProviderSetting.modelSelectorMergeKey(): String {
-    val normalizedBaseUrl = modelSelectorBaseUrl()?.normalizeModelSelectorBaseUrl()
-    if (normalizedBaseUrl.isNullOrBlank()) return "provider:$id"
-    return "baseurl:$normalizedBaseUrl"
-}
-
-private fun ProviderSetting.modelSelectorBaseUrl(): String? {
-    return when (this) {
-        is ProviderSetting.OpenAI -> baseUrl
-        is ProviderSetting.Google -> baseUrl
-        is ProviderSetting.Claude -> baseUrl
-    }
-}
-
-private fun String.normalizeModelSelectorBaseUrl(): String {
-    val noTrailingSlash = trim().removeSuffix("/")
-    val withoutVersionSuffix = when {
-        noTrailingSlash.endsWith("/v1beta", ignoreCase = true) -> {
-            noTrailingSlash.dropLast("/v1beta".length)
-        }
-
-        noTrailingSlash.endsWith("/v1", ignoreCase = true) -> {
-            noTrailingSlash.dropLast("/v1".length)
-        }
-
-        else -> noTrailingSlash
-    }
-    return withoutVersionSuffix.removeSuffix("/").lowercase(Locale.ROOT)
+private fun ProviderSetting.modelSelectorPrimaryTagMergeKey(): String {
+    val primaryTagId = tags.firstOrNull() ?: return "provider:$id"
+    return "tag:$primaryTagId"
 }
 @Composable
 private fun ModelItem(
