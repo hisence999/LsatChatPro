@@ -63,6 +63,10 @@ sealed class BuiltInTools {
     @SerialName("claude_web_search")
     data object ClaudeWebSearch : BuiltInTools()
 
+    @Serializable
+    @SerialName("claude_web_search_disabled")
+    data object ClaudeWebSearchDisabled : BuiltInTools()
+
     // https://ai.google.dev/gemini-api/docs/url-context?hl=zh-cn
     @Serializable
     @SerialName("url_context")

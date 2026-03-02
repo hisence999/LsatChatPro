@@ -25,6 +25,18 @@ class BuiltInSearchTest {
     }
 
     @Test
+    fun testClaudeDisabledMarkerOverridesOfficialDefault() {
+        val model = Model(
+            modelId = "claude-3.7-sonnet",
+            tools = setOf(BuiltInTools.ClaudeWebSearchDisabled),
+        )
+        val officialProvider = ProviderSetting.Claude(baseUrl = "https://api.anthropic.com/v1")
+
+        assert(!model.supportsBuiltInSearch(officialProvider))
+        assert(!model.isClaudeBuiltInSearchEnabled(officialProvider))
+    }
+
+    @Test
     fun testGeminiBuiltInSearchStillWorksByModelId() {
         val model = Model(modelId = "gemini-2.5-pro")
 

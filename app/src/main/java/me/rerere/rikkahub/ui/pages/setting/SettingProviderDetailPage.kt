@@ -120,6 +120,7 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderProxy
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.isClaudeBuiltInSearchEnabled
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
@@ -2317,9 +2318,11 @@ private fun BuiltInToolsSettings(
 
         val showClaudeWebSearchOption =
             tools.contains(BuiltInTools.ClaudeWebSearch) ||
+                tools.contains(BuiltInTools.ClaudeWebSearchDisabled) ||
                 parentProvider is ProviderSetting.Claude ||
                 ModelRegistry.CLAUDE_SERIES.match(model.modelId) ||
                 model.modelId.contains("claude", ignoreCase = true)
+        val isClaudeWebSearchChecked = model.isClaudeBuiltInSearchEnabled(parentProvider)
 
         val availableTools = buildList {
             add(
@@ -2346,6 +2349,10 @@ private fun BuiltInToolsSettings(
 
         availableTools.forEach { (tool, info) ->
             val (title, description) = info
+            val checked = when (tool) {
+                BuiltInTools.ClaudeWebSearch -> isClaudeWebSearchChecked
+                else -> tool in tools
+            }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = me.rerere.rikkahub.ui.theme.AppShapes.CardLarge,
@@ -2375,12 +2382,28 @@ private fun BuiltInToolsSettings(
                         )
                     }
                     HapticSwitch(
-                        checked = tool in tools,
+                        checked = checked,
                         onCheckedChange = { checked ->
-                            if (checked) {
-                                onUpdateTools(tools + tool)
-                            } else {
-                                onUpdateTools(tools - tool)
+                            when (tool) {
+                                BuiltInTools.ClaudeWebSearch -> {
+                                    if (checked) {
+                                        onUpdateTools(
+                                            (tools - BuiltInTools.ClaudeWebSearchDisabled) + BuiltInTools.ClaudeWebSearch
+                                        )
+                                    } else {
+                                        onUpdateTools(
+                                            (tools - BuiltInTools.ClaudeWebSearch) + BuiltInTools.ClaudeWebSearchDisabled
+                                        )
+                                    }
+                                }
+
+                                else -> {
+                                    if (checked) {
+                                        onUpdateTools(tools + tool)
+                                    } else {
+                                        onUpdateTools(tools - tool)
+                                    }
+                                }
                             }
                         }
                     )

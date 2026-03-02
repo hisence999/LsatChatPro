@@ -23,6 +23,9 @@ fun Model.supportsBuiltInSearch(providerSetting: ProviderSetting? = null): Boole
     if (tools.contains(BuiltInTools.Search)) {
         return true
     }
+    if (tools.contains(BuiltInTools.ClaudeWebSearchDisabled)) {
+        return false
+    }
     if (tools.contains(BuiltInTools.ClaudeWebSearch)) {
         return true
     }
@@ -34,10 +37,22 @@ fun Model.supportsBuiltInSearch(providerSetting: ProviderSetting? = null): Boole
     }
 }
 
+fun Model.isClaudeBuiltInSearchEnabled(providerSetting: ProviderSetting? = null): Boolean {
+    if (tools.contains(BuiltInTools.ClaudeWebSearchDisabled)) {
+        return false
+    }
+    if (tools.contains(BuiltInTools.ClaudeWebSearch)) {
+        return true
+    }
+    return ModelRegistry.CLAUDE_SERIES.match(modelId) &&
+        providerSetting.supportsClaudeBuiltInSearchByHost()
+}
+
 fun Model.preferredBuiltInSearchTool(): BuiltInTools? {
     return when {
-        tools.contains(BuiltInTools.ClaudeWebSearch) -> BuiltInTools.ClaudeWebSearch
         tools.contains(BuiltInTools.Search) -> BuiltInTools.Search
+        tools.contains(BuiltInTools.ClaudeWebSearchDisabled) -> null
+        tools.contains(BuiltInTools.ClaudeWebSearch) -> BuiltInTools.ClaudeWebSearch
         ModelRegistry.CLAUDE_SERIES.match(modelId) -> BuiltInTools.ClaudeWebSearch
         ModelRegistry.GEMINI_SERIES.match(modelId) -> BuiltInTools.Search
         else -> null
