@@ -265,4 +265,7 @@
     <string name="backup_log_status_success">成功</string>
     <string name="backup_log_status_failed">失败</string>
     <string name="backup_log_status_skipped">跳过</string>
+    <string name="setting_page_built_in_tools_desc">选择当前模型支持的内置工具，这些工具由 API 原生提供。</string>
+    <string name="setting_page_built_in_tools_claude_search">Claude 网页搜索</string>
+    <string name="setting_page_built_in_tools_claude_search_desc">启用 Claude 内置网页搜索</string>
 </resources>

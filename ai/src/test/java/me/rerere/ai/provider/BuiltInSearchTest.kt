@@ -14,16 +14,14 @@ class BuiltInSearchTest {
     }
 
     @Test
-    fun testExplicitClaudeToolStillChecksProviderHost() {
+    fun testExplicitClaudeToolOverridesProviderHostRestriction() {
         val model = Model(
             modelId = "custom-claude",
             tools = setOf(BuiltInTools.ClaudeWebSearch)
         )
-        val officialProvider = ProviderSetting.Claude(baseUrl = "https://api.anthropic.com/v1")
         val unofficialProvider = ProviderSetting.Claude(baseUrl = "https://example.com/v1")
 
-        assert(model.supportsBuiltInSearch(officialProvider))
-        assert(!model.supportsBuiltInSearch(unofficialProvider))
+        assert(model.supportsBuiltInSearch(unofficialProvider))
     }
 
     @Test

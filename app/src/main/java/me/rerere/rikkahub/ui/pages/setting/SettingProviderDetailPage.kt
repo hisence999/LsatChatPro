@@ -1251,6 +1251,8 @@ private fun ModelSettingsForm(
                 2 -> {
                     // 内置工具页面
                     BuiltInToolsSettings(
+                        model = model,
+                        parentProvider = parentProvider,
                         tools = model.tools,
                         onUpdateTools = { tools ->
                             onModelChange(model.copy(tools = tools))
@@ -2290,6 +2292,8 @@ private fun ModelCard(
 
 @Composable
 private fun BuiltInToolsSettings(
+    model: Model,
+    parentProvider: ProviderSetting?,
     tools: Set<BuiltInTools>,
     onUpdateTools: (Set<BuiltInTools>) -> Unit
 ) {
@@ -2311,16 +2315,34 @@ private fun BuiltInToolsSettings(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        val availableTools = listOf(
-            BuiltInTools.Search to Pair(
-                stringResource(R.string.setting_page_built_in_tools_search),
-                stringResource(R.string.setting_page_built_in_tools_search_desc)
-            ),
-            BuiltInTools.UrlContext to Pair(
-                stringResource(R.string.setting_page_built_in_tools_url_context),
-                stringResource(R.string.setting_page_built_in_tools_url_context_desc)
+        val showClaudeWebSearchOption =
+            tools.contains(BuiltInTools.ClaudeWebSearch) ||
+                parentProvider is ProviderSetting.Claude ||
+                ModelRegistry.CLAUDE_SERIES.match(model.modelId) ||
+                model.modelId.contains("claude", ignoreCase = true)
+
+        val availableTools = buildList {
+            add(
+                BuiltInTools.Search to Pair(
+                    stringResource(R.string.setting_page_built_in_tools_search),
+                    stringResource(R.string.setting_page_built_in_tools_search_desc)
+                )
             )
-        )
+            if (showClaudeWebSearchOption) {
+                add(
+                    BuiltInTools.ClaudeWebSearch to Pair(
+                        stringResource(R.string.setting_page_built_in_tools_claude_search),
+                        stringResource(R.string.setting_page_built_in_tools_claude_search_desc)
+                    )
+                )
+            }
+            add(
+                BuiltInTools.UrlContext to Pair(
+                    stringResource(R.string.setting_page_built_in_tools_url_context),
+                    stringResource(R.string.setting_page_built_in_tools_url_context_desc)
+                )
+            )
+        }
 
         availableTools.forEach { (tool, info) ->
             val (title, description) = info

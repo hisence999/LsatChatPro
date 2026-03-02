@@ -661,9 +661,11 @@
   <string name="setting_page_assistant_desc">设置个性化助手 (智能体)</string>
   <string name="setting_page_basic_settings">基本设置</string>
   <string name="setting_page_built_in_tools">内置工具</string>
-  <string name="setting_page_built_in_tools_desc">选择模型支持的内置工具, 这些工具直接由API内置，无需APP提供，当前这个功能仅支持Gemini官方API。</string>
+  <string name="setting_page_built_in_tools_desc">选择当前模型支持的内置工具，这些工具由 API 原生提供。</string>
   <string name="setting_page_built_in_tools_search">搜索</string>
   <string name="setting_page_built_in_tools_search_desc">启用 Google 搜索集成</string>
+  <string name="setting_page_built_in_tools_claude_search">Claude 网页搜索</string>
+  <string name="setting_page_built_in_tools_claude_search_desc">启用 Claude 内置网页搜索</string>
   <string name="setting_page_built_in_tools_url_context">URL 上下文</string>
   <string name="setting_page_built_in_tools_url_context_desc">启用 URL 内容处理</string>
   <string name="setting_page_chat_settings">聊天设置</string>

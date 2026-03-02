@@ -794,9 +794,11 @@
     <string name="setting_page_assistant_desc">Configure your assistants</string>
     <string name="setting_page_basic_settings">Basic Settings</string>
     <string name="setting_page_built_in_tools">Built-in Tools</string>
-    <string name="setting_page_built_in_tools_desc">Select built-in tools supported by model. Currently only for Gemini official API.</string>
+    <string name="setting_page_built_in_tools_desc">Select built-in tools supported by this model.</string>
     <string name="setting_page_built_in_tools_search">Search</string>
     <string name="setting_page_built_in_tools_search_desc">Enable Google Search integration</string>
+    <string name="setting_page_built_in_tools_claude_search">Claude Web Search</string>
+    <string name="setting_page_built_in_tools_claude_search_desc">Enable Claude built-in web search</string>
     <string name="setting_page_built_in_tools_url_context">URL Context</string>
     <string name="setting_page_built_in_tools_url_context_desc">Enable URL content processing</string>
     <string name="setting_page_chat_settings">Chat Settings</string>

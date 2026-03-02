@@ -24,7 +24,7 @@ fun Model.supportsBuiltInSearch(providerSetting: ProviderSetting? = null): Boole
         return true
     }
     if (tools.contains(BuiltInTools.ClaudeWebSearch)) {
-        return providerSetting.supportsClaudeBuiltInSearchByHost()
+        return true
     }
 
     return when {
