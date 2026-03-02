@@ -1488,66 +1488,35 @@ private fun ChatPageContent(
                 }
 
                 if (showContextSummaryEditDialog) {
-                    AlertDialog(
-                        onDismissRequest = {
-                            if (!savingContextSummary) {
-                                showContextSummaryEditDialog = false
+                    ContextSummaryEditSheet(
+                        settings = setting,
+                        summary = contextSummaryDraft,
+                        saving = savingContextSummary,
+                        onSummaryChange = { contextSummaryDraft = it },
+                        onSave = {
+                            val updatedSummary = contextSummaryDraft.trim()
+                            if (updatedSummary.isEmpty()) {
+                                toaster.show(
+                                    message = context.getString(R.string.chat_page_edit_context_summary_empty),
+                                    type = ToastType.Warning,
+                                )
+                                return@ContextSummaryEditSheet
+                            }
+                            savingContextSummary = true
+                            scope.launch {
+                                val updated = vm.updateContextSummary(updatedSummary)
+                                savingContextSummary = false
+                                if (updated) {
+                                    showContextSummaryEditDialog = false
+                                } else {
+                                    toaster.show(
+                                        message = context.getString(R.string.chat_page_edit_context_summary_failed),
+                                        type = ToastType.Error,
+                                    )
+                                }
                             }
                         },
-                        title = {
-                            Text(stringResource(R.string.chat_page_edit_context_summary_title))
-                        },
-                        text = {
-                            OutlinedTextField(
-                                value = contextSummaryDraft,
-                                onValueChange = { contextSummaryDraft = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text(stringResource(R.string.chat_page_edit_context_summary_hint))
-                                },
-                                minLines = 6,
-                                maxLines = 10,
-                                enabled = !savingContextSummary,
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val updatedSummary = contextSummaryDraft.trim()
-                                    if (updatedSummary.isEmpty()) {
-                                        toaster.show(
-                                            message = context.getString(R.string.chat_page_edit_context_summary_empty),
-                                            type = ToastType.Warning,
-                                        )
-                                        return@TextButton
-                                    }
-                                    savingContextSummary = true
-                                    scope.launch {
-                                        val updated = vm.updateContextSummary(updatedSummary)
-                                        savingContextSummary = false
-                                        if (updated) {
-                                            showContextSummaryEditDialog = false
-                                        } else {
-                                            toaster.show(
-                                                message = context.getString(R.string.chat_page_edit_context_summary_failed),
-                                                type = ToastType.Error,
-                                            )
-                                        }
-                                    }
-                                },
-                                enabled = !savingContextSummary,
-                            ) {
-                                Text(stringResource(R.string.save))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = { showContextSummaryEditDialog = false },
-                                enabled = !savingContextSummary,
-                            ) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                        }
+                        onDismiss = { showContextSummaryEditDialog = false },
                     )
                 }
 
@@ -1824,6 +1793,79 @@ private fun GroupChatMentionDisambiguationSheet(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(text = stringResource(R.string.send))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContextSummaryEditSheet(
+    settings: Settings,
+    summary: String,
+    saving: Boolean,
+    onSummaryChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+
+    ModalBottomSheet(
+        onDismissRequest = {
+            if (!saving) onDismiss()
+        },
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.82f)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.chat_page_edit_context_summary_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.chat_page_edit_context_summary_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = summary,
+                onValueChange = onSummaryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                minLines = 10,
+                maxLines = Int.MAX_VALUE,
+                enabled = !saving,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TextButton(
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        onDismiss()
+                    },
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        onSave()
+                    },
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.save))
+                }
             }
         }
     }
