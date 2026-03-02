@@ -576,6 +576,9 @@ private fun ChatPageContent(
     var mentionDisambiguationState by remember { mutableStateOf<GroupChatMentionDisambiguationState?>(null) }
     var pendingJumpNodeId by remember { mutableStateOf<Uuid?>(null) }
     var showLargeContextWarningDialog by rememberSaveable(conversation.id) { mutableStateOf(false) }
+    var showContextSummaryEditDialog by rememberSaveable(conversation.id) { mutableStateOf(false) }
+    var contextSummaryDraft by rememberSaveable(conversation.id) { mutableStateOf("") }
+    var savingContextSummary by remember { mutableStateOf(false) }
     val currentConversationState = rememberUpdatedState(conversation)
     val conversationInitialized by vm.conversationInitialized.collectAsStateWithLifecycle()
     val conversationReadPosition by vm.conversationReadPosition.collectAsStateWithLifecycle()
@@ -967,6 +970,12 @@ private fun ChatPageContent(
                     onReadPositionSample = { nodeId, offset ->
                         if (initialEntryHandled) {
                             pendingReadPositionSample = nodeId to offset
+                        }
+                    },
+                    onEditContextSummary = {
+                        if (!conversation.contextSummary.isNullOrBlank()) {
+                            contextSummaryDraft = conversation.contextSummary.orEmpty()
+                            showContextSummaryEditDialog = true
                         }
                     },
                 )
@@ -1475,6 +1484,70 @@ private fun ChatPageContent(
                             mentionDisambiguationState = null
                         },
                         onDismiss = { mentionDisambiguationState = null },
+                    )
+                }
+
+                if (showContextSummaryEditDialog) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            if (!savingContextSummary) {
+                                showContextSummaryEditDialog = false
+                            }
+                        },
+                        title = {
+                            Text(stringResource(R.string.chat_page_edit_context_summary_title))
+                        },
+                        text = {
+                            OutlinedTextField(
+                                value = contextSummaryDraft,
+                                onValueChange = { contextSummaryDraft = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = {
+                                    Text(stringResource(R.string.chat_page_edit_context_summary_hint))
+                                },
+                                minLines = 6,
+                                maxLines = 10,
+                                enabled = !savingContextSummary,
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val updatedSummary = contextSummaryDraft.trim()
+                                    if (updatedSummary.isEmpty()) {
+                                        toaster.show(
+                                            message = context.getString(R.string.chat_page_edit_context_summary_empty),
+                                            type = ToastType.Warning,
+                                        )
+                                        return@TextButton
+                                    }
+                                    savingContextSummary = true
+                                    scope.launch {
+                                        val updated = vm.updateContextSummary(updatedSummary)
+                                        savingContextSummary = false
+                                        if (updated) {
+                                            showContextSummaryEditDialog = false
+                                        } else {
+                                            toaster.show(
+                                                message = context.getString(R.string.chat_page_edit_context_summary_failed),
+                                                type = ToastType.Error,
+                                            )
+                                        }
+                                    }
+                                },
+                                enabled = !savingContextSummary,
+                            ) {
+                                Text(stringResource(R.string.save))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { showContextSummaryEditDialog = false },
+                                enabled = !savingContextSummary,
+                            ) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
                     )
                 }
 

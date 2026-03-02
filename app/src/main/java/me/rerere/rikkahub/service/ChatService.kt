@@ -5639,6 +5639,30 @@ class ChatService(
         }
     }
 
+    suspend fun updateContextSummary(conversationId: Uuid, summary: String): Boolean = withContext(Dispatchers.IO) {
+        val updatedSummary = summary.trim()
+        if (updatedSummary.isBlank()) return@withContext false
+        if (contextSummaryInProgressConversations.contains(conversationId)) return@withContext false
+
+        return@withContext try {
+            val currentConversation = getConversationFlow(conversationId).value
+            if (currentConversation.contextSummary.isNullOrBlank()) {
+                false
+            } else if (currentConversation.contextSummary?.trim() == updatedSummary) {
+                true
+            } else {
+                saveConversation(
+                    conversationId = conversationId,
+                    conversation = currentConversation.copy(contextSummary = updatedSummary)
+                )
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "updateContextSummary failed", e)
+            false
+        }
+    }
+
 
     // 保存对话
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {

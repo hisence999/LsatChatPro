@@ -277,6 +277,11 @@
   <string name="chat_page_clear_context">清空上下文</string>
   <string name="chat_page_context_compressing">正在压缩上下文</string>
   <string name="chat_page_context_compressed">已压缩上下文</string>
+  <string name="chat_page_edit_context_summary">编辑已压缩上下文摘要</string>
+  <string name="chat_page_edit_context_summary_title">编辑已压缩上下文摘要</string>
+  <string name="chat_page_edit_context_summary_hint">修改用于压缩上下文的摘要内容</string>
+  <string name="chat_page_edit_context_summary_empty">摘要内容不能为空</string>
+  <string name="chat_page_edit_context_summary_failed">摘要保存失败，请稍后重试</string>
   <string name="chat_page_clear_context_confirm_title">确认清空上下文？</string>
   <string name="chat_page_clear_context_confirm_message">这会从当前上下文中移除之前的消息，是否继续？</string>
   <string name="chat_page_clear_context_confirm_action">清空</string>

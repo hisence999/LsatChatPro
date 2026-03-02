@@ -399,6 +399,11 @@
     <string name="chat_page_clear_context">Clear Context</string>
     <string name="chat_page_context_compressing">Compressing context</string>
     <string name="chat_page_context_compressed">Context compressed</string>
+    <string name="chat_page_edit_context_summary">Edit compressed context summary</string>
+    <string name="chat_page_edit_context_summary_title">Edit compressed context summary</string>
+    <string name="chat_page_edit_context_summary_hint">Edit the summary content used for compressed context</string>
+    <string name="chat_page_edit_context_summary_empty">Summary cannot be empty</string>
+    <string name="chat_page_edit_context_summary_failed">Failed to save summary. Try again later.</string>
     <string name="chat_page_clear_context_confirm_title">Clear context?</string>
     <string name="chat_page_clear_context_confirm_message">This will remove previous messages from the current context. Continue?</string>
     <string name="chat_page_clear_context_confirm_action">Clear</string>

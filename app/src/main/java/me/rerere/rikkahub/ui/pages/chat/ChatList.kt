@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -16,6 +18,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -66,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -79,6 +84,7 @@ import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardDoubleArrowDown
@@ -157,6 +163,7 @@ fun ChatList(
     onLoadOlderHistory: () -> Unit = {},
     onJumpToMessage: (Uuid) -> Unit = {},
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit = { _, _ -> },
+    onEditContextSummary: () -> Unit = {},
 ) {
     SharedTransitionLayout(modifier = modifier) {
         AnimatedContent(
@@ -194,6 +201,7 @@ fun ChatList(
                     loadingOlderHistory = loadingOlderHistory,
                     onLoadOlderHistory = onLoadOlderHistory,
                     onReadPositionSample = onReadPositionSample,
+                    onEditContextSummary = onEditContextSummary,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
             }
@@ -220,6 +228,7 @@ private fun SharedTransitionScope.ChatListNormal(
     loadingOlderHistory: Boolean,
     onLoadOlderHistory: () -> Unit,
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit,
+    onEditContextSummary: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
@@ -249,6 +258,9 @@ private fun SharedTransitionScope.ChatListNormal(
             .asSequence()
             .filter { it in conversation.messageNodes.indices }
             .toSet()
+    }
+    val latestCompressionMarkerIndex = remember(compressionMarkerIndexes) {
+        compressionMarkerIndexes.maxOrNull()
     }
     val pendingCompressionMarkerIndex = remember(
         conversation.contextSummaryPendingBoundaryIndex,
@@ -485,7 +497,10 @@ private fun SharedTransitionScope.ChatListNormal(
                         )
                     }
                     if (index == conversation.truncateIndex - 1) {
-                        ContextDivider(label = stringResource(R.string.chat_page_clear_context))
+                        ContextDivider(
+                            label = stringResource(R.string.chat_page_clear_context),
+                            enableHaptics = effectiveDisplay.enableUIHaptics,
+                        )
                     }
                     if (
                         effectiveDisplay.showContextCompressionDivider &&
@@ -493,10 +508,21 @@ private fun SharedTransitionScope.ChatListNormal(
                     ) {
                         when {
                             index == pendingCompressionMarkerIndex -> {
-                                ContextDivider(label = stringResource(R.string.chat_page_context_compressing))
+                                ContextDivider(
+                                    label = stringResource(R.string.chat_page_context_compressing),
+                                    enableHaptics = effectiveDisplay.enableUIHaptics,
+                                )
                             }
                             index in compressionMarkerIndexes -> {
-                                ContextDivider(label = stringResource(R.string.chat_page_context_compressed))
+                                val showEditAction = index == latestCompressionMarkerIndex &&
+                                    !conversation.contextSummary.isNullOrBlank()
+                                ContextDivider(
+                                    label = stringResource(R.string.chat_page_context_compressed),
+                                    showEditAction = showEditAction,
+                                    isEditActionEnabled = pendingCompressionMarkerIndex == null,
+                                    onEditActionClick = onEditContextSummary,
+                                    enableHaptics = effectiveDisplay.enableUIHaptics,
+                                )
                             }
                         }
                     }
@@ -663,7 +689,22 @@ private fun SharedTransitionScope.ChatListNormal(
 }
 
 @Composable
-private fun ContextDivider(label: String) {
+private fun ContextDivider(
+    label: String,
+    showEditAction: Boolean = false,
+    isEditActionEnabled: Boolean = true,
+    onEditActionClick: () -> Unit = {},
+    enableHaptics: Boolean = true,
+) {
+    val haptics = rememberPremiumHaptics(enabled = enableHaptics)
+    val editInteractionSource = remember { MutableInteractionSource() }
+    val isEditPressed by editInteractionSource.collectIsPressedAsState()
+    val editScale by animateFloatAsState(
+        targetValue = if (showEditAction && isEditActionEnabled && isEditPressed) 0.85f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+        label = "context_divider_edit_scale",
+    )
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -672,10 +713,37 @@ private fun ContextDivider(label: String) {
             .fillMaxWidth()
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (showEditAction) {
+                IconButton(
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        onEditActionClick()
+                    },
+                    enabled = isEditActionEnabled,
+                    interactionSource = editInteractionSource,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .graphicsLayer {
+                            scaleX = editScale
+                            scaleY = editScale
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = stringResource(R.string.chat_page_edit_context_summary),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
         HorizontalDivider(modifier = Modifier.weight(1f))
     }
 }
