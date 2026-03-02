@@ -38,6 +38,7 @@ import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.db.dao.ScheduledTaskDao
 import me.rerere.rikkahub.data.db.dao.ScheduledTaskRunDao
@@ -182,7 +183,8 @@ class ScheduledTaskWorker(
                 errorCode = "MODEL_NOT_FOUND",
                 errorMessage = "Model not found",
             )
-        val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+        val modelProvider = model.findProvider(settings.providers)
+        val modelSupportsBuiltIn = model.supportsBuiltInSearch(modelProvider)
         val useBuiltInSearch = assistantForRun.preferBuiltInSearch && modelSupportsBuiltIn
         val runtimeModel = if (useBuiltInSearch) {
             model.ensureBuiltInSearchTool()
@@ -433,7 +435,8 @@ class ScheduledTaskWorker(
         val hasExternalTools = assistantForRun.searchMode !is AssistantSearchMode.Off || mcpTools.isNotEmpty()
 
         return buildList {
-            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+            val modelProvider = model.findProvider(settings.providers)
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch(modelProvider)
             val useBuiltInSearch = assistantForRun.preferBuiltInSearch && modelSupportsBuiltIn
 
             when (val sm = assistantForRun.searchMode) {

@@ -57,6 +57,7 @@ import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
@@ -122,10 +123,14 @@ fun SearchPickerButton(
             .sorted()
             .toList()
     }
+    val modelProvider = remember(model, settings.providers) {
+        model?.findProvider(settings.providers)
+    }
+    val modelSupportsBuiltIn = model?.supportsBuiltInSearch(modelProvider) == true
 
     ToggleSurface(
         modifier = modifier,
-        checked = enableSearch || (preferBuiltInSearch && model?.supportsBuiltInSearch() == true),
+        checked = enableSearch || (preferBuiltInSearch && modelSupportsBuiltIn),
         checkedColor = Color.Transparent,
         uncheckedColor = Color.Transparent,
         contentColor = contentColor,
@@ -144,7 +149,6 @@ fun SearchPickerButton(
                 contentAlignment = Alignment.Center
             ) {
                 // Determine if built-in search is effectively active
-                val modelSupportsBuiltIn = model?.supportsBuiltInSearch() == true
                 val isUsingBuiltIn = preferBuiltInSearch && modelSupportsBuiltIn
                 
                 // Show globe icon when: using built-in search, or no provider selected, or search is off
@@ -238,9 +242,13 @@ internal fun SearchPicker(
     onDismiss: () -> Unit
 ) {
     val navBackStack = LocalNavController.current
+    val modelProvider = remember(model, settings.providers) {
+        model?.findProvider(settings.providers)
+    }
+    val modelSupportsBuiltIn = model?.supportsBuiltInSearch(modelProvider) == true
 
     // 模型内置搜索 (only show if model supports it)
-    if (model?.supportsBuiltInSearch() == true) {
+    if (modelSupportsBuiltIn) {
         BuiltInSearchSetting(
             preferBuiltInSearch = preferBuiltInSearch,
             onTogglePreferBuiltInSearch = onTogglePreferBuiltInSearch

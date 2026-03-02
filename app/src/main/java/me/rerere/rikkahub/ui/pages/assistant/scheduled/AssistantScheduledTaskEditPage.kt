@@ -46,6 +46,7 @@ import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.AssistantSearchMode
@@ -497,6 +498,8 @@ private fun SearchProviderPicker(
         ?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() }
     val resolvedModelId = overrideModelUuid ?: assistant.backgroundModelId ?: assistant.chatModelId ?: settings.chatModelId
     val model = settings.findModelById(resolvedModelId)
+    val modelProvider = model?.findProvider(settings.providers)
+    val modelSupportsBuiltIn = model?.supportsBuiltInSearch(modelProvider) == true
 
     val inheritText = stringResource(R.string.scheduled_tasks_inherit)
     val offText = stringResource(R.string.off)
@@ -540,7 +543,7 @@ private fun SearchProviderPicker(
 
     val detailText = when {
         draft.searchOverrideType == ScheduledTaskSearchOverrideType.OFF -> offText
-        preferBuiltInSearch -> stringResource(R.string.built_in_search_title)
+        preferBuiltInSearch && modelSupportsBuiltIn -> stringResource(R.string.built_in_search_title)
         effectiveProviderIndex >= 0 -> providerName
         else -> offText
     }
@@ -671,7 +674,7 @@ private fun SearchProviderPicker(
                             )
                         }
                     },
-                    contentColor = if (enableSearch || (preferBuiltInSearch && model?.supportsBuiltInSearch() == true)) {
+                    contentColor = if (enableSearch || (preferBuiltInSearch && modelSupportsBuiltIn)) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurface

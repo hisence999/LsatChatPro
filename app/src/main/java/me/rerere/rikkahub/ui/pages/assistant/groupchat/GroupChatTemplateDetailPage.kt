@@ -58,6 +58,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.AssistantSearchMode
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.GroupChatSeat
@@ -722,7 +723,8 @@ private fun SeatOverridesEditor(
                 val resolved = service?.let { options -> SearchServiceOptions.TYPES[options::class] }
                 resolved?.takeIf { it.isNotBlank() } ?: "Provider ${index + 1}"
             }
-            val supportsBuiltInSearch = model?.supportsBuiltInSearch() == true
+            val modelProvider = model?.findProvider(settings.providers)
+            val supportsBuiltInSearch = model?.supportsBuiltInSearch(modelProvider) == true
             val searchSubtitle = when {
                 !seat.overrides.searchEnabled -> offText
                 seat.overrides.searchMode is AssistantSearchMode.BuiltIn -> builtInText

@@ -574,6 +574,9 @@ fun ChatInput(
                             val enableSearchMsg = stringResource(R.string.web_search_enabled)
                             val disableSearchMsg = stringResource(R.string.web_search_disabled)
                             val chatModel = settings.getCurrentChatModel()
+                            val chatModelProvider = chatModel?.findProvider(settings.providers)
+                            val chatModelSupportsBuiltIn =
+                                chatModel?.supportsBuiltInSearch(chatModelProvider) == true
                             
                             SearchPickerButton(
                                 enableSearch = enableSearch,
@@ -603,7 +606,7 @@ fun ChatInput(
                                 onTogglePreferBuiltInSearch = { enabled ->
                                     onUpdateAssistant(assistant.copy(preferBuiltInSearch = enabled))
                                 },
-                                contentColor = if (enableSearch || (assistant.preferBuiltInSearch && chatModel?.supportsBuiltInSearch() == true)) {
+                                contentColor = if (enableSearch || (assistant.preferBuiltInSearch && chatModelSupportsBuiltIn)) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface

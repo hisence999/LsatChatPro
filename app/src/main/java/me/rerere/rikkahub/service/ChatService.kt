@@ -1429,7 +1429,8 @@ class ChatService(
             val model = settings.getCurrentChatModel() ?: return@runCatching
 
             val assistant = settings.getCurrentAssistant()
-            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+            val modelProvider = model.findProvider(settings.providers)
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch(modelProvider)
             val useBuiltInSearch = assistant.preferBuiltInSearch && modelSupportsBuiltIn
             val runtimeModel = if (useBuiltInSearch) {
                 model.ensureBuiltInSearchTool()
@@ -1963,10 +1964,11 @@ class ChatService(
                 }
             }
             val seatAssistant = applySeatOverrides(assistant, seat.overrides, fullSystemPromptSuffix)
-            val modelSupportsBuiltIn = model.supportsBuiltInSearch()
+            val seatProvider = model.findProvider(settings.providers)
+            val modelSupportsBuiltIn = model.supportsBuiltInSearch(seatProvider)
             val useBuiltInSearch = modelSupportsBuiltIn &&
                 (seatAssistant.searchMode is AssistantSearchMode.BuiltIn || seatAssistant.preferBuiltInSearch)
-            val seatModel = if (useBuiltInSearch) model.ensureBuiltInSearchTool() else model.copy(tools = emptySet())
+            val seatModel = if (useBuiltInSearch) model.ensureBuiltInSearchTool() else model.withoutBuiltInSearchTools()
 
             val seatInputTransformers = buildList {
                 if (includeAppContextTransformer) {
