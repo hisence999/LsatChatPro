@@ -95,7 +95,7 @@ LastChat is not just a tool; it is designed to be a "fidget toy".
 ## 6. Testing & Operations
 -   **Unit Tests:** Place in `src/test`. Cover parsing and logic.
 -   **Instrumented Tests:** Place in `src/androidTest`. Cover flows.
--   **Build**: After completing the changes, use `./gradlew.bat :app:assembleExpRelease --no-daemon -x :app:uploadCrashlyticsMappingFileExpRelease` to build the package for testing.
+-   **Build**: After completing the changes, use `./gradlew :app:assembleExpRelease --no-daemon -x :app:uploadCrashlyticsMappingFileExpRelease` to build the package for testing.
 -   **Build Exception**: If the change only updates UI copy or prompt text (no logic, behavior, or resource/schema changes), compile verification can be skipped.
 -   **Commit Guidelines:** Use Conventional Commits (`feat:`, `fix:`, `chore:`).
 -   **Localization Requirement:** When adding or modifying features that introduce/modify user-visible text, you MUST provide both Simplified Chinese and Traditional Chinese `strings.xml` (typically `values-zh-rCN/strings.xml` and `values-zh-rTW/strings.xml`) alongside the default resources.
