@@ -2,7 +2,9 @@ package me.rerere.rikkahub.data.ai
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -39,6 +41,7 @@ import me.rerere.ai.ui.UsedMode
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
 import me.rerere.ai.ui.truncate
+import me.rerere.ai.util.HttpStatusException
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_LEARNING_MODE_PROMPT
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
@@ -49,6 +52,7 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.getHttp429MaxRetries
 import me.rerere.rikkahub.data.ai.rag.EmbeddingService
 import me.rerere.rikkahub.data.db.entity.ToolResultArchiveEntity
 import me.rerere.rikkahub.data.db.entity.ToolResultArchiveChunkEntity
@@ -1144,37 +1148,59 @@ class GenerationHandler(
             var firstChunkAt: Long? = null
             var failure: Throwable? = null
             val rawResponseText = StringBuilder()
+            val max429Retries = settings.getHttp429MaxRetries()
+            var streamAttempt = 0
             try {
-                providerImpl.streamText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params
-                ).collect { chunk ->
-                    if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
-                    chunk.rawResponse
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let {
-                            if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
-                            rawResponseText.append(it)
-                        }
-                    messages = messages.handleMessageChunk(chunk = chunk, model = model)
-                    chunk.usage?.let { usage ->
-                        messages = messages.mapIndexed { index, message ->
-                            if (index == messages.lastIndex) {
-                                message.copy(usage = message.usage.merge(usage))
-                            } else {
-                                message
+                while (true) {
+                    streamAttempt += 1
+                    var emittedAnyChunk = false
+                    try {
+                        providerImpl.streamText(
+                            providerSetting = provider,
+                            messages = internalMessages,
+                            params = params
+                        ).collect { chunk ->
+                            emittedAnyChunk = true
+                            if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
+                            chunk.rawResponse
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let {
+                                    if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
+                                    rawResponseText.append(it)
+                                }
+                            messages = messages.handleMessageChunk(chunk = chunk, model = model)
+                            chunk.usage?.let { usage ->
+                                messages = messages.mapIndexed { index, message ->
+                                    if (index == messages.lastIndex) {
+                                        message.copy(usage = message.usage.merge(usage))
+                                    } else {
+                                        message
+                                    }
+                                }
                             }
+                            val finishReasons = when {
+                                chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
+                                else -> chunk.choices
+                                    .mapNotNull { choice -> choice.finishReason?.trim() }
+                                    .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                                    .toSet()
+                            }
+                            onUpdateMessages(messages, finishReasons)
                         }
+                        break
+                    } catch (t: Throwable) {
+                        if (!shouldRetry429(t, attempt = streamAttempt, maxRetries = max429Retries, emittedAnyChunk = emittedAnyChunk)) {
+                            throw t
+                        }
+
+                        val delayMs = compute429RetryDelayMs(attempt = streamAttempt)
+                        Log.w(
+                            TAG,
+                            "generateInternal(stream): got HTTP 429, retry ${streamAttempt}/$max429Retries in ${delayMs}ms",
+                            t,
+                        )
+                        delay(delayMs)
                     }
-                    val finishReasons = when {
-                        chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
-                        else -> chunk.choices
-                            .mapNotNull { choice -> choice.finishReason?.trim() }
-                            .filter { reason -> reason.isNotBlank() && reason != "unknown" }
-                            .toSet()
-                    }
-                    onUpdateMessages(messages, finishReasons)
                 }
 
                 if (hasContextSources) {
@@ -1218,47 +1244,67 @@ class GenerationHandler(
             val startAt = System.currentTimeMillis()
             var failure: Throwable? = null
             var rawResponseText = ""
+            val max429Retries = settings.getHttp429MaxRetries()
+            var nonStreamAttempt = 0
             try {
-                val chunk = providerImpl.generateText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params,
-                )
-                rawResponseText = chunk.rawResponse.orEmpty()
-                messages = messages.handleMessageChunk(chunk = chunk, model = model)
-                chunk.usage?.let { usage ->
-                    messages = messages.mapIndexed { index, message ->
-                        if (index == messages.lastIndex) {
-                            message.copy(
-                                usage = message.usage.merge(usage)
-                            )
-                        } else {
-                            message
+                while (true) {
+                    nonStreamAttempt += 1
+                    try {
+                        val chunk = providerImpl.generateText(
+                            providerSetting = provider,
+                            messages = internalMessages,
+                            params = params,
+                        )
+                        rawResponseText = chunk.rawResponse.orEmpty()
+                        messages = messages.handleMessageChunk(chunk = chunk, model = model)
+                        chunk.usage?.let { usage ->
+                            messages = messages.mapIndexed { index, message ->
+                                if (index == messages.lastIndex) {
+                                    message.copy(
+                                        usage = message.usage.merge(usage)
+                                    )
+                                } else {
+                                    message
+                                }
+                            }
                         }
-                    }
-                }
 
-                if (hasContextSources) {
-                    messages = messages.mapIndexed { index, message ->
-                        if (index == messages.lastIndex && message.role == MessageRole.ASSISTANT) {
-                            message.copy(
-                                usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
-                                usedModes = usedModes.ifEmpty { null },
-                                usedMemories = usedMemories.ifEmpty { null },
-                            )
-                        } else {
-                            message
+                        if (hasContextSources) {
+                            messages = messages.mapIndexed { index, message ->
+                                if (index == messages.lastIndex && message.role == MessageRole.ASSISTANT) {
+                                    message.copy(
+                                        usedLorebookEntries = usedLorebookEntries.ifEmpty { null },
+                                        usedModes = usedModes.ifEmpty { null },
+                                        usedMemories = usedMemories.ifEmpty { null },
+                                    )
+                                } else {
+                                    message
+                                }
+                            }
                         }
+                        val finishReasons = when {
+                            chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
+                            else -> chunk.choices
+                                .mapNotNull { choice -> choice.finishReason?.trim() }
+                                .filter { reason -> reason.isNotBlank() && reason != "unknown" }
+                                .toSet()
+                        }
+                        onUpdateMessages(messages, finishReasons)
+                        break
+                    } catch (t: Throwable) {
+                        if (!shouldRetry429(t, attempt = nonStreamAttempt, maxRetries = max429Retries)) {
+                            throw t
+                        }
+
+                        val delayMs = compute429RetryDelayMs(attempt = nonStreamAttempt)
+                        Log.w(
+                            TAG,
+                            "generateInternal(non-stream): got HTTP 429, retry ${nonStreamAttempt}/$max429Retries in ${delayMs}ms",
+                            t,
+                        )
+                        delay(delayMs)
                     }
                 }
-                val finishReasons = when {
-                    chunk.finishReasons.isNotEmpty() -> chunk.finishReasons
-                    else -> chunk.choices
-                        .mapNotNull { choice -> choice.finishReason?.trim() }
-                        .filter { reason -> reason.isNotBlank() && reason != "unknown" }
-                        .toSet()
-                }
-                onUpdateMessages(messages, finishReasons)
             } catch (t: Throwable) {
                 failure = t
                 throw t
@@ -1519,6 +1565,36 @@ class GenerationHandler(
         }
     }
 
+    private fun shouldRetry429(
+        throwable: Throwable,
+        attempt: Int,
+        maxRetries: Int,
+        emittedAnyChunk: Boolean = false,
+    ): Boolean {
+        if (throwable is CancellationException) return false
+        if (maxRetries <= 0) return false
+        if (emittedAnyChunk) return false
+        if (!throwable.hasHttpStatusCode(429)) return false
+        return attempt <= maxRetries
+    }
+
+    private fun compute429RetryDelayMs(attempt: Int): Long {
+        val exponent = (attempt - 1).coerceIn(0, 3)
+        return 1_000L shl exponent
+    }
+
+    private fun Throwable.hasHttpStatusCode(targetCode: Int): Boolean {
+        val visited = HashSet<Throwable>()
+        var current: Throwable? = this
+        while (current != null && visited.add(current)) {
+            if (current is HttpStatusException && current.statusCode == targetCode) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
+
     fun translateText(
         settings: Settings,
         sourceText: String,
@@ -1551,25 +1627,47 @@ class GenerationHandler(
             var firstChunkAt: Long? = null
             var failure: Throwable? = null
             val rawResponseText = StringBuilder()
+            val max429Retries = settings.getHttp429MaxRetries()
+            var streamAttempt = 0
             try {
-                providerHandler.streamText(
-                    providerSetting = provider,
-                    messages = messages,
-                    params = params,
-                ).collect { chunk ->
-                    if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
-                    chunk.rawResponse
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let {
-                            if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
-                            rawResponseText.append(it)
-                        }
-                    messages = messages.handleMessageChunk(chunk)
-                    translatedText = messages.lastOrNull()?.toContentText() ?: ""
+                while (true) {
+                    streamAttempt += 1
+                    var emittedAnyChunk = false
+                    try {
+                        providerHandler.streamText(
+                            providerSetting = provider,
+                            messages = messages,
+                            params = params,
+                        ).collect { chunk ->
+                            emittedAnyChunk = true
+                            if (firstChunkAt == null) firstChunkAt = System.currentTimeMillis()
+                            chunk.rawResponse
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let {
+                                    if (rawResponseText.isNotEmpty()) rawResponseText.append("\n")
+                                    rawResponseText.append(it)
+                                }
+                            messages = messages.handleMessageChunk(chunk)
+                            translatedText = messages.lastOrNull()?.toContentText() ?: ""
 
-                    if (translatedText.isNotBlank()) {
-                        onStreamUpdate?.invoke(translatedText)
-                        emit(translatedText)
+                            if (translatedText.isNotBlank()) {
+                                onStreamUpdate?.invoke(translatedText)
+                                emit(translatedText)
+                            }
+                        }
+                        break
+                    } catch (t: Throwable) {
+                        if (!shouldRetry429(t, attempt = streamAttempt, maxRetries = max429Retries, emittedAnyChunk = emittedAnyChunk)) {
+                            throw t
+                        }
+
+                        val delayMs = compute429RetryDelayMs(attempt = streamAttempt)
+                        Log.w(
+                            TAG,
+                            "translateText(stream): got HTTP 429, retry ${streamAttempt}/$max429Retries in ${delayMs}ms",
+                            t,
+                        )
+                        delay(delayMs)
                     }
                 }
             } catch (t: Throwable) {
@@ -1613,14 +1711,34 @@ class GenerationHandler(
             var failure: Throwable? = null
             var translatedText = ""
             var rawResponseText = ""
+            val max429Retries = settings.getHttp429MaxRetries()
+            var nonStreamAttempt = 0
             try {
-                val response = providerHandler.generateText(
-                providerSetting = provider,
-                messages = messages,
-                    params = params,
-                )
-                rawResponseText = response.rawResponse.orEmpty()
-                translatedText = response.choices.firstOrNull()?.message?.toContentText() ?: ""
+                while (true) {
+                    nonStreamAttempt += 1
+                    try {
+                        val response = providerHandler.generateText(
+                            providerSetting = provider,
+                            messages = messages,
+                            params = params,
+                        )
+                        rawResponseText = response.rawResponse.orEmpty()
+                        translatedText = response.choices.firstOrNull()?.message?.toContentText() ?: ""
+                        break
+                    } catch (t: Throwable) {
+                        if (!shouldRetry429(t, attempt = nonStreamAttempt, maxRetries = max429Retries)) {
+                            throw t
+                        }
+
+                        val delayMs = compute429RetryDelayMs(attempt = nonStreamAttempt)
+                        Log.w(
+                            TAG,
+                            "translateText(non-stream): got HTTP 429, retry ${nonStreamAttempt}/$max429Retries in ${delayMs}ms",
+                            t,
+                        )
+                        delay(delayMs)
+                    }
+                }
             } catch (t: Throwable) {
                 failure = t
                 throw t

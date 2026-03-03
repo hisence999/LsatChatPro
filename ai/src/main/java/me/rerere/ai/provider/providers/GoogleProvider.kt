@@ -47,6 +47,7 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureClientWithProxy
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.HttpStatusException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.RawResponseException
@@ -176,7 +177,12 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
 
         val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
+            val body = response.body?.string().orEmpty()
+            val detail = body.ifBlank { response.message }
+            throw HttpStatusException(
+                statusCode = response.code,
+                message = "Failed to get response: ${response.code} $detail",
+            )
         }
 
         val bodyStr = response.body?.string() ?: ""
@@ -363,14 +369,21 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                     e.printStackTrace()
                     exception = e
                 } finally {
+                    val exceptionWithStatus = response?.let { resp ->
+                        HttpStatusException(
+                            statusCode = resp.code,
+                            message = exception?.message ?: "HTTP ${resp.code}",
+                            cause = exception,
+                        )
+                    } ?: exception
                     val raw = rawFailureResponse
                         .takeIf { it.isNotBlank() }
                         ?: rawEventBuffer.toString()
                     close(
                         RawResponseException(
-                            message = exception?.message ?: "Stream failed",
+                            message = exceptionWithStatus?.message ?: "Stream failed",
                             rawResponse = raw,
-                            cause = exception,
+                            cause = exceptionWithStatus,
                         )
                     )
                 }

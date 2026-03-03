@@ -60,4 +60,15 @@ class PreferencesStoreReadPositionTest {
         assertEquals(0, validPosition?.itemIndex)
         assertNull(sanitized["invalid-conversation-id"])
     }
+
+    @Test
+    fun getHttp429MaxRetries_clampsToRange() {
+        val below = Settings(http429MaxRetries = -3)
+        val normal = Settings(http429MaxRetries = 2)
+        val above = Settings(http429MaxRetries = 99)
+
+        assertEquals(0, below.getHttp429MaxRetries())
+        assertEquals(2, normal.getHttp429MaxRetries())
+        assertEquals(10, above.getHttp429MaxRetries())
+    }
 }

@@ -189,6 +189,7 @@ class SettingsStore(
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
         val MCP_TOOL_CALL_TIMEOUT_SECONDS = intPreferencesKey("mcp_tool_call_timeout_seconds")
+        val HTTP_429_MAX_RETRIES = intPreferencesKey("http_429_max_retries")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -431,6 +432,7 @@ class SettingsStore(
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpToolCallTimeoutSeconds = (preferences[MCP_TOOL_CALL_TIMEOUT_SECONDS] ?: 60).coerceAtLeast(1),
+                http429MaxRetries = (preferences[HTTP_429_MAX_RETRIES] ?: 0).coerceIn(0, 10),
                 mcpServers = preferences[MCP_SERVERS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -632,6 +634,7 @@ class SettingsStore(
                 assistants = normalizedAssistants,
 	            displaySetting = settingsToSaveWithReboundSearchIndices.displaySetting.coerceForConflicts(),
                 mcpToolCallTimeoutSeconds = settingsToSaveWithReboundSearchIndices.mcpToolCallTimeoutSeconds.coerceAtLeast(1),
+                http429MaxRetries = settingsToSaveWithReboundSearchIndices.http429MaxRetries.coerceIn(0, 10),
 	        )
 
         settingsFlow.value = finalSettingsToSave
@@ -679,6 +682,7 @@ class SettingsStore(
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(finalSettingsToSave.mcpServers)
             preferences[MCP_TOOL_CALL_TIMEOUT_SECONDS] = finalSettingsToSave.mcpToolCallTimeoutSeconds.coerceAtLeast(1)
+            preferences[HTTP_429_MAX_RETRIES] = finalSettingsToSave.http429MaxRetries.coerceIn(0, 10)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.webDavConfig)
             preferences[OBJECT_STORAGE_CONFIG] = JsonInstant.encodeToString(finalSettingsToSave.objectStorageConfig)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(finalSettingsToSave.ttsProviders)
@@ -789,6 +793,7 @@ data class Settings(
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
     val mcpToolCallTimeoutSeconds: Int = 60,
+    val http429MaxRetries: Int = 0,
     val mcpServers: List<McpServerConfig> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val objectStorageConfig: ObjectStorageConfig = ObjectStorageConfig(),
@@ -1229,6 +1234,10 @@ fun Settings.getEmbeddingRetrievalTimeoutSeconds(): Int {
     return displaySetting.embeddingRetrievalTimeoutSeconds.coerceAtLeast(1)
 }
 
+fun Settings.getHttp429MaxRetries(): Int {
+    return http429MaxRetries.coerceIn(0, 10)
+}
+
 /**
  * Get effective display settings by merging assistant's UI overrides with global display settings.
  * Per-assistant settings take precedence when set (non-null).
@@ -1571,4 +1580,3 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
 
     return cleanedSettings to result
 }
-

@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.getEmbeddingRetrievalTimeoutSeconds
+import me.rerere.rikkahub.data.datastore.getHttp429MaxRetries
 import me.rerere.rikkahub.data.datastore.getMcpToolCallTimeoutSeconds
 import me.rerere.rikkahub.data.model.ToolResultHistoryMode
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -147,6 +148,36 @@ fun SettingAdvancedPage(vm: SettingVM = koinViewModel()) {
                                         vm.updateSettings { current ->
                                             if (current.mcpToolCallTimeoutSeconds == safe) current
                                             else current.copy(mcpToolCallTimeoutSeconds = safe)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.widthIn(min = 80.dp, max = 120.dp),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
+                    )
+                    SettingGroupItem(
+                        title = stringResource(R.string.setting_display_page_http_429_retry_max_title),
+                        subtitle = stringResource(R.string.setting_display_page_http_429_retry_max_desc),
+                        trailing = {
+                            var retryText by remember(settings.getHttp429MaxRetries()) {
+                                mutableStateOf(settings.getHttp429MaxRetries().toString())
+                            }
+
+                            OutlinedTextField(
+                                value = retryText,
+                                onValueChange = { value ->
+                                    val filtered = value.filter { it.isDigit() }
+                                    val parsed = filtered.toIntOrNull()
+                                    val safe = parsed?.coerceIn(0, 10)
+
+                                    retryText = (safe ?: filtered).toString()
+
+                                    if (safe != null) {
+                                        vm.updateSettings { current ->
+                                            if (current.http429MaxRetries == safe) current
+                                            else current.copy(http429MaxRetries = safe)
                                         }
                                     }
                                 },

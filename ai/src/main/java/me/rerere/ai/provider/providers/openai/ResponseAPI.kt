@@ -32,6 +32,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.configureClientWithProxy
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.HttpStatusException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
@@ -76,7 +77,12 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
 
         val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
+            val body = response.body?.string().orEmpty()
+            val detail = body.ifBlank { response.message }
+            throw HttpStatusException(
+                statusCode = response.code,
+                message = "Failed to get response: ${response.code} $detail",
+            )
         }
 
         val bodyStr = response.body?.string() ?: ""
@@ -184,11 +190,18 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                     e.printStackTrace()
                     exception = e
                 } finally {
+                    val exceptionWithStatus = response?.let { resp ->
+                        HttpStatusException(
+                            statusCode = resp.code,
+                            message = exception?.message ?: "HTTP ${resp.code}",
+                            cause = exception,
+                        )
+                    } ?: exception
                     close(
                         RawResponseException(
-                            message = exception?.message ?: "OpenAI stream failed",
+                            message = exceptionWithStatus?.message ?: "OpenAI stream failed",
                             rawResponse = rawFailureResponse.takeIf { it.isNotBlank() } ?: rawEventBuffer.toString(),
-                            cause = exception,
+                            cause = exceptionWithStatus,
                         )
                     )
                 }
