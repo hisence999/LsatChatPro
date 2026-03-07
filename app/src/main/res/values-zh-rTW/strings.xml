@@ -276,6 +276,7 @@
   <string name="mcp_tool_approval_reject">拒絕</string>
   <string name="mcp_tool_approval_approved_calling">已批准，正在執行 %1$s…</string>
   <string name="mcp_tool_approval_rejected_result">用戶拒絕本次工具調用</string>
+  <string name="tool_approval_view_params">查看參數</string>
   <string name="tool_approval_workspace_list">工作區：列出檔案</string>
   <string name="tool_approval_workspace_read_file">工作區：讀取檔案</string>
   <string name="tool_approval_workspace_write_file">工作區：寫入檔案</string>

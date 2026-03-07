@@ -504,6 +504,8 @@ private fun MessagePartsBlock(
         if (shouldHideToolCallCard && approval == null) {
             return@fastForEachIndexed
         }
+        val parsedArguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+            .getOrElse { EmptyJson }
         key(toolCall.toolCallId.ifBlank { index.toString() }) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -511,8 +513,7 @@ private fun MessagePartsBlock(
                 if (!shouldHideToolCallCard) {
                     ToolCallItem(
                         toolName = toolCall.toolName,
-                        arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
-                            .getOrElse { EmptyJson },
+                        arguments = parsedArguments,
                         content = null,
                         loading = loading,
                     )
@@ -522,6 +523,7 @@ private fun MessagePartsBlock(
                         conversationId = conversationId,
                         toolCallId = resolvedApproval.toolCallId,
                         toolName = resolvedApproval.toolName,
+                        arguments = parsedArguments,
                         state = resolvedApproval.state,
                         loading = loading,
                     )

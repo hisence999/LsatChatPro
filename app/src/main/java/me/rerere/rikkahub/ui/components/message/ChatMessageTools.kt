@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -298,6 +299,7 @@ fun ToolApprovalItem(
     conversationId: Uuid?,
     toolCallId: String,
     toolName: String,
+    arguments: JsonElement,
     state: ToolApprovalState,
     loading: Boolean = false,
 ) {
@@ -305,7 +307,11 @@ fun ToolApprovalItem(
     val settings = me.rerere.rikkahub.ui.context.LocalSettings.current
     val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
     val approvalLabel = toolApprovalDisplayName(toolName)
+    val argumentsJson = remember(arguments) {
+        JsonInstantPretty.encodeToString(arguments)
+    }
     var locked by remember(toolName, state) { mutableStateOf(false) }
+    var showArgumentsSheet by remember(toolCallId) { mutableStateOf(false) }
     val canRespond = conversationId != null && toolCallId.isNotBlank()
 
     Card(
@@ -351,6 +357,14 @@ fun ToolApprovalItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                }
+                TextButton(
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        showArgumentsSheet = true
+                    }
+                ) {
+                    Text(text = stringResource(R.string.tool_approval_view_params))
                 }
             }
 
@@ -448,6 +462,16 @@ fun ToolApprovalItem(
             }
         }
     }
+
+    if (showArgumentsSheet) {
+        ToolApprovalArgumentsSheet(
+            approvalLabel = approvalLabel,
+            argumentsJson = argumentsJson,
+            onDismissRequest = {
+                showArgumentsSheet = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -501,6 +525,74 @@ private fun ToolApprovalButton(
             )
         }
     }
+}
+
+@Composable
+private fun ToolApprovalArgumentsSheet(
+    approvalLabel: String,
+    argumentsJson: String,
+    onDismissRequest: () -> Unit = {},
+) {
+    val clipboardManager = LocalClipboardManager.current
+
+    ModalBottomSheet(
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        onDismissRequest = onDismissRequest,
+        content = {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = approvalLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.request_log_section_params),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(argumentsJson))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = stringResource(R.string.copy),
+                        )
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    HighlightText(
+                        code = argumentsJson,
+                        language = "json",
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable
