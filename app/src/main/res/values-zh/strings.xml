@@ -249,13 +249,19 @@
   <string name="chat_message_tool_call_skill">调用技能 %1$s</string>
   <string name="chat_message_tool_call_result">调用结果</string>
   <string name="chat_message_tool_call_title">工具调用</string>
-  <string name="mcp_tool_approval_prompt">是否允许调用 %1$s</string>
-  <string name="mcp_tool_approval_title">MCP 工具审批</string>
+  <string name="mcp_tool_approval_prompt">是否允许执行 %1$s</string>
+  <string name="mcp_tool_approval_title">工具审批</string>
   <string name="mcp_tool_approval_subtitle">工具：%1$s</string>
   <string name="mcp_tool_approval_approve">批准</string>
   <string name="mcp_tool_approval_reject">拒绝</string>
-  <string name="mcp_tool_approval_approved_calling">已批准，正在调用 %1$s…</string>
-  <string name="mcp_tool_approval_rejected_result">用户拒绝本次调用</string>
+  <string name="mcp_tool_approval_approved_calling">已批准，正在执行 %1$s…</string>
+  <string name="mcp_tool_approval_rejected_result">用户拒绝本次工具调用</string>
+  <string name="tool_approval_workspace_list">工作区：列出文件</string>
+  <string name="tool_approval_workspace_read_file">工作区：读取文件</string>
+  <string name="tool_approval_workspace_write_file">工作区：写入文件</string>
+  <string name="tool_approval_workspace_mkdir">工作区：创建目录</string>
+  <string name="tool_approval_workspace_delete">工作区：删除文件</string>
+  <string name="tool_approval_workspace_rename">工作区：重命名文件</string>
   <string name="chat_message_tool_create_memory">创建了记忆</string>
   <string name="chat_message_tool_delete_memory">删除了记忆</string>
   <string name="chat_message_tool_edit_memory">更新了记忆</string>
@@ -836,9 +842,9 @@
   <string name="workspace_root_reset_title">重置</string>
   <string name="workspace_root_reset_desc">重置工作区根目录</string>
   <string name="workspace_file_tools_allow_all_title">工作区文件工具：全部允许</string>
-  <string name="workspace_file_tools_allow_all_desc">跳过工作区文件工具的确认步骤（危险）。</string>
+  <string name="workspace_file_tools_allow_all_desc">跳过工作区文件工具的审批卡片（危险）。</string>
   <string name="workspace_file_tools_allow_all_risk_title">启用“全部允许”模式？</string>
-  <string name="workspace_file_tools_allow_all_risk_message">启用后，助手可在不再询问确认的情况下执行工作区文件操作（包括删除/覆盖）。请谨慎开启。</string>
+  <string name="workspace_file_tools_allow_all_risk_message">启用后，助手可在不显示审批卡片的情况下执行工作区文件操作（包括删除/覆盖）。请谨慎开启。</string>
   <string name="workspace_file_tools_allow_all_enable_action">启用</string>
   <string name="workspace_file_tools_allow_all_enabled_success">已启用“全部允许”模式</string>
   <string name="skill_scripts_risk_title">启用脚本执行？</string>
@@ -1805,4 +1811,3 @@
     <string name="python_wheels_dependency_optional_hide">点按收起</string>
 
 </resources>
-

@@ -87,6 +87,20 @@ import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
 @Composable
+private fun toolApprovalDisplayName(toolName: String): String {
+    return when (toolName) {
+        "workspace_list" -> stringResource(R.string.tool_approval_workspace_list)
+        "workspace_read_file" -> stringResource(R.string.tool_approval_workspace_read_file)
+        "workspace_write_file" -> stringResource(R.string.tool_approval_workspace_write_file)
+        "workspace_mkdir" -> stringResource(R.string.tool_approval_workspace_mkdir)
+        "workspace_delete" -> stringResource(R.string.tool_approval_workspace_delete)
+        "workspace_rename" -> stringResource(R.string.tool_approval_workspace_rename)
+        "eval_python" -> stringResource(R.string.chat_message_tool_run_python_generic)
+        else -> toolName
+    }
+}
+
+@Composable
 fun ToolCallItem(
     toolName: String,
     arguments: JsonElement,
@@ -290,6 +304,7 @@ fun ToolApprovalItem(
     val chatService = koinInject<ChatService>()
     val settings = me.rerere.rikkahub.ui.context.LocalSettings.current
     val haptics = rememberPremiumHaptics(enabled = settings.displaySetting.enableUIHaptics)
+    val approvalLabel = toolApprovalDisplayName(toolName)
     var locked by remember(toolName, state) { mutableStateOf(false) }
     val canRespond = conversationId != null && toolCallId.isNotBlank()
 
@@ -330,7 +345,7 @@ fun ToolApprovalItem(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = stringResource(R.string.mcp_tool_approval_subtitle, toolName),
+                        text = stringResource(R.string.mcp_tool_approval_subtitle, approvalLabel),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                         maxLines = 1,
@@ -397,7 +412,7 @@ fun ToolApprovalItem(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = stringResource(R.string.mcp_tool_approval_approved_calling, toolName),
+                            text = stringResource(R.string.mcp_tool_approval_approved_calling, approvalLabel),
                             style = MaterialTheme.typography.titleSmall,
                             modifier = Modifier.weight(1f),
                             maxLines = 2,

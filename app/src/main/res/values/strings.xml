@@ -371,13 +371,19 @@
     <string name="chat_message_tool_call_skill">Calling skill %1$s</string>
     <string name="chat_message_tool_call_result">Result</string>
     <string name="chat_message_tool_call_title">Tool Call</string>
-    <string name="mcp_tool_approval_prompt">Allow calling %1$s?</string>
-    <string name="mcp_tool_approval_title">MCP tool approval</string>
+    <string name="mcp_tool_approval_prompt">Allow running %1$s?</string>
+    <string name="mcp_tool_approval_title">Tool approval</string>
     <string name="mcp_tool_approval_subtitle">Tool: %1$s</string>
     <string name="mcp_tool_approval_approve">Approve</string>
     <string name="mcp_tool_approval_reject">Reject</string>
-    <string name="mcp_tool_approval_approved_calling">Approved, calling %1$s…</string>
-    <string name="mcp_tool_approval_rejected_result">User declined this call</string>
+    <string name="mcp_tool_approval_approved_calling">Approved, running %1$s…</string>
+    <string name="mcp_tool_approval_rejected_result">User declined this tool call</string>
+    <string name="tool_approval_workspace_list">List workspace files</string>
+    <string name="tool_approval_workspace_read_file">Read workspace file</string>
+    <string name="tool_approval_workspace_write_file">Write workspace file</string>
+    <string name="tool_approval_workspace_mkdir">Create workspace directory</string>
+    <string name="tool_approval_workspace_delete">Delete workspace file</string>
+    <string name="tool_approval_workspace_rename">Rename workspace file</string>
     <string name="chat_message_tool_create_memory">Created memory</string>
     <string name="chat_message_tool_delete_memory">Deleted memory</string>
     <string name="chat_message_tool_edit_memory">Updated memory</string>
@@ -972,9 +978,9 @@
     <string name="workspace_root_reset_title">Reset</string>
     <string name="workspace_root_reset_desc">Reset workspace root</string>
     <string name="workspace_file_tools_allow_all_title">Workspace file tools: Allow all</string>
-    <string name="workspace_file_tools_allow_all_desc">Skip confirmation for workspace file tools. Dangerous.</string>
+    <string name="workspace_file_tools_allow_all_desc">Skip approval cards for workspace file tools. Dangerous.</string>
     <string name="workspace_file_tools_allow_all_risk_title">Enable allow-all mode?</string>
-    <string name="workspace_file_tools_allow_all_risk_message">When enabled, the assistant can execute workspace file operations without asking for confirmation (including delete/overwrite). Proceed with caution.</string>
+    <string name="workspace_file_tools_allow_all_risk_message">When enabled, the assistant can execute workspace file operations without showing approval cards (including delete/overwrite). Proceed with caution.</string>
     <string name="workspace_file_tools_allow_all_enable_action">Enable</string>
     <string name="workspace_file_tools_allow_all_enabled_success">Allow-all mode enabled</string>
     <string name="skill_scripts_risk_title">Enable script execution?</string>
@@ -1851,4 +1857,3 @@
     <string name="python_wheels_dependency_optional_hide">Tap to collapse</string>
 
 </resources>
-

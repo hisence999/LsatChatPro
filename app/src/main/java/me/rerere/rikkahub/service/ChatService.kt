@@ -137,7 +137,6 @@ import okhttp3.Request
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
-import java.security.MessageDigest
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -222,19 +221,6 @@ class ChatService(
     private val skillScriptRunner by lazy { SkillScriptRunner(context) }
     private val skillScriptMutexes = ConcurrentHashMap<Uuid, Mutex>()
     private val olderHistoryLoadMutexes = ConcurrentHashMap<Uuid, Mutex>()
-
-    private data class WorkspaceFileToolConfirmation(
-        val token: String,
-        val conversationId: Uuid,
-        val toolName: String,
-        val actionKey: String,
-        val expiresAtMs: Long,
-    )
-
-    private val workspaceFileToolConfirmationsLock = Any()
-    private val workspaceFileToolConfirmations = LinkedHashMap<String, WorkspaceFileToolConfirmation>()
-    private val workspaceFileToolConfirmationTtlMs = 5 * 60 * 1000L
-    private val workspaceFileToolMaxConfirmations = 100
 
     private val toolApprovalEarlyResponses = ConcurrentHashMap<String, Boolean>()
     private val toolApprovalDeferreds = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
@@ -3390,14 +3376,6 @@ class ChatService(
                             put("type", "integer")
                             put("description", "Maximum stderr characters to return (default: 20000, max: 200000)")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("code"),
                 )
@@ -3418,6 +3396,7 @@ class ChatService(
                     appendLine("- Avoid network access and avoid reading/writing files unless explicitly requested by the user.")
                 }.trimEnd()
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
 
@@ -3475,29 +3454,6 @@ class ChatService(
                         put("error", "Input is too large")
                     }
                 }
-
-                val actionKey = buildString {
-                    append("python:")
-                    append(sha256Hex(code).take(16))
-                    append("|input=")
-                    append(sha256Hex(inputJson).take(16))
-                    append("|timeout=")
-                    append(timeoutMs)
-                }
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "eval_python",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("timeout_ms", timeoutMs)
-                        put("max_stdout_chars", maxStdoutChars)
-                        put("max_stderr_chars", maxStderrChars)
-                        put("code_preview", code.take(800))
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 val mutex = skillScriptMutexes.computeIfAbsent(conversationId) { Mutex() }
                 mutex.withLock {
@@ -3599,74 +3555,6 @@ class ChatService(
                 }
             },
         )
-    }
-
-    private fun registerWorkspaceFileToolConfirmation(
-        conversationId: Uuid,
-        toolName: String,
-        actionKey: String,
-    ): String {
-        val now = System.currentTimeMillis()
-        val token = Uuid.random().toString()
-        val entry = WorkspaceFileToolConfirmation(
-            token = token,
-            conversationId = conversationId,
-            toolName = toolName,
-            actionKey = actionKey,
-            expiresAtMs = now + workspaceFileToolConfirmationTtlMs,
-        )
-        synchronized(workspaceFileToolConfirmationsLock) {
-            pruneWorkspaceFileToolConfirmationsLocked(now)
-            workspaceFileToolConfirmations[token] = entry
-            while (workspaceFileToolConfirmations.size > workspaceFileToolMaxConfirmations) {
-                val oldest = workspaceFileToolConfirmations.entries.firstOrNull()?.key ?: break
-                workspaceFileToolConfirmations.remove(oldest)
-            }
-        }
-        return token
-    }
-
-    private fun consumeWorkspaceFileToolConfirmation(
-        conversationId: Uuid,
-        toolName: String,
-        actionKey: String,
-        token: String?,
-    ): Boolean {
-        if (token.isNullOrBlank()) return false
-        val now = System.currentTimeMillis()
-        synchronized(workspaceFileToolConfirmationsLock) {
-            pruneWorkspaceFileToolConfirmationsLocked(now)
-            val entry = workspaceFileToolConfirmations[token] ?: return false
-            if (entry.expiresAtMs < now) {
-                workspaceFileToolConfirmations.remove(token)
-                return false
-            }
-            if (entry.conversationId != conversationId || entry.toolName != toolName || entry.actionKey != actionKey) {
-                return false
-            }
-            workspaceFileToolConfirmations.remove(token)
-            return true
-        }
-    }
-
-    private fun pruneWorkspaceFileToolConfirmationsLocked(now: Long) {
-        val iterator = workspaceFileToolConfirmations.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value.expiresAtMs < now) {
-                iterator.remove()
-            }
-        }
-    }
-
-    private fun sha256Hex(value: String): String {
-        val bytes = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
-        val hex = StringBuilder(bytes.size * 2)
-        for (b in bytes) {
-            val i = b.toInt() and 0xff
-            hex.append(i.toString(16).padStart(2, '0'))
-        }
-        return hex.toString()
     }
 
     private fun guessMimeType(name: String): String {
@@ -3893,30 +3781,8 @@ class ChatService(
         }
     }
 
-    private fun requireWorkspaceToolConfirmationOrNull(
-        conversationId: Uuid,
-        settingsSnapshot: Settings,
-        toolName: String,
-        actionKey: String,
-        obj: JsonObject,
-        preview: JsonObject,
-    ): JsonObject? {
-        val currentSettings = settingsStore.settingsFlow.value
-        val effectiveSettings = if (currentSettings.init) settingsSnapshot else currentSettings
-        if (effectiveSettings.workspaceFileToolsAllowAll) return null
-        val confirmed = parseWorkspaceToolBool(obj, "confirm", defaultValue = false)
-        val token = parseWorkspaceToolString(obj, "confirm_token", "confirmToken")
-        if (confirmed && consumeWorkspaceFileToolConfirmation(conversationId, toolName, actionKey, token)) {
-            return null
-        }
-        val newToken = registerWorkspaceFileToolConfirmation(conversationId, toolName, actionKey)
-        return buildJsonObject {
-            put("ok", false)
-            put("requires_confirmation", true)
-            put("confirm_token", newToken)
-            put("action_key", actionKey)
-            put("preview", preview)
-        }
+    private fun workspaceToolsRequireApproval(settingsSnapshot: Settings): Boolean {
+        return !settingsSnapshot.workspaceFileToolsAllowAll
     }
 
     private fun workspaceToolsCommonSystemPrompt(): String {
@@ -3933,14 +3799,7 @@ class ChatService(
             appendLine("- Root directory is represented by an empty string \"\" when allowed by the tool (e.g. `workspace_list`).")
             appendLine()
             appendLine("### parameter naming")
-            appendLine("- Use the exact parameter keys from the schema (usually snake_case, e.g. `max_entries`, `max_chars`, `confirm_token`).")
-            appendLine()
-            appendLine("### confirmation (default)")
-            appendLine("- If the tool returns `requires_confirmation=true`, you MUST ask the user for confirmation.")
-            appendLine("- On user confirmation, call the same tool again with:")
-            appendLine("  - `confirm=true`")
-            appendLine("  - `confirm_token` from the previous tool result")
-            appendLine("  - the same parameters")
+            appendLine("- Use the exact parameter keys from the schema (usually snake_case, e.g. `max_entries`, `max_chars`).")
             appendLine()
             appendLine("### setup")
             appendLine("- If you see an error like \"Workspace root is not set\", ask the user to set the default root in Settings -> Skills, or authorize a root folder for this conversation in Work directory settings.")
@@ -4021,17 +3880,10 @@ class ChatService(
                             put("type", "integer")
                             put("description", "Maximum entries to return (default: 2000, max: 10000).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     }
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawPath = parseWorkspaceToolString(obj, "path", "dir", "directory")
@@ -4040,21 +3892,6 @@ class ChatService(
 
                 val recursive = parseWorkspaceToolBool(obj, "recursive", false, "recurse")
                 val maxEntries = parseWorkspaceToolInt(obj, "max_entries", 2000, 1, 10_000, "maxEntries")
-
-                val actionKey = "list:${normalizedPath}|r=${recursive}|m=${maxEntries}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_list",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("path", normalizedPath.ifBlank { "/" })
-                        put("recursive", recursive)
-                        put("max_entries", maxEntries)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -4143,18 +3980,11 @@ class ChatService(
                             put("type", "integer")
                             put("description", "Maximum characters to return (default: 200000, max: 2000000).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("path"),
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawPath = parseWorkspaceToolString(obj, "path", "file")
@@ -4162,20 +3992,6 @@ class ChatService(
                     ?: return@Tool workspaceToolInvalidPathError(toolName = "workspace_read_file", rawPath = rawPath)
 
                 val maxChars = parseWorkspaceToolInt(obj, "max_chars", 200_000, 1, 2_000_000, "maxChars")
-
-                val actionKey = "read:${normalizedPath}|m=${maxChars}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_read_file",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("path", normalizedPath)
-                        put("max_chars", maxChars)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -4264,18 +4080,11 @@ class ChatService(
                             put("type", "boolean")
                             put("description", "Create parent directories if needed (default: true).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("path", "content"),
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawPath = parseWorkspaceToolString(obj, "path", "file")
@@ -4288,25 +4097,6 @@ class ChatService(
                 val overwrite = parseWorkspaceToolBool(obj, "overwrite", defaultValue = true)
                 val append = parseWorkspaceToolBool(obj, "append", defaultValue = false)
                 val createParents = parseWorkspaceToolBool(obj, "create_parents", true, "createParents")
-                val contentHash = sha256Hex(content)
-
-                val actionKey = "write:${normalizedPath}|o=${overwrite}|a=${append}|p=${createParents}|h=${contentHash}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_write_file",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("path", normalizedPath)
-                        put("overwrite", overwrite)
-                        put("append", append)
-                        put("create_parents", createParents)
-                        put("bytes", content.toByteArray(Charsets.UTF_8).size)
-                        put("sha256", contentHash)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -4404,18 +4194,11 @@ class ChatService(
                             put("type", "boolean")
                             put("description", "Create parent directories if needed (default: true).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("path"),
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawPath = parseWorkspaceToolString(obj, "path", "dir", "directory")
@@ -4423,20 +4206,6 @@ class ChatService(
                     ?: return@Tool workspaceToolInvalidPathError(toolName = "workspace_mkdir", rawPath = rawPath)
 
                 val parents = parseWorkspaceToolBool(obj, "parents", true, "create_parents", "createParents")
-
-                val actionKey = "mkdir:${normalizedPath}|p=${parents}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_mkdir",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("path", normalizedPath)
-                        put("parents", parents)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -4516,18 +4285,11 @@ class ChatService(
                             put("type", "boolean")
                             put("description", "Treat missing path as success (default: false).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("path"),
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawPath = obj["path"]?.jsonPrimitiveOrNull?.contentOrNull
@@ -4537,21 +4299,6 @@ class ChatService(
 
                 val recursive = parseWorkspaceToolBool(obj, "recursive", false, "recurse")
                 val missingOk = parseWorkspaceToolBool(obj, "missing_ok", false, "missingOk")
-
-                val actionKey = "delete:${normalizedPath}|r=${recursive}|m=${missingOk}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_delete",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("path", normalizedPath.ifBlank { "/" })
-                        put("recursive", recursive)
-                        put("missing_ok", missingOk)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -4622,18 +4369,11 @@ class ChatService(
                             put("type", "boolean")
                             put("description", "Create parent directories if needed (default: true).")
                         })
-                        put("confirm", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Set true to confirm the operation.")
-                        })
-                        put("confirm_token", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Confirmation token returned by a previous requires_confirmation response.")
-                        })
                     },
                     required = listOf("from", "to"),
                 )
             },
+            requiresUserApproval = workspaceToolsRequireApproval(settingsSnapshot),
             execute = { args ->
                 val obj = args.jsonObject
                 val rawFrom = parseWorkspaceToolString(obj, "from", "source", "src")
@@ -4645,22 +4385,6 @@ class ChatService(
 
                 val overwrite = parseWorkspaceToolBool(obj, "overwrite", defaultValue = false)
                 val createParents = parseWorkspaceToolBool(obj, "create_parents", true, "createParents")
-
-                val actionKey = "rename:${fromPath}->${toPath}|o=${overwrite}|p=${createParents}"
-                val maybeConfirm = requireWorkspaceToolConfirmationOrNull(
-                    conversationId = conversationId,
-                    settingsSnapshot = settingsSnapshot,
-                    toolName = "workspace_rename",
-                    actionKey = actionKey,
-                    obj = obj,
-                    preview = buildJsonObject {
-                        put("from", fromPath)
-                        put("to", toPath)
-                        put("overwrite", overwrite)
-                        put("create_parents", createParents)
-                    },
-                )
-                if (maybeConfirm != null) return@Tool maybeConfirm
 
                 runCatching {
                     withContext(Dispatchers.IO) {
