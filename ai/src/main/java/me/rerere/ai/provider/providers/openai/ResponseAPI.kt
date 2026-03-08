@@ -150,6 +150,17 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                         )
                         return
                     }
+                val streamError = extractStreamError(json)
+                if (streamError != null) {
+                    close(
+                        RawResponseException(
+                            message = streamError.message ?: "OpenAI response stream failed",
+                            rawResponse = rawEventBuffer.toString(),
+                            cause = streamError,
+                        )
+                    )
+                    return
+                }
                 val chunk = runCatching { parseResponseDelta(json) }
                     .getOrElse { throwable ->
                         close(
@@ -369,6 +380,40 @@ class ResponseAPI(private val client: OkHttpClient) : OpenAIImpl {
                         }
                     }
             }
+    }
+
+    private fun extractStreamError(jsonObject: JsonObject): Exception? {
+        val chunkType = jsonObject["type"]?.jsonPrimitive?.contentOrNull?.trim()
+        if (chunkType != "response.failed" && chunkType != "error") {
+            return null
+        }
+
+        jsonObject["error"]?.let { error ->
+            return error.parseErrorDetail()
+        }
+
+        jsonObject["response"]?.jsonObjectOrNull?.get("error")?.let { error ->
+            return error.parseErrorDetail()
+        }
+
+        val fallbackMessage = buildList {
+            add(
+                jsonObject["response"]?.jsonObjectOrNull
+                    ?.get("incomplete_details")
+                    ?.jsonObjectOrNull
+                    ?.get("reason")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+            )
+            add(
+                jsonObject["response"]?.jsonObjectOrNull
+                    ?.get("status")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+            )
+        }.firstOrNull { value -> !value.isNullOrBlank() } ?: "OpenAI response stream failed"
+
+        return JsonPrimitive(fallbackMessage).parseErrorDetail()
     }
 
     private fun parseResponseDelta(jsonObject: JsonObject): MessageChunk? {
