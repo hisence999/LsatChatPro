@@ -40,21 +40,20 @@ class TextSelectionActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        
-        // Get the selected text from the intent
-        val selectedText = intent?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: ""
-        
+
+        val selectedText = extractInputText(intent)
+
         if (selectedText.isBlank()) {
             finish()
             return
         }
-        
+
         viewModel.updateSelectedText(selectedText)
-        
+
         setContent {
             val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
             val toastState = rememberAppToasterState()
-            
+
             RikkahubTheme {
                 CompositionLocalProvider(
                     LocalSettings provides settings,
@@ -122,5 +121,15 @@ class TextSelectionActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun extractInputText(intent: Intent?): String {
+        val inputText = when (intent?.action) {
+            Intent.ACTION_SEND -> intent.getCharSequenceExtra(Intent.EXTRA_TEXT)
+            Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+            else -> intent?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+                ?: intent?.getCharSequenceExtra(Intent.EXTRA_TEXT)
+        }
+        return inputText?.toString()?.trim().orEmpty()
     }
 }
