@@ -493,6 +493,7 @@ private fun MessagePartsBlock(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    val approval = toolApprovalsById[toolCall.toolCallId]
                     ToolCallItem(
                         toolName = toolCall.toolName,
                         arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
@@ -500,12 +501,14 @@ private fun MessagePartsBlock(
                         content = null,
                         loading = loading,
                     )
-                    toolApprovalsById[toolCall.toolCallId]?.let { approval ->
+                    approval?.let { approvalItem ->
                         ToolApprovalItem(
                             conversationId = conversationId,
-                            toolCallId = approval.toolCallId,
-                            toolName = approval.toolName,
-                            state = approval.state,
+                            toolCallId = approvalItem.toolCallId,
+                            toolName = approvalItem.toolName,
+                            arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                                .getOrElse { EmptyJson },
+                            state = approvalItem.state,
                             loading = loading,
                         )
                     }

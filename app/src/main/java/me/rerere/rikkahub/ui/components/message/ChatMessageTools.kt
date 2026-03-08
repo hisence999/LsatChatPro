@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,7 +73,9 @@ import me.rerere.highlight.HighlightText
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -284,6 +287,7 @@ fun ToolApprovalItem(
     conversationId: Uuid?,
     toolCallId: String,
     toolName: String,
+    arguments: JsonElement,
     state: ToolApprovalState,
     loading: Boolean = false,
 ) {
@@ -341,6 +345,33 @@ fun ToolApprovalItem(
 
             when (state) {
                 ToolApprovalState.Pending -> {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = AppShapes.CardLarge,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.chat_message_tool_call_label, toolName),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = JsonInstantPretty.encodeToString(arguments),
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
