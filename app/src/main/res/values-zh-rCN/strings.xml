@@ -192,6 +192,8 @@
     <string name="tool_approval_workspace_rename">工作区：重命名文件</string>
     <string name="workspace_file_tools_allow_all_title">工作区文件工具：全部允许</string>
     <string name="workspace_file_tools_allow_all_desc">跳过工作区文件工具的审批卡片（危险）。</string>
+    <string name="workspace_remember_last_for_new_chats_title">记住上次工作区</string>
+    <string name="workspace_remember_last_for_new_chats_desc">开启后，新建会话会自动使用上次手动设置的工作区。</string>
     <string name="workspace_file_tools_allow_all_risk_title">启用“全部允许”模式？</string>
     <string name="workspace_file_tools_allow_all_risk_message">启用后，助手可在不显示审批卡片的情况下执行工作区文件操作（包括删除/覆盖）。请谨慎开启。</string>
     <string name="workspace_file_tools_allow_all_enable_action">启用</string>

@@ -978,6 +978,8 @@
     <string name="workspace_root_cleared">Workspace root cleared</string>
     <string name="workspace_root_reset_title">Reset</string>
     <string name="workspace_root_reset_desc">Reset workspace root</string>
+    <string name="workspace_remember_last_for_new_chats_title">Remember last workspace</string>
+    <string name="workspace_remember_last_for_new_chats_desc">For new chats, automatically apply the workspace you last set manually.</string>
     <string name="workspace_file_tools_allow_all_title">Workspace file tools: Allow all</string>
     <string name="workspace_file_tools_allow_all_desc">Skip approval cards for workspace file tools. Dangerous.</string>
     <string name="workspace_file_tools_allow_all_risk_title">Enable allow-all mode?</string>

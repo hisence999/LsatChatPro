@@ -70,6 +70,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.rememberWorkspaceForNewChatsIfEnabled
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
@@ -133,6 +134,9 @@ fun WorkDirPickerBottomSheet(
                 old.copy(
                     conversationWorkspaceRoots = old.conversationWorkspaceRoots + (key to uri.toString()),
                     conversationWorkDirs = old.conversationWorkDirs - key,
+                ).rememberWorkspaceForNewChatsIfEnabled(
+                    workspaceRootTreeUri = uri.toString(),
+                    workDirRelPath = null,
                 )
             }
         }

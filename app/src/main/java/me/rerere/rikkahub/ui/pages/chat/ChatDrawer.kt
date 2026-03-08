@@ -63,9 +63,13 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.ConversationWorkDirBinding
 import me.rerere.rikkahub.data.datastore.ConversationWorkDirMode
+import me.rerere.rikkahub.data.datastore.clearConversationWorkspace
+import me.rerere.rikkahub.data.datastore.clearRememberedWorkspaceForNewChats
 import me.rerere.rikkahub.data.datastore.getEffectiveWorkspaceRootTreeUri
+import me.rerere.rikkahub.data.datastore.getConversationWorkspaceRootTreeUri
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.hasConversationWorkspaceRoot
+import me.rerere.rikkahub.data.datastore.rememberWorkspaceForNewChatsIfEnabled
 import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.id
@@ -429,6 +433,9 @@ fun ChatDrawerContent(
                                     relPath = relPath,
                                 )
                             )
+                        ).rememberWorkspaceForNewChatsIfEnabled(
+                            workspaceRootTreeUri = settings.getConversationWorkspaceRootTreeUri(conversation.id),
+                            workDirRelPath = relPath,
                         )
                     )
                     showWorkDirPicker = false
@@ -489,10 +496,8 @@ fun ChatDrawerContent(
                             if (hasConversationRootOverride) {
                                 haptics.perform(HapticPattern.Thud)
                                 vm.updateSettings(
-                                    settings.copy(
-                                        conversationWorkspaceRoots = settings.conversationWorkspaceRoots - key,
-                                        conversationWorkDirs = settings.conversationWorkDirs - key,
-                                    )
+                                    settings.clearConversationWorkspace(conversation.id)
+                                        .clearRememberedWorkspaceForNewChats()
                                 )
                                 toaster.show(message = context.getString(R.string.workspace_root_reset_to_default_success))
                             } else {
@@ -500,7 +505,7 @@ fun ChatDrawerContent(
                                 vm.updateSettings(
                                     settings.copy(
                                         conversationWorkDirs = settings.conversationWorkDirs - key,
-                                    )
+                                    ).clearRememberedWorkspaceForNewChats()
                                 )
                                 toaster.show(message = context.getString(R.string.workdir_reset_success))
                             }

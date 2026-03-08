@@ -775,6 +775,8 @@
   <string name="workspace_root_reset_desc">重置工作區根目錄</string>
   <string name="workspace_file_tools_allow_all_title">工作區檔案工具：全部允許</string>
   <string name="workspace_file_tools_allow_all_desc">跳過工作區檔案工具的審批卡片（危險）。</string>
+  <string name="workspace_remember_last_for_new_chats_title">記住上次工作區</string>
+  <string name="workspace_remember_last_for_new_chats_desc">開啟後，新建會話會自動套用上次手動設定的工作區。</string>
   <string name="workspace_file_tools_allow_all_risk_title">啟用「全部允許」模式？</string>
   <string name="workspace_file_tools_allow_all_risk_message">啟用後，助手可在不顯示審批卡片的情況下執行工作區檔案操作（包括刪除/覆蓋）。請謹慎開啟。</string>
   <string name="workspace_file_tools_allow_all_enable_action">啟用</string>

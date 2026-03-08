@@ -98,6 +98,8 @@ import me.rerere.rikkahub.data.datastore.ConversationWorkDirBinding
 import me.rerere.rikkahub.data.datastore.ConversationWorkDirMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.applyRememberedWorkspaceToConversation
+import me.rerere.rikkahub.data.datastore.clearConversationWorkspace
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -888,6 +890,42 @@ class ChatService(
         }
     }
 
+    private fun isWorkspaceRootTreeUriAccessible(uriString: String): Boolean {
+        val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return false
+        val rootDoc = runCatching { DocumentFile.fromTreeUri(context, uri) }.getOrNull()
+        return rootDoc?.isDirectory == true
+    }
+
+    private suspend fun applyRememberedWorkspaceForNewConversation(conversationId: Uuid) {
+        val settingsSnapshot = settingsStore.settingsFlowRaw.first()
+        if (!settingsSnapshot.rememberLastWorkspaceForNewChats) return
+        val rememberedWorkspace = settingsSnapshot.rememberedWorkspaceForNewChats ?: return
+
+        val validatedRememberedWorkspace = when (val rootUri = rememberedWorkspace.workspaceRootTreeUri) {
+            null -> rememberedWorkspace
+            else -> {
+                val accessible = withContext(Dispatchers.IO) {
+                    isWorkspaceRootTreeUriAccessible(rootUri)
+                }
+                if (!accessible) return
+                rememberedWorkspace.copy(workspaceRootTreeUri = rootUri)
+            }
+        }
+
+        val effectiveRootAfterApply = validatedRememberedWorkspace.workspaceRootTreeUri
+            ?: settingsSnapshot.workspaceRootTreeUri?.trim()?.takeIf { it.isNotBlank() }
+        if (effectiveRootAfterApply == null && validatedRememberedWorkspace.workDirRelPath != null) return
+
+        settingsStore.update { current ->
+            if (!current.rememberLastWorkspaceForNewChats) return@update current
+            if (current.rememberedWorkspaceForNewChats != rememberedWorkspace) return@update current
+            current.applyRememberedWorkspaceToConversation(
+                conversationId = conversationId,
+                rememberedWorkspace = validatedRememberedWorkspace,
+            )
+        }
+    }
+
     // 获取生成任务状态流
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> {
         return generationJobs.map { jobs -> jobs[conversationId] }
@@ -1020,6 +1058,7 @@ class ChatService(
             }
 
             // 新建对话, 并添加预设消息
+            applyRememberedWorkspaceForNewConversation(conversationId)
             val currentSettings = settingsStore.settingsFlowRaw.first()
             val target = currentSettings.chatTarget
             val baseConversation = Conversation.ofId(
@@ -5012,7 +5051,7 @@ class ChatService(
                 kotlinx.coroutines.delay(4000)
                 context.deleteChatFiles(conversationFull.files)
                 settingsStore.update { current ->
-                    current.copy(
+                    current.clearConversationWorkspace(conversation.id).copy(
                         conversationReadPositions = current.conversationReadPositions - conversation.id.toString()
                     )
                 }
@@ -5521,6 +5560,16 @@ class ChatService(
         liveUpdateNotifier.cancel(conversationId)
         clearLiveUpdateSession(conversationId)
         conversations.remove(conversationId)
+
+        appScope.launch(Dispatchers.IO) {
+            val existsInDb = runCatching {
+                conversationRepo.getConversationById(conversationId) != null
+            }.getOrDefault(false)
+            if (existsInDb) return@launch
+            settingsStore.update { current ->
+                current.clearConversationWorkspace(conversationId)
+            }
+        }
 
         Log.i(
             TAG,

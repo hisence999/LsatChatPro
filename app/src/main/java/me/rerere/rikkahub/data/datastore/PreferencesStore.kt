@@ -218,6 +218,10 @@ class SettingsStore(
         val WORKSPACE_ROOT_TREE_URI = stringPreferencesKey("workspace_root_tree_uri")
         val CONVERSATION_WORKSPACE_ROOTS = stringPreferencesKey("conversation_workspace_roots")
         val CONVERSATION_WORK_DIRS = stringPreferencesKey("conversation_work_dirs")
+        val REMEMBER_LAST_WORKSPACE_FOR_NEW_CHATS =
+            booleanPreferencesKey("remember_last_workspace_for_new_chats")
+        val REMEMBERED_WORKSPACE_FOR_NEW_CHATS =
+            stringPreferencesKey("remembered_workspace_for_new_chats")
         val CONVERSATION_READ_POSITIONS = stringPreferencesKey("conversation_read_positions")
         val CONVERSATION_LARGE_CONTEXT_WARNING_SHOWN_AT =
             stringPreferencesKey("conversation_large_context_warning_shown_at")
@@ -473,6 +477,10 @@ class SettingsStore(
                 conversationWorkDirs = preferences[CONVERSATION_WORK_DIRS]?.let {
                     runCatching { JsonInstant.decodeFromString<Map<String, ConversationWorkDirBinding>>(it) }.getOrNull()
                 } ?: emptyMap(),
+                rememberLastWorkspaceForNewChats = preferences[REMEMBER_LAST_WORKSPACE_FOR_NEW_CHATS] == true,
+                rememberedWorkspaceForNewChats = preferences[REMEMBERED_WORKSPACE_FOR_NEW_CHATS]?.let {
+                    runCatching { JsonInstant.decodeFromString<RememberedWorkspaceForNewChats>(it) }.getOrNull()
+                },
                 conversationReadPositions = preferences[CONVERSATION_READ_POSITIONS]?.let {
                     runCatching { JsonInstant.decodeFromString<Map<String, ConversationReadPosition>>(it) }.getOrNull()
                 } ?: emptyMap(),
@@ -706,6 +714,13 @@ class SettingsStore(
             preferences[CONVERSATION_WORKSPACE_ROOTS] =
                 JsonInstant.encodeToString(finalSettingsToSave.conversationWorkspaceRoots)
             preferences[CONVERSATION_WORK_DIRS] = JsonInstant.encodeToString(finalSettingsToSave.conversationWorkDirs)
+            preferences[REMEMBER_LAST_WORKSPACE_FOR_NEW_CHATS] =
+                finalSettingsToSave.rememberLastWorkspaceForNewChats
+            finalSettingsToSave.rememberedWorkspaceForNewChats
+                ?.takeIf { finalSettingsToSave.rememberLastWorkspaceForNewChats }
+                ?.let {
+                preferences[REMEMBERED_WORKSPACE_FOR_NEW_CHATS] = JsonInstant.encodeToString(it)
+            } ?: preferences.remove(REMEMBERED_WORKSPACE_FOR_NEW_CHATS)
             preferences[CONVERSATION_READ_POSITIONS] =
                 JsonInstant.encodeToString(finalSettingsToSave.conversationReadPositions)
             preferences[CONVERSATION_LARGE_CONTEXT_WARNING_SHOWN_AT] =
@@ -817,6 +832,8 @@ data class Settings(
     val conversationWorkspaceRoots: Map<String, String> = emptyMap(),
     val workspaceFileToolsAllowAll: Boolean = false,
     val conversationWorkDirs: Map<String, ConversationWorkDirBinding> = emptyMap(),
+    val rememberLastWorkspaceForNewChats: Boolean = false,
+    val rememberedWorkspaceForNewChats: RememberedWorkspaceForNewChats? = null,
     val conversationReadPositions: Map<String, ConversationReadPosition> = emptyMap(),
     val conversationLargeContextWarningShownAt: Map<String, Long> = emptyMap(),
 ) {
@@ -1018,6 +1035,12 @@ data class ConversationWorkDirBinding(
 )
 
 @Serializable
+data class RememberedWorkspaceForNewChats(
+    val workspaceRootTreeUri: String? = null,
+    val workDirRelPath: String? = null,
+)
+
+@Serializable
 data class ConversationReadPosition(
     val nodeId: String,
     val offset: Int = 0,
@@ -1168,6 +1191,69 @@ fun Settings.getEffectiveWorkspaceRootTreeUri(conversationId: Uuid): String? {
         ?: workspaceRootTreeUri?.trim()?.takeIf { it.isNotBlank() }
 }
 
+fun Settings.clearConversationWorkspace(conversationId: Uuid): Settings {
+    val key = conversationId.toString()
+    return copy(
+        conversationWorkspaceRoots = conversationWorkspaceRoots - key,
+        conversationWorkDirs = conversationWorkDirs - key,
+    )
+}
+
+fun Settings.clearRememberedWorkspaceForNewChats(): Settings {
+    if (rememberedWorkspaceForNewChats == null) return this
+    return copy(rememberedWorkspaceForNewChats = null)
+}
+
+fun Settings.rememberWorkspaceForNewChatsIfEnabled(
+    workspaceRootTreeUri: String?,
+    workDirRelPath: String?,
+): Settings {
+    if (!rememberLastWorkspaceForNewChats) return this
+    return copy(
+        rememberedWorkspaceForNewChats = sanitizeRememberedWorkspaceForNewChats(
+            RememberedWorkspaceForNewChats(
+                workspaceRootTreeUri = workspaceRootTreeUri,
+                workDirRelPath = workDirRelPath,
+            )
+        )
+    )
+}
+
+fun Settings.applyRememberedWorkspaceToConversation(
+    conversationId: Uuid,
+    rememberedWorkspace: RememberedWorkspaceForNewChats,
+): Settings {
+    val key = conversationId.toString()
+    val normalizedRoot = rememberedWorkspace.workspaceRootTreeUri?.trim()?.takeIf { it.isNotBlank() }
+    val effectiveRootAfterApply = normalizedRoot ?: workspaceRootTreeUri?.trim()?.takeIf { it.isNotBlank() }
+    val normalizedWorkDir = if (effectiveRootAfterApply == null) {
+        null
+    } else {
+        rememberedWorkspace.workDirRelPath
+    }
+
+    val updatedConversationWorkspaceRoots = if (normalizedRoot == null) {
+        conversationWorkspaceRoots - key
+    } else {
+        conversationWorkspaceRoots + (key to normalizedRoot)
+    }
+    val updatedConversationWorkDirs = if (normalizedWorkDir == null) {
+        conversationWorkDirs - key
+    } else {
+        conversationWorkDirs + (
+            key to ConversationWorkDirBinding(
+                mode = ConversationWorkDirMode.MANUAL,
+                relPath = normalizedWorkDir,
+            )
+        )
+    }
+
+    return copy(
+        conversationWorkspaceRoots = updatedConversationWorkspaceRoots,
+        conversationWorkDirs = updatedConversationWorkDirs,
+    )
+}
+
 fun Settings.hasConversationWorkspaceRoot(conversationId: Uuid): Boolean {
     return getConversationWorkspaceRootTreeUri(conversationId) != null
 }
@@ -1207,6 +1293,21 @@ internal fun sanitizeConversationReadPositions(
         .sortedByDescending { (_, position) -> position.updatedAt }
         .take(maxEntries.coerceAtLeast(1))
         .toMap()
+}
+
+internal fun sanitizeRememberedWorkspaceForNewChats(
+    rememberedWorkspace: RememberedWorkspaceForNewChats?,
+): RememberedWorkspaceForNewChats? {
+    if (rememberedWorkspace == null) return null
+    val normalizedRoot = rememberedWorkspace.workspaceRootTreeUri?.trim()?.takeIf { it.isNotBlank() }
+    val normalizedWorkDir = rememberedWorkspace.workDirRelPath?.let { raw ->
+        SkillScriptPathUtils.normalizeAndValidateWorkDirRelPath(raw.trim())
+    }
+    if (normalizedRoot == null && normalizedWorkDir == null) return null
+    return RememberedWorkspaceForNewChats(
+        workspaceRootTreeUri = normalizedRoot,
+        workDirRelPath = normalizedWorkDir,
+    )
 }
 
 internal fun sanitizeConversationLargeContextWarningShownAt(
@@ -1466,6 +1567,7 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
             key to binding.copy(relPath = validatedRelPath)
         }
         .toMap()
+    val cleanedRememberedWorkspaceForNewChats = sanitizeRememberedWorkspaceForNewChats(rememberedWorkspaceForNewChats)
     val cleanedConversationReadPositions = sanitizeConversationReadPositions(conversationReadPositions)
     val cleanedConversationLargeContextWarningShownAt =
         sanitizeConversationLargeContextWarningShownAt(conversationLargeContextWarningShownAt)
@@ -1562,6 +1664,8 @@ fun Settings.sanitize(context: Context? = null): Pair<Settings, me.rerere.rikkah
         workspaceRootTreeUri = workspaceRootTreeUri?.trim().takeIf { !it.isNullOrBlank() },
         conversationWorkspaceRoots = cleanedConversationWorkspaceRoots,
         conversationWorkDirs = cleanedConversationWorkDirs,
+        rememberedWorkspaceForNewChats = cleanedRememberedWorkspaceForNewChats
+            ?.takeIf { rememberLastWorkspaceForNewChats },
         conversationReadPositions = cleanedConversationReadPositions,
         conversationLargeContextWarningShownAt = cleanedConversationLargeContextWarningShownAt,
         groupChatTemplates = cleanedGroupChats,

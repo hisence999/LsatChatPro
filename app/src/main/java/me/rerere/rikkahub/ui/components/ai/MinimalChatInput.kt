@@ -124,8 +124,10 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.getConversationWorkspaceRootTreeUri
 import me.rerere.rikkahub.data.datastore.getEffectiveWorkspaceRootTreeUri
 import me.rerere.rikkahub.data.datastore.hasConversationWorkspaceRoot
+import me.rerere.rikkahub.data.datastore.rememberWorkspaceForNewChatsIfEnabled
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatService
@@ -250,6 +252,9 @@ fun MinimalChatInput(
                                 relPath = relPath,
                             )
                         )
+                    ).rememberWorkspaceForNewChatsIfEnabled(
+                        workspaceRootTreeUri = settings.getConversationWorkspaceRootTreeUri(conversation.id),
+                        workDirRelPath = relPath,
                     )
                 )
                 toaster.show(

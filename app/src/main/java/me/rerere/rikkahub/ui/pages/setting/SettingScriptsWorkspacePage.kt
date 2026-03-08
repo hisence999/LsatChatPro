@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.clearRememberedWorkspaceForNewChats
 import me.rerere.rikkahub.data.model.PythonWheel
 import me.rerere.rikkahub.data.repository.ChaquoPypiRepository
 import me.rerere.rikkahub.data.repository.PythonPackageRequirement
@@ -320,6 +321,26 @@ fun SettingScriptsWorkspacePage(vm: SettingVM = koinViewModel()) {
                             }
                         )
                     }
+
+                    SettingGroupItem(
+                        title = stringResource(R.string.workspace_remember_last_for_new_chats_title),
+                        subtitle = stringResource(R.string.workspace_remember_last_for_new_chats_desc),
+                        trailing = {
+                            HapticSwitch(
+                                checked = settings.rememberLastWorkspaceForNewChats,
+                                onCheckedChange = { checked ->
+                                    vm.updateSettings { old ->
+                                        if (checked) {
+                                            old.copy(rememberLastWorkspaceForNewChats = true)
+                                        } else {
+                                            old.copy(rememberLastWorkspaceForNewChats = false)
+                                                .clearRememberedWorkspaceForNewChats()
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    )
 
                     SettingGroupItem(
                         title = stringResource(R.string.workspace_file_tools_allow_all_title),
