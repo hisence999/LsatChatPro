@@ -66,18 +66,65 @@ jobs:
           mkdir -p "app/src/$FLAVOR"
 
           if [[ "$FLAVOR" == "plus" ]]; then
-            if [[ -z "${GOOGLE_SERVICES_JSON_B64_PLUS}" ]]; then
-              echo "Missing secret: GOOGLE_SERVICES_JSON_B64_PLUS"
-              exit 1
+            PACKAGE_NAME="com.hisence999.lsatchatpro.plus"
+          elif [[ "$FLAVOR" == "zh" ]]; then
+            PACKAGE_NAME="com.hisence999.lsatchatpro.zh"
+          else
+            echo "Unknown flavor: $FLAVOR"
+            exit 1
+          fi
+
+          write_fallback_google_services() {
+            local target="$1"
+            local package_name="$2"
+            cat > "$target" <<EOF
+          {
+            "project_info": {
+              "project_number": "140971779000",
+              "project_id": "lastchat-e8350",
+              "storage_bucket": "lastchat-e8350.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:140971779000:android:67030cf553d7c12a87a54d",
+                  "android_client_info": {
+                    "package_name": "$package_name"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDDMOKl7Iiv19SHuS5xSl1m-oxOazIG1Oc"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          }
+
+          if [[ "$FLAVOR" == "plus" ]]; then
+            if [[ -n "${GOOGLE_SERVICES_JSON_B64_PLUS}" ]]; then
+              printf '%s' "${GOOGLE_SERVICES_JSON_B64_PLUS}" | base64 -d > "app/src/plus/google-services.json"
+            else
+              echo "GOOGLE_SERVICES_JSON_B64_PLUS missing, writing fallback google-services.json"
+              write_fallback_google_services "app/src/plus/google-services.json" "$PACKAGE_NAME"
             fi
-            printf '%s' "${GOOGLE_SERVICES_JSON_B64_PLUS}" | base64 -d > "app/src/plus/google-services.json"
             test -s "app/src/plus/google-services.json"
           elif [[ "$FLAVOR" == "zh" ]]; then
-            if [[ -z "${GOOGLE_SERVICES_JSON_B64_ZH}" ]]; then
-              echo "Missing secret: GOOGLE_SERVICES_JSON_B64_ZH"
-              exit 1
+            if [[ -n "${GOOGLE_SERVICES_JSON_B64_ZH}" ]]; then
+              printf '%s' "${GOOGLE_SERVICES_JSON_B64_ZH}" | base64 -d > "app/src/zh/google-services.json"
+            else
+              echo "GOOGLE_SERVICES_JSON_B64_ZH missing, writing fallback google-services.json"
+              write_fallback_google_services "app/src/zh/google-services.json" "$PACKAGE_NAME"
             fi
-            printf '%s' "${GOOGLE_SERVICES_JSON_B64_ZH}" | base64 -d > "app/src/zh/google-services.json"
             test -s "app/src/zh/google-services.json"
           else
             echo "Unknown flavor: $FLAVOR"
@@ -100,9 +147,10 @@ jobs:
           FLAVOR="${{ steps.flavor.outputs.flavor }}"
           FLAVOR_CAP="${FLAVOR^}"
           TASK="assemble${FLAVOR_CAP}Release"
+          SKIP_TASK="uploadCrashlyticsMappingFile${FLAVOR_CAP}Release"
 
-          echo "Building release APK ($TASK)..."
-          ./gradlew ":app:$TASK" --no-daemon --stacktrace
+          echo "Building release APK ($TASK), skipping $SKIP_TASK ..."
+          ./gradlew ":app:$TASK" -x ":app:$SKIP_TASK" --no-daemon --stacktrace
 
       - name: Upload build output (artifact)
         uses: actions/upload-artifact@v4
