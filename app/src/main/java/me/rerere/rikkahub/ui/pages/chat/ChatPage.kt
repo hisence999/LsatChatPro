@@ -382,7 +382,13 @@ private val scrollPositionCache = object : LinkedHashMap<String, Pair<Int, Int>>
 }
 
 @Composable
-fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = null) {
+fun ChatPage(
+    id: Uuid,
+    text: String?,
+    files: List<Uri>,
+    searchQuery: String? = null,
+    autoSend: Boolean = false,
+) {
     val vm: ChatVM = koinViewModel(
         parameters = {
             parametersOf(id.toString())
@@ -510,7 +516,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
                     currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
                     bigScreen = true,
-                    initialSearchQuery = searchQuery
+                    initialSearchQuery = searchQuery,
+                    autoSend = autoSend,
                 )
             }
         }
@@ -541,7 +548,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, searchQuery: String? = n
                     currentSearchMode = currentSearchMode,
                     currentChatModel = currentChatModel,
                     bigScreen = false,
-                    initialSearchQuery = searchQuery
+                    initialSearchQuery = searchQuery,
+                    autoSend = autoSend,
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -566,6 +574,7 @@ private fun ChatPageContent(
     currentSearchMode: me.rerere.rikkahub.data.model.AssistantSearchMode,
     currentChatModel: Model?,
     initialSearchQuery: String? = null,
+    autoSend: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -880,6 +889,91 @@ private fun ChatPageContent(
                     setting.groupChatTemplates.firstOrNull { it.id == conversation.assistantId }
                 }
                 val isGroupChatTemplate = groupChatTemplate != null
+                var autoSendHandled by rememberSaveable(conversation.id, autoSend) {
+                    mutableStateOf(!autoSend)
+                }
+
+                fun dispatchInput(
+                    answer: Boolean = true,
+                    allowModelToast: Boolean = true,
+                ): Boolean {
+                    if (!isGroupChatTemplate && currentChatModel == null) {
+                        if (allowModelToast) {
+                            toaster.show("Please select a model first", type = ToastType.Error)
+                        }
+                        return false
+                    }
+                    if (inputState.isEditing()) {
+                        vm.handleMessageEdit(
+                            parts = inputState.getContents(),
+                            messageId = inputState.editingMessage!!,
+                        )
+                        inputState.clearInput()
+                        return true
+                    }
+
+                    val content = inputState.getContents()
+                    val groupTemplate = groupChatTemplate
+                    if (isGroupChatTemplate && groupTemplate != null) {
+                        val userText = content
+                            .filterIsInstance<UIMessagePart.Text>()
+                            .joinToString("\n") { it.text }
+                            .trim()
+                        val analysis = analyzeGroupChatMentionText(
+                            text = userText,
+                            settings = setting,
+                            template = groupTemplate,
+                        )
+                        if (analysis.ambiguousKeysInOrder.isNotEmpty()) {
+                            mentionDisambiguationState = GroupChatMentionDisambiguationState(
+                                template = groupTemplate,
+                                analysis = analysis,
+                                selectedSeatIdsByKey = analysis.ambiguousKeysInOrder.associateWith { key ->
+                                    analysis.keyToInfo[key]?.seatIds?.firstOrNull()?.let(::setOf).orEmpty()
+                                },
+                                pendingContent = content,
+                                isTemporaryChat = isTemporaryChat,
+                            )
+                            return true
+                        }
+                    }
+
+                    vm.handleMessageSend(
+                        content = content,
+                        answer = answer,
+                        isTemporaryChat = isTemporaryChat,
+                    )
+                    scope.launch {
+                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                    }
+                    inputState.clearInput()
+                    return true
+                }
+
+                LaunchedEffect(
+                    conversation.id,
+                    autoSend,
+                    autoSendHandled,
+                    conversationInitialized,
+                    loadingJob,
+                    currentChatModel,
+                    groupChatTemplate?.id,
+                    inputState.textContent.text.toString(),
+                    inputState.messageContent.size,
+                ) {
+                    if (!autoSend || autoSendHandled || !conversationInitialized || loadingJob != null) {
+                        return@LaunchedEffect
+                    }
+                    if (inputState.isEditing() || inputState.isEmpty()) {
+                        autoSendHandled = true
+                        return@LaunchedEffect
+                    }
+
+                    val sent = dispatchInput(allowModelToast = false)
+                    if (sent) {
+                        autoSendHandled = true
+                    }
+                }
 
                 ChatList(
                     modifier = Modifier.graphicsLayer { alpha = chatListAlpha },
@@ -1199,65 +1293,8 @@ private fun ChatPageContent(
                                 }
                             }
                         },
-                        onSendClick = onSendClick@{
-                            if (!isGroupChatTemplate && currentChatModel == null) {
-                                toaster.show("Please select a model first", type = ToastType.Error)
-                                return@onSendClick
-                            }
-                            if (inputState.isEditing()) {
-                                vm.handleMessageEdit(
-                                    parts = inputState.getContents(),
-                                    messageId = inputState.editingMessage!!,
-                                )
-                                inputState.clearInput()
-                            } else {
-                                val content = inputState.getContents()
-                                val groupTemplate = groupChatTemplate
-                                if (isGroupChatTemplate && groupTemplate != null) {
-                                    val userText = content
-                                        .filterIsInstance<UIMessagePart.Text>()
-                                        .joinToString("\n") { it.text }
-                                        .trim()
-                                    val analysis = analyzeGroupChatMentionText(
-                                        text = userText,
-                                        settings = setting,
-                                        template = groupTemplate,
-                                    )
-                                    if (analysis.ambiguousKeysInOrder.isNotEmpty()) {
-                                        mentionDisambiguationState = GroupChatMentionDisambiguationState(
-                                            template = groupTemplate,
-                                            analysis = analysis,
-                                            selectedSeatIdsByKey = analysis.ambiguousKeysInOrder.associateWith { key ->
-                                                analysis.keyToInfo[key]?.seatIds?.firstOrNull()?.let(::setOf).orEmpty()
-                                            },
-                                            pendingContent = content,
-                                            isTemporaryChat = isTemporaryChat,
-                                        )
-                                        return@onSendClick
-                                    }
-                                }
-
-                                vm.handleMessageSend(content, isTemporaryChat = isTemporaryChat)
-                                scope.launch {
-                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                                }
-                                inputState.clearInput()
-                            }
-                        },
-                        onLongSendClick = {
-                            if (inputState.isEditing()) {
-                                vm.handleMessageEdit(
-                                    parts = inputState.getContents(),
-                                    messageId = inputState.editingMessage!!,
-                                )
-                            } else {
-                                vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
-                                scope.launch {
-                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                                }
-                            }
-                            inputState.clearInput()
-                        },
+                        onSendClick = { dispatchInput() },
+                        onLongSendClick = { dispatchInput(answer = false) },
                         onUpdateChatModel = {
                             vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
                         },
@@ -1347,65 +1384,8 @@ private fun ChatPageContent(
                                 }
                             }
                         },
-                        onSendClick = onSendClick@{
-                            if (!isGroupChatTemplate && currentChatModel == null) {
-                                toaster.show("Please select a model first", type = ToastType.Error)
-                                return@onSendClick
-                            }
-                            if (inputState.isEditing()) {
-                                vm.handleMessageEdit(
-                                    parts = inputState.getContents(),
-                                    messageId = inputState.editingMessage!!,
-                                )
-                                inputState.clearInput()
-                            } else {
-                                val content = inputState.getContents()
-                                val groupTemplate = groupChatTemplate
-                                if (isGroupChatTemplate && groupTemplate != null) {
-                                    val userText = content
-                                        .filterIsInstance<UIMessagePart.Text>()
-                                        .joinToString("\n") { it.text }
-                                        .trim()
-                                    val analysis = analyzeGroupChatMentionText(
-                                        text = userText,
-                                        settings = setting,
-                                        template = groupTemplate,
-                                    )
-                                    if (analysis.ambiguousKeysInOrder.isNotEmpty()) {
-                                        mentionDisambiguationState = GroupChatMentionDisambiguationState(
-                                            template = groupTemplate,
-                                            analysis = analysis,
-                                            selectedSeatIdsByKey = analysis.ambiguousKeysInOrder.associateWith { key ->
-                                                analysis.keyToInfo[key]?.seatIds?.firstOrNull()?.let(::setOf).orEmpty()
-                                            },
-                                            pendingContent = content,
-                                            isTemporaryChat = isTemporaryChat,
-                                        )
-                                        return@onSendClick
-                                    }
-                                }
-
-                                vm.handleMessageSend(content, isTemporaryChat = isTemporaryChat)
-                                scope.launch {
-                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                                }
-                                inputState.clearInput()
-                            }
-                        },
-                        onLongSendClick = {
-                            if (inputState.isEditing()) {
-                                vm.handleMessageEdit(
-                                    parts = inputState.getContents(),
-                                    messageId = inputState.editingMessage!!,
-                                )
-                            } else {
-                                vm.handleMessageSend(content = inputState.getContents(), answer = false, isTemporaryChat = isTemporaryChat)
-                                scope.launch {
-                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                                }
-                            }
-                            inputState.clearInput()
-                        },
+                        onSendClick = { dispatchInput() },
+                        onLongSendClick = { dispatchInput(answer = false) },
                         onUpdateChatModel = {
                             vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
                         },

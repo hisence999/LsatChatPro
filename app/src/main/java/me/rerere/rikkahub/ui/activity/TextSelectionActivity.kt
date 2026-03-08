@@ -10,8 +10,15 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
+import me.rerere.rikkahub.DIRECT_CHAT_TARGET_TYPE_ASSISTANT
+import me.rerere.rikkahub.DIRECT_CHAT_TARGET_TYPE_GROUP_CHAT
+import me.rerere.rikkahub.EXTRA_DIRECT_CHAT_AUTO_SEND
+import me.rerere.rikkahub.EXTRA_DIRECT_CHAT_TARGET_ID
+import me.rerere.rikkahub.EXTRA_DIRECT_CHAT_TARGET_TYPE
+import me.rerere.rikkahub.EXTRA_DIRECT_CHAT_TEXT
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.ChatTarget
 import me.rerere.rikkahub.ui.components.textselection.TextSelectionSheet
 import me.rerere.rikkahub.ui.components.ui.AppToasterHost
 import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
@@ -57,7 +64,7 @@ class TextSelectionActivity : ComponentActivity() {
                     TextSelectionSheet(
                         viewModel = viewModel,
                         onDismiss = { finish() },
-                        onContinueInApp = { 
+                        onContinueInApp = {
                             val intent = Intent(this@TextSelectionActivity, RouteActivity::class.java).apply {
                                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                 
@@ -89,6 +96,26 @@ class TextSelectionActivity : ComponentActivity() {
                             }
                             startActivity(intent)
                             finish()
+                        },
+                        onSendToConversation = { target ->
+                            val intent = Intent(this@TextSelectionActivity, RouteActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra(EXTRA_DIRECT_CHAT_TEXT, viewModel.selectedText)
+                                putExtra(EXTRA_DIRECT_CHAT_AUTO_SEND, true)
+                                when (target) {
+                                    is ChatTarget.Assistant -> {
+                                        putExtra(EXTRA_DIRECT_CHAT_TARGET_TYPE, DIRECT_CHAT_TARGET_TYPE_ASSISTANT)
+                                        putExtra(EXTRA_DIRECT_CHAT_TARGET_ID, target.assistantId.toString())
+                                    }
+
+                                    is ChatTarget.GroupChat -> {
+                                        putExtra(EXTRA_DIRECT_CHAT_TARGET_TYPE, DIRECT_CHAT_TARGET_TYPE_GROUP_CHAT)
+                                        putExtra(EXTRA_DIRECT_CHAT_TARGET_ID, target.templateId.toString())
+                                    }
+                                }
+                            }
+                            startActivity(intent)
+                            finish()
                         }
                     )
                     AppToasterHost(state = toastState)
@@ -97,4 +124,3 @@ class TextSelectionActivity : ComponentActivity() {
         }
     }
 }
-

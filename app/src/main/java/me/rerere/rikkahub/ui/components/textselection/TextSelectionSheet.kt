@@ -14,7 +14,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Send
@@ -66,11 +64,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.activity.QuickAction
@@ -81,15 +77,18 @@ import me.rerere.rikkahub.ui.components.ui.ToastType
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.data.model.ChatTarget
 
 @Composable
 fun TextSelectionSheet(
     viewModel: TextSelectionVM,
     onDismiss: () -> Unit,
     onContinueInApp: () -> Unit,
+    onSendToConversation: (ChatTarget) -> Unit,
 ) {
     val amoledMode by rememberAmoledDarkMode()
     val isDarkMode = LocalDarkMode.current
+    var showTargetPicker by remember { mutableStateOf(false) }
     
     // Animation states
     var isVisible by remember { mutableStateOf(false) }
@@ -159,6 +158,7 @@ fun TextSelectionSheet(
                                 ActionSelectionContent(
                                     selectedText = viewModel.selectedText,
                                     onActionSelected = { viewModel.onActionSelected(it) },
+                                    onSendToConversationClick = { showTargetPicker = true },
                                     onDismiss = onDismiss
                                 )
                             }
@@ -196,12 +196,24 @@ fun TextSelectionSheet(
             }
         }
     }
+
+    if (showTargetPicker) {
+        TextSelectionTargetPickerSheet(
+            selectedText = viewModel.selectedText,
+            onDismiss = { showTargetPicker = false },
+            onTargetSelected = { target ->
+                showTargetPicker = false
+                onSendToConversation(target)
+            }
+        )
+    }
 }
 
 @Composable
 private fun ActionSelectionContent(
     selectedText: String,
     onActionSelected: (QuickAction) -> Unit,
+    onSendToConversationClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -275,6 +287,14 @@ private fun ActionSelectionContent(
                 )
             }
         }
+
+        QuickActionButton(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.Send,
+            label = stringResource(R.string.text_selection_send_to_conversation),
+            shape = RoundedCornerShape(24.dp),
+            onClick = onSendToConversationClick
+        )
     }
 }
 

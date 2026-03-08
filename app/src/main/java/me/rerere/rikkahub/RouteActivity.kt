@@ -44,6 +44,7 @@ import coil3.memory.MemoryCache
 import okio.Path.Companion.toOkioPath
 import me.rerere.rikkahub.ui.components.ui.AppToasterHost
 import me.rerere.rikkahub.ui.components.ui.rememberAppToasterState
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
@@ -103,9 +104,17 @@ import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.base64Encode
+import me.rerere.rikkahub.data.model.ChatTarget
+import me.rerere.rikkahub.utils.navigateToChatPage
 import kotlin.uuid.Uuid
 
 private const val TAG = "RouteActivity"
+internal const val EXTRA_DIRECT_CHAT_TARGET_TYPE = "direct_chat_target_type"
+internal const val EXTRA_DIRECT_CHAT_TARGET_ID = "direct_chat_target_id"
+internal const val EXTRA_DIRECT_CHAT_TEXT = "direct_chat_text"
+internal const val EXTRA_DIRECT_CHAT_AUTO_SEND = "direct_chat_auto_send"
+internal const val DIRECT_CHAT_TARGET_TYPE_ASSISTANT = "assistant"
+internal const val DIRECT_CHAT_TARGET_TYPE_GROUP_CHAT = "group_chat"
 
 /**
  * Data class to hold text selection intent data for navigation
@@ -120,6 +129,13 @@ data class TextSelectionData(
     val selectionAssistantId: String?
 )
 
+data class DirectChatData(
+    val targetType: String,
+    val targetId: String,
+    val text: String,
+    val autoSend: Boolean,
+)
+
 class RouteActivity : ComponentActivity() {
     private val highlighter by inject<Highlighter>()
     private val okHttpClient by inject<OkHttpClient>()
@@ -129,39 +145,21 @@ class RouteActivity : ComponentActivity() {
     private var pendingAssistantId by mutableStateOf<String?>(null)
     private var pendingTextSelection by mutableStateOf<TextSelectionData?>(null)
     private var pendingConversationId by mutableStateOf<String?>(null)
+    private var pendingDirectChat by mutableStateOf<DirectChatData?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
-        
-        // Check for assistant shortcut intent
-        pendingAssistantId = intent?.getStringExtra("assistantId")
-        
-        // Check for notification intent with conversation ID
-        pendingConversationId = intent?.getStringExtra("conversationId")
-        
-        // Check for text selection intent
-        val navigateTo = intent?.getStringExtra("navigate_to")
-        val continueConversation = intent?.getBooleanExtra("continue_conversation", false) ?: false
-        if (navigateTo == "translator" || continueConversation) {
-            pendingTextSelection = TextSelectionData(
-                navigateTo = navigateTo,
-                selectedText = intent?.getStringExtra("selected_text"),
-                aiResponse = intent?.getStringExtra("ai_response"),
-                userPrompt = intent?.getStringExtra("user_prompt"),
-                translatorInput = intent?.getStringExtra("translator_input"),
-                translatorOutput = intent?.getStringExtra("translator_output"),
-                selectionAssistantId = intent?.getStringExtra("selection_assistant_id")
-            )
-        }
+        refreshPendingIntentData(intent)
         
         setContent {
             val navStack = rememberNavController()
             this.navStack = navStack
             ShareHandler(navStack)
             AssistantShortcutHandler(navStack)
+            DirectChatHandler(navStack)
             TextSelectionHandler(navStack)
             NotificationHandler(navStack)
             RikkahubTheme {
@@ -250,6 +248,72 @@ class RouteActivity : ComponentActivity() {
     }
 
     @Composable
+    private fun DirectChatHandler(navBackStack: NavHostController) {
+        val directChatData = pendingDirectChat
+        LaunchedEffect(directChatData) {
+            val data = directChatData ?: return@LaunchedEffect
+
+            try {
+                val settings = settingsStore.settingsFlow.first { !it.init }
+                val target = when (data.targetType) {
+                    DIRECT_CHAT_TARGET_TYPE_ASSISTANT -> {
+                        val assistantId = Uuid.parse(data.targetId)
+                        if (settings.assistants.none { it.id == assistantId }) {
+                            pendingDirectChat = null
+                            return@LaunchedEffect
+                        }
+                        ChatTarget.Assistant(assistantId)
+                    }
+
+                    DIRECT_CHAT_TARGET_TYPE_GROUP_CHAT -> {
+                        val templateId = Uuid.parse(data.targetId)
+                        if (settings.groupChatTemplates.none { it.id == templateId }) {
+                            pendingDirectChat = null
+                            return@LaunchedEffect
+                        }
+                        ChatTarget.GroupChat(templateId)
+                    }
+
+                    else -> {
+                        pendingDirectChat = null
+                        return@LaunchedEffect
+                    }
+                }
+
+                settingsStore.updateChatTarget(target)
+                if (target is ChatTarget.Assistant) {
+                    settingsStore.markAssistantUsed(target.assistantId)
+                }
+
+                if (data.autoSend) {
+                    val conversationId = Uuid.random()
+                    val initialized = chatService.initializeConversation(conversationId)
+                    if (!initialized) return@LaunchedEffect
+
+                    chatService.sendMessage(
+                        conversationId = conversationId,
+                        content = listOf(me.rerere.ai.ui.UIMessagePart.Text(data.text)),
+                    )
+
+                    navigateToChatPage(
+                        navController = navBackStack,
+                        chatId = conversationId,
+                    )
+                } else {
+                    navigateToChatPage(
+                        navController = navBackStack,
+                        initText = data.text.base64Encode(),
+                        autoSend = false,
+                    )
+                }
+                pendingDirectChat = null
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    @Composable
     private fun TextSelectionHandler(navBackStack: NavHostController) {
         val data = pendingTextSelection
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
@@ -323,13 +387,38 @@ class RouteActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Navigate to the chat screen if a conversation ID is provided
-        intent.getStringExtra("conversationId")?.let { text ->
-            navStack?.navigate(Screen.Chat(text))
+        setIntent(intent)
+        refreshPendingIntentData(intent)
+    }
+
+    private fun refreshPendingIntentData(intent: Intent?) {
+        pendingAssistantId = intent?.getStringExtra("assistantId")
+        pendingConversationId = intent?.getStringExtra("conversationId")
+
+        val navigateTo = intent?.getStringExtra("navigate_to")
+        val continueConversation = intent?.getBooleanExtra("continue_conversation", false) ?: false
+        if (navigateTo == "translator" || continueConversation) {
+            pendingTextSelection = TextSelectionData(
+                navigateTo = navigateTo,
+                selectedText = intent?.getStringExtra("selected_text"),
+                aiResponse = intent?.getStringExtra("ai_response"),
+                userPrompt = intent?.getStringExtra("user_prompt"),
+                translatorInput = intent?.getStringExtra("translator_input"),
+                translatorOutput = intent?.getStringExtra("translator_output"),
+                selectionAssistantId = intent?.getStringExtra("selection_assistant_id")
+            )
         }
-        // Handle assistant shortcut
-        intent.getStringExtra("assistantId")?.let { assistantIdStr ->
-            pendingAssistantId = assistantIdStr
+
+        val targetType = intent?.getStringExtra(EXTRA_DIRECT_CHAT_TARGET_TYPE)
+        val targetId = intent?.getStringExtra(EXTRA_DIRECT_CHAT_TARGET_ID)
+        val text = intent?.getStringExtra(EXTRA_DIRECT_CHAT_TEXT)
+        if (!targetType.isNullOrBlank() && !targetId.isNullOrBlank() && !text.isNullOrBlank()) {
+            pendingDirectChat = DirectChatData(
+                targetType = targetType,
+                targetId = targetId,
+                text = text,
+                autoSend = intent.getBooleanExtra(EXTRA_DIRECT_CHAT_AUTO_SEND, false),
+            )
         }
     }
 
@@ -421,7 +510,8 @@ class RouteActivity : ComponentActivity() {
                             id = Uuid.parse(route.id),
                             text = route.text,
                             files = route.files.map { it.toUri() },
-                            searchQuery = route.searchQuery
+                            searchQuery = route.searchQuery,
+                            autoSend = route.autoSend,
                         )
                     }
 
@@ -616,7 +706,13 @@ class RouteActivity : ComponentActivity() {
 
 sealed interface Screen {
     @Serializable
-    data class Chat(val id: String, val text: String? = null, val files: List<String> = emptyList(), val searchQuery: String? = null) : Screen
+    data class Chat(
+        val id: String,
+        val text: String? = null,
+        val files: List<String> = emptyList(),
+        val searchQuery: String? = null,
+        val autoSend: Boolean = false,
+    ) : Screen
 
     @Serializable
     data class ShareHandler(val text: String, val streamUri: String? = null) : Screen

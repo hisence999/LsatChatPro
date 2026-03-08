@@ -1756,6 +1756,7 @@
   <string name="text_selection_ask">任意提問…</string>
   <string name="text_selection_custom_placeholder">就這段文字提問…</string>
   <string name="text_selection_copy">複製</string>
+  <string name="text_selection_send_to_conversation">發送到對話</string>
   <string name="text_selection_continue_chat">在應用中繼續</string>
   <string name="text_selection_generating">生成中…</string>
   <string name="text_selection_action_input">輸入</string>

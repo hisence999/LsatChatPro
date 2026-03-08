@@ -1771,6 +1771,7 @@
     <string name="text_selection_ask">Ask anything…</string>
     <string name="text_selection_custom_placeholder">Ask a question about this text…</string>
     <string name="text_selection_copy">Copy</string>
+    <string name="text_selection_send_to_conversation">Send to Conversation</string>
     <string name="text_selection_continue_chat">Continue in App</string>
     <string name="text_selection_generating">Generating…</string>
     <string name="text_selection_action_input">Input</string>

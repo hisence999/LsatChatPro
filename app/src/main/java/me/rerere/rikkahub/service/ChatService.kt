@@ -1013,6 +1013,12 @@ class ChatService(
             }
             return true
         } else {
+            val inMemoryConversation = getConversationFlow(conversationId).value
+            if (inMemoryConversation.messageNodes.isNotEmpty()) {
+                updateConversation(conversationId, inMemoryConversation)
+                return true
+            }
+
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
             val target = currentSettings.chatTarget
