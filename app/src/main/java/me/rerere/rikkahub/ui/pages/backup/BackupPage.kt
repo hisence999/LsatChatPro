@@ -1567,7 +1567,7 @@ private fun BackupDialog(
                 Text(stringResource(R.string.backup_page_restart_desc))
                 
                 result?.let {
-                    if (it.sanitization.skippedRows > 0 || it.settingsCleanup.totalIssuesFixed > 0 || it.settingsCleanup.unsupportedZipEntriesBytes > 0) {
+                    if (it.sanitization.skippedRows > 0 || it.settingsCleanup.unsupportedZipEntriesBytes > 0) {
                         Card(
                             colors = androidx.compose.material3.CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -1581,9 +1581,6 @@ private fun BackupDialog(
                                 )
                                 if (it.sanitization.skippedRows > 0) {
                                     Text("• Removed ${it.sanitization.skippedRows} corrupt/invalid items")
-                                }
-                                if (it.settingsCleanup.totalIssuesFixed > 0) {
-                                    Text("• Fixed ${it.settingsCleanup.totalIssuesFixed} setting issues")
                                 }
                                 if (it.settingsCleanup.unsupportedZipEntriesBytes > 0) {
                                     Text("• Cleaned ${it.settingsCleanup.unsupportedZipEntriesBytes.fileSizeToString()} of junk data")

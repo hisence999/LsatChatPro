@@ -157,7 +157,6 @@ fun ChatMessage(
     node: MessageNode,
     previousRole: MessageRole?,
     isLast: Boolean,
-    hiddenToolCallIds: Set<String> = emptySet(),
     conversationId: Uuid? = null,
     onCitationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -178,6 +177,9 @@ fun ChatMessage(
     onEditLorebookEntry: ((me.rerere.ai.ui.UsedLorebookEntry) -> Unit)? = null,
     onModeClick: ((me.rerere.ai.ui.UsedMode) -> Unit)? = null,
     onMemoryClick: ((me.rerere.ai.ui.UsedMemory) -> Unit)? = null,
+    showAvatarRow: Boolean = true,
+    showProcessSections: Boolean = true,
+    showActionButtons: Boolean = true,
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalSettings.current.displaySetting
@@ -219,7 +221,7 @@ fun ChatMessage(
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!message.parts.isEmptyUIMessage()) {
+        if (showAvatarRow && !message.parts.isEmptyUIMessage()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -246,30 +248,32 @@ fun ChatMessage(
             }
         }
         ProvideTextStyle(textStyle) {
-            MessagePartsBlock(
-                assistant = assistant,
-                role = message.role,
-                parts = message.parts,
-                annotations = message.annotations,
-                isLast = isLast,
-                hiddenToolCallIds = hiddenToolCallIds,
-                conversationId = conversationId,
-                onCitationClick = onCitationClick,
-                loading = loading,
-                model = model,
-                onBubbleClick = {
-                    // For previous messages, toggle action bar visibility
-                    // For last messages (already showing), open the action sheet
-                    if (isLast) {
-                        showActionsSheet = true
-                    } else {
-                        actionsExpanded = !actionsExpanded
-                    }
-                },
-                usage = message.usage,
-                generationDurationMs = message.generationDurationMs,
-                showTokenUsage = settings.showTokenUsage,
-            )
+            Box(
+                modifier = if (message.role == MessageRole.USER) Modifier.padding(start = 44.dp) else Modifier,
+            ) {
+                MessagePartsBlock(
+                    assistant = assistant,
+                    role = message.role,
+                    parts = message.parts,
+                    annotations = message.annotations,
+                    isLast = isLast,
+                    conversationId = conversationId,
+                    onCitationClick = onCitationClick,
+                    loading = loading,
+                    model = model,
+                    onBubbleClick = {
+                        if (isLast) {
+                            showActionsSheet = true
+                        } else {
+                            actionsExpanded = !actionsExpanded
+                        }
+                    },
+                    usage = message.usage,
+                    generationDurationMs = message.generationDurationMs,
+                    showTokenUsage = settings.showTokenUsage,
+                    showProcessSections = showProcessSections,
+                )
+            }
         }
 
 
@@ -277,7 +281,7 @@ fun ChatMessage(
         val showActions = showInlineActions
 
         AnimatedVisibility(
-            visible = showActions,
+            visible = showActionButtons && showActions,
             enter = expandVertically(
                 animationSpec = spring(
                     dampingRatio = 0.7f,
@@ -372,7 +376,6 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     isLast: Boolean,
-    hiddenToolCallIds: Set<String>,
     conversationId: Uuid?,
     onCitationClick: (String) -> Unit,
     loading: Boolean,
@@ -380,6 +383,7 @@ private fun MessagePartsBlock(
     usage: me.rerere.ai.core.TokenUsage? = null,
     generationDurationMs: Long? = null,
     showTokenUsage: Boolean = false,
+    showProcessSections: Boolean = true,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -403,12 +407,14 @@ private fun MessagePartsBlock(
     }
 
     // Reasoning
-    parts.filterIsInstance<UIMessagePart.Reasoning>().fastForEach { reasoning ->
-        ChatMessageReasoning(
-            reasoning = reasoning,
-            model = model,
-            assistant = assistant
-        )
+    if (showProcessSections) {
+        parts.filterIsInstance<UIMessagePart.Reasoning>().fastForEach { reasoning ->
+            ChatMessageReasoning(
+                reasoning = reasoning,
+                model = model,
+                assistant = assistant
+            )
+        }
     }
 
     // Text
@@ -488,56 +494,46 @@ private fun MessagePartsBlock(
     }
 
     // Tool Calls
-    val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
-        .associateBy { it.toolCallId }
-    val inlineResultToolCallIds = parts
-        .filterIsInstance<UIMessagePart.ToolResult>()
-        .asSequence()
-        .map { it.toolCallId }
-        .filter { it.isNotBlank() }
-        .toSet()
-    val hiddenResolvedToolCallIds = hiddenToolCallIds + inlineResultToolCallIds
-    parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
-        val approval = toolApprovalsById[toolCall.toolCallId]
-        val shouldHideToolCallCard = toolCall.toolCallId.isNotBlank() &&
-            toolCall.toolCallId in hiddenResolvedToolCallIds
-        if (shouldHideToolCallCard && approval == null) {
-            return@fastForEachIndexed
-        }
-        val parsedArguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
-            .getOrElse { EmptyJson }
-        key(toolCall.toolCallId.ifBlank { index.toString() }) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (!shouldHideToolCallCard) {
+    if (showProcessSections && isLast) {
+        val toolApprovalsById = parts.filterIsInstance<UIMessagePart.ToolApproval>()
+            .associateBy { it.toolCallId }
+        parts.filterIsInstance<UIMessagePart.ToolCall>().fastForEachIndexed { index, toolCall ->
+            key(toolCall.toolCallId.ifBlank { index.toString() }) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    val approval = toolApprovalsById[toolCall.toolCallId]
                     ToolCallItem(
                         toolName = toolCall.toolName,
-                        arguments = parsedArguments,
+                        arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                            .getOrElse { EmptyJson },
                         content = null,
                         loading = loading,
                     )
-                }
-                approval?.let { resolvedApproval ->
-                    ToolApprovalItem(
-                        conversationId = conversationId,
-                        toolCallId = resolvedApproval.toolCallId,
-                        toolName = resolvedApproval.toolName,
-                        arguments = parsedArguments,
-                        state = resolvedApproval.state,
-                        loading = loading,
-                    )
+                    approval?.let { approvalItem ->
+                        ToolApprovalItem(
+                            conversationId = conversationId,
+                            toolCallId = approvalItem.toolCallId,
+                            toolName = approvalItem.toolName,
+                            arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
+                                .getOrElse { EmptyJson },
+                            state = approvalItem.state,
+                            loading = loading,
+                        )
+                    }
                 }
             }
         }
     }
-    parts.filterIsInstance<UIMessagePart.ToolResult>().fastForEachIndexed { index, toolCall ->
-        key(index) {
-            ToolCallItem(
-                toolName = toolCall.toolName,
-                arguments = toolCall.arguments,
-                content = toolCall.content,
-            )
+    if (showProcessSections) {
+        parts.filterIsInstance<UIMessagePart.ToolResult>().fastForEachIndexed { index, toolCall ->
+            key(index) {
+                ToolCallItem(
+                    toolName = toolCall.toolName,
+                    arguments = toolCall.arguments,
+                    content = toolCall.content,
+                )
+            }
         }
     }
 

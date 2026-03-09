@@ -505,8 +505,15 @@
   <string name="send">发送</string>
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主题中使用纯黑背景，适合 AMOLED 屏幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
-  <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自动折叠思考内容</string>
-  <string name="setting_display_page_auto_collapse_thinking_title">自动折叠思考</string>
+  <string name="setting_display_page_auto_collapse_thinking_desc">打开后，只实时显示当前的思考/工具动作，历史过程可手动展开；关闭后，实时追加完整过程，并在开始输出正文时自动折叠。</string>
+  <string name="setting_display_page_auto_collapse_thinking_title">紧凑显示思考/工具过程</string>
+  <string name="chat_turn_status_waiting_approval">等待审批</string>
+  <string name="chat_turn_status_running">处理中</string>
+  <string name="chat_turn_status_completed">已完成</string>
+  <string name="chat_turn_reasoning_count">%1$d 次思考</string>
+  <string name="chat_turn_tool_count">%1$d 次工具</string>
+  <string name="chat_turn_reasoning_time">思考了 %1$.1f 秒</string>
+  <string name="chat_turn_reasoning_running">思考中…</string>
   <string name="setting_display_page_chat_list_model_icon_desc">是否在聊天列表消息中显示模型图标</string>
   <string name="setting_display_page_chat_list_model_icon_title">聊天列表模型图标</string>
   <string name="setting_display_page_code_block_auto_collapse_desc">默认自动折叠代码块</string>

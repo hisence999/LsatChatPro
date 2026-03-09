@@ -5,8 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -18,8 +16,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -70,7 +66,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -84,7 +79,6 @@ import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardDoubleArrowDown
@@ -117,6 +111,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.rikkahub.ui.hooks.HapticPattern
 import me.rerere.rikkahub.ui.hooks.rememberPremiumHaptics
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -125,6 +120,57 @@ import me.rerere.rikkahub.utils.openUrl
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
+
+private sealed interface ChatVisualItem {
+    val key: String
+    val anchorNodeId: Uuid
+    val endIndex: Int
+    val emitTrailingMarkers: Boolean
+
+    data class Node(val item: ChatNodeRenderItem) : ChatVisualItem {
+        override val key: String = item.key
+        override val anchorNodeId: Uuid = item.anchorNodeId
+        override val endIndex: Int = item.endIndex
+        override val emitTrailingMarkers: Boolean = true
+    }
+
+    data class AssistantProcess(
+        val item: AssistantTurnRenderItem,
+        val hasVisibleAnswer: Boolean,
+    ) : ChatVisualItem {
+        override val key: String = "${item.key}-process"
+        override val anchorNodeId: Uuid = item.anchorNodeId
+        override val endIndex: Int = item.endIndex
+        override val emitTrailingMarkers: Boolean = !hasVisibleAnswer
+    }
+
+    data class AssistantAnswer(val item: AssistantTurnRenderItem) : ChatVisualItem {
+        override val key: String = "${item.key}-answer"
+        override val anchorNodeId: Uuid = item.finalAssistantNode?.id ?: item.anchorNodeId
+        override val endIndex: Int = item.endIndex
+        override val emitTrailingMarkers: Boolean = true
+    }
+}
+
+private fun buildChatVisualItems(renderItems: List<ChatRenderItem>): List<ChatVisualItem> = buildList {
+    renderItems.forEach { item ->
+        when (item) {
+            is ChatNodeRenderItem -> add(ChatVisualItem.Node(item))
+            is AssistantTurnRenderItem -> {
+                val hasVisibleAnswer = item.finalAssistantNode
+                    ?.toFinalAssistantNode()
+                    ?.currentMessage
+                    ?.parts
+                    ?.let { parts -> !parts.isEmptyUIMessage() }
+                    ?: false
+                add(ChatVisualItem.AssistantProcess(item = item, hasVisibleAnswer = hasVisibleAnswer))
+                if (hasVisibleAnswer) {
+                    add(ChatVisualItem.AssistantAnswer(item))
+                }
+            }
+        }
+    }
+}
 
 private data class MessageSpeakerIdentity(
     val seatId: Uuid?,
@@ -149,6 +195,9 @@ fun ChatList(
     loading: Boolean,
     previewMode: Boolean,
     settings: Settings,
+    canLoadOlderHistory: Boolean = false,
+    loadingOlderHistory: Boolean = false,
+    onLoadOlderHistory: () -> Unit = {},
     recentlyRestoredNodeIds: Set<Uuid> = emptySet(),
     initialSearchQuery: String? = null,
     onAssistantAvatarLongPress: ((Assistant) -> Unit)? = null,
@@ -158,9 +207,6 @@ fun ChatList(
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
-    canLoadOlderHistory: Boolean = false,
-    loadingOlderHistory: Boolean = false,
-    onLoadOlderHistory: () -> Unit = {},
     onJumpToMessage: (Uuid) -> Unit = {},
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit = { _, _ -> },
     onEditContextSummary: () -> Unit = {},
@@ -197,11 +243,7 @@ fun ChatList(
                     onForkMessage = onForkMessage,
                     onDelete = onDelete,
                     onUpdateMessage = onUpdateMessage,
-                    canLoadOlderHistory = canLoadOlderHistory,
-                    loadingOlderHistory = loadingOlderHistory,
-                    onLoadOlderHistory = onLoadOlderHistory,
                     onReadPositionSample = onReadPositionSample,
-                    onEditContextSummary = onEditContextSummary,
                     animatedVisibilityScope = this@AnimatedContent,
                 )
             }
@@ -224,16 +266,11 @@ private fun SharedTransitionScope.ChatListNormal(
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
-    canLoadOlderHistory: Boolean,
-    loadingOlderHistory: Boolean,
-    onLoadOlderHistory: () -> Unit,
     onReadPositionSample: (nodeId: Uuid, offset: Int) -> Unit,
-    onEditContextSummary: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
-    val loadingOlderState by rememberUpdatedState(loadingOlderHistory)
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val context = LocalContext.current
@@ -258,9 +295,6 @@ private fun SharedTransitionScope.ChatListNormal(
             .asSequence()
             .filter { it in conversation.messageNodes.indices }
             .toSet()
-    }
-    val latestCompressionMarkerIndex = remember(compressionMarkerIndexes) {
-        compressionMarkerIndexes.maxOrNull()
     }
     val pendingCompressionMarkerIndex = remember(
         conversation.contextSummaryPendingBoundaryIndex,
@@ -291,19 +325,6 @@ private fun SharedTransitionScope.ChatListNormal(
                 }
             }
             Unit
-        }
-    }
-    val isAtListTop by remember(state) {
-        derivedStateOf {
-            !state.canScrollBackward ||
-                (state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset <= 20)
-        }
-    }
-    val canTriggerLoadOlder by remember(canLoadOlderHistory, loadingOlderHistory, isAtListTop) {
-        derivedStateOf {
-            canLoadOlderHistory &&
-                !loadingOlderHistory &&
-                isAtListTop
         }
     }
 
@@ -357,9 +378,14 @@ private fun SharedTransitionScope.ChatListNormal(
         LaunchedEffect(state, conversation.id) {
             var lastNodeId: Uuid? = null
             var lastOffset = -1
+            val renderItems = buildChatRenderItems(
+                conversation = conversationUpdated,
+                enableAssistantTurnGrouping = groupChatTemplateForConversation == null,
+            )
+            val visualItems = buildChatVisualItems(renderItems)
             snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    val nodeId = conversationUpdated.messageNodes.getOrNull(index)?.id ?: return@collect
+                    val nodeId = visualItems.getOrNull(index)?.anchorNodeId ?: return@collect
                     if (nodeId == lastNodeId && offset == lastOffset) {
                         return@collect
                     }
@@ -367,6 +393,19 @@ private fun SharedTransitionScope.ChatListNormal(
                     lastOffset = offset
                     onReadPositionSample(nodeId, offset)
                 }
+        }
+
+        val renderItems = remember(
+            conversation.messageNodes,
+            groupChatTemplateForConversation == null,
+        ) {
+            buildChatRenderItems(
+                conversation = conversation,
+                enableAssistantTurnGrouping = groupChatTemplateForConversation == null,
+            )
+        }
+        val visualItems = remember(renderItems) {
+            buildChatVisualItems(renderItems)
         }
 
         LazyColumn(
@@ -382,44 +421,56 @@ private fun SharedTransitionScope.ChatListNormal(
                 .fillMaxSize(),
         ) {
             itemsIndexed(
-                items = conversation.messageNodes,
-                key = { index, item -> item.id },
-            ) { index, node ->
+                items = visualItems,
+                key = { _, item -> item.key },
+                contentType = { _, item ->
+                    when (item) {
+                        is ChatVisualItem.Node -> "chat_node"
+                        is ChatVisualItem.AssistantProcess -> "assistant_turn_process"
+                        is ChatVisualItem.AssistantAnswer -> "assistant_turn_answer"
+                    }
+                },
+            ) { index, item ->
                 Column {
-                    val message = node.currentMessage
-                    val isSelected by remember(node.id) {
-                        derivedStateOf { selectedItems.contains(node.id) }
+                    val isSelected by remember(item.key) {
+                        derivedStateOf {
+                            when (item) {
+                                is ChatVisualItem.Node -> selectedItems.contains(item.item.node.id)
+                                is ChatVisualItem.AssistantProcess -> item.item.nodeIds.all { it in selectedItems }
+                                is ChatVisualItem.AssistantAnswer -> item.item.nodeIds.all { it in selectedItems }
+                            }
+                        }
                     }
                     ListSelectableItem(
                         isSelected = isSelected,
                         onSelectChange = { checked ->
-                            if (checked) {
-                                selectedItems.add(node.id)
-                            } else {
-                                selectedItems.remove(node.id)
+                            when (item) {
+                                is ChatVisualItem.Node -> {
+                                    if (checked) selectedItems.add(item.item.node.id) else selectedItems.remove(item.item.node.id)
+                                }
+                                is ChatVisualItem.AssistantProcess -> {
+                                    if (checked) selectedItems.addAll(item.item.nodeIds) else selectedItems.removeAll(item.item.nodeIds)
+                                }
+                                is ChatVisualItem.AssistantAnswer -> {
+                                    if (checked) selectedItems.addAll(item.item.nodeIds) else selectedItems.removeAll(item.item.nodeIds)
+                                }
                             }
                         },
                         enabled = selecting,
                     ) {
-                        val previousMessage = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
+                        when (item) {
+                            is ChatVisualItem.Node -> {
+                                val node = item.item.node
+                                val message = node.currentMessage
+                        val previousMessage = conversation.messageNodes.getOrNull(item.item.startIndex - 1)?.currentMessage
                         val speakerChanged = previousMessage?.role == MessageRole.ASSISTANT &&
                             message.role == MessageRole.ASSISTANT &&
                             previousMessage.speakerIdentity() != message.speakerIdentity()
                         val previousRole = if (speakerChanged) null else previousMessage?.role
-                        val isLast = index == conversation.messageNodes.lastIndex
+                        val isLast = item.item.endIndex == conversation.messageNodes.lastIndex
                         val canContinue = isLast &&
                             message.role == MessageRole.ASSISTANT &&
                             groupChatTemplateForConversation == null
-                        val hiddenToolCallIds = conversation.messageNodes
-                            .getOrNull(index + 1)
-                            ?.currentMessage
-                            ?.parts
-                            ?.filterIsInstance<UIMessagePart.ToolResult>()
-                            ?.asSequence()
-                            ?.map { it.toolCallId }
-                            ?.filter { it.isNotBlank() }
-                            ?.toSet()
-                            .orEmpty()
                         val assistantForMessage = message.speakerSeatId
                             ?.let { seatId ->
                                 groupChatTemplateForConversation?.seats?.firstOrNull { it.id == seatId }
@@ -441,7 +492,6 @@ private fun SharedTransitionScope.ChatListNormal(
                             node = node,
                             previousRole = previousRole,
                             isLast = isLast,
-                            hiddenToolCallIds = hiddenToolCallIds,
                             conversationId = conversation.id,
                             onCitationClick = onCitationClick,
                             model = message.modelId?.let { settings.findModelById(it) },
@@ -495,34 +545,74 @@ private fun SharedTransitionScope.ChatListNormal(
                                 )
                             },
                         )
-                    }
-                    if (index == conversation.truncateIndex - 1) {
-                        ContextDivider(
-                            label = stringResource(R.string.chat_page_clear_context),
-                            enableHaptics = effectiveDisplay.enableUIHaptics,
-                        )
-                    }
-                    if (
-                        effectiveDisplay.showContextCompressionDivider &&
-                        index != conversation.truncateIndex - 1
-                    ) {
-                        when {
-                            index == pendingCompressionMarkerIndex -> {
-                                ContextDivider(
-                                    label = stringResource(R.string.chat_page_context_compressing),
-                                    enableHaptics = effectiveDisplay.enableUIHaptics,
+                            }
+                            is ChatVisualItem.AssistantProcess -> {
+                                val finalMessage = item.item.finalAssistantNode?.currentMessage
+                                val assistantForMessage = finalMessage?.speakerAssistantId?.let { settings.getAssistantById(it) }
+                                    ?: settings.getAssistantById(conversation.assistantId)
+                                AssistantTurnCard(
+                                    item = item.item,
+                                    conversationId = conversation.id,
+                                    assistant = assistantForMessage,
+                                    model = finalMessage?.modelId?.let { settings.findModelById(it) },
+                                    loading = loading && item.item.endIndex == conversation.messageNodes.lastIndex,
+                                    isLast = item.item.endIndex == conversation.messageNodes.lastIndex,
+                                    showAnswer = false,
+                                    onCitationClick = onCitationClick,
+                                    onRegenerate = onRegenerate,
+                                    onContinue = onContinue,
+                                    onEdit = onEdit,
+                                    onForkMessage = onForkMessage,
+                                    onDelete = onDelete,
+                                    onUpdateMessage = onUpdateMessage,
                                 )
                             }
-                            index in compressionMarkerIndexes -> {
-                                val showEditAction = index == latestCompressionMarkerIndex &&
-                                    !conversation.contextSummary.isNullOrBlank()
-                                ContextDivider(
-                                    label = stringResource(R.string.chat_page_context_compressed),
-                                    showEditAction = showEditAction,
-                                    isEditActionEnabled = pendingCompressionMarkerIndex == null,
-                                    onEditActionClick = onEditContextSummary,
-                                    enableHaptics = effectiveDisplay.enableUIHaptics,
-                                )
+                            is ChatVisualItem.AssistantAnswer -> {
+                                val finalNode = item.item.finalAssistantNode?.toFinalAssistantNode()
+                                    ?.takeIf { !it.currentMessage.parts.isEmptyUIMessage() }
+                                val finalMessage = finalNode?.currentMessage
+                                val assistantForMessage = finalMessage?.speakerAssistantId?.let { settings.getAssistantById(it) }
+                                    ?: settings.getAssistantById(conversation.assistantId)
+                                finalNode?.let { answerNode ->
+                                    ChatMessage(
+                                        node = answerNode,
+                                        previousRole = null,
+                                        isLast = item.item.endIndex == conversation.messageNodes.lastIndex,
+                                        conversationId = conversation.id,
+                                        onCitationClick = onCitationClick,
+                                        loading = loading && item.item.endIndex == conversation.messageNodes.lastIndex,
+                                        model = finalMessage?.modelId?.let { settings.findModelById(it) },
+                                        assistant = assistantForMessage,
+                                        onFork = { finalMessage?.let(onForkMessage) },
+                                        onRegenerate = { finalMessage?.let(onRegenerate) },
+                                        onContinue = { finalMessage?.let(onContinue) },
+                                        canContinue = item.item.endIndex == conversation.messageNodes.lastIndex,
+                                        onEdit = { finalMessage?.let(onEdit) },
+                                        onShare = { },
+                                        onDelete = { finalMessage?.let(onDelete) },
+                                        onUpdate = onUpdateMessage,
+                                        showAvatarRow = false,
+                                        showProcessSections = false,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    val rawEndIndex = item.endIndex
+                    if (item.emitTrailingMarkers && rawEndIndex == conversation.truncateIndex - 1) {
+                        ContextDivider(label = stringResource(R.string.chat_page_clear_context))
+                    }
+                    if (
+                        item.emitTrailingMarkers &&
+                        effectiveDisplay.showContextCompressionDivider &&
+                        rawEndIndex != conversation.truncateIndex - 1
+                    ) {
+                        when {
+                            rawEndIndex == pendingCompressionMarkerIndex -> {
+                                ContextDivider(label = stringResource(R.string.chat_page_context_compressing))
+                            }
+                            rawEndIndex in compressionMarkerIndexes -> {
+                                ContextDivider(label = stringResource(R.string.chat_page_context_compressed))
                             }
                         }
                     }
@@ -638,73 +728,12 @@ private fun SharedTransitionScope.ChatListNormal(
                 scope = scope,
                 state = state
             )
-
-            AnimatedVisibility(
-                visible = canLoadOlderHistory && (isAtListTop || loadingOlderState),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 8.dp),
-                enter = slideInVertically(initialOffsetY = { -it / 2 }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { -it / 2 }) + fadeOut(),
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
-                    tonalElevation = 4.dp,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .clickable(enabled = canTriggerLoadOlder) {
-                            onLoadOlderHistory()
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        if (loadingOlderState) {
-                            LoadingIndicator(
-                                modifier = Modifier.size(16.dp),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardDoubleArrowUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                        Text(
-                            text = if (loadingOlderState) {
-                                stringResource(R.string.chat_page_loading_older_messages)
-                            } else {
-                                stringResource(R.string.chat_page_load_older_messages)
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun ContextDivider(
-    label: String,
-    showEditAction: Boolean = false,
-    isEditActionEnabled: Boolean = true,
-    onEditActionClick: () -> Unit = {},
-    enableHaptics: Boolean = true,
-) {
-    val haptics = rememberPremiumHaptics(enabled = enableHaptics)
-    val editInteractionSource = remember { MutableInteractionSource() }
-    val isEditPressed by editInteractionSource.collectIsPressedAsState()
-    val editScale by animateFloatAsState(
-        targetValue = if (showEditAction && isEditActionEnabled && isEditPressed) 0.85f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
-        label = "context_divider_edit_scale",
-    )
-
+private fun ContextDivider(label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -713,37 +742,10 @@ private fun ContextDivider(
             .fillMaxWidth()
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (showEditAction) {
-                IconButton(
-                    onClick = {
-                        haptics.perform(HapticPattern.Pop)
-                        onEditActionClick()
-                    },
-                    enabled = isEditActionEnabled,
-                    interactionSource = editInteractionSource,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .graphicsLayer {
-                            scaleX = editScale
-                            scaleY = editScale
-                        },
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Edit,
-                        contentDescription = stringResource(R.string.chat_page_edit_context_summary),
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall
+        )
         HorizontalDivider(modifier = Modifier.weight(1f))
     }
 }

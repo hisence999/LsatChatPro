@@ -635,8 +635,15 @@
     <string name="send">Send</string>
     <string name="setting_display_page_amoled_dark_mode_desc">Use pure black background in dark mode</string>
     <string name="setting_display_page_amoled_dark_mode_title">AMOLED Dark Mode</string>
-    <string name="setting_display_page_auto_collapse_thinking_desc">Automatically collapse thinking content when done</string>
-    <string name="setting_display_page_auto_collapse_thinking_title">Auto Collapse Thinking</string>
+    <string name="setting_display_page_auto_collapse_thinking_desc">On: only show the current thinking/tool action live and let you expand history manually. Off: append the full live timeline and collapse it when answer output starts.</string>
+    <string name="setting_display_page_auto_collapse_thinking_title">Compact Thinking / Tool Timeline</string>
+    <string name="chat_turn_status_waiting_approval">Waiting approval</string>
+    <string name="chat_turn_status_running">Working</string>
+    <string name="chat_turn_status_completed">Completed</string>
+    <string name="chat_turn_reasoning_count">%1$d thoughts</string>
+    <string name="chat_turn_tool_count">%1$d tools</string>
+    <string name="chat_turn_reasoning_time">Thought for %1$.1f s</string>
+    <string name="chat_turn_reasoning_running">Thinking…</string>
     <string name="setting_display_page_chat_list_model_icon_desc">Show model icon in chat list</string>
     <string name="setting_display_page_chat_list_model_icon_title">Chat List Model Icon</string>
     <string name="setting_display_page_code_block_auto_collapse_desc">Automatically collapse code blocks by default</string>

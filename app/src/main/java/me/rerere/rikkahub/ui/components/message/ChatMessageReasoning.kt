@@ -275,15 +275,24 @@ fun ChatMessageReasoning(
                         }
 
                 ) {
-                    MarkdownBlock(
-                        content = reasoning.reasoning.replaceRegexes(
-                            assistant = assistant,
-                            scope = AssistantAffectScope.ASSISTANT,
-                            visual = true,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.fillMaxSize(),
+                    val content = reasoning.reasoning.replaceRegexes(
+                        assistant = assistant,
+                        scope = AssistantAffectScope.ASSISTANT,
+                        visual = true,
                     )
+                    if (loading) {
+                        Text(
+                            text = content,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        MarkdownBlock(
+                            content = content,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
 

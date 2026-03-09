@@ -16,13 +16,17 @@ data class BackupCleanupResult(
     /** Number of avatar paths that were fixed to match the current device's file system */
     val fixedAvatarPaths: Int = 0,
 ) {
+    /** Compatibility-only adjustments that should not be surfaced as restore errors */
+    val compatibilityAdjustments: Int
+        get() = invalidSearchModeCount + orphanedTagReferences + orphanedModelReferences + fixedAvatarPaths
+
     /** Total count of issues found and fixed */
     val totalIssuesFixed: Int
-        get() = invalidSearchModeCount + orphanedTagReferences + orphanedModelReferences + fixedAvatarPaths
+        get() = 0
 
     /** Whether any cleanup was performed */
     val hasCleanup: Boolean
-        get() = unsupportedZipEntriesBytes > 0 || totalIssuesFixed > 0
+        get() = unsupportedZipEntriesBytes > 0 || totalIssuesFixed > 0 || compatibilityAdjustments > 0
 
     /** Combine two results (useful when aggregating from multiple sources) */
     operator fun plus(other: BackupCleanupResult) = BackupCleanupResult(
