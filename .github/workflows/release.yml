@@ -66,11 +66,15 @@ jobs:
           mkdir -p "app/src/$FLAVOR"
 
           if [[ "$FLAVOR" == "plus" ]]; then
-            if [[ -z "${GOOGLE_SERVICES_JSON_B64_PLUS}" ]]; then
-              echo "Missing secret: GOOGLE_SERVICES_JSON_B64_PLUS"
+            if [[ -n "${GOOGLE_SERVICES_JSON_B64_PLUS}" ]]; then
+              printf '%s' "${GOOGLE_SERVICES_JSON_B64_PLUS}" | base64 -d > "app/src/plus/google-services.json"
+            elif [[ -f "app/google-services.json" ]]; then
+              echo "Using checked-in app/google-services.json as plus fallback"
+              cp "app/google-services.json" "app/src/plus/google-services.json"
+            else
+              echo "Missing secret: GOOGLE_SERVICES_JSON_B64_PLUS and no fallback app/google-services.json found"
               exit 1
             fi
-            printf '%s' "${GOOGLE_SERVICES_JSON_B64_PLUS}" | base64 -d > "app/src/plus/google-services.json"
             test -s "app/src/plus/google-services.json"
           elif [[ "$FLAVOR" == "zh" ]]; then
             if [[ -z "${GOOGLE_SERVICES_JSON_B64_ZH}" ]]; then
