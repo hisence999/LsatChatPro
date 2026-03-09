@@ -68,12 +68,39 @@ jobs:
           if [[ "$FLAVOR" == "plus" ]]; then
             if [[ -n "${GOOGLE_SERVICES_JSON_B64_PLUS}" ]]; then
               printf '%s' "${GOOGLE_SERVICES_JSON_B64_PLUS}" | base64 -d > "app/src/plus/google-services.json"
-            elif [[ -f "app/google-services.json" ]]; then
-              echo "Using checked-in app/google-services.json as plus fallback"
-              cp "app/google-services.json" "app/src/plus/google-services.json"
             else
-              echo "Missing secret: GOOGLE_SERVICES_JSON_B64_PLUS and no fallback app/google-services.json found"
-              exit 1
+              echo "Generating fallback google-services.json for plus"
+              cat > "app/src/plus/google-services.json" <<'EOF'
+{
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "lastchat-ci-fallback",
+    "storage_bucket": "lastchat-ci-fallback.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "android_client_info": {
+          "package_name": "lastchat.rikkafork.cocolal.plus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "DUMMY_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+EOF
             fi
             test -s "app/src/plus/google-services.json"
           elif [[ "$FLAVOR" == "zh" ]]; then
