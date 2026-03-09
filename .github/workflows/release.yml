@@ -100,7 +100,7 @@ jobs:
                 ],
                 "configuration_version": "1"
               }
-              EOF
+          EOF
             fi
             test -s "app/src/plus/google-services.json"
           elif [[ "$FLAVOR" == "zh" ]]; then
