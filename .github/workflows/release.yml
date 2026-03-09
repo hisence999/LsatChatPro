@@ -170,6 +170,23 @@ EOF
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: ${{ steps.apk_files.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APKs to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t files < <(printf '%s\n' "${{ steps.apk_files.outputs.files }}" | sed '/^$/d')
+
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No APK files collected for release upload"
+            exit 1
+          fi
+
+          echo "Uploading APKs to release ${GITHUB_REF_NAME}:"
+          printf ' - %s\n' "${files[@]}"
+
+          gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber
