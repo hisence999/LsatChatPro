@@ -114,13 +114,35 @@ jobs:
           name: release-apk-${{ steps.flavor.outputs.flavor }}
           path: app/build/outputs/apk/${{ steps.flavor.outputs.flavor }}/release/*.apk
 
+      - name: Collect APK files
+        id: apk_files
+        run: |
+          set -euo pipefail
+
+          FLAVOR="${{ steps.flavor.outputs.flavor }}"
+          shopt -s nullglob
+          files=(app/build/outputs/apk/${FLAVOR}/release/*.apk)
+
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No APK files found for release upload"
+            exit 1
+          fi
+
+          echo "Found APK files:"
+          printf ' - %s\n' "${files[@]}"
+
+          {
+            echo 'files<<EOF'
+            printf '%s\n' "${files[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: |
-            app/build/outputs/apk/${{ steps.flavor.outputs.flavor }}/release/*.apk
+          files: ${{ steps.apk_files.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
